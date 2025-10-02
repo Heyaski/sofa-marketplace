@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 interface CartModalProps {
 	isOpen: boolean
@@ -26,6 +26,15 @@ export default function CartModal({
 		'Проект_Квартира_Ивановых',
 	]
 
+	// Сброс состояния при открытии/закрытии модала
+	useEffect(() => {
+		if (isOpen) {
+			setSelectedCart('')
+			setNewCartName('')
+			setIsCreatingNew(false)
+		}
+	}, [isOpen])
+
 	if (!isOpen) return null
 
 	const handleSubmit = () => {
@@ -37,21 +46,36 @@ export default function CartModal({
 		onClose()
 	}
 
+	const handleBack = () => {
+		setIsCreatingNew(false)
+		setNewCartName('')
+	}
+
 	return (
 		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4'>
-			<div className='bg-white rounded-xl max-w-md w-full p-6'>
+			<div className='bg-white rounded-3xl max-w-2xl w-full p-8'>
 				{/* Header */}
 				<div className='flex justify-between items-center mb-6'>
+					{isCreatingNew ? (
+						<button
+							onClick={handleBack}
+							className='text-black hover:text-black transition-colors flex items-center'
+						>
+							← Назад
+						</button>
+					) : (
+						<div></div>
+					)}
 					<button
 						onClick={onClose}
-						className='text-gray hover:text-black transition-colors'
+						className='text-black hover:text-gray transition-colors text-4xl font-light'
 					>
-						← Назад
+						×
 					</button>
 				</div>
 
 				{/* Title */}
-				<h2 className='text-xl font-bold text-black mb-6'>
+				<h2 className='text-xl font-bold text-black mb-6 text-left'>
 					{isCreatingNew
 						? 'Создание новой корзины'
 						: 'Выберите в какую корзину добавить товар'}
@@ -64,29 +88,46 @@ export default function CartModal({
 							{carts.map((cart, index) => (
 								<label
 									key={index}
-									className='flex items-center space-x-3 cursor-pointer'
+									className={`flex items-center space-x-3 cursor-pointer p-2 rounded-lg ${
+										selectedCart === `${cart}_${index}` ? 'bg-gray-bg' : ''
+									}`}
 								>
 									<input
-										type='radio'
+										type='checkbox'
 										name='cart'
-										value={cart}
-										checked={selectedCart === cart}
-										onChange={e => setSelectedCart(e.target.value)}
-										className='w-4 h-4 text-main1 focus:ring-main1'
+										value={`${cart}_${index}`}
+										checked={selectedCart === `${cart}_${index}`}
+										onChange={e => {
+											if (e.target.checked) {
+												setSelectedCart(e.target.value)
+											} else {
+												setSelectedCart('')
+											}
+										}}
+										className='w-4 h-4 text-main1 focus:ring-main1 focus:ring-2 rounded'
 									/>
 									<span className='text-black'>{cart}</span>
 								</label>
 							))}
 						</div>
 
-						{/* Create new cart option */}
-						<button
-							onClick={() => setIsCreatingNew(true)}
-							className='flex items-center space-x-2 text-main1 hover:text-main2 transition-colors mb-6'
-						>
-							<span className='text-lg'>+</span>
-							<span>Создать новую корзину</span>
-						</button>
+						{/* Bottom section with create new cart and add button */}
+						<div className='flex justify-between items-center'>
+							<button
+								onClick={() => setIsCreatingNew(true)}
+								className='flex items-center space-x-2 text-black transition-colors'
+							>
+								<span className='text-2xl'>+</span>
+								<span>Создать новую корзину</span>
+							</button>
+							<button
+								onClick={handleSubmit}
+								className='bg-main1 text-white px-16 py-3 rounded-xl font-medium hover:bg-main2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+								disabled={!selectedCart}
+							>
+								Добавить
+							</button>
+						</div>
 					</>
 				) : (
 					<>
@@ -97,21 +138,23 @@ export default function CartModal({
 								placeholder='Введите название'
 								value={newCartName}
 								onChange={e => setNewCartName(e.target.value)}
-								className='input-field'
+								className='w-full px-4 py-3 rounded-xl border border-gray2 bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent'
 								autoFocus
 							/>
 						</div>
+
+						{/* Bottom section with create button */}
+						<div className='flex justify-center'>
+							<button
+								onClick={handleSubmit}
+								className='bg-main1 text-white px-16 py-3 rounded-xl font-medium hover:bg-main2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+								disabled={!newCartName.trim()}
+							>
+								Создать
+							</button>
+						</div>
 					</>
 				)}
-
-				{/* Action button */}
-				<button
-					onClick={handleSubmit}
-					className='w-full btn-primary'
-					disabled={!selectedCart && (!isCreatingNew || !newCartName.trim())}
-				>
-					{isCreatingNew ? 'Создать' : 'Добавить'}
-				</button>
 			</div>
 		</div>
 	)
