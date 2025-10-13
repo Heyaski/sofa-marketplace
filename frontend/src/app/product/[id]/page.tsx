@@ -15,7 +15,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 	const [isCartModalOpen, setIsCartModalOpen] = useState(false)
 	const [selectedFormat, setSelectedFormat] = useState('.fbx')
 
-	const formats = ['.fbx', '.glb', '.rfa']
+	const formats = ['.fbx', '.glb', '.rfa', '.usdz']
 
 	const handleAddToCart = () => {
 		setIsCartModalOpen(true)
@@ -212,5 +212,3 @@ export default function ProductPage({ params }: ProductPageProps) {
 		</div>
 	)
 }
-
-

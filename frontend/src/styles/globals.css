@@ -32,8 +32,15 @@
 	}
 
 	.product-card {
-		@apply bg-white rounded-xl shadow-card p-4 hover:shadow-lg transition-shadow duration-200;
+		@apply bg-white rounded-xl p-4;
+	}
+
+	.scrollbar-hide {
+		-ms-overflow-style: none;
+		scrollbar-width: none;
+	}
+
+	.scrollbar-hide::-webkit-scrollbar {
+		display: none;
 	}
 }
-
-

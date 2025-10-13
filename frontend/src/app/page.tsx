@@ -15,7 +15,7 @@ const mockProducts = [
 		price: 300000,
 		oldPrice: 300000,
 		image: '/sofa.jpg',
-		formats: ['.fbx', '.glb', '.rfa'],
+		formats: ['.fbx', '.glb', '.rfa', '.usdz'],
 	},
 	{
 		id: '2',
@@ -23,7 +23,7 @@ const mockProducts = [
 		price: 300000,
 		oldPrice: 300000,
 		image: '/sofa.jpg',
-		formats: ['.fbx', '.glb', '.rfa'],
+		formats: ['.fbx', '.glb', '.rfa', '.usdz'],
 	},
 	{
 		id: '3',
@@ -31,7 +31,7 @@ const mockProducts = [
 		price: 300000,
 		oldPrice: 300000,
 		image: '/sofa.jpg',
-		formats: ['.fbx', '.glb', '.rfa'],
+		formats: ['.fbx', '.glb', '.rfa', '.usdz'],
 	},
 	{
 		id: '4',
@@ -39,7 +39,7 @@ const mockProducts = [
 		price: 300000,
 		oldPrice: 300000,
 		image: '/sofa.jpg',
-		formats: ['.fbx', '.glb', '.rfa'],
+		formats: ['.fbx', '.glb', '.rfa', '.usdz'],
 	},
 	{
 		id: '5',
@@ -47,7 +47,7 @@ const mockProducts = [
 		price: 300000,
 		oldPrice: 300000,
 		image: '/sofa.jpg',
-		formats: ['.fbx', '.glb', '.rfa'],
+		formats: ['.fbx', '.glb', '.rfa', '.usdz'],
 	},
 	{
 		id: '6',
@@ -55,7 +55,7 @@ const mockProducts = [
 		price: 300000,
 		oldPrice: 300000,
 		image: '/sofa.jpg',
-		formats: ['.fbx', '.glb', '.rfa'],
+		formats: ['.fbx', '.glb', '.rfa', '.usdz'],
 	},
 ]
 
@@ -110,5 +110,3 @@ export default function Home() {
 		</div>
 	)
 }
-
-
