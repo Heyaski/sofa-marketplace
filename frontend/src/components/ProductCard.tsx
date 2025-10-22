@@ -2,25 +2,21 @@
 
 import Image from 'next/image'
 import { useState } from 'react'
+import { config } from '../config'
+import { Product } from '../types'
 
 interface ProductCardProps {
-	id: string
-	price: number
-	oldPrice?: number
-	image: string
-	formats: string[]
-	onAddToCart: (productId: string, format: string) => void
+	product: Product
+	onAddToCart: (productId: number, format: string) => void
 }
 
 export default function ProductCard({
-	id,
-	price,
-	oldPrice,
-	image,
-	formats,
+	product,
 	onAddToCart,
 }: ProductCardProps) {
-	const [selectedFormat, setSelectedFormat] = useState(formats[0])
+	const [selectedFormat, setSelectedFormat] = useState(
+		config.SUPPORTED_FORMATS[0]
+	)
 
 	const formatPrice = (price: number) => {
 		return new Intl.NumberFormat('ru-RU').format(price)
@@ -42,18 +38,13 @@ export default function ProductCard({
 			{/* Price - in line */}
 			<div className='flex items-center gap-2 mb-4'>
 				<div className='text-lg font-bold text-black'>
-					{formatPrice(price)} ₽
+					{formatPrice(product.price)} {config.CURRENCY_SYMBOL}
 				</div>
-				{oldPrice && (
-					<div className='text-sm text-gray line-through'>
-						{formatPrice(oldPrice)} ₽
-					</div>
-				)}
 			</div>
 
 			{/* Format Selection - checkboxes */}
 			<div className='flex flex-wrap gap-2 mb-4'>
-				{formats.map(format => (
+				{config.SUPPORTED_FORMATS.map(format => (
 					<label
 						key={format}
 						className='flex items-center cursor-pointer border border-gray2 rounded-lg px-2 py-1 flex-shrink-0'
@@ -73,7 +64,7 @@ export default function ProductCard({
 
 			{/* Add to Cart Button */}
 			<button
-				onClick={() => onAddToCart(id, selectedFormat)}
+				onClick={() => onAddToCart(product.id, selectedFormat)}
 				className='w-full btn-primary py-3'
 			>
 				В корзину

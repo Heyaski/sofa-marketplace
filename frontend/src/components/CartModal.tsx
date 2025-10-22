@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useBaskets } from '../hooks/useApi'
 
 interface CartModalProps {
 	isOpen: boolean
 	onClose: () => void
-	onAddToCart: (cartId: string) => void
+	onAddToCart: (cartId: number) => void
 	onCreateNewCart: (cartName: string) => void
 }
 
@@ -15,21 +16,17 @@ export default function CartModal({
 	onAddToCart,
 	onCreateNewCart,
 }: CartModalProps) {
-	const [selectedCart, setSelectedCart] = useState('')
+	const [selectedCart, setSelectedCart] = useState<number | null>(null)
 	const [newCartName, setNewCartName] = useState('')
 	const [isCreatingNew, setIsCreatingNew] = useState(false)
 
-	const carts = [
-		'Проект_Квартира_Ивановых',
-		'Проект_Квартира_Ивановых',
-		'Проект_Квартира_Ивановых',
-		'Проект_Квартира_Ивановых',
-	]
+	// Загружаем корзины с API
+	const { baskets, loading: basketsLoading, error: basketsError } = useBaskets()
 
 	// Сброс состояния при открытии/закрытии модала
 	useEffect(() => {
 		if (isOpen) {
-			setSelectedCart('')
+			setSelectedCart(null)
 			setNewCartName('')
 			setIsCreatingNew(false)
 		}
@@ -40,7 +37,7 @@ export default function CartModal({
 	const handleSubmit = () => {
 		if (isCreatingNew && newCartName.trim()) {
 			onCreateNewCart(newCartName.trim())
-		} else if (selectedCart) {
+		} else if (selectedCart !== null) {
 			onAddToCart(selectedCart)
 		}
 		onClose()
@@ -84,32 +81,44 @@ export default function CartModal({
 				{!isCreatingNew ? (
 					<>
 						{/* Cart list */}
-						<div className='space-y-3 mb-6'>
-							{carts.map((cart, index) => (
-								<label
-									key={index}
-									className={`flex items-center space-x-3 cursor-pointer p-2 rounded-lg ${
-										selectedCart === `${cart}_${index}` ? 'bg-gray-bg' : ''
-									}`}
-								>
-									<input
-										type='checkbox'
-										name='cart'
-										value={`${cart}_${index}`}
-										checked={selectedCart === `${cart}_${index}`}
-										onChange={e => {
-											if (e.target.checked) {
-												setSelectedCart(e.target.value)
-											} else {
-												setSelectedCart('')
-											}
-										}}
-										className='w-4 h-4 text-main1 focus:ring-main1 focus:ring-2 rounded'
-									/>
-									<span className='text-black'>{cart}</span>
-								</label>
-							))}
-						</div>
+						{basketsLoading ? (
+							<div className='text-center py-4'>Загрузка корзин...</div>
+						) : basketsError ? (
+							<div className='text-center py-4 text-red-500'>
+								Ошибка загрузки корзин
+							</div>
+						) : baskets.length === 0 ? (
+							<div className='text-center py-4 text-gray-500'>
+								Корзины не найдены
+							</div>
+						) : (
+							<div className='space-y-3 mb-6'>
+								{baskets.map(basket => (
+									<label
+										key={basket.id}
+										className={`flex items-center space-x-3 cursor-pointer p-2 rounded-lg ${
+											selectedCart === basket.id ? 'bg-gray-bg' : ''
+										}`}
+									>
+										<input
+											type='checkbox'
+											name='cart'
+											value={basket.id}
+											checked={selectedCart === basket.id}
+											onChange={e => {
+												if (e.target.checked) {
+													setSelectedCart(basket.id)
+												} else {
+													setSelectedCart(null)
+												}
+											}}
+											className='w-4 h-4 text-main1 focus:ring-main1 focus:ring-2 rounded'
+										/>
+										<span className='text-black'>{basket.name}</span>
+									</label>
+								))}
+							</div>
+						)}
 
 						{/* Bottom section with create new cart and add button */}
 						<div className='flex justify-between items-center'>
@@ -123,7 +132,7 @@ export default function CartModal({
 							<button
 								onClick={handleSubmit}
 								className='bg-main1 text-white px-16 py-3 rounded-xl font-medium hover:bg-main2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
-								disabled={!selectedCart}
+								disabled={selectedCart === null}
 							>
 								Добавить
 							</button>

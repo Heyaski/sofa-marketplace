@@ -1,166 +1,328 @@
 'use client'
 
-import ProfileSidebar from '@/components/ProfileSidebar'
+import Footer from '@/components/Footer'
+import Header from '@/components/Header'
+import SubscriptionManagement from '@/components/SubscriptionManagement'
+import { authService } from '@/services/api'
+import { User } from '@/types'
 import Image from 'next/image'
-import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+
+type TabType = 'profile' | 'subscription' | 'downloads' | 'cart' | 'chats'
 
 export default function ProfilePage() {
-	const [activeTab, setActiveTab] = useState('profile')
-	const [formData, setFormData] = useState({
-		email: '',
-		password: '',
-		cardNumber: 'XXXX-XXXX-XXXX-XXXX',
-		cardholder: '',
-		expiryDate: '',
-		cvv: '',
-		chatNotifications: true,
-		newModelsNotifications: false,
-	})
+	const router = useRouter()
+	const [user, setUser] = useState<User | null>(null)
+	const [loading, setLoading] = useState(true)
+	const [editing, setEditing] = useState(false)
+	const [activeTab, setActiveTab] = useState<TabType>('profile')
 
-	const handleInputChange = (field: string, value: string | boolean) => {
-		setFormData(prev => ({
-			...prev,
-			[field]: value,
-		}))
+	useEffect(() => {
+		const fetchUser = async () => {
+			try {
+				const userData = await authService.getCurrentUser()
+				setUser(userData)
+			} catch (error) {
+				// Если пользователь не авторизован, перенаправляем на страницу входа
+				router.push('/login')
+			} finally {
+				setLoading(false)
+			}
+		}
+
+		fetchUser()
+	}, [router])
+
+	const handleLogout = async () => {
+		try {
+			await authService.logout()
+			localStorage.removeItem('access_token')
+			localStorage.removeItem('refresh_token')
+			router.push('/')
+		} catch (error) {
+			console.error('Ошибка при выходе:', error)
+		}
 	}
 
-	const handleSubmit = (e: React.FormEvent) => {
-		e.preventDefault()
-		console.log('Profile updated:', formData)
+	if (loading) {
+		return (
+			<div className='min-h-screen bg-gray-bg flex items-center justify-center'>
+				<div className='text-center'>
+					<div className='animate-spin rounded-full h-12 w-12 border-b-2 border-main1 mx-auto'></div>
+					<p className='mt-4 text-gray'>Загрузка...</p>
+				</div>
+			</div>
+		)
+	}
+
+	if (!user) {
+		return null
 	}
 
 	return (
 		<div className='min-h-screen bg-gray-bg'>
-			{/* Header */}
-			<header className='bg-white'>
-				<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-					<div className='flex items-center justify-between h-16'>
-						{/* Logo */}
-						<div className='flex items-center space-x-3'>
-							<Image
-								src='/img/logo.svg'
-								alt='VizHub.art Logo'
-								width={32}
-								height={32}
-								className='w-8 h-8'
-							/>
-							<span className='text-xl text-black font-medium'>VIZHUB.ART</span>
-						</div>
+			<Header />
 
-						{/* Center navigation */}
-						<div className='flex-1 flex items-center justify-center space-x-4'>
-							{/* Catalog button */}
-							<button className='bg-main1 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-main2 transition-colors'>
-								<Image
-									src='/img/menu-burger.svg'
-									alt='Menu'
-									width={16}
-									height={16}
-									className='w-4 h-4'
-								/>
-								<span className='text-sm font-medium'>Каталог</span>
-							</button>
-
-							{/* Search bar */}
-							<div className='relative'>
-								<input
-									type='text'
-									placeholder='Поиск по сайту...'
-									className='w-[40rem] px-4 py-2 rounded-lg border border-gray2 bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent'
-								/>
-								<button className='absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-main1 rounded-full flex items-center justify-center hover:bg-main2 transition-colors'>
-									<svg
-										className='w-4 h-4 text-white'
-										fill='none'
-										stroke='currentColor'
-										viewBox='0 0 24 24'
-									>
-										<path
-											strokeLinecap='round'
-											strokeLinejoin='round'
-											strokeWidth={2}
-											d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'
-										/>
-									</svg>
-								</button>
-							</div>
-						</div>
-
-						{/* Right side - User section */}
-						<div className='flex items-center space-x-3'>
-							<div className='relative'>
-								<div className='w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden'>
+			<main className='max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
+				<div className='grid grid-cols-1 lg:grid-cols-11 gap-6'>
+					{/* Левая колонка - Навигация */}
+					<div className='lg:col-span-3'>
+						<div className='bg-white rounded-xl p-6 shadow-card'>
+							<div className='space-y-2'>
+								<div
+									className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer ${
+										activeTab === 'profile'
+											? 'bg-main1 text-white'
+											: 'text-gray hover:bg-gray-bg'
+									}`}
+									onClick={() => setActiveTab('profile')}
+								>
 									<Image
-										src='/img/profile.svg'
+										src='/img/profile_left.svg'
 										alt='Profile'
-										width={40}
-										height={40}
-										className='w-full h-full object-cover'
+										width={24}
+										height={24}
+										className='w-6 h-6'
 									/>
+									<span className='font-medium whitespace-nowrap text-sm'>
+										Профиль
+									</span>
 								</div>
-								<div className='absolute -top-1 -right-1 w-5 h-5 bg-main1 rounded-full flex items-center justify-center'>
-									<span className='text-xs text-white font-medium'>10</span>
+
+								<div
+									className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer overflow-hidden ${
+										activeTab === 'subscription'
+											? 'bg-main1 text-white'
+											: 'text-gray hover:bg-gray-bg'
+									}`}
+									onClick={() => setActiveTab('subscription')}
+								>
+									<Image
+										src='/img/fi-rr-diamond.svg'
+										alt='Subscription'
+										width={24}
+										height={24}
+										className='w-6 h-6 flex-shrink-0'
+									/>
+									<span className='text-sm whitespace-nowrap'>
+										Управление подпиской
+									</span>
 								</div>
+
+								<div
+									className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer ${
+										activeTab === 'downloads'
+											? 'bg-main1 text-white'
+											: 'text-gray hover:bg-gray-bg'
+									}`}
+									onClick={() => setActiveTab('downloads')}
+								>
+									<Image
+										src='/img/fi-rr-folder.svg'
+										alt='Downloads'
+										width={24}
+										height={24}
+										className='w-6 h-6'
+									/>
+									<span className='whitespace-nowrap text-sm'>
+										История загрузок
+									</span>
+								</div>
+
+								<div
+									className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer overflow-hidden ${
+										activeTab === 'cart'
+											? 'bg-main1 text-white'
+											: 'text-gray hover:bg-gray-bg'
+									}`}
+									onClick={() => setActiveTab('cart')}
+								>
+									<Image
+										src='/img/Buy.svg'
+										alt='Cart'
+										width={24}
+										height={24}
+										className='w-6 h-6 flex-shrink-0'
+									/>
+									<span className='text-sm whitespace-nowrap'>
+										Корзина / проекты
+									</span>
+								</div>
+
+								<div
+									className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer ${
+										activeTab === 'chats'
+											? 'bg-main1 text-white'
+											: 'text-gray hover:bg-gray-bg'
+									}`}
+									onClick={() => setActiveTab('chats')}
+								>
+									<Image
+										src='/img/fi-rr-comment.svg'
+										alt='Chats'
+										width={24}
+										height={24}
+										className='w-6 h-6'
+									/>
+									<span className='whitespace-nowrap text-sm'>Чаты</span>
+								</div>
+
+								{/* Logout Button */}
 							</div>
 						</div>
 					</div>
-				</div>
-			</header>
 
-			{/* Main content */}
-			<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
-				<div className='flex space-x-8'>
-					{/* Sidebar */}
-					<ProfileSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+					{/* Правая колонка - Контент */}
+					<div className='lg:col-span-8'>
+						{activeTab === 'profile' && (
+							<div className='bg-white rounded-xl p-8 shadow-card min-h-[600px]'>
+								<div className='flex items-start justify-between mb-8'>
+									<h1 className='text-3xl font-bold text-black'>Профиль</h1>
+								</div>
 
-					{/* Profile content */}
-					<div className='flex-1 bg-white rounded-xl shadow-card p-8'>
-						<h1 className='text-2xl font-bold text-gray-700 mb-8'>Профиль</h1>
+								<div className='flex items-start gap-8'>
+									{/* Левая часть - Форма */}
+									<div className='flex-1'>
+										<div className='space-y-10'>
+											{/* Email */}
+											<div>
+												<label className='block text-sm font-medium text-gray mb-2'>
+													E-mail
+												</label>
+												<input
+													type='email'
+													value={user.email}
+													disabled={!editing}
+													className='w-full px-3 py-2 rounded-lg bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent disabled:bg-gray-100'
+													placeholder='Введите e-mail'
+												/>
+											</div>
 
-						<form onSubmit={handleSubmit} className='space-y-8'>
-							{/* Profile Information */}
-							<div className='space-y-6'>
-								<div className='flex items-start space-x-8'>
-									<div className='flex-1 space-y-3'>
-										{/* Email */}
-										<div>
-											<label className='block text-sm font-medium text-gray-700 mb-1'>
-												E-mail
-											</label>
-											<input
-												type='email'
-												value={formData.email}
-												onChange={e =>
-													handleInputChange('email', e.target.value)
-												}
-												placeholder='Введите e-mail'
-												className='w-full px-3 py-2 rounded-lg border border-gray2 bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent'
-											/>
-										</div>
+											{/* Password */}
+											<div>
+												<label className='block text-sm font-medium text-gray mb-2'>
+													Пароль
+												</label>
+												<input
+													type='password'
+													value='••••••••'
+													disabled={!editing}
+													className='w-full px-3 py-2 rounded-lg bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent disabled:bg-gray-100'
+													placeholder='Введите пароль'
+												/>
+											</div>
 
-										{/* Password */}
-										<div>
-											<label className='block text-sm font-medium text-gray-700 mb-1'>
-												Пароль
-											</label>
-											<input
-												type='password'
-												value={formData.password}
-												onChange={e =>
-													handleInputChange('password', e.target.value)
-												}
-												placeholder='Введите пароль'
-												className='w-full px-3 py-2 rounded-lg border border-gray2 bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent'
-											/>
+											{/* Payment Method */}
+											<div>
+												<h3 className='text-lg font-semibold text-black mb-4'>
+													Способ оплаты:
+												</h3>
+												<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+													<div>
+														<label className='block text-sm font-medium text-gray mb-2'>
+															Номер карты
+														</label>
+														<input
+															type='text'
+															disabled={!editing}
+															className='w-full px-3 py-2 rounded-lg bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent disabled:bg-gray-100'
+															placeholder='XXXX - XXXX - XXXX - XXXX'
+														/>
+													</div>
+													<div>
+														<label className='block text-sm font-medium text-gray mb-2'>
+															Держатель карты
+														</label>
+														<input
+															type='text'
+															disabled={!editing}
+															className='w-full px-3 py-2 rounded-lg bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent disabled:bg-gray-100'
+															placeholder='Фамилия и Имя'
+														/>
+													</div>
+													<div>
+														<label className='block text-sm font-medium text-gray mb-2'>
+															Месяц/год
+														</label>
+														<input
+															type='text'
+															disabled={!editing}
+															className='w-full px-3 py-2 rounded-lg bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent disabled:bg-gray-100'
+															placeholder='00 / 00'
+														/>
+													</div>
+													<div>
+														<label className='block text-sm font-medium text-gray mb-2'>
+															Код
+														</label>
+														<input
+															type='text'
+															disabled={!editing}
+															className='w-full px-3 py-2 rounded-lg bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent disabled:bg-gray-100'
+															placeholder='***'
+														/>
+													</div>
+												</div>
+											</div>
+
+											{/* Settings */}
+											<div>
+												<h3 className='text-lg font-semibold text-black mb-4'>
+													Настройки
+												</h3>
+												<div className='space-y-3'>
+													<label className='flex items-center space-x-3 cursor-pointer'>
+														<input
+															type='checkbox'
+															defaultChecked
+															disabled={!editing}
+															className='w-4 h-4 text-main1 focus:ring-main1 border-gray2 rounded disabled:opacity-50'
+														/>
+														<span className='text-black text-sm'>
+															Уведомления о сообщениях в чате
+														</span>
+													</label>
+													<label className='flex items-center space-x-3 cursor-pointer'>
+														<input
+															type='checkbox'
+															defaultChecked={false}
+															disabled={!editing}
+															className='w-4 h-4 text-main1 focus:ring-main1 border-gray2 rounded disabled:opacity-50'
+														/>
+														<span className='text-black text-sm'>
+															Получать уведомления о новых моделях
+														</span>
+													</label>
+												</div>
+											</div>
+
+											{/* Action Buttons */}
+											<div className='pt-4 flex space-x-3'>
+												<button
+													onClick={() => setEditing(false)}
+													className='px-4 py-2 border border-main1 text-main1 rounded-lg hover:bg-main1 hover:text-white transition-colors text-sm'
+												>
+													Отменить
+												</button>
+												<button
+													onClick={() => setEditing(!editing)}
+													className='btn-primary px-4 py-2 text-sm'
+												>
+													{editing
+														? 'Сохранить изменения'
+														: 'Редактировать профиль'}
+												</button>
+											</div>
 										</div>
 									</div>
 
-									{/* Profile Picture */}
+									{/* Правая часть - Аватар */}
 									<div className='flex-shrink-0'>
-										<div className='w-40 h-40 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden'>
+										<div className='w-40 h-40 bg-gray-bg rounded-full flex items-center justify-center relative overflow-hidden'>
 											<Image
-												src='/img/profile.svg'
-												alt='Profile'
+												src='/img/profile_default.svg'
+												alt='Profile Avatar'
 												width={160}
 												height={160}
 												className='w-full h-full object-cover'
@@ -169,142 +331,39 @@ export default function ProfilePage() {
 									</div>
 								</div>
 							</div>
+						)}
 
-							{/* Payment Method */}
-							<div className='space-y-6'>
-								<h2 className='text-lg font-bold text-gray-700'>
-									Способ оплаты
-								</h2>
+						{activeTab === 'subscription' && <SubscriptionManagement />}
 
-								<div className='grid grid-cols-2 gap-4'>
-									{/* Card Number */}
-									<div className='col-span-2'>
-										<label className='block text-sm font-medium text-gray-700 mb-1'>
-											Номер карты
-										</label>
-										<input
-											type='text'
-											value={formData.cardNumber}
-											onChange={e =>
-												handleInputChange('cardNumber', e.target.value)
-											}
-											placeholder='XXXX-XXXX-XXXX-XXXX'
-											className='w-full px-3 py-2 rounded-lg border border-gray2 bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent'
-										/>
-									</div>
-
-									{/* Cardholder */}
-									<div>
-										<label className='block text-sm font-medium text-gray-700 mb-1'>
-											Держатель карты
-										</label>
-										<input
-											type='text'
-											value={formData.cardholder}
-											onChange={e =>
-												handleInputChange('cardholder', e.target.value)
-											}
-											placeholder='Фамилия и Имя'
-											className='w-full px-3 py-2 rounded-lg border border-gray2 bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent'
-										/>
-									</div>
-
-									{/* Expiry Date */}
-									<div>
-										<label className='block text-sm font-medium text-gray-700 mb-1'>
-											Месяц/год
-										</label>
-										<input
-											type='text'
-											value={formData.expiryDate}
-											onChange={e =>
-												handleInputChange('expiryDate', e.target.value)
-											}
-											placeholder='00/00'
-											className='w-full px-3 py-2 rounded-lg border border-gray2 bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent'
-										/>
-									</div>
-
-									{/* CVV */}
-									<div>
-										<label className='block text-sm font-medium text-gray-700 mb-1'>
-											Код
-										</label>
-										<input
-											type='text'
-											value={formData.cvv}
-											onChange={e => handleInputChange('cvv', e.target.value)}
-											placeholder='***'
-											className='w-full px-3 py-2 rounded-lg border border-gray2 bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent'
-										/>
-									</div>
-								</div>
+						{activeTab === 'downloads' && (
+							<div className='bg-white rounded-xl p-8 shadow-card min-h-[600px]'>
+								<h1 className='text-3xl font-bold text-black mb-8'>
+									История загрузок
+								</h1>
+								<p className='text-gray'>Здесь будет история загрузок...</p>
 							</div>
+						)}
 
-							{/* Settings */}
-							<div className='space-y-6'>
-								<h2 className='text-lg font-bold text-gray-700'>Настройки</h2>
-
-								<div className='space-y-4'>
-									{/* Chat Notifications */}
-									<div className='flex items-center space-x-3'>
-										<input
-											type='checkbox'
-											id='chatNotifications'
-											checked={formData.chatNotifications}
-											onChange={e =>
-												handleInputChange('chatNotifications', e.target.checked)
-											}
-											className='w-5 h-5 text-main1 bg-gray-bg border-gray2 rounded focus:ring-main1 focus:ring-2'
-										/>
-										<label
-											htmlFor='chatNotifications'
-											className='text-sm font-medium text-gray-700'
-										>
-											Уведомления о сообщениях в чате
-										</label>
-									</div>
-
-									{/* New Models Notifications */}
-									<div className='flex items-center space-x-3'>
-										<input
-											type='checkbox'
-											id='newModelsNotifications'
-											checked={formData.newModelsNotifications}
-											onChange={e =>
-												handleInputChange(
-													'newModelsNotifications',
-													e.target.checked
-												)
-											}
-											className='w-5 h-5 text-main1 bg-gray-bg border-gray2 rounded focus:ring-main1 focus:ring-2'
-										/>
-										<label
-											htmlFor='newModelsNotifications'
-											className='text-sm font-medium text-gray-700'
-										>
-											Получать уведомления о новых моделях
-										</label>
-									</div>
-								</div>
+						{activeTab === 'cart' && (
+							<div className='bg-white rounded-xl p-8 shadow-card min-h-[600px]'>
+								<h1 className='text-3xl font-bold text-black mb-8'>
+									Корзина / проекты
+								</h1>
+								<p className='text-gray'>Здесь будет корзина и проекты...</p>
 							</div>
+						)}
 
-							{/* Submit Button */}
-							<div className='pt-6'>
-								<button
-									type='submit'
-									className='bg-main1 text-white px-8 py-3 rounded-lg font-medium hover:bg-main2 transition-colors'
-								>
-									Редактировать профиль
-								</button>
+						{activeTab === 'chats' && (
+							<div className='bg-white rounded-xl p-8 shadow-card min-h-[600px]'>
+								<h1 className='text-3xl font-bold text-black mb-8'>Чаты</h1>
+								<p className='text-gray'>Здесь будут чаты...</p>
 							</div>
-						</form>
+						)}
 					</div>
 				</div>
 			</main>
 
-			{/* Footer */}
-			<footer className='bg-main1 h-4 mt-8'></footer>
+			<Footer />
 		</div>
 	)
 }

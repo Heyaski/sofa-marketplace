@@ -1,5 +1,6 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
@@ -12,7 +13,8 @@ from .serializers import (
     RegisterSerializer,
     ChangePasswordSerializer,
     PasswordResetRequestSerializer,
-    PasswordResetConfirmSerializer
+    PasswordResetConfirmSerializer,
+    CustomTokenObtainPairSerializer
 )
 
 
@@ -46,6 +48,10 @@ class ChangePasswordView(generics.UpdateAPIView):
         user.set_password(new_password)
         user.save()
         return Response({"detail": "Пароль успешно изменён"})
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
 
 
 # ✅ Запрос на сброс пароля (по email)
@@ -107,3 +113,7 @@ class PasswordResetConfirmView(generics.GenericAPIView):
         user.set_password(new_password)
         user.save()
         return Response({"detail": "Пароль успешно изменён"})
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer

@@ -1,20 +1,12 @@
 'use client'
 
+import { Product } from '../types'
 import ProductCard from './ProductCard'
-
-interface Product {
-	id: string
-	name: string
-	price: number
-	oldPrice?: number
-	image: string
-	formats: string[]
-}
 
 interface ProductGridProps {
 	title: string
 	products: Product[]
-	onAddToCart: (productId: string, format: string) => void
+	onAddToCart: (productId: number, format: string) => void
 }
 
 export default function ProductGrid({
@@ -40,7 +32,7 @@ export default function ProductGrid({
 						{products.map(product => (
 							<ProductCard
 								key={product.id}
-								{...product}
+								product={product}
 								onAddToCart={onAddToCart}
 							/>
 						))}

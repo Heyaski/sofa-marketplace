@@ -2,14 +2,48 @@
 
 import { MagnifyingGlassIcon, UserIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
+import { useEffect, useState } from 'react'
+import { authService } from '../services/api'
+import { User } from '../types'
 
 export default function Header() {
+	const [user, setUser] = useState<User | null>(null)
+	const [loading, setLoading] = useState(true)
+
+	useEffect(() => {
+		const checkAuth = async () => {
+			try {
+				const userData = await authService.getCurrentUser()
+				setUser(userData)
+			} catch (error) {
+				setUser(null)
+			} finally {
+				setLoading(false)
+			}
+		}
+
+		checkAuth()
+	}, [])
+
+	const handleLogout = async () => {
+		try {
+			await authService.logout()
+			localStorage.removeItem('access_token')
+			localStorage.removeItem('refresh_token')
+			setUser(null)
+		} catch (error) {
+			console.error('Ошибка при выходе:', error)
+		}
+	}
 	return (
 		<header className='bg-white'>
 			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
 				<div className='flex items-center justify-between h-16'>
 					{/* Logo */}
-					<div className='flex items-center space-x-3'>
+					<a
+						href='/'
+						className='flex items-center space-x-3 hover:opacity-80 transition-opacity'
+					>
 						<Image
 							src='/img/logo.svg'
 							alt='VizHub.art Logo'
@@ -18,7 +52,7 @@ export default function Header() {
 							className='w-8 h-8'
 						/>
 						<span className='text-xl text-black'>VIZHUB.ART</span>
-					</div>
+					</a>
 
 					{/* Center navigation */}
 					<div className='flex-1 flex items-center justify-center space-x-4'>
@@ -52,14 +86,33 @@ export default function Header() {
 
 					{/* Right side - User section */}
 					<div className='flex items-center space-x-3'>
-						<div className='relative'>
-							<button className='w-10 h-10 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'>
-								<UserIcon className='w-5 h-5 text-gray' />
-							</button>
-							<div className='absolute -top-1 -right-1 w-5 h-5 bg-main1 rounded-full flex items-center justify-center'>
-								<span className='text-xs text-white font-medium'>10</span>
+						{loading ? (
+							<div className='animate-pulse bg-gray-bg rounded-lg w-10 h-10'></div>
+						) : user ? (
+							<div className='relative'>
+								<a href='/profile' className='block'>
+									<button className='w-10 h-10 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'>
+										<UserIcon className='w-5 h-5 text-gray' />
+									</button>
+								</a>
+								<div className='absolute -top-1 -right-1 w-5 h-5 bg-main1 rounded-full flex items-center justify-center'>
+									<span className='text-xs text-white font-medium'>10</span>
+								</div>
 							</div>
-						</div>
+						) : (
+							<div className='flex items-center space-x-2'>
+								<a
+									href='/login'
+									className='text-main1 hover:text-main2 font-medium text-sm'
+								>
+									Войти
+								</a>
+								<span className='text-gray'>|</span>
+								<a href='/register' className='btn-secondary text-sm px-4 py-2'>
+									Регистрация
+								</a>
+							</div>
+						)}
 					</div>
 				</div>
 			</div>

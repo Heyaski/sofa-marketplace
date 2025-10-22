@@ -21,7 +21,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 		setIsCartModalOpen(true)
 	}
 
-	const handleCartSelect = (cartId: string) => {
+	const handleCartSelect = (cartId: number) => {
 		console.log(
 			`Adding product ${params.id} with format ${selectedFormat} to cart ${cartId}`
 		)

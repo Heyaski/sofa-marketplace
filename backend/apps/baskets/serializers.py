@@ -19,7 +19,7 @@ class BasketItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = BasketItem
-        fields = ["id", "product", "product_id", "quantity"]
+        fields = ["id", "product", "product_id", "quantity", "format"]
 
 
 class BasketSerializer(serializers.ModelSerializer):
@@ -27,4 +27,4 @@ class BasketSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Basket
-        fields = ["id", "user", "created_at", "items"]
+        fields = ["id", "name", "user", "created_at", "updated_at", "items"]
