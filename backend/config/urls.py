@@ -6,6 +6,10 @@ from apps.users.views import CustomTokenObtainPairView
 # подключаем наш сервис оплаты
 from services.payment_views import pay_order
 
+# 👇 добавляем для медиа
+from django.conf import settings
+from django.conf.urls.static import static
+
 urlpatterns = [
     path("admin/", admin.site.urls),
 
@@ -24,3 +28,7 @@ urlpatterns = [
     # оплата
     path("api/orders/<int:order_id>/pay/", pay_order, name="pay_order"),
 ]
+
+# 👇 эта часть обязательна для отображения изображений при DEBUG=True
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

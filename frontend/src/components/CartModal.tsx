@@ -19,24 +19,20 @@ export default function CartModal({
 	const [selectedCart, setSelectedCart] = useState<number | null>(null)
 	const [newCartName, setNewCartName] = useState('')
 	const [isCreatingNew, setIsCreatingNew] = useState(false)
+	const { baskets, loading, error, refetch } = useBaskets()
 
-	// Загружаем корзины с API
-	const { baskets, loading: basketsLoading, error: basketsError } = useBaskets()
-
-	// Сброс состояния при открытии/закрытии модала
 	useEffect(() => {
-		if (isOpen) {
-			setSelectedCart(null)
-			setNewCartName('')
-			setIsCreatingNew(false)
-		}
+		if (isOpen) refetch()
 	}, [isOpen])
 
 	if (!isOpen) return null
 
-	const handleSubmit = () => {
+	const handleSubmit = async () => {
 		if (isCreatingNew && newCartName.trim()) {
-			onCreateNewCart(newCartName.trim())
+			await onCreateNewCart(newCartName.trim())
+			await refetch() // ✅ обновляем список после создания
+			setIsCreatingNew(false)
+			setNewCartName('')
 		} else if (selectedCart !== null) {
 			onAddToCart(selectedCart)
 		}
@@ -81,9 +77,9 @@ export default function CartModal({
 				{!isCreatingNew ? (
 					<>
 						{/* Cart list */}
-						{basketsLoading ? (
+						{loading ? (
 							<div className='text-center py-4'>Загрузка корзин...</div>
-						) : basketsError ? (
+						) : error ? (
 							<div className='text-center py-4 text-red-500'>
 								Ошибка загрузки корзин
 							</div>
@@ -105,13 +101,9 @@ export default function CartModal({
 											name='cart'
 											value={basket.id}
 											checked={selectedCart === basket.id}
-											onChange={e => {
-												if (e.target.checked) {
-													setSelectedCart(basket.id)
-												} else {
-													setSelectedCart(null)
-												}
-											}}
+											onChange={e =>
+												setSelectedCart(e.target.checked ? basket.id : null)
+											}
 											className='w-4 h-4 text-main1 focus:ring-main1 focus:ring-2 rounded'
 										/>
 										<span className='text-black'>{basket.name}</span>
@@ -120,7 +112,7 @@ export default function CartModal({
 							</div>
 						)}
 
-						{/* Bottom section with create new cart and add button */}
+						{/* Bottom */}
 						<div className='flex justify-between items-center'>
 							<button
 								onClick={() => setIsCreatingNew(true)}
@@ -151,8 +143,7 @@ export default function CartModal({
 								autoFocus
 							/>
 						</div>
-
-						{/* Bottom section with create button */}
+						{/* Bottom */}
 						<div className='flex justify-center'>
 							<button
 								onClick={handleSubmit}

@@ -111,42 +111,30 @@ export const basketService = {
 		return response.data
 	},
 
-	// Создать новую корзину
+	// ✅ Создать новую корзину
 	createBasket: async (name: string): Promise<Basket> => {
 		const response = await apiClient.post('/api/baskets/', { name })
 		return response.data
 	},
 
-	// Добавить товар в корзину
+	// ✅ Добавить товар в корзину через action add_product
 	addToBasket: async (
 		basketId: number,
 		productId: number,
 		quantity: number = 1,
 		format?: string
-	): Promise<BasketItem> => {
-		const response = await apiClient.post('/api/basket-items/', {
-			basket: basketId,
-			product: productId,
+	): Promise<Basket> => {
+		const response = await apiClient.post(`/api/baskets/${basketId}/add_product/`, {
+			product_id: productId,
 			quantity,
 			format,
 		})
 		return response.data
 	},
 
-	// Обновить количество товара в корзине
-	updateBasketItem: async (
-		itemId: number,
-		quantity: number
-	): Promise<BasketItem> => {
-		const response = await apiClient.put(`/api/basket-items/${itemId}/`, {
-			quantity,
-		})
-		return response.data
-	},
-
-	// Удалить товар из корзины
-	removeFromBasket: async (itemId: number): Promise<void> => {
-		await apiClient.delete(`/api/basket-items/${itemId}/`)
+	// ✅ Удалить товар из корзины
+	removeFromBasket: async (basketId: number, productId: number): Promise<void> => {
+		await apiClient.delete(`/api/baskets/${basketId}/remove-product/${productId}/`)
 	},
 
 	// Очистить корзину
@@ -229,4 +217,4 @@ export const authService = {
 	logout: async (): Promise<void> => {
 		await apiClient.post('/api/users/logout/')
 	},
-}
+} 

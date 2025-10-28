@@ -10,25 +10,42 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
 
+// 💡 Типы для категорий и продуктов (чтобы не было ошибок типов)
+interface Category {
+	id: number
+	name: string
+	slug: string
+	image?: string | null
+	parent?: number | null
+}
+
+interface Product {
+	id: number
+	title: string
+	price: string
+	description: string
+	image?: string | null
+	category: Category
+	material?: string
+	style?: string
+	color?: string
+	is_active?: boolean
+}
+
 export default function CatalogPage() {
 	const [isCartModalOpen, setIsCartModalOpen] = useState(false)
 	const [selectedProduct, setSelectedProduct] = useState<{
 		id: number
 		format: string
 	} | null>(null)
-	const [activeCategory, setActiveCategory] = useState('')
-	const [selectedCategory, setSelectedCategory] = useState('')
-	const [priceRange, setPriceRange] = useState([0, 999999])
-	const [scrollPosition, setScrollPosition] = useState(0)
 	const [hoveredCategory, setHoveredCategory] = useState<string | null>(null)
 	const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 })
 	const categoryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
 	const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-	// Фильтры для API
 	const [filters, setFilters] = useState<ProductFilters>({})
 
-	// Загружаем данные с API
+	// ✅ API хуки
 	const {
 		products,
 		loading: productsLoading,
@@ -39,7 +56,7 @@ export default function CatalogPage() {
 		loading: categoriesLoading,
 		error: categoriesError,
 	} = useCategories()
-	const { baskets, createBasket, addToBasket } = useBaskets()
+	const { createBasket, addToBasket } = useBaskets()
 
 	const handleAddToCart = (productId: number, format: string) => {
 		setSelectedProduct({ id: productId, format })
@@ -51,10 +68,10 @@ export default function CatalogPage() {
 			try {
 				await addToBasket(cartId, selectedProduct.id, 1, selectedProduct.format)
 				console.log(
-					`Adding product ${selectedProduct.id} with format ${selectedProduct.format} to cart ${cartId}`
+					`Добавлен товар ${selectedProduct.id} (${selectedProduct.format}) в корзину ${cartId}`
 				)
 			} catch (error) {
-				console.error('Error adding to cart:', error)
+				console.error('Ошибка при добавлении в корзину:', error)
 			}
 		}
 		setIsCartModalOpen(false)
@@ -72,9 +89,9 @@ export default function CatalogPage() {
 					selectedProduct.format
 				)
 			}
-			console.log(`Creating new cart: ${cartName}`)
+			console.log(`Создана новая корзина: ${cartName}`)
 		} catch (error) {
-			console.error('Error creating cart:', error)
+			console.error('Ошибка при создании корзины:', error)
 		}
 		setIsCartModalOpen(false)
 		setSelectedProduct(null)
@@ -98,7 +115,6 @@ export default function CatalogPage() {
 		categoryName: string,
 		event: React.MouseEvent
 	) => {
-		// Очищаем предыдущий таймаут
 		if (hoverTimeoutRef.current) {
 			clearTimeout(hoverTimeoutRef.current)
 		}
@@ -112,25 +128,11 @@ export default function CatalogPage() {
 	}
 
 	const handleCategoryLeave = () => {
-		// Добавляем задержку перед скрытием dropdown
 		hoverTimeoutRef.current = setTimeout(() => {
 			setHoveredCategory(null)
-		}, 150) // 150ms задержка
+		}, 150)
 	}
 
-	const handleDropdownEnter = () => {
-		// Очищаем таймаут при наведении на dropdown
-		if (hoverTimeoutRef.current) {
-			clearTimeout(hoverTimeoutRef.current)
-		}
-	}
-
-	const handleDropdownLeave = () => {
-		// Скрываем dropdown при уходе с него
-		setHoveredCategory(null)
-	}
-
-	// Очистка таймаута при размонтировании компонента
 	useEffect(() => {
 		return () => {
 			if (hoverTimeoutRef.current) {
@@ -144,7 +146,7 @@ export default function CatalogPage() {
 			<Header />
 
 			<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-visible'>
-				{/* Breadcrumbs */}
+				{/* 🧭 Хлебные крошки */}
 				<div className='mb-6'>
 					<nav className='text-sm text-gray'>
 						<span>Главная</span>
@@ -153,7 +155,7 @@ export default function CatalogPage() {
 					</nav>
 				</div>
 
-				{/* Categories Slider */}
+				{/* 🏷️ Слайдер категорий */}
 				<div className='mb-8 overflow-visible'>
 					<div className='flex items-center space-x-4 overflow-visible'>
 						<button
@@ -162,6 +164,7 @@ export default function CatalogPage() {
 						>
 							<ChevronLeftIcon className='w-5 h-5 text-gray-600' />
 						</button>
+
 						<div
 							id='categories-slider'
 							className='flex space-x-4 overflow-x-hidden overflow-y-visible flex-1 scrollbar-hide'
@@ -174,7 +177,7 @@ export default function CatalogPage() {
 									Ошибка загрузки категорий
 								</div>
 							) : categories && categories.length > 0 ? (
-								categories.map(category => (
+								categories.map((category: Category) => (
 									<div
 										key={category.id}
 										className='relative group flex-shrink-0'
@@ -183,20 +186,45 @@ export default function CatalogPage() {
 										}}
 									>
 										<button
-											className='whitespace-nowrap px-4 py-2 rounded-lg transition-colors flex items-center space-x-2 bg-white text-black hover:bg-gray2 focus:outline-none'
+											className='whitespace-nowrap px-4 py-2 rounded-lg transition-all flex items-center space-x-2 bg-white text-black hover:bg-gray2 focus:outline-none shadow-sm'
 											onClick={() =>
 												setFilters({ ...filters, category: category.id })
 											}
-											onMouseEnter={e => handleCategoryHover(category.name, e)}
+											onMouseEnter={e =>
+												handleCategoryHover(category.name, e)
+											}
 											onMouseLeave={handleCategoryLeave}
 										>
-											<span>{category.name}</span>
+											{/* 🖼️ Миниатюра категории */}
+											{category.image && typeof category.image === 'string' ? (
+												<Image
+													src={category.image}
+													alt={category.name || 'Категория'}
+													width={24}
+													height={24}
+													className='w-6 h-6 object-cover rounded-md shadow-sm'
+													unoptimized
+												/>
+											) : (
+												<Image
+													src='/img/no-image.svg'
+													alt='Нет изображения'
+													width={24}
+													height={24}
+													className='w-6 h-6 opacity-40'
+												/>
+											)}
+
+											<span className='text-sm font-medium'>
+												{category.name}
+											</span>
+
 											<Image
 												src='/img/arrow-down.svg'
 												alt='Arrow'
 												width={16}
 												height={16}
-												className='w-4 h-4'
+												className='w-4 h-4 opacity-60'
 											/>
 										</button>
 									</div>
@@ -207,6 +235,7 @@ export default function CatalogPage() {
 								</div>
 							)}
 						</div>
+
 						<button
 							onClick={scrollRight}
 							className='p-2 rounded-full bg-white hover:bg-gray-100 transition-colors shadow-sm'
@@ -216,24 +245,16 @@ export default function CatalogPage() {
 					</div>
 				</div>
 
-				{/* Catalog Block */}
+				{/* 📦 Каталог товаров */}
 				<div className='bg-white rounded-xl p-8'>
-					{/* Title */}
 					<h1 className='text-3xl font-bold text-black mb-8'>Каталог</h1>
 
-					{/* Filters */}
+					{/* ⚙️ Фильтры */}
 					<div className='flex items-center justify-between mb-4'>
-						{/* Left side - Filters */}
 						<div className='flex items-center gap-3'>
 							<span className='text-black font-medium'>Фильтр</span>
 
-							{/* Price Filter */}
-							<select
-								className='w-32 px-3 py-2 rounded-lg bg-gray-bg text-black text-sm focus:outline-none focus:ring-2 focus:ring-main1'
-								onChange={e =>
-									setPriceRange([parseInt(e.target.value), priceRange[1]])
-								}
-							>
+							<select className='w-32 px-3 py-2 rounded-lg bg-gray-bg text-black text-sm focus:outline-none focus:ring-2 focus:ring-main1'>
 								<option>Цена</option>
 							</select>
 
@@ -250,7 +271,7 @@ export default function CatalogPage() {
 								value={filters.category || ''}
 							>
 								<option value=''>Категория</option>
-								{categories.map(cat => (
+								{categories?.map(cat => (
 									<option key={cat.id} value={cat.id}>
 										{cat.name}
 									</option>
@@ -269,6 +290,7 @@ export default function CatalogPage() {
 								<option value='Классический'>Классический</option>
 								<option value='Минимализм'>Минимализм</option>
 							</select>
+
 							<select
 								className='w-32 px-3 py-2 rounded-lg bg-gray-bg text-black text-sm focus:outline-none focus:ring-2 focus:ring-main1'
 								onChange={e =>
@@ -282,12 +304,12 @@ export default function CatalogPage() {
 								<option value='Коричневый'>Коричневый</option>
 								<option value='Серый'>Серый</option>
 							</select>
+
 							<select className='w-32 px-3 py-2 rounded-lg bg-gray-bg text-black text-sm focus:outline-none focus:ring-2 focus:ring-main1'>
 								<option>Габариты</option>
 							</select>
 						</div>
 
-						{/* Right side - Sorting */}
 						<div className='flex items-center'>
 							<span className='text-black font-medium mr-2 text-sm'>
 								Сортировка:
@@ -298,10 +320,9 @@ export default function CatalogPage() {
 						</div>
 					</div>
 
-					{/* Gray line */}
 					<div className='border-t border-gray2 mb-8'></div>
 
-					{/* Products Grid */}
+					{/* 🛋️ Сетка товаров */}
 					{productsLoading ? (
 						<div className='text-center py-8'>Загрузка продуктов...</div>
 					) : productsError ? (

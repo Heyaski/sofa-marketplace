@@ -116,3 +116,12 @@ EMAIL_USE_TLS = False
 EMAIL_HOST_USER = "antontenditnik60@gmail.com"
 EMAIL_HOST_PASSWORD = "plryjeqormckvdta"
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# Медиа-файлы (загрузка изображений, фото и т.п.)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# Статика
+STATICFILES_DIRS = [
+    BASE_DIR / 'static'
+]

@@ -19,35 +19,46 @@ export default function ProductCard({
 	)
 
 	const formatPrice = (price: number) => {
-		return new Intl.NumberFormat('ru-RU').format(price)
+		return new Intl.NumberFormat('ru-RU').format(Number(price))
 	}
 
 	return (
-		<div className='product-card'>
-			{/* Product Image */}
-			<div className='aspect-square rounded-lg mb-4 overflow-hidden'>
-				<Image
-					src='/img/sofa-card.svg'
-					alt='Product Image'
-					width={300}
-					height={300}
-					className='w-full h-full object-cover'
-				/>
+		<div className='product-card bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition-all duration-200'>
+			{/* Изображение товара */}
+			<div className='aspect-square rounded-lg mb-4 overflow-hidden bg-gray-50 flex items-center justify-center'>
+				{product.image && typeof product.image === 'string' ? (
+					<Image
+						src={product.image}
+						alt={product.title || 'Товар'}
+						width={300}
+						height={300}
+						className='w-full h-full object-cover'
+						unoptimized
+					/>
+				) : (
+					<Image
+						src='/img/sofa-card.svg'
+						alt='Заглушка'
+						width={300}
+						height={300}
+						className='w-full h-full object-contain opacity-70'
+					/>
+				)}
 			</div>
 
-			{/* Price - in line */}
+			{/* Цена */}
 			<div className='flex items-center gap-2 mb-4'>
 				<div className='text-lg font-bold text-black'>
-					{formatPrice(product.price)} {config.CURRENCY_SYMBOL}
+					{formatPrice(Number(product.price))} {config.CURRENCY_SYMBOL}
 				</div>
 			</div>
 
-			{/* Format Selection - checkboxes */}
+			{/* Форматы файлов */}
 			<div className='flex flex-wrap gap-2 mb-4'>
 				{config.SUPPORTED_FORMATS.map(format => (
 					<label
 						key={format}
-						className='flex items-center cursor-pointer border border-gray2 rounded-lg px-2 py-1 flex-shrink-0'
+						className='flex items-center cursor-pointer border border-gray2 rounded-lg px-2 py-1 flex-shrink-0 bg-white hover:bg-gray-50'
 					>
 						<input
 							type='checkbox'
@@ -62,7 +73,7 @@ export default function ProductCard({
 				))}
 			</div>
 
-			{/* Add to Cart Button */}
+			{/* Кнопка добавления */}
 			<button
 				onClick={() => onAddToCart(product.id, selectedFormat)}
 				className='w-full btn-primary py-3'

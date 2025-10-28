@@ -1,10 +1,15 @@
 from django.db import models
 
+
 class Category(models.Model):
     name = models.CharField(max_length=120)
     slug = models.SlugField(unique=True)
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE)
-    def __str__(self): return self.name
+    image = models.ImageField(upload_to="categories/", blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
 
 class Product(models.Model):
     title = models.CharField(max_length=255)
@@ -15,4 +20,8 @@ class Product(models.Model):
     style = models.CharField(max_length=120, blank=True)
     color = models.CharField(max_length=60, blank=True)
     is_active = models.BooleanField(default=True)
-    def __str__(self): return self.title
+    # 🖼️ Новое поле для фото товара
+    image = models.ImageField(upload_to="products/", blank=True, null=True)
+
+    def __str__(self):
+        return self.title

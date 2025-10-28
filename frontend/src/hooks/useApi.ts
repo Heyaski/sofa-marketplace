@@ -1,8 +1,18 @@
+
 import { useEffect, useState } from 'react'
 import { basketService, categoryService, productService } from '../services/api'
 import { Basket, Category, Product, ProductFilters } from '../types'
 
-// Хук для работы с продуктами
+// Универсальная функция для обработки форматов ответов (с results или без)
+const extractResults = (response: any) => {
+	if (Array.isArray(response)) return response
+	if (response && Array.isArray(response.results)) return response.results
+	return []
+}
+
+// ---------------------------
+// 🛍️ useProducts
+// ---------------------------
 export const useProducts = (filters?: ProductFilters) => {
 	const [products, setProducts] = useState<Product[]>([])
 	const [loading, setLoading] = useState(true)
@@ -13,7 +23,8 @@ export const useProducts = (filters?: ProductFilters) => {
 			setLoading(true)
 			setError(null)
 			const response = await productService.getProducts(filters)
-			setProducts(response.results || [])
+			const productsData = extractResults(response)
+			setProducts(productsData)
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Ошибка загрузки продуктов')
 		} finally {
@@ -28,7 +39,9 @@ export const useProducts = (filters?: ProductFilters) => {
 	return { products, loading, error, refetch: fetchProducts }
 }
 
-// Хук для работы с категориями
+// ---------------------------
+// 🧩 useCategories
+// ---------------------------
 export const useCategories = () => {
 	const [categories, setCategories] = useState<Category[]>([])
 	const [loading, setLoading] = useState(true)
@@ -39,7 +52,8 @@ export const useCategories = () => {
 			setLoading(true)
 			setError(null)
 			const response = await categoryService.getCategories()
-			setCategories(response.results || [])
+			const categoriesData = extractResults(response)
+			setCategories(categoriesData)
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Ошибка загрузки категорий')
 		} finally {
@@ -54,7 +68,9 @@ export const useCategories = () => {
 	return { categories, loading, error, refetch: fetchCategories }
 }
 
-// Хук для работы с корзинами
+// ---------------------------
+// 🧺 useBaskets
+// ---------------------------
 export const useBaskets = () => {
 	const [baskets, setBaskets] = useState<Basket[]>([])
 	const [loading, setLoading] = useState(true)
@@ -65,7 +81,12 @@ export const useBaskets = () => {
 			setLoading(true)
 			setError(null)
 			const response = await basketService.getBaskets()
-			setBaskets(response.results || [])
+			const basketsData = Array.isArray(response.results)
+				? response.results
+				: Array.isArray(response)
+				? response
+				: []
+			setBaskets(basketsData)
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Ошибка загрузки корзин')
 		} finally {
@@ -80,7 +101,7 @@ export const useBaskets = () => {
 	const createBasket = async (name: string) => {
 		try {
 			const newBasket = await basketService.createBasket(name)
-			setBaskets(prev => [...prev, newBasket])
+			await fetchBaskets()
 			return newBasket
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Ошибка создания корзины')
@@ -96,9 +117,7 @@ export const useBaskets = () => {
 	) => {
 		try {
 			await basketService.addToBasket(basketId, productId, quantity, format)
-			// Обновляем список корзин
-			const response = await basketService.getBaskets()
-			setBaskets(response.results || [])
+			await fetchBaskets()
 		} catch (err) {
 			setError(
 				err instanceof Error ? err.message : 'Ошибка добавления в корзину'
@@ -107,17 +126,13 @@ export const useBaskets = () => {
 		}
 	}
 
-	return {
-		baskets,
-		loading,
-		error,
-		createBasket,
-		addToBasket,
-		refetch: fetchBaskets,
-	}
+	return { baskets, loading, error, createBasket, addToBasket, refetch: fetchBaskets }
 }
 
-// Хук для работы с одним продуктом
+
+// ---------------------------
+// 🎯 useProduct (один товар)
+// ---------------------------
 export const useProduct = (id: number) => {
 	const [product, setProduct] = useState<Product | null>(null)
 	const [loading, setLoading] = useState(true)
