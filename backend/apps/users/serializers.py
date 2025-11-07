@@ -16,10 +16,26 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['username', 'email', 'password', 'password_confirm', 'first_name', 'last_name']
+        extra_kwargs = {
+            'username': {'required': True},
+            'email': {'required': True},
+            'first_name': {'required': False, 'allow_blank': True},
+            'last_name': {'required': False, 'allow_blank': True},
+        }
+
+    def validate_username(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError("Имя пользователя не может быть пустым")
+        return value.strip()
+
+    def validate_email(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError("Email не может быть пустым")
+        return value.strip()
 
     def validate(self, attrs):
-        if attrs['password'] != attrs['password_confirm']:
-            raise serializers.ValidationError("Пароли не совпадают")
+        if attrs.get('password') != attrs.get('password_confirm'):
+            raise serializers.ValidationError({"password_confirm": "Пароли не совпадают"})
         return attrs
 
     def create(self, validated_data):

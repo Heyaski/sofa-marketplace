@@ -1,4 +1,4 @@
-// File: C:\Prodject\sofa-marketplace\frontend\src\app\catalog\page.tsx
+// File: C:\Users\Perfercher\Desktop\sofa-marketplace\frontend\src\app\catalog\page.tsx
 import * as entry from '../../../../src/app/catalog/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

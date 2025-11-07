@@ -1,6 +1,28 @@
+'use client'
+
 import Image from 'next/image'
+import { useEffect, useState } from 'react'
+import { authService } from '../services/api'
+import { User } from '../types'
 
 export default function Footer() {
+	const [user, setUser] = useState<User | null>(null)
+	const [loading, setLoading] = useState(true)
+
+	useEffect(() => {
+		const checkAuth = async () => {
+			try {
+				const userData = await authService.getCurrentUser()
+				setUser(userData)
+			} catch (error) {
+				setUser(null)
+			} finally {
+				setLoading(false)
+			}
+		}
+
+		checkAuth()
+	}, [])
 	return (
 		<footer className='bg-main1 text-white'>
 			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12'>
@@ -34,10 +56,15 @@ export default function Footer() {
 						</a>
 					</div>
 
-					{/* Login/Register Button */}
-					<button className='bg-white text-main1 px-6 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors'>
-						Войти / Зарегестрироваться
-					</button>
+					{/* Login/Register Button - только для неавторизованных */}
+					{!loading && !user && (
+						<button
+							onClick={() => (window.location.href = '/')}
+							className='bg-white text-main1 px-6 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors'
+						>
+							Войти / Зарегестрироваться
+						</button>
+					)}
 				</div>
 
 				{/* Divider */}

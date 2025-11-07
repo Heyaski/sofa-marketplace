@@ -1,9 +1,14 @@
 'use client'
 
+import AuthModal from '@/components/AuthModal'
 import CartModal from '@/components/CartModal'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
-import { useState } from 'react'
+import { config } from '@/config'
+import { useBaskets, useProduct } from '@/hooks/useApi'
+import Image from 'next/image'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 interface ProductPageProps {
 	params: {
@@ -12,193 +17,261 @@ interface ProductPageProps {
 }
 
 export default function ProductPage({ params }: ProductPageProps) {
+	const router = useRouter()
+	const productId = parseInt(params.id)
 	const [isCartModalOpen, setIsCartModalOpen] = useState(false)
-	const [selectedFormat, setSelectedFormat] = useState('.fbx')
+	const [selectedFormat, setSelectedFormat] = useState(
+		config.SUPPORTED_FORMATS[0]
+	)
+	const [mainImage, setMainImage] = useState<string | null>(null)
+	const [isAuthenticated, setIsAuthenticated] = useState(false)
+	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
 
-	const formats = ['.fbx', '.glb', '.rfa', '.usdz']
+	const { product, loading, error } = useProduct(productId)
+	const { createBasket, addToBasket } = useBaskets()
+
+	// Устанавливаем главное изображение при загрузке продукта
+	useEffect(() => {
+		if (product?.image) {
+			setMainImage(product.image)
+		}
+	}, [product?.image])
+
+	// Проверка авторизации пользователя
+	useEffect(() => {
+		const token = localStorage.getItem('access_token')
+		setIsAuthenticated(!!token)
+	}, [])
 
 	const handleAddToCart = () => {
 		setIsCartModalOpen(true)
 	}
 
-	const handleCartSelect = (cartId: number) => {
-		console.log(
-			`Adding product ${params.id} with format ${selectedFormat} to cart ${cartId}`
-		)
+	const handleCartSelect = async (cartId: number) => {
+		if (product) {
+			try {
+				await addToBasket(cartId, product.id, 1, selectedFormat)
+			} catch (error) {
+				console.error('Ошибка при добавлении в корзину:', error)
+			}
+		}
 		setIsCartModalOpen(false)
 	}
 
-	const handleCreateNewCart = (cartName: string) => {
-		console.log(`Creating new cart: ${cartName}`)
+	const handleCreateNewCart = async (cartName: string) => {
+		try {
+			const newBasket = await createBasket(cartName)
+			if (product) {
+				await addToBasket(newBasket.id, product.id, 1, selectedFormat)
+			}
+		} catch (error) {
+			console.error('Ошибка при создании корзины:', error)
+		}
 		setIsCartModalOpen(false)
 	}
+
+	const formatPrice = (price: number) => {
+		return new Intl.NumberFormat('ru-RU').format(Number(price))
+	}
+
+	// Генерируем миниатюры (для демо - используем то же изображение)
+	const thumbnails = product?.image ? Array(7).fill(product.image) : []
+
+	if (loading) {
+		return (
+			<div className='min-h-screen bg-gray-bg'>
+				<Header />
+				<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
+					<div className='text-center py-12'>Загрузка...</div>
+				</main>
+			</div>
+		)
+	}
+
+	if (error || !product) {
+		return (
+			<div className='min-h-screen bg-gray-bg'>
+				<Header />
+				<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
+					<div className='text-center py-12 text-red-500'>
+						Ошибка загрузки товара: {error || 'Товар не найден'}
+					</div>
+				</main>
+			</div>
+		)
+	}
+
+	const displayedImage = mainImage || product.image
 
 	return (
 		<div className='min-h-screen bg-gray-bg'>
 			<Header />
 
 			<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
-				{/* Breadcrumbs */}
+				{/* Хлебные крошки */}
 				<div className='mb-8'>
 					<nav className='text-sm text-gray'>
-						<span>Главная</span>
+						<span
+							className='cursor-pointer hover:text-black'
+							onClick={() => router.push('/')}
+						>
+							Главная
+						</span>
 						<span className='mx-2'>•</span>
-						<span>Каталог</span>
+						<span
+							className='cursor-pointer hover:text-black'
+							onClick={() => router.push('/catalog')}
+						>
+							Каталог
+						</span>
 						<span className='mx-2'>•</span>
 						<span className='text-black font-medium'>Страница товара</span>
 					</nav>
 				</div>
 
-				<div className='grid lg:grid-cols-2 gap-12'>
-					{/* Product Images */}
-					<div className='space-y-4'>
-						{/* Main Image */}
-						<div className='aspect-square bg-white rounded-xl p-8 shadow-card'>
-							<div className='w-full h-full bg-gray-bg rounded-lg flex items-center justify-center'>
-								<div className='w-32 h-32 bg-gray2 rounded-lg'></div>
-							</div>
-						</div>
-
-						{/* Thumbnails */}
-						<div className='grid grid-cols-4 gap-4'>
-							{Array.from({ length: 8 }, (_, i) => (
-								<div
-									key={i}
-									className='aspect-square bg-white rounded-lg p-2 shadow-card'
-								>
-									<div className='w-full h-full bg-gray-bg rounded flex items-center justify-center'>
-										<div className='w-8 h-8 bg-gray2 rounded'></div>
-									</div>
-								</div>
-							))}
-						</div>
-					</div>
-
-					{/* Product Info */}
-					<div className='space-y-6'>
-						<h1 className='text-3xl font-bold text-black'>
-							Наименование Наименование Наименование Наименование
-						</h1>
-
-						{/* Price */}
-						<div className='space-y-2'>
-							<div className='text-3xl font-bold text-black'>300 000 ₽</div>
-							<div className='text-lg text-gray line-through'>300 000 ₽</div>
-						</div>
-
-						{/* Description */}
-						<div className='prose max-w-none'>
-							<p className='text-black leading-relaxed'>
-								Weather-resistant aluminium cladding with I-tec Insulation
-								technology and innovative ventilation system. High-quality
-								materials ensure durability and modern design.
-							</p>
-						</div>
-
-						{/* Specifications */}
-						<div className='space-y-3'>
-							<h3 className='font-semibold text-black'>Характеристики:</h3>
-							<div className='space-y-2 text-sm'>
-								<div className='flex justify-between'>
-									<span className='text-gray'>Теплоизоляция:</span>
-									<span className='text-black'>Uw до 0.62 W/(m²K)</span>
-								</div>
-								<div className='flex justify-between'>
-									<span className='text-gray'>Звукоизоляция:</span>
-									<span className='text-black'>до 34-47 дБ</span>
-								</div>
-								<div className='flex justify-between'>
-									<span className='text-gray'>Безопасность:</span>
-									<span className='text-black'>до RC1N, RC2</span>
-								</div>
-								<div className='flex justify-between'>
-									<span className='text-gray'>Замок:</span>
-									<span className='text-black'>скрытый</span>
-								</div>
-							</div>
-						</div>
-
-						{/* Format Selection */}
-						<div className='space-y-3'>
-							<h3 className='font-semibold text-black'>Формат файла:</h3>
-							<div className='flex space-x-2'>
-								{formats.map(format => (
-									<button
-										key={format}
-										onClick={() => setSelectedFormat(format)}
-										className={`px-4 py-2 rounded-lg transition-colors ${
-											selectedFormat === format
-												? 'bg-main1 text-white'
-												: 'bg-gray2 text-black hover:bg-gray'
-										}`}
-									>
-										{format}
-									</button>
-								))}
-							</div>
-						</div>
-
-						{/* Action Buttons */}
+				<div className='bg-white rounded-xl p-8 shadow-card'>
+					<div className='grid lg:grid-cols-2 gap-12'>
+						{/* Изображения товара */}
 						<div className='space-y-4'>
-							<button
-								onClick={handleAddToCart}
-								className='w-full btn-primary py-4 text-lg'
-							>
-								Добавить в корзину
-							</button>
-
-							<div className='grid grid-cols-2 gap-4'>
-								<button className='btn-secondary'>Открыть 3D Viewer</button>
-								<button className='btn-secondary'>Примерка GLB</button>
+							{/* Главное изображение */}
+							<div className='aspect-square bg-gray-bg rounded-lg p-8'>
+								{displayedImage ? (
+									<div className='w-full h-full rounded-lg overflow-hidden'>
+										<Image
+											src={displayedImage}
+											alt={product.title}
+											width={600}
+											height={600}
+											className='w-full h-full object-contain'
+											unoptimized
+										/>
+									</div>
+								) : (
+									<div className='w-full h-full bg-gray-bg rounded-lg flex items-center justify-center'>
+										<Image
+											src='/img/sofa-card.svg'
+											alt='Нет изображения'
+											width={128}
+											height={128}
+											className='opacity-50'
+										/>
+									</div>
+								)}
 							</div>
+
+							{/* Миниатюры */}
+							{thumbnails.length > 0 && (
+								<div className='grid grid-cols-7 gap-2'>
+									{thumbnails.map((thumbnail, index) => (
+										<div
+											key={index}
+											className='aspect-square bg-gray-bg rounded-lg p-2 cursor-pointer hover:bg-gray transition-colors'
+											onClick={() => setMainImage(thumbnail)}
+										>
+											<Image
+												src={thumbnail}
+												alt={`Миниатюра ${index + 1}`}
+												width={80}
+												height={80}
+												className='w-full h-full object-contain'
+												unoptimized
+											/>
+										</div>
+									))}
+								</div>
+							)}
 						</div>
 
-						<div className='text-sm text-gray'>
-							<button className='hover:text-black transition-colors'>
-								Войти / Зарегестрироваться
+						{/* Информация о товаре */}
+						<div className='space-y-6'>
+							<h1 className='text-3xl font-bold text-black'>{product.title}</h1>
+
+							{/* Цена */}
+							<div className='space-y-2'>
+								<div className='text-3xl font-bold text-black'>
+									{formatPrice(Number(product.price))} {config.CURRENCY_SYMBOL}
+								</div>
+								<div className='text-lg text-gray line-through'>
+									{formatPrice(Number(product.price))} {config.CURRENCY_SYMBOL}
+								</div>
+							</div>
+
+							{/* Описание */}
+							{product.description && (
+								<div className='prose max-w-none'>
+									<p className='text-black leading-relaxed text-sm'>
+										{product.description}
+									</p>
+								</div>
+							)}
+
+							{/* Характеристики */}
+							<div className='space-y-3'>
+								<div className='space-y-2 text-sm'>
+									{product.category && (
+										<div className='flex justify-between'>
+											<span className='text-gray'>Категория:</span>
+											<span className='text-black'>
+												{product.category.name}
+											</span>
+										</div>
+									)}
+									{product.material && (
+										<div className='flex justify-between'>
+											<span className='text-gray'>Материал:</span>
+											<span className='text-black'>{product.material}</span>
+										</div>
+									)}
+									{product.style && (
+										<div className='flex justify-between'>
+											<span className='text-gray'>Стиль:</span>
+											<span className='text-black'>{product.style}</span>
+										</div>
+									)}
+									{product.color && (
+										<div className='flex justify-between'>
+											<span className='text-gray'>Цвет:</span>
+											<span className='text-black'>{product.color}</span>
+										</div>
+									)}
+								</div>
+							</div>
+
+							{/* Кнопка Яндекс */}
+							<button className='w-full border-2 border-red-500 bg-white text-black py-3 px-4 rounded-lg hover:bg-red-50 transition-colors'>
+								Открыть товар в Яндекс
 							</button>
+
+							{/* Все кнопки в одну линию */}
+							<div className='grid grid-cols-3 gap-4'>
+								<button
+									onClick={handleAddToCart}
+									className='bg-main1 text-white py-3 rounded-lg hover:bg-main1/90 transition-colors font-medium whitespace-nowrap text-sm'
+								>
+									Добавить в корзину
+								</button>
+								<button className='border-2 border-main1 bg-white text-black py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors whitespace-nowrap text-sm'>
+									Открыть 3D Viewer
+								</button>
+								<button className='border-2 border-main1 bg-white text-black py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors whitespace-nowrap text-sm'>
+									Примерка GLB
+								</button>
+							</div>
+
+							{/* Ссылка на вход/регистрацию - только для неавторизованных */}
+							{!isAuthenticated && (
+								<div className='text-sm text-gray text-center'>
+									<button
+										className='hover:text-black transition-colors cursor-pointer'
+										onClick={() => setIsAuthModalOpen(true)}
+									>
+										Войти / Зарегестрироваться
+									</button>
+								</div>
+							)}
 						</div>
 					</div>
 				</div>
-
-				{/* Recommended Products */}
-				<section className='mt-16'>
-					<h2 className='text-2xl font-bold text-black mb-8'>
-						Рекомендуемые товары
-					</h2>
-					<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-6'>
-						{Array.from({ length: 6 }, (_, i) => (
-							<div key={i} className='product-card'>
-								<div className='aspect-square bg-gray-bg rounded-lg mb-4 flex items-center justify-center'>
-									<div className='w-16 h-16 bg-gray2 rounded-lg'></div>
-								</div>
-								<div className='text-lg font-bold text-black mb-2'>
-									300 000 ₽
-								</div>
-								<div className='text-sm text-gray line-through mb-4'>
-									300 000 ₽
-								</div>
-								<div className='flex space-x-1 mb-4'>
-									{formats.map(format => (
-										<button
-											key={format}
-											className={`px-2 py-1 text-xs rounded ${
-												format === '.fbx'
-													? 'bg-main1 text-white'
-													: 'bg-gray2 text-black'
-											}`}
-										>
-											{format}
-										</button>
-									))}
-								</div>
-								<button className='w-full btn-primary py-2 text-sm'>
-									В корзину
-								</button>
-							</div>
-						))}
-					</div>
-				</section>
 			</main>
 
 			<Footer />
@@ -208,6 +281,15 @@ export default function ProductPage({ params }: ProductPageProps) {
 				onClose={() => setIsCartModalOpen(false)}
 				onAddToCart={handleCartSelect}
 				onCreateNewCart={handleCreateNewCart}
+			/>
+
+			<AuthModal
+				isOpen={isAuthModalOpen}
+				onClose={() => setIsAuthModalOpen(false)}
+				onSuccess={() => {
+					setIsAuthenticated(true)
+					setIsAuthModalOpen(false)
+				}}
 			/>
 		</div>
 	)

@@ -9,6 +9,8 @@ export interface Product {
 	style: string
 	color: string
 	is_active: boolean
+	is_trending: boolean
+	image?: string | null
 }
 
 // Типы для категорий
@@ -17,6 +19,7 @@ export interface Category {
 	name: string
 	slug: string
 	parent?: number | null
+	image?: string | null
 }
 
 // Типы для корзины
@@ -30,6 +33,7 @@ export interface BasketItem {
 export interface Basket {
 	id: number
 	name: string
+	user?: User | number
 	items: BasketItem[]
 	created_at: string
 	updated_at: string
@@ -63,6 +67,14 @@ export interface Subscription {
 	end_date: string
 }
 
+// Типы для истории загрузок
+export interface Download {
+	id: number
+	product: Product
+	created_at: string
+	file?: string | null
+}
+
 // Типы для пользователей
 export interface User {
 	id: number
@@ -90,6 +102,7 @@ export interface ProductFilters {
 	price_min?: number
 	price_max?: number
 	is_active?: boolean
+	is_trending?: boolean
 	search?: string
 	ordering?: string
 }
@@ -112,4 +125,40 @@ export interface RegisterData {
 export interface AuthTokens {
 	access: string
 	refresh: string
+}
+
+// Типы для чатов
+export interface Chat {
+	id: number
+	participant1: User
+	participant2: User
+	created_at: string
+	updated_at: string
+	is_pinned: boolean
+	last_message?: Message | null
+	unread_count: number
+	other_participant?: User
+}
+
+export interface Message {
+	id: number
+	chat: number
+	sender: User
+	message_type: 'text' | 'product' | 'basket'
+	content: string
+	created_at: string
+	is_read: boolean
+	products?: MessageProduct[]
+	baskets?: MessageBasket[]
+}
+
+export interface MessageProduct {
+	id: number
+	product: Product
+	selected_formats: string[]
+}
+
+export interface MessageBasket {
+	id: number
+	basket: Basket
 }

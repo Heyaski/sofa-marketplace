@@ -1,5 +1,4 @@
-
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { basketService, categoryService, productService } from '../services/api'
 import { Basket, Category, Product, ProductFilters } from '../types'
 
@@ -18,7 +17,7 @@ export const useProducts = (filters?: ProductFilters) => {
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 
-	const fetchProducts = async () => {
+	const fetchProducts = useCallback(async () => {
 		try {
 			setLoading(true)
 			setError(null)
@@ -30,11 +29,11 @@ export const useProducts = (filters?: ProductFilters) => {
 		} finally {
 			setLoading(false)
 		}
-	}
+	}, [JSON.stringify(filters || {})])
 
 	useEffect(() => {
 		fetchProducts()
-	}, [filters])
+	}, [fetchProducts])
 
 	return { products, loading, error, refetch: fetchProducts }
 }
@@ -47,7 +46,7 @@ export const useCategories = () => {
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 
-	const fetchCategories = async () => {
+	const fetchCategories = useCallback(async () => {
 		try {
 			setLoading(true)
 			setError(null)
@@ -59,11 +58,11 @@ export const useCategories = () => {
 		} finally {
 			setLoading(false)
 		}
-	}
+	}, [])
 
 	useEffect(() => {
 		fetchCategories()
-	}, [])
+	}, [fetchCategories])
 
 	return { categories, loading, error, refetch: fetchCategories }
 }
@@ -126,9 +125,15 @@ export const useBaskets = () => {
 		}
 	}
 
-	return { baskets, loading, error, createBasket, addToBasket, refetch: fetchBaskets }
+	return {
+		baskets,
+		loading,
+		error,
+		createBasket,
+		addToBasket,
+		refetch: fetchBaskets,
+	}
 }
-
 
 // ---------------------------
 // 🎯 useProduct (один товар)
@@ -138,7 +143,8 @@ export const useProduct = (id: number) => {
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 
-	const fetchProduct = async () => {
+	const fetchProduct = useCallback(async () => {
+		if (!id) return
 		try {
 			setLoading(true)
 			setError(null)
@@ -149,13 +155,11 @@ export const useProduct = (id: number) => {
 		} finally {
 			setLoading(false)
 		}
-	}
+	}, [id])
 
 	useEffect(() => {
-		if (id) {
-			fetchProduct()
-		}
-	}, [id])
+		fetchProduct()
+	}, [fetchProduct])
 
 	return { product, loading, error, refetch: fetchProduct }
 }

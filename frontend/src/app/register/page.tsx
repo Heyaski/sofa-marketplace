@@ -1,19 +1,15 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import AuthForm from '../../components/AuthForm'
+import { useEffect } from 'react'
 
 export default function RegisterPage() {
 	const router = useRouter()
 
-	const handleAuthSuccess = () => {
-		// После успешной регистрации перенаправляем на главную страницу
+	useEffect(() => {
+		// Редирект на главную страницу, т.к. регистрация теперь через модальное окно
 		router.push('/')
-	}
+	}, [router])
 
-	return (
-		<div className='min-h-screen bg-gray-bg'>
-			<AuthForm onSuccess={handleAuthSuccess} />
-		</div>
-	)
+	return null
 }

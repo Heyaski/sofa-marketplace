@@ -1,10 +1,15 @@
 'use client'
 
+import BasketsList from '@/components/BasketsList'
+import ChatDetail from '@/components/ChatDetail'
+import ChatsList from '@/components/ChatsList'
+import DownloadsList from '@/components/DownloadsList'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import SubscriptionManagement from '@/components/SubscriptionManagement'
+import { useBaskets } from '@/hooks/useApi'
 import { authService } from '@/services/api'
-import { User } from '@/types'
+import { Chat, User } from '@/types'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -17,6 +22,12 @@ export default function ProfilePage() {
 	const [loading, setLoading] = useState(true)
 	const [editing, setEditing] = useState(false)
 	const [activeTab, setActiveTab] = useState<TabType>('profile')
+	const [selectedChat, setSelectedChat] = useState<Chat | null>(null)
+	const { baskets, refetch: refetchBaskets } = useBaskets()
+
+	const handleSelectChat = (chat: Chat) => {
+		setSelectedChat(chat)
+	}
 
 	useEffect(() => {
 		const fetchUser = async () => {
@@ -24,8 +35,8 @@ export default function ProfilePage() {
 				const userData = await authService.getCurrentUser()
 				setUser(userData)
 			} catch (error) {
-				// Если пользователь не авторизован, перенаправляем на страницу входа
-				router.push('/login')
+				// Если пользователь не авторизован, показываем профиль пустым
+				setUser(null)
 			} finally {
 				setLoading(false)
 			}
@@ -57,7 +68,22 @@ export default function ProfilePage() {
 	}
 
 	if (!user) {
-		return null
+		return (
+			<div className='min-h-screen bg-gray-bg'>
+				<Header />
+				<main className='max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
+					<div className='bg-white rounded-xl p-8 shadow-card text-center'>
+						<h2 className='text-2xl font-bold text-black mb-4'>
+							Вы не авторизованы
+						</h2>
+						<p className='text-gray mb-6'>
+							Войдите в систему, чтобы просмотреть свой профиль
+						</p>
+					</div>
+				</main>
+				<Footer />
+			</div>
+		)
 	}
 
 	return (
@@ -337,26 +363,35 @@ export default function ProfilePage() {
 
 						{activeTab === 'downloads' && (
 							<div className='bg-white rounded-xl p-8 shadow-card min-h-[600px]'>
-								<h1 className='text-3xl font-bold text-black mb-8'>
-									История загрузок
-								</h1>
-								<p className='text-gray'>Здесь будет история загрузок...</p>
+								<DownloadsList />
 							</div>
 						)}
 
 						{activeTab === 'cart' && (
 							<div className='bg-white rounded-xl p-8 shadow-card min-h-[600px]'>
-								<h1 className='text-3xl font-bold text-black mb-8'>
-									Корзина / проекты
-								</h1>
-								<p className='text-gray'>Здесь будет корзина и проекты...</p>
+								<BasketsList baskets={baskets} onRefresh={refetchBaskets} />
 							</div>
 						)}
 
 						{activeTab === 'chats' && (
-							<div className='bg-white rounded-xl p-8 shadow-card min-h-[600px]'>
-								<h1 className='text-3xl font-bold text-black mb-8'>Чаты</h1>
-								<p className='text-gray'>Здесь будут чаты...</p>
+							<div className='bg-white rounded-xl shadow-card min-h-[600px] flex'>
+								{selectedChat ? (
+									<div className='flex-1 flex flex-col'>
+										<ChatDetail
+											chat={selectedChat}
+											onBack={() => setSelectedChat(null)}
+											currentUserId={user?.id || 0}
+										/>
+									</div>
+								) : (
+									<div className='flex-1 p-8'>
+										<h1 className='text-3xl font-bold text-black mb-8'>Чаты</h1>
+										<ChatsList
+											onSelectChat={handleSelectChat}
+											selectedChatId={undefined}
+										/>
+									</div>
+								)}
 							</div>
 						)}
 					</div>

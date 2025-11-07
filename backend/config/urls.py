@@ -23,6 +23,7 @@ urlpatterns = [
     path("api/", include("apps.orders.urls")),
     path("api/", include("apps.subscriptions.urls")),
     path("api/", include("apps.downloads.urls")),
+    path("api/", include("apps.chats.urls")),
     path("api/users/", include("apps.users.urls")),
 
     # оплата

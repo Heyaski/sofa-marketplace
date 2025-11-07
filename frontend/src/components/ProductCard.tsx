@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { config } from '../config'
 import { Product } from '../types'
@@ -14,6 +15,7 @@ export default function ProductCard({
 	product,
 	onAddToCart,
 }: ProductCardProps) {
+	const router = useRouter()
 	const [selectedFormat, setSelectedFormat] = useState(
 		config.SUPPORTED_FORMATS[0]
 	)
@@ -22,10 +24,17 @@ export default function ProductCard({
 		return new Intl.NumberFormat('ru-RU').format(Number(price))
 	}
 
+	const handleCardClick = () => {
+		router.push(`/product/${product.id}`)
+	}
+
 	return (
 		<div className='product-card bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition-all duration-200'>
 			{/* Изображение товара */}
-			<div className='aspect-square rounded-lg mb-4 overflow-hidden bg-gray-50 flex items-center justify-center'>
+			<div
+				className='aspect-square rounded-lg mb-4 overflow-hidden bg-gray-50 flex items-center justify-center cursor-pointer'
+				onClick={handleCardClick}
+			>
 				{product.image && typeof product.image === 'string' ? (
 					<Image
 						src={product.image}
@@ -44,6 +53,15 @@ export default function ProductCard({
 						className='w-full h-full object-contain opacity-70'
 					/>
 				)}
+			</div>
+
+			{/* Название товара */}
+			<div
+				className='text-sm font-semibold text-black mb-2 cursor-pointer hover:text-main1 transition-colors line-clamp-2'
+				onClick={handleCardClick}
+				title={product.title}
+			>
+				{product.title}
 			</div>
 
 			{/* Цена */}

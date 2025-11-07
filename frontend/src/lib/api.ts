@@ -55,13 +55,13 @@ apiClient.interceptors.response.use(
 			// Проверяем, что это не запрос на логин или регистрацию
 			const isAuthRequest =
 				error.config?.url?.includes('/auth/login/') ||
-				error.config?.url?.includes('/users/register/')
+				error.config?.url?.includes('/users/register/') ||
+				error.config?.url?.includes('/users/logout/')
 
 			if (!isAuthRequest) {
-				// Токен истек, перенаправляем на страницу входа только для защищенных запросов
+				// Токен истек, очищаем токены
 				localStorage.removeItem('access_token')
 				localStorage.removeItem('refresh_token')
-				window.location.href = '/login'
 			}
 		}
 		return Promise.reject(error)

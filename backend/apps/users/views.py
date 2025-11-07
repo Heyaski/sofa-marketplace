@@ -26,6 +26,27 @@ class UserMeView(generics.RetrieveUpdateAPIView):
         return self.request.user
 
 
+# ✅ Поиск пользователей для создания чата
+class UserSearchView(generics.ListAPIView):
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = User.objects.filter(is_active=True).exclude(id=self.request.user.id)
+        search = self.request.query_params.get('search', None)
+        if search:
+            queryset = queryset.filter(
+                username__icontains=search
+            ) | queryset.filter(
+                email__icontains=search
+            ) | queryset.filter(
+                first_name__icontains=search
+            ) | queryset.filter(
+                last_name__icontains=search
+            )
+        return queryset[:20]  # Ограничиваем 20 результатами
+
+
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
@@ -52,6 +73,17 @@ class ChangePasswordView(generics.UpdateAPIView):
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+
+
+# ✅ Выход из системы (logout)
+class LogoutView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        # При использовании JWT токенов можно добавить логику добавления токена в черный список
+        # Для простоты просто возвращаем успешный ответ
+        # В реальном приложении здесь можно добавить логику для инвалидации токена
+        return Response({"detail": "Успешный выход из системы"})
 
 
 # ✅ Запрос на сброс пароля (по email)
@@ -113,7 +145,3 @@ class PasswordResetConfirmView(generics.GenericAPIView):
         user.set_password(new_password)
         user.save()
         return Response({"detail": "Пароль успешно изменён"})
-
-
-class CustomTokenObtainPairView(TokenObtainPairView):
-    serializer_class = CustomTokenObtainPairSerializer

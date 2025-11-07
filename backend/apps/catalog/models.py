@@ -20,6 +20,7 @@ class Product(models.Model):
     style = models.CharField(max_length=120, blank=True)
     color = models.CharField(max_length=60, blank=True)
     is_active = models.BooleanField(default=True)
+    is_trending = models.BooleanField(default=False)
     # 🖼️ Новое поле для фото товара
     image = models.ImageField(upload_to="products/", blank=True, null=True)
 

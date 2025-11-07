@@ -20,6 +20,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         "color": ["exact"],
         "price": ["gte", "lte"],
         "is_active": ["exact"],
+        "is_trending": ["exact"],
     }
 
 

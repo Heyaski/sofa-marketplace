@@ -1,4 +1,5 @@
 {
+  "/profile/basket/[id]/page": "app/profile/basket/[id]/page.js",
   "/catalog/page": "app/catalog/page.js",
   "/profile/page": "app/profile/page.js",
   "/page": "app/page.js"

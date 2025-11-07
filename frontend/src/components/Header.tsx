@@ -5,10 +5,13 @@ import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { authService } from '../services/api'
 import { User } from '../types'
+import AuthModal from './AuthModal'
 
 export default function Header() {
 	const [user, setUser] = useState<User | null>(null)
 	const [loading, setLoading] = useState(true)
+	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+	const [showUserMenu, setShowUserMenu] = useState(false)
 
 	useEffect(() => {
 		const checkAuth = async () => {
@@ -25,6 +28,23 @@ export default function Header() {
 		checkAuth()
 	}, [])
 
+	// Закрытие меню при клике вне его
+	useEffect(() => {
+		const handleClickOutside = (event: MouseEvent) => {
+			if (
+				showUserMenu &&
+				!(event.target as Element).closest('.user-menu-container')
+			) {
+				setShowUserMenu(false)
+			}
+		}
+
+		document.addEventListener('mousedown', handleClickOutside)
+		return () => {
+			document.removeEventListener('mousedown', handleClickOutside)
+		}
+	}, [showUserMenu])
+
 	const handleLogout = async () => {
 		try {
 			await authService.logout()
@@ -33,6 +53,15 @@ export default function Header() {
 			setUser(null)
 		} catch (error) {
 			console.error('Ошибка при выходе:', error)
+		}
+	}
+
+	const handleAuthSuccess = async () => {
+		try {
+			const userData = await authService.getCurrentUser()
+			setUser(userData)
+		} catch (error) {
+			setUser(null)
 		}
 	}
 	return (
@@ -89,33 +118,53 @@ export default function Header() {
 						{loading ? (
 							<div className='animate-pulse bg-gray-bg rounded-lg w-10 h-10'></div>
 						) : user ? (
-							<div className='relative'>
-								<a href='/profile' className='block'>
-									<button className='w-10 h-10 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'>
-										<UserIcon className='w-5 h-5 text-gray' />
-									</button>
-								</a>
+							<div className='relative user-menu-container'>
+								<button
+									onClick={() => setShowUserMenu(!showUserMenu)}
+									className='w-10 h-10 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
+								>
+									<UserIcon className='w-5 h-5 text-gray' />
+								</button>
 								<div className='absolute -top-1 -right-1 w-5 h-5 bg-main1 rounded-full flex items-center justify-center'>
 									<span className='text-xs text-white font-medium'>10</span>
 								</div>
+
+								{/* Dropdown menu */}
+								{showUserMenu && (
+									<div className='absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray2 py-2 z-50'>
+										<a
+											href='/profile'
+											className='block px-4 py-2 text-sm text-black hover:bg-gray-bg'
+											onClick={() => setShowUserMenu(false)}
+										>
+											Профиль
+										</a>
+										<button
+											onClick={handleLogout}
+											className='w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-bg'
+										>
+											Выйти
+										</button>
+									</div>
+								)}
 							</div>
 						) : (
-							<div className='flex items-center space-x-2'>
-								<a
-									href='/login'
-									className='text-main1 hover:text-main2 font-medium text-sm'
-								>
-									Войти
-								</a>
-								<span className='text-gray'>|</span>
-								<a href='/register' className='btn-secondary text-sm px-4 py-2'>
-									Регистрация
-								</a>
-							</div>
+							<button
+								onClick={() => setIsAuthModalOpen(true)}
+								className='text-main1 hover:text-main2 font-medium text-sm'
+							>
+								Войти / Зарегестрироваться
+							</button>
 						)}
 					</div>
 				</div>
 			</div>
+
+			<AuthModal
+				isOpen={isAuthModalOpen}
+				onClose={() => setIsAuthModalOpen(false)}
+				onSuccess={handleAuthSuccess}
+			/>
 		</header>
 	)
 }

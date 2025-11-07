@@ -32,7 +32,8 @@ class ProductAdmin(admin.ModelAdmin):
         "style",
         "color",
         "is_active",
+        "is_trending",
     )
-    list_filter = ("category", "material", "style", "color", "is_active")
+    list_filter = ("category", "material", "style", "color", "is_active", "is_trending")
     search_fields = ("title", "description")
-    list_editable = ("price", "is_active")
+    list_editable = ("price", "is_active", "is_trending")

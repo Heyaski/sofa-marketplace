@@ -1,7 +1,8 @@
 from django.urls import path
-from .views import DownloadListView, PresignView
+from .views import DownloadListView, DownloadDeleteView, PresignView
 
 urlpatterns = [
-    path("", DownloadListView.as_view(), name="download-list"),
-    path("presign/", PresignView.as_view(), name="download-presign"),
+    path("downloads/", DownloadListView.as_view(), name="download-list"),
+    path("downloads/<int:pk>/", DownloadDeleteView.as_view(), name="download-delete"),
+    path("downloads/presign/", PresignView.as_view(), name="download-presign"),
 ]

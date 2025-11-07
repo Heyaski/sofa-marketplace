@@ -3,9 +3,11 @@ import {
 	ApiResponse,
 	AuthTokens,
 	Basket,
-	BasketItem,
 	Category,
+	Chat,
+	Download,
 	LoginCredentials,
+	Message,
 	Order,
 	Plan,
 	Product,
@@ -124,17 +126,25 @@ export const basketService = {
 		quantity: number = 1,
 		format?: string
 	): Promise<Basket> => {
-		const response = await apiClient.post(`/api/baskets/${basketId}/add_product/`, {
-			product_id: productId,
-			quantity,
-			format,
-		})
+		const response = await apiClient.post(
+			`/api/baskets/${basketId}/add_product/`,
+			{
+				product_id: productId,
+				quantity,
+				format,
+			}
+		)
 		return response.data
 	},
 
 	// ✅ Удалить товар из корзины
-	removeFromBasket: async (basketId: number, productId: number): Promise<void> => {
-		await apiClient.delete(`/api/baskets/${basketId}/remove-product/${productId}/`)
+	removeFromBasket: async (
+		basketId: number,
+		productId: number
+	): Promise<void> => {
+		await apiClient.delete(
+			`/api/baskets/${basketId}/remove-product/${productId}/`
+		)
 	},
 
 	// Очистить корзину
@@ -161,6 +171,20 @@ export const orderService = {
 	createOrder: async (basketId: number): Promise<Order> => {
 		const response = await apiClient.post('/orders/', { basket: basketId })
 		return response.data
+	},
+}
+
+// Сервис для работы с историей загрузок
+export const downloadService = {
+	// Получить все загрузки пользователя
+	getDownloads: async (): Promise<ApiResponse<Download>> => {
+		const response = await apiClient.get('/api/downloads/')
+		return response.data
+	},
+
+	// Удалить запись из истории загрузок
+	deleteDownload: async (downloadId: number): Promise<void> => {
+		await apiClient.delete(`/api/downloads/${downloadId}/`)
 	},
 }
 
@@ -217,4 +241,105 @@ export const authService = {
 	logout: async (): Promise<void> => {
 		await apiClient.post('/api/users/logout/')
 	},
-} 
+
+	// Поиск пользователей
+	searchUsers: async (search?: string): Promise<User[]> => {
+		const params = search ? `?search=${encodeURIComponent(search)}` : ''
+		const response = await apiClient.get(`/api/users/search${params}`)
+		return response.data
+	},
+}
+
+// Сервис для работы с чатами
+export const chatService = {
+	// Получить все чаты пользователя
+	getChats: async (): Promise<ApiResponse<Chat>> => {
+		const response = await apiClient.get('/api/chats/')
+		return response.data
+	},
+
+	// Получить чат по ID
+	getChat: async (id: number): Promise<Chat> => {
+		const response = await apiClient.get(`/api/chats/${id}/`)
+		return response.data
+	},
+
+	// Создать новый чат
+	createChat: async (participant2Id: number): Promise<Chat> => {
+		const response = await apiClient.post('/api/chats/', {
+			participant2_id: participant2Id,
+		})
+		return response.data
+	},
+
+	// Закрепить/открепить чат
+	togglePin: async (chatId: number): Promise<{ is_pinned: boolean }> => {
+		const response = await apiClient.post(`/api/chats/${chatId}/toggle_pin/`)
+		return response.data
+	},
+}
+
+// Сервис для работы с сообщениями
+export const messageService = {
+	// Получить сообщения чата
+	getMessages: async (chatId: number): Promise<ApiResponse<Message>> => {
+		const response = await apiClient.get(`/api/messages/?chat_id=${chatId}`)
+		return response.data
+	},
+
+	// Отправить текстовое сообщение
+	sendTextMessage: async (
+		chatId: number,
+		content: string
+	): Promise<Message> => {
+		const response = await apiClient.post('/api/messages/', {
+			chat: chatId,
+			message_type: 'text',
+			content,
+		})
+		return response.data
+	},
+
+	// Отправить товары
+	sendProducts: async (
+		chatId: number,
+		productIds: number[],
+		selectedFormats: Record<number, string[]>
+	): Promise<Message> => {
+		const response = await apiClient.post('/api/messages/', {
+			chat: chatId,
+			message_type: 'product',
+			content: '',
+			product_ids: productIds,
+			selected_formats: selectedFormats,
+		})
+		return response.data
+	},
+
+	// Отправить корзину
+	sendBasket: async (chatId: number, basketId: number): Promise<Message> => {
+		const response = await apiClient.post('/api/messages/', {
+			chat: chatId,
+			message_type: 'basket',
+			content: '',
+			basket_id: basketId,
+		})
+		return response.data
+	},
+
+	// Отметить сообщение как прочитанное
+	markRead: async (messageId: number): Promise<{ is_read: boolean }> => {
+		const response = await apiClient.post(
+			`/api/messages/${messageId}/mark_read/`
+		)
+		return response.data
+	},
+
+	// Отметить все сообщения чата как прочитанные
+	markChatRead: async (chatId: number): Promise<{ status: string }> => {
+		const response = await apiClient.post('/api/messages/mark_chat_read/', {
+			chat_id: Number(chatId), // Убеждаемся, что это число
+		})
+		return response.data
+	},
+}
