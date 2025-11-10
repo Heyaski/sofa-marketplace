@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Category, Product
+from .models import Category, Product, ProductImage
 
 
 @admin.register(Category)
@@ -21,6 +21,23 @@ class CategoryAdmin(admin.ModelAdmin):
     preview_image.short_description = "Изображение"
 
 
+class ProductImageInline(admin.TabularInline):
+    """Inline для загрузки нескольких изображений товара"""
+    model = ProductImage
+    extra = 1
+    fields = ('image', 'order', 'preview')
+    readonly_fields = ('preview',)
+
+    def preview(self, obj):
+        if obj.pk and obj.image:
+            return format_html(
+                '<img src="{}" width="100" height="100" style="object-fit:cover;border-radius:6px;"/>',
+                obj.image.url
+            )
+        return "—"
+    preview.short_description = "Предпросмотр"
+
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
@@ -37,3 +54,4 @@ class ProductAdmin(admin.ModelAdmin):
     list_filter = ("category", "material", "style", "color", "is_active", "is_trending")
     search_fields = ("title", "description")
     list_editable = ("price", "is_active", "is_trending")
+    inlines = [ProductImageInline]

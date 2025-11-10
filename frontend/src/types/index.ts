@@ -1,3 +1,10 @@
+// Типы для изображений товара
+export interface ProductImage {
+	id: number
+	image_url: string
+	order: number
+}
+
 // Типы для продуктов
 export interface Product {
 	id: number
@@ -11,6 +18,7 @@ export interface Product {
 	is_active: boolean
 	is_trending: boolean
 	image?: string | null
+	images?: ProductImage[]
 }
 
 // Типы для категорий
@@ -76,6 +84,17 @@ export interface Download {
 }
 
 // Типы для пользователей
+export interface UserProfile {
+	subscription_type: 'trial' | 'basic' | 'premium'
+	subscription_type_display?: string
+	card_number: string
+	card_holder: string
+	card_expiry: string
+	card_cvv: string
+	chat_notifications: boolean
+	new_models_notifications: boolean
+}
+
 export interface User {
 	id: number
 	username: string
@@ -83,6 +102,7 @@ export interface User {
 	first_name: string
 	last_name: string
 	is_active: boolean
+	profile?: UserProfile
 }
 
 // Типы для API ответов

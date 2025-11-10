@@ -21,8 +21,24 @@ class Product(models.Model):
     color = models.CharField(max_length=60, blank=True)
     is_active = models.BooleanField(default=True)
     is_trending = models.BooleanField(default=False)
-    # 🖼️ Новое поле для фото товара
+    # 🖼️ Основное изображение (для обратной совместимости)
     image = models.ImageField(upload_to="products/", blank=True, null=True)
 
     def __str__(self):
         return self.title
+
+
+class ProductImage(models.Model):
+    """Модель для хранения нескольких изображений товара"""
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to="products/", blank=False, null=False)
+    order = models.PositiveIntegerField(default=0, help_text="Порядок отображения изображения")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'created_at']
+        verbose_name = "Изображение товара"
+        verbose_name_plural = "Изображения товаров"
+
+    def __str__(self):
+        return f"Изображение {self.order + 1} для {self.product.title}"

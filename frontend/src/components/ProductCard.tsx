@@ -41,7 +41,7 @@ export default function ProductCard({
 						alt={product.title || 'Товар'}
 						width={300}
 						height={300}
-						className='w-full h-full object-cover'
+						className='w-full h-full object-contain'
 						unoptimized
 					/>
 				) : (

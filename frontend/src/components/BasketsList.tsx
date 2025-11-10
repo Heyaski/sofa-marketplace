@@ -10,6 +10,7 @@ import { useState } from 'react'
 import apiClient from '../lib/api'
 import { Basket } from '../types'
 import CreateBasketModal from './CreateBasketModal'
+import SendBasketModal from './SendBasketModal'
 
 interface BasketsListProps {
 	baskets: Basket[]
@@ -20,6 +21,8 @@ export default function BasketsList({ baskets, onRefresh }: BasketsListProps) {
 	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 	const [basketToDelete, setBasketToDelete] = useState<Basket | null>(null)
+	const [isSendBasketModalOpen, setIsSendBasketModalOpen] = useState(false)
+	const [basketToShare, setBasketToShare] = useState<Basket | null>(null)
 
 	const handleCreateSuccess = () => {
 		setIsCreateModalOpen(false)
@@ -54,9 +57,9 @@ export default function BasketsList({ baskets, onRefresh }: BasketsListProps) {
 		console.log('Скачать корзину:', basket.name)
 	}
 
-	const handleShare = async (basket: Basket) => {
-		// TODO: Добавить функционал совместного доступа
-		console.log('Поделиться корзиной:', basket.name)
+	const handleShare = (basket: Basket) => {
+		setBasketToShare(basket)
+		setIsSendBasketModalOpen(true)
 	}
 
 	return (
@@ -169,6 +172,19 @@ export default function BasketsList({ baskets, onRefresh }: BasketsListProps) {
 				onClose={() => setIsCreateModalOpen(false)}
 				onSuccess={handleCreateSuccess}
 			/>
+
+			{/* Modal for sending basket */}
+			{basketToShare && (
+				<SendBasketModal
+					isOpen={isSendBasketModalOpen}
+					onClose={() => {
+						setIsSendBasketModalOpen(false)
+						setBasketToShare(null)
+					}}
+					basketId={basketToShare.id}
+					basketName={basketToShare.name}
+				/>
+			)}
 		</>
 	)
 }

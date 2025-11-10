@@ -1,6 +1,8 @@
 {
-  "/profile/basket/[id]/page": "app/profile/basket/[id]/page.js",
-  "/catalog/page": "app/catalog/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
   "/profile/page": "app/profile/page.js",
-  "/page": "app/page.js"
+  "/catalog/page": "app/catalog/page.js",
+  "/page": "app/page.js",
+  "/profile/basket/[id]/page": "app/profile/basket/[id]/page.js",
+  "/product/[id]/page": "app/product/[id]/page.js"
 }

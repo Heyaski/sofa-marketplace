@@ -32,10 +32,14 @@ export default function ProductPage({ params }: ProductPageProps) {
 
 	// Устанавливаем главное изображение при загрузке продукта
 	useEffect(() => {
-		if (product?.image) {
+		// Если есть массив изображений, используем первое
+		if (product?.images && product.images.length > 0) {
+			setMainImage(product.images[0].image_url)
+		} else if (product?.image) {
+			// Иначе используем старое поле image (для обратной совместимости)
 			setMainImage(product.image)
 		}
-	}, [product?.image])
+	}, [product?.images, product?.image])
 
 	// Проверка авторизации пользователя
 	useEffect(() => {
@@ -74,8 +78,18 @@ export default function ProductPage({ params }: ProductPageProps) {
 		return new Intl.NumberFormat('ru-RU').format(Number(price))
 	}
 
-	// Генерируем миниатюры (для демо - используем то же изображение)
-	const thumbnails = product?.image ? Array(7).fill(product.image) : []
+	// Получаем массив изображений для миниатюр
+	const getThumbnails = () => {
+		if (product?.images && product.images.length > 0) {
+			return product.images.map(img => img.image_url)
+		}
+		// Если нет изображений в массиве, но есть старое поле image
+		if (product?.image) {
+			return [product.image]
+		}
+		return []
+	}
+	const thumbnails = getThumbnails()
 
 	if (loading) {
 		return (
@@ -100,8 +114,6 @@ export default function ProductPage({ params }: ProductPageProps) {
 			</div>
 		)
 	}
-
-	const displayedImage = mainImage || product.image
 
 	return (
 		<div className='min-h-screen bg-gray-bg'>
@@ -135,10 +147,10 @@ export default function ProductPage({ params }: ProductPageProps) {
 						<div className='space-y-4'>
 							{/* Главное изображение */}
 							<div className='aspect-square bg-gray-bg rounded-lg p-8'>
-								{displayedImage ? (
+								{mainImage ? (
 									<div className='w-full h-full rounded-lg overflow-hidden'>
 										<Image
-											src={displayedImage}
+											src={mainImage}
 											alt={product.title}
 											width={600}
 											height={600}
@@ -159,25 +171,31 @@ export default function ProductPage({ params }: ProductPageProps) {
 								)}
 							</div>
 
-							{/* Миниатюры */}
+							{/* Миниатюры - горизонтальная прокрутка */}
 							{thumbnails.length > 0 && (
-								<div className='grid grid-cols-7 gap-2'>
-									{thumbnails.map((thumbnail, index) => (
-										<div
-											key={index}
-											className='aspect-square bg-gray-bg rounded-lg p-2 cursor-pointer hover:bg-gray transition-colors'
-											onClick={() => setMainImage(thumbnail)}
-										>
-											<Image
-												src={thumbnail}
-												alt={`Миниатюра ${index + 1}`}
-												width={80}
-												height={80}
-												className='w-full h-full object-contain'
-												unoptimized
-											/>
-										</div>
-									))}
+								<div className='overflow-x-auto pb-2'>
+									<div className='flex gap-2 min-w-max'>
+										{thumbnails.map((thumbnail, index) => (
+											<div
+												key={index}
+												className={`flex-shrink-0 w-16 h-16 bg-gray-bg rounded-lg p-1 cursor-pointer transition-all ${
+													mainImage === thumbnail
+														? 'ring-2 ring-main1 bg-gray-100'
+														: 'hover:bg-gray'
+												}`}
+												onClick={() => setMainImage(thumbnail)}
+											>
+												<Image
+													src={thumbnail}
+													alt={`Миниатюра ${index + 1}`}
+													width={60}
+													height={60}
+													className='w-full h-full object-contain'
+													unoptimized
+												/>
+											</div>
+										))}
+									</div>
 								</div>
 							)}
 						</div>

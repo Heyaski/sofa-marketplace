@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from .models import Chat, Message, MessageProduct, MessageBasket
 from apps.catalog.serializers import ProductSerializer
 from apps.baskets.serializers import BasketSerializer
+from apps.baskets.models import Basket
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -83,6 +84,23 @@ class MessageCreateSerializer(serializers.ModelSerializer):
         if request and request.user:
             # Проверка будет выполнена в view
             return value
+        return value
+    
+    def validate_basket_id(self, value):
+        """Проверяем, что корзина существует и принадлежит пользователю"""
+        if value is not None:
+            try:
+                basket = Basket.objects.get(id=value)
+                # Проверяем, что пользователь является владельцем корзины
+                request = self.context.get('request')
+                if request and request.user:
+                    # Проверяем, что корзина принадлежит текущему пользователю
+                    # basket.user может быть объектом User или ID
+                    basket_user_id = basket.user.id if hasattr(basket.user, 'id') else basket.user
+                    if basket_user_id != request.user.id:
+                        raise serializers.ValidationError("Вы можете отправлять только свои корзины")
+            except Basket.DoesNotExist:
+                raise serializers.ValidationError("Корзина с указанным ID не найдена")
         return value
     
     def validate_message_type(self, value):

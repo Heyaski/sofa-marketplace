@@ -37,6 +37,18 @@ class ChatViewSet(viewsets.ModelViewSet):
         context['request'] = self.request
         return context
 
+    def create(self, request, *args, **kwargs):
+        """Переопределяем create, чтобы вернуть полный объект чата"""
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        
+        # Возвращаем созданный чат через ChatSerializer для полной информации
+        chat = serializer.instance
+        response_serializer = ChatSerializer(chat, context={'request': request})
+        headers = self.get_success_headers(response_serializer.data)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
     @action(detail=True, methods=['post'])
     def toggle_pin(self, request, pk=None):
         """Закрепить/открепить чат"""

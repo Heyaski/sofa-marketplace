@@ -12,6 +12,12 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
 
+    def get_serializer_context(self):
+        """Добавляем request в контекст для правильной генерации URL изображений"""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
     # Фильтрация
     filterset_fields = {
         "category": ["exact"],

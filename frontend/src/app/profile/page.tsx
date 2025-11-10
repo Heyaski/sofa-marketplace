@@ -10,6 +10,13 @@ import SubscriptionManagement from '@/components/SubscriptionManagement'
 import { useBaskets } from '@/hooks/useApi'
 import { authService } from '@/services/api'
 import { Chat, User } from '@/types'
+import {
+	formatCardCVV,
+	formatCardExpiry,
+	formatCardHolder,
+	formatCardNumber,
+	validateCardData,
+} from '@/utils/cardValidation'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -25,6 +32,22 @@ export default function ProfilePage() {
 	const [selectedChat, setSelectedChat] = useState<Chat | null>(null)
 	const { baskets, refetch: refetchBaskets } = useBaskets()
 
+	// Состояние для редактируемых полей
+	const [formData, setFormData] = useState({
+		email: '',
+		first_name: '',
+		last_name: '',
+		username: '',
+		profile: {
+			card_number: '',
+			card_holder: '',
+			card_expiry: '',
+			card_cvv: '',
+			chat_notifications: true,
+			new_models_notifications: false,
+		},
+	})
+
 	const handleSelectChat = (chat: Chat) => {
 		setSelectedChat(chat)
 	}
@@ -34,6 +57,22 @@ export default function ProfilePage() {
 			try {
 				const userData = await authService.getCurrentUser()
 				setUser(userData)
+				// Инициализируем форму данными пользователя
+				setFormData({
+					email: userData.email || '',
+					first_name: userData.first_name || '',
+					last_name: userData.last_name || '',
+					username: userData.username || '',
+					profile: {
+						card_number: userData.profile?.card_number || '',
+						card_holder: userData.profile?.card_holder || '',
+						card_expiry: userData.profile?.card_expiry || '',
+						card_cvv: userData.profile?.card_cvv || '',
+						chat_notifications: userData.profile?.chat_notifications ?? true,
+						new_models_notifications:
+							userData.profile?.new_models_notifications ?? false,
+					},
+				})
 			} catch (error) {
 				// Если пользователь не авторизован, показываем профиль пустым
 				setUser(null)
@@ -44,6 +83,91 @@ export default function ProfilePage() {
 
 		fetchUser()
 	}, [router])
+
+	// Обновляем форму при изменении пользователя
+	useEffect(() => {
+		if (user) {
+			setFormData({
+				email: user.email || '',
+				first_name: user.first_name || '',
+				last_name: user.last_name || '',
+				username: user.username || '',
+				profile: {
+					card_number: user.profile?.card_number || '',
+					card_holder: user.profile?.card_holder || '',
+					card_expiry: user.profile?.card_expiry || '',
+					card_cvv: user.profile?.card_cvv || '',
+					chat_notifications: user.profile?.chat_notifications ?? true,
+					new_models_notifications:
+						user.profile?.new_models_notifications ?? false,
+				},
+			})
+		}
+	}, [user])
+
+	const handleSave = async () => {
+		if (!user) return
+
+		// Проверяем, заполнены ли данные карты (если хотя бы одно поле заполнено, проверяем все)
+		const hasAnyCardData =
+			formData.profile.card_number.trim() ||
+			formData.profile.card_holder.trim() ||
+			formData.profile.card_expiry.trim() ||
+			formData.profile.card_cvv.trim()
+
+		if (hasAnyCardData) {
+			// Если хотя бы одно поле карты заполнено, проверяем все поля
+			const cardErrors = validateCardData({
+				card_number: formData.profile.card_number,
+				card_holder: formData.profile.card_holder,
+				card_expiry: formData.profile.card_expiry,
+				card_cvv: formData.profile.card_cvv,
+			})
+
+			if (cardErrors) {
+				// Показываем первую ошибку
+				const firstError = Object.values(cardErrors)[0]
+				alert(firstError)
+				return
+			}
+		}
+
+		try {
+			const updatedUser = await authService.updateUser(formData)
+			setUser(updatedUser)
+			setEditing(false)
+			alert('Данные успешно сохранены')
+		} catch (error: any) {
+			console.error('Ошибка при сохранении:', error)
+			const errorMessage =
+				error.response?.data?.detail ||
+				error.response?.data?.message ||
+				'Ошибка при сохранении данных'
+			alert(errorMessage)
+		}
+	}
+
+	const handleCancel = () => {
+		// Восстанавливаем исходные данные пользователя
+		if (user) {
+			setFormData({
+				email: user.email || '',
+				first_name: user.first_name || '',
+				last_name: user.last_name || '',
+				username: user.username || '',
+				profile: {
+					card_number: user.profile?.card_number || '',
+					card_holder: user.profile?.card_holder || '',
+					card_expiry: user.profile?.card_expiry || '',
+					card_cvv: user.profile?.card_cvv || '',
+					chat_notifications: user.profile?.chat_notifications ?? true,
+					new_models_notifications:
+						user.profile?.new_models_notifications ?? false,
+				},
+			})
+		}
+		setEditing(false)
+	}
 
 	const handleLogout = async () => {
 		try {
@@ -218,7 +342,10 @@ export default function ProfilePage() {
 												</label>
 												<input
 													type='email'
-													value={user.email}
+													value={formData.email}
+													onChange={e =>
+														setFormData({ ...formData, email: e.target.value })
+													}
 													disabled={!editing}
 													className='w-full px-3 py-2 rounded-lg bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent disabled:bg-gray-100'
 													placeholder='Введите e-mail'
@@ -251,7 +378,21 @@ export default function ProfilePage() {
 														</label>
 														<input
 															type='text'
+															value={formData.profile.card_number}
+															onChange={e => {
+																const formatted = formatCardNumber(
+																	e.target.value
+																)
+																setFormData({
+																	...formData,
+																	profile: {
+																		...formData.profile,
+																		card_number: formatted,
+																	},
+																})
+															}}
 															disabled={!editing}
+															maxLength={19}
 															className='w-full px-3 py-2 rounded-lg bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent disabled:bg-gray-100'
 															placeholder='XXXX - XXXX - XXXX - XXXX'
 														/>
@@ -262,6 +403,19 @@ export default function ProfilePage() {
 														</label>
 														<input
 															type='text'
+															value={formData.profile.card_holder}
+															onChange={e => {
+																const formatted = formatCardHolder(
+																	e.target.value
+																)
+																setFormData({
+																	...formData,
+																	profile: {
+																		...formData.profile,
+																		card_holder: formatted,
+																	},
+																})
+															}}
 															disabled={!editing}
 															className='w-full px-3 py-2 rounded-lg bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent disabled:bg-gray-100'
 															placeholder='Фамилия и Имя'
@@ -273,7 +427,21 @@ export default function ProfilePage() {
 														</label>
 														<input
 															type='text'
+															value={formData.profile.card_expiry}
+															onChange={e => {
+																const formatted = formatCardExpiry(
+																	e.target.value
+																)
+																setFormData({
+																	...formData,
+																	profile: {
+																		...formData.profile,
+																		card_expiry: formatted,
+																	},
+																})
+															}}
 															disabled={!editing}
+															maxLength={5}
 															className='w-full px-3 py-2 rounded-lg bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent disabled:bg-gray-100'
 															placeholder='00 / 00'
 														/>
@@ -284,7 +452,19 @@ export default function ProfilePage() {
 														</label>
 														<input
 															type='text'
+															value={formData.profile.card_cvv}
+															onChange={e => {
+																const formatted = formatCardCVV(e.target.value)
+																setFormData({
+																	...formData,
+																	profile: {
+																		...formData.profile,
+																		card_cvv: formatted,
+																	},
+																})
+															}}
 															disabled={!editing}
+															maxLength={4}
 															className='w-full px-3 py-2 rounded-lg bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent disabled:bg-gray-100'
 															placeholder='***'
 														/>
@@ -301,7 +481,16 @@ export default function ProfilePage() {
 													<label className='flex items-center space-x-3 cursor-pointer'>
 														<input
 															type='checkbox'
-															defaultChecked
+															checked={formData.profile.chat_notifications}
+															onChange={e =>
+																setFormData({
+																	...formData,
+																	profile: {
+																		...formData.profile,
+																		chat_notifications: e.target.checked,
+																	},
+																})
+															}
 															disabled={!editing}
 															className='w-4 h-4 text-main1 focus:ring-main1 border-gray2 rounded disabled:opacity-50'
 														/>
@@ -312,7 +501,18 @@ export default function ProfilePage() {
 													<label className='flex items-center space-x-3 cursor-pointer'>
 														<input
 															type='checkbox'
-															defaultChecked={false}
+															checked={
+																formData.profile.new_models_notifications
+															}
+															onChange={e =>
+																setFormData({
+																	...formData,
+																	profile: {
+																		...formData.profile,
+																		new_models_notifications: e.target.checked,
+																	},
+																})
+															}
 															disabled={!editing}
 															className='w-4 h-4 text-main1 focus:ring-main1 border-gray2 rounded disabled:opacity-50'
 														/>
@@ -325,14 +525,22 @@ export default function ProfilePage() {
 
 											{/* Action Buttons */}
 											<div className='pt-4 flex space-x-3'>
+												{editing && (
+													<button
+														onClick={handleCancel}
+														className='px-4 py-2 border border-main1 text-main1 rounded-lg hover:bg-main1 hover:text-white transition-colors text-sm'
+													>
+														Отменить
+													</button>
+												)}
 												<button
-													onClick={() => setEditing(false)}
-													className='px-4 py-2 border border-main1 text-main1 rounded-lg hover:bg-main1 hover:text-white transition-colors text-sm'
-												>
-													Отменить
-												</button>
-												<button
-													onClick={() => setEditing(!editing)}
+													onClick={() => {
+														if (editing) {
+															handleSave()
+														} else {
+															setEditing(true)
+														}
+													}}
 													className='btn-primary px-4 py-2 text-sm'
 												>
 													{editing

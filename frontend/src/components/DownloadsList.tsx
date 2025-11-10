@@ -1,8 +1,8 @@
 'use client'
 
 import { config } from '@/config'
-import { downloadService } from '@/services/api'
-import { Download } from '@/types'
+import { authService, downloadService } from '@/services/api'
+import { Download, User } from '@/types'
 import {
 	ArrowDownTrayIcon,
 	EyeIcon,
@@ -11,6 +11,7 @@ import {
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import UpgradeSubscriptionModal from './UpgradeSubscriptionModal'
 
 export default function DownloadsList() {
 	const router = useRouter()
@@ -19,10 +20,23 @@ export default function DownloadsList() {
 	const [selectedFormats, setSelectedFormats] = useState<
 		Record<number, string>
 	>({})
+	const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false)
+	const [upgradeModalMessage, setUpgradeModalMessage] = useState<string>('')
+	const [currentUser, setCurrentUser] = useState<User | null>(null)
 
 	useEffect(() => {
 		fetchDownloads()
+		fetchCurrentUser()
 	}, [])
+
+	const fetchCurrentUser = async () => {
+		try {
+			const userData = await authService.getCurrentUser()
+			setCurrentUser(userData)
+		} catch (error) {
+			console.error('Ошибка при загрузке пользователя:', error)
+		}
+	}
 
 	const fetchDownloads = async () => {
 		try {
@@ -75,6 +89,25 @@ export default function DownloadsList() {
 			}
 
 			const data = await response.json()
+
+			// Проверяем, достигнут ли лимит скачиваний (403 Forbidden или 500 с сообщением о лимите)
+			const isLimitError =
+				(response.status === 403 && data.error) ||
+				(response.status === 500 &&
+					data.error &&
+					(data.error.includes('лимит') ||
+						data.error.includes('скачиваний') ||
+						data.error.includes('подписк')))
+
+			if (isLimitError) {
+				// Открываем модальное окно с выбором подписки
+				setUpgradeModalMessage(
+					data.error ||
+						'Достигнут лимит скачиваний для вашей подписки. Обновите подписку для продолжения.'
+				)
+				setIsUpgradeModalOpen(true)
+				return
+			}
 
 			if (response.ok && data.url) {
 				// Скачиваем изображение через fetch и blob
@@ -280,6 +313,19 @@ export default function DownloadsList() {
 					))
 				)}
 			</div>
+
+			{/* Modal for subscription upgrade */}
+			<UpgradeSubscriptionModal
+				isOpen={isUpgradeModalOpen}
+				onClose={() => setIsUpgradeModalOpen(false)}
+				currentSubscription={
+					(currentUser?.profile?.subscription_type as
+						| 'trial'
+						| 'basic'
+						| 'premium') || 'trial'
+				}
+				message={upgradeModalMessage}
+			/>
 		</div>
 	)
 }

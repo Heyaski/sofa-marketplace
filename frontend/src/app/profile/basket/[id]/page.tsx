@@ -3,6 +3,7 @@
 import AddProductsModal from '@/components/AddProductsModal'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
+import UpgradeSubscriptionModal from '@/components/UpgradeSubscriptionModal'
 import { config } from '@/config'
 import { authService, basketService } from '@/services/api'
 import { Basket, BasketItem, User } from '@/types'
@@ -27,6 +28,8 @@ export default function BasketDetailPage() {
 		Record<number, string>
 	>({})
 	const [isAddProductsModalOpen, setIsAddProductsModalOpen] = useState(false)
+	const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false)
+	const [upgradeModalMessage, setUpgradeModalMessage] = useState<string>('')
 
 	useEffect(() => {
 		const fetchData = async () => {
@@ -123,6 +126,25 @@ export default function BasketDetailPage() {
 
 			const data = await response.json()
 
+			// Проверяем, достигнут ли лимит скачиваний (403 Forbidden или 500 с сообщением о лимите)
+			const isLimitError =
+				(response.status === 403 && data.error) ||
+				(response.status === 500 &&
+					data.error &&
+					(data.error.includes('лимит') ||
+						data.error.includes('скачиваний') ||
+						data.error.includes('подписк')))
+
+			if (isLimitError) {
+				// Открываем модальное окно с выбором подписки
+				setUpgradeModalMessage(
+					data.error ||
+						'Достигнут лимит скачиваний для вашей подписки. Обновите подписку для продолжения.'
+				)
+				setIsUpgradeModalOpen(true)
+				return
+			}
+
 			if (response.ok) {
 				if (data.url) {
 					// Скачиваем изображение через fetch и blob
@@ -183,6 +205,12 @@ export default function BasketDetailPage() {
 		)
 	}
 
+	const isOwner =
+		currentUser &&
+		basket &&
+		((typeof basket.user === 'object' && basket.user?.id === currentUser.id) ||
+			(typeof basket.user === 'number' && basket.user === currentUser.id))
+
 	if (loading) {
 		return (
 			<div className='min-h-screen bg-gray-bg flex items-center justify-center'>
@@ -228,12 +256,14 @@ export default function BasketDetailPage() {
 								{basket.name || 'Проект_Квартира_Ивановых'}
 							</h1>
 						</div>
-						<button
-							onClick={() => setIsAddProductsModalOpen(true)}
-							className='bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main2 transition-colors font-medium'
-						>
-							Добавить из каталога
-						</button>
+						{isOwner && (
+							<button
+								onClick={() => setIsAddProductsModalOpen(true)}
+								className='bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main2 transition-colors font-medium'
+							>
+								Добавить из каталога
+							</button>
+						)}
 					</div>
 
 					{/* Items list */}
@@ -341,12 +371,7 @@ export default function BasketDetailPage() {
 									</div>
 
 									{/* Action buttons - только для владельца корзины */}
-									{currentUser &&
-									basket &&
-									((typeof basket.user === 'object' &&
-										basket.user?.id === currentUser.id) ||
-										(typeof basket.user === 'number' &&
-											basket.user === currentUser.id)) ? (
+									{isOwner ? (
 										<div className='flex items-center gap-3'>
 											<button
 												onClick={() =>
@@ -419,6 +444,19 @@ export default function BasketDetailPage() {
 				onClose={() => setIsAddProductsModalOpen(false)}
 				onAddProducts={handleAddProducts}
 				currentBasketId={basketId}
+			/>
+
+			{/* Modal for subscription upgrade */}
+			<UpgradeSubscriptionModal
+				isOpen={isUpgradeModalOpen}
+				onClose={() => setIsUpgradeModalOpen(false)}
+				currentSubscription={
+					(currentUser?.profile?.subscription_type as
+						| 'trial'
+						| 'basic'
+						| 'premium') || 'trial'
+				}
+				message={upgradeModalMessage}
 			/>
 		</div>
 	)

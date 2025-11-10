@@ -24,6 +24,7 @@ DEBUG = bool(int(get_env("DEBUG", "1")))
 ALLOWED_HOSTS = get_env("ALLOWED_HOSTS", "*").split(",")
 
 INSTALLED_APPS = [
+    "jazzmin",  # Должен быть перед django.contrib.admin
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -126,3 +127,114 @@ MEDIA_ROOT = BASE_DIR / 'media'
 STATICFILES_DIRS = [
     BASE_DIR / 'static'
 ]
+
+# Настройки Jazzmin для красивой админ-панели
+JAZZMIN_SETTINGS = {
+    # Заголовок сайта
+    "site_title": "VIZHUB.ART Admin",
+    "site_header": "VIZHUB.ART",
+    "site_brand": "VIZHUB.ART",
+    "site_logo": None,
+    "login_logo": None,
+    "login_logo_dark": None,
+    "site_logo_classes": "img-circle",
+    "site_icon": None,
+    
+    # Цветовая схема
+    "theme": "flatly",  # Можно выбрать: default, cerulean, cosmo, cyborg, darkly, flatly, journal, litera, lumen, lux, materia, minty, pulse, sandstone, simplex, sketchy, slate, solar, spacelab, superhero, united, yeti
+    
+    # Настройки навигации
+    "topmenu_links": [
+        {"name": "Главная", "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"name": "API", "url": "/api/", "new_window": True},
+    ],
+    
+    # Настройки пользователя
+    "usermenu_links": [
+        {"name": "Поддержка", "url": "https://github.com/farridav/django-jazzmin/issues", "icon": "fas fa-life-ring", "new_window": True},
+    ],
+    
+    # Настройки бокового меню
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "hide_apps": [],
+    "hide_models": [],
+    
+    # Иконки приложений
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "auth.Group": "fas fa-users",
+        "catalog.Category": "fas fa-folder",
+        "catalog.Product": "fas fa-couch",
+        "catalog.ProductImage": "fas fa-images",
+        "baskets.Basket": "fas fa-shopping-cart",
+        "baskets.BasketItem": "fas fa-shopping-basket",
+        "subscriptions.Plan": "fas fa-crown",
+        "subscriptions.Subscription": "fas fa-id-card",
+        "downloads.Download": "fas fa-download",
+        "orders.Order": "fas fa-receipt",
+        "users.UserProfile": "fas fa-user-circle",
+        "chats.Chat": "fas fa-comments",
+        "chats.Message": "fas fa-envelope",
+    },
+    
+    # Настройки интерфейса
+    "default_icon_parents": "fas fa-chevron-circle-right",
+    "default_icon_children": "fas fa-circle",
+    
+    # Настройки футера
+    "copyright": "VIZHUB.ART",
+    
+    # Настройки поиска
+    "search_model": ["auth.User", "catalog.Product"],
+    
+    # Настройки действий
+    "actions_on_top": True,
+    "actions_on_bottom": False,
+    
+    # Настройки фильтров
+    "show_ui_builder": False,
+    
+    # Настройки языка
+    "language_chooser": False,
+    
+    # Настройки изменений
+    "changeform_format": "horizontal_tabs",
+    "changeform_format_overrides": {
+        "auth.user": "collapsible",
+        "auth.group": "vertical_tabs",
+    },
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    "brand_colour": "navbar-primary",
+    "accent": "accent-primary",
+    "navbar": "navbar-dark",
+    "no_navbar_border": False,
+    "navbar_fixed": True,
+    "layout_boxed": False,
+    "footer_fixed": False,
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-dark-primary",
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": False,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": False,
+    "theme": "flatly",
+    "dark_mode_theme": None,
+    "button_classes": {
+        "primary": "btn-primary",
+        "secondary": "btn-secondary",
+        "info": "btn-info",
+        "warning": "btn-warning",
+        "danger": "btn-danger",
+        "success": "btn-success"
+    }
+}

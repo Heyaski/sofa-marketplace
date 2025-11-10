@@ -3,3 +3,4 @@ djangorestframework
 psycopg2-binary
 django-cors-headers
 djangorestframework-simplejwt
+django-jazzmin>=3.0.0

@@ -237,6 +237,12 @@ export const authService = {
 		return response.data
 	},
 
+	// Обновить информацию о текущем пользователе
+	updateUser: async (data: Partial<User>): Promise<User> => {
+		const response = await apiClient.patch('/api/users/me/', data)
+		return response.data
+	},
+
 	// Выход из системы
 	logout: async (): Promise<void> => {
 		await apiClient.post('/api/users/logout/')
