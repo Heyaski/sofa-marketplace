@@ -118,6 +118,7 @@ export default function PaymentModal({
 			if (selectedCard === 'new' && newCardData.remember_card) {
 				await authService.updateUser({
 					profile: {
+						subscription_type: user?.profile?.subscription_type || 'trial',
 						card_number: newCardData.card_number,
 						card_holder: newCardData.card_holder,
 						card_expiry: newCardData.card_expiry,
