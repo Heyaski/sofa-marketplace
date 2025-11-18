@@ -40,10 +40,8 @@ export default function CreateChatModal({
 		setLoading(true)
 		try {
 			const response = await authService.searchUsers(searchQuery.trim())
-			// Проверяем формат ответа (может быть массив или объект с results)
-			const usersList = Array.isArray(response)
-				? response
-				: response?.results || []
+			// response всегда массив User[]
+			const usersList = Array.isArray(response) ? response : []
 
 			// Фильтруем текущего пользователя из результатов
 			const filteredUsers = usersList.filter(
