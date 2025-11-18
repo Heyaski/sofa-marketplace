@@ -1,0 +1,15 @@
+# Пример конфигурации Gunicorn для Beget
+# Скопируйте этот файл в gunicorn_config.py и настройте под себя
+
+bind = "127.0.0.1:8000"
+workers = 3
+worker_class = "sync"
+timeout = 120
+keepalive = 5
+user = "ваш_логин"  # Замените на ваш логин на Beget
+group = "ваш_логин"  # Замените на ваш логин на Beget
+pidfile = "/home/ваш_логин/sofa-marketplace/backend/gunicorn.pid"  # Замените путь
+accesslog = "/home/ваш_логин/sofa-marketplace/backend/logs/access.log"
+errorlog = "/home/ваш_логин/sofa-marketplace/backend/logs/error.log"
+loglevel = "info"
+

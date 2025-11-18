@@ -1,0 +1,8 @@
+#!/bin/bash
+# Скрипт запуска Django на Beget (если нет прав sudo)
+# Скопируйте в start.sh и настройте пути
+
+cd /home/ваш_логин/sofa-marketplace/backend  # Замените на ваш путь
+source venv/bin/activate
+gunicorn --config gunicorn_config.py config.wsgi:application
+

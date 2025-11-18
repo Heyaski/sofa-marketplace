@@ -1,0 +1,9 @@
+#!/bin/bash
+# Скрипт запуска Next.js на Beget (если нет прав sudo)
+# Скопируйте в start.sh и настройте пути
+
+cd /home/ваш_логин/sofa-marketplace/frontend  # Замените на ваш путь
+export NODE_ENV=production
+export PORT=3000
+node_modules/.bin/next start
+

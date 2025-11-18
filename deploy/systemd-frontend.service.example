@@ -1,0 +1,22 @@
+# Systemd сервис для Next.js Frontend
+# Скопируйте в /etc/systemd/system/sofa-frontend.service
+# Замените /home/deploy на путь к вашему проекту и deploy на вашего пользователя
+
+[Unit]
+Description=Sofa Marketplace Next.js Frontend
+After=network.target
+
+[Service]
+Type=simple
+User=deploy
+Group=deploy
+WorkingDirectory=/home/deploy/sofa-marketplace/frontend
+Environment="NODE_ENV=production"
+Environment="PORT=3000"
+ExecStart=/usr/bin/node /home/deploy/sofa-marketplace/frontend/node_modules/.bin/next start
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+
