@@ -74,9 +74,8 @@ export default function SendBasketModal({
 			try {
 				const searchResponse = await authService.searchUsers('')
 				// Проверяем формат ответа (может быть массив или объект с results)
-				const usersList = Array.isArray(searchResponse)
-					? searchResponse
-					: searchResponse?.results || []
+				// searchResponse всегда массив User[]
+				const usersList = Array.isArray(searchResponse) ? searchResponse : []
 
 				usersList.forEach((user: User) => {
 					// Исключаем текущего пользователя
