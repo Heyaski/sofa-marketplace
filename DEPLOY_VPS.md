@@ -235,7 +235,17 @@ nano ~/sofa-marketplace/backend/.env
 DJANGO_SECRET=сгенерируйте-новый-секретный-ключ-для-продакшена
 DEBUG=0
 ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com,api.yourdomain.com
+DATABASE_URL=postgresql://deploy:ваш_пароль@localhost:5432/sofa_marketplace
 ```
+
+> **Важно:**
+>
+> - `ALLOWED_HOSTS` указывается через запятую **БЕЗ кавычек**
+> - Значения разделяются запятыми без пробелов (или с пробелами после запятой - не важно)
+> - Примеры правильного формата:
+>   - `ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com` ✅
+>   - `ALLOWED_HOSTS=yourdomain.com, www.yourdomain.com` ✅ (пробелы после запятой допустимы)
+>   - `ALLOWED_HOSTS="yourdomain.com,www.yourdomain.com"` ❌ (кавычки не нужны!)
 
 **Генерация секретного ключа:**
 

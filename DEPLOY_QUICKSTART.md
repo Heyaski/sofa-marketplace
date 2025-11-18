@@ -42,8 +42,13 @@ pip install -r requirements.txt
 
 # .env файл
 nano .env
-# Добавьте: DJANGO_SECRET, DEBUG=0, ALLOWED_HOSTS
-# Примечание: SQLite используется по умолчанию, DATABASE_URL не нужен
+# Добавьте:
+# DJANGO_SECRET=ваш-секретный-ключ
+# DEBUG=0
+# ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com,api.yourdomain.com
+# DATABASE_URL=postgresql://deploy:пароль@localhost:5432/sofa_marketplace
+#
+# ВАЖНО: ALLOWED_HOSTS указывается через запятую БЕЗ кавычек!
 
 # Обновите settings.py (см. PRODUCTION_SETTINGS.md)
 
