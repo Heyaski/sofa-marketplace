@@ -41,3 +41,9 @@ class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [AllowAny]  # Разрешаем чтение без авторизации
+
+    def get_serializer_context(self):
+        """Добавляем request в контекст для правильной генерации URL изображений"""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context

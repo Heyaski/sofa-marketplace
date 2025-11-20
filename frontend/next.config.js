@@ -15,6 +15,24 @@ const nextConfig = {
 				port: '8000',
 				pathname: '/media/**',
 			},
+			// Для продакшена - используем домен из переменной окружения или дефолтный
+			...(process.env.NEXT_PUBLIC_API_URL
+				? [
+						{
+							protocol: process.env.NEXT_PUBLIC_API_URL.startsWith('https')
+								? 'https'
+								: 'http',
+							hostname: process.env.NEXT_PUBLIC_API_URL.replace(
+								/^https?:\/\//,
+								''
+							)
+								.split(':')[0]
+								.split('/')[0],
+							pathname: '/media/**',
+						},
+				  ]
+				: []),
+			// Fallback для стандартного домена
 			{
 				protocol: 'https',
 				hostname: 'api.yourdomain.com',

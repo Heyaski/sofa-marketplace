@@ -443,6 +443,13 @@ NEXT_PUBLIC_APP_NAME=Sofa Marketplace
 NEXT_PUBLIC_APP_VERSION=1.0.0
 ```
 
+> **ВАЖНО:**
+>
+> - Замените `api.yourdomain.com` на ваш реальный домен API (например, `api.vizhub.art`)
+> - Используйте `https://` для продакшена
+> - После изменения `.env.production` **обязательно пересоберите проект**: `npm run build`
+> - Переменные окружения в Next.js встраиваются в код при сборке, поэтому изменения требуют пересборки
+
 ### 9.3 Обновление next.config.js
 
 ```bash
