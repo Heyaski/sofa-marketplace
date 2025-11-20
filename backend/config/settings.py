@@ -125,13 +125,17 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Статика
-STATICFILES_DIRS = [
-    BASE_DIR / 'static'
-]
 STATIC_ROOT = BASE_DIR / 'staticfiles'  # Директория для collectstatic
 
+# STATICFILES_DIRS - только если директория существует
+static_dir = BASE_DIR / 'static'
+if static_dir.exists():
+    STATICFILES_DIRS = [static_dir]
+
 # WhiteNoise для статики в продакшене
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# Используем CompressedStaticFilesStorage вместо CompressedManifestStaticFilesStorage
+# для избежания проблем с манифестом
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # Настройки Jazzmin для красивой админ-панели
 JAZZMIN_SETTINGS = {
