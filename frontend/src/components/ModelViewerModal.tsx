@@ -24,6 +24,7 @@ export default function ModelViewerModal({
 	const [error, setError] = useState<string | null>(null)
 	const [isLoading, setIsLoading] = useState(true)
 	const [scriptLoaded, setScriptLoaded] = useState(false)
+	const [loadProgress, setLoadProgress] = useState(0)
 
 	// Проверяем, загружен ли скрипт model-viewer
 	useEffect(() => {
@@ -72,14 +73,68 @@ export default function ModelViewerModal({
 			setSelectedModelIndex(0)
 			setError(null)
 			setIsLoading(true)
+			setLoadProgress(0)
 			// Отладочная информация
 			console.log('3D Models:', models)
 			console.log('Selected model URL:', models[0]?.file_url)
 
-			// Не проверяем доступность файла через fetch, так как это вызывает CORS ошибки
-			// model-viewer сам попробует загрузить файл и покажет ошибку, если не получится
+			// Таймаут для загрузки модели (30 секунд)
+			const loadTimeout = setTimeout(() => {
+				setIsLoading((prevLoading) => {
+					if (prevLoading) {
+						console.warn('Model loading timeout after 30 seconds')
+						setError(
+							'Загрузка модели занимает слишком много времени. Возможно, файл слишком большой или недоступен. Попробуйте обновить страницу или проверить подключение к интернету.'
+						)
+						return false
+					}
+					return prevLoading
+				})
+			}, 30000)
+
+			return () => clearTimeout(loadTimeout)
 		}
 	}, [isOpen, models])
+
+	// Проверка загрузки модели через DOM элемент
+	useEffect(() => {
+		if (!scriptLoaded || !isOpen || models.length === 0) return
+
+		const modelViewerId = `model-viewer-${selectedModelIndex}`
+		
+		// Ждем немного, чтобы элемент появился в DOM
+		const checkTimeout = setTimeout(() => {
+			const modelViewer = document.getElementById(modelViewerId) as any
+
+			if (!modelViewer) {
+				console.warn('Model viewer element not found:', modelViewerId)
+				return
+			}
+
+			// Проверяем состояние загрузки периодически
+			const checkInterval = setInterval(() => {
+				if (modelViewer.loaded) {
+					console.log('Model loaded (via DOM check):', models[selectedModelIndex]?.file_url)
+					setIsLoading(false)
+					setError(null)
+					setLoadProgress(100)
+					clearInterval(checkInterval)
+				}
+			}, 500)
+
+			// Очищаем интервал через 30 секунд
+			const timeout = setTimeout(() => {
+				clearInterval(checkInterval)
+			}, 30000)
+
+			return () => {
+				clearInterval(checkInterval)
+				clearTimeout(timeout)
+			}
+		}, 500)
+
+		return () => clearTimeout(checkTimeout)
+	}, [scriptLoaded, isOpen, selectedModelIndex, models])
 
 	if (!isOpen || models.length === 0) return null
 
@@ -138,10 +193,13 @@ export default function ModelViewerModal({
 				<div className='flex-1 overflow-hidden flex flex-col'>
 					{/* Model Viewer */}
 					<div className='flex-1 bg-gray-100 flex items-center justify-center min-h-[400px] relative'>
-						{isLoading && !error ? (
+						{isLoading && !error && loadProgress === 0 ? (
 							<div className='text-center p-8'>
 								<div className='inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-main1 mb-4'></div>
 								<p className='text-gray'>Загрузка 3D модели...</p>
+								<p className='text-xs text-gray mt-2'>
+									Пожалуйста, подождите. Это может занять некоторое время.
+								</p>
 							</div>
 						) : error ? (
 							<div className='text-center p-8'>
@@ -185,6 +243,7 @@ export default function ModelViewerModal({
 						) : (
 							<>
 								<model-viewer
+									id={`model-viewer-${selectedModelIndex}`}
 									src={selectedModel.file_url}
 									alt={selectedModel.description || productTitle || '3D Model'}
 									camera-controls
@@ -202,20 +261,47 @@ export default function ModelViewerModal({
 									onError={(e: any) => {
 										console.error('Model viewer error:', e)
 										console.error('Error details:', e.detail)
+										console.error('Error type:', e.type)
 										handleModelError(e)
 									}}
-									onLoad={() => {
-										console.log('Model loaded successfully:', selectedModel.file_url)
+									onLoad={(e: any) => {
+										console.log('Model loaded successfully (onLoad event):', selectedModel.file_url)
+										console.log('Load event details:', e)
 										setIsLoading(false)
 										setError(null)
+										setLoadProgress(100)
+									}}
+									onProgress={(e: any) => {
+										const progress = e.detail?.totalProgress || 0
+										const progressPercent = Math.round(progress * 100)
+										setLoadProgress(progressPercent)
+										console.log('Model loading progress:', progressPercent + '%')
+										// Если прогресс больше 10%, скрываем основной индикатор загрузки
+										if (progress > 0.1) {
+											setIsLoading(false)
+										}
 									}}
 								/>
+								{/* Индикатор прогресса загрузки */}
+								{isLoading && loadProgress > 0 && (
+									<div className='absolute top-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white px-4 py-2 rounded-lg z-10'>
+										<div className='text-sm'>Загрузка: {loadProgress}%</div>
+										<div className='w-48 h-2 bg-gray-700 rounded-full mt-2'>
+											<div
+												className='h-2 bg-main1 rounded-full transition-all duration-300'
+												style={{ width: `${loadProgress}%` }}
+											></div>
+										</div>
+									</div>
+								)}
 								{/* Отладочная информация в режиме разработки */}
 								{process.env.NODE_ENV === 'development' && (
 									<div className='absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs p-2 rounded z-10 max-w-xs break-all'>
 										<div>URL: {selectedModel.file_url}</div>
 										<div>Format: {modelFormat}</div>
 										<div>Script loaded: {scriptLoaded ? 'Yes' : 'No'}</div>
+										<div>Loading: {isLoading ? 'Yes' : 'No'}</div>
+										<div>Progress: {loadProgress}%</div>
 									</div>
 								)}
 							</>
