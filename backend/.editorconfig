@@ -1,0 +1,44 @@
+# EditorConfig для проекта Django
+
+root = true
+
+# Общие настройки для всех файлов
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Python файлы
+[*.py]
+indent_style = space
+indent_size = 4
+max_line_length = 120
+
+# Django шаблоны - НЕ форматировать автоматически!
+[**/templates/**/*.html]
+indent_style = space
+indent_size = 4
+# Не применять автоформатирование
+trim_trailing_whitespace = false
+
+# JavaScript/TypeScript
+[*.{js,jsx,ts,tsx}]
+indent_style = space
+indent_size = 2
+
+# JSON
+[*.json]
+indent_style = space
+indent_size = 2
+
+# YAML
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# Markdown
+[*.md]
+trim_trailing_whitespace = false
+
+

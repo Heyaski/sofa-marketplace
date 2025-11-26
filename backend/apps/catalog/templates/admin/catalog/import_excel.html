@@ -1,0 +1,89 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Импорт товаров из Excel{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>Импорт товаров из Excel файла</h1>
+    
+    <div class="module" style="margin-bottom: 20px; padding: 20px; background: #f8f9fa;">
+        <h2 style="margin-top: 0;">Формат Excel файла</h2>
+        <p>Excel файл должен содержать следующие колонки (в указанном порядке):</p>
+        <ol>
+            <li><strong>Название</strong> (обязательно) - название товара</li>
+            <li><strong>Материал</strong> - материал изделия</li>
+            <li><strong>Цена</strong> (обязательно) - цена товара в числовом формате</li>
+            <li><strong>ID изображений</strong> - ID изображений через запятую (например: img_001,img_002)</li>
+            <li><strong>ID 3D моделей</strong> - ID 3D моделей через запятую (например: model_001,model_002)</li>
+            <li><strong>ID категории</strong> - ID категории из базы данных</li>
+            <li><strong>Описание</strong> - описание товара</li>
+            <li><strong>Стиль</strong> - стиль изделия</li>
+            <li><strong>Цвет</strong> - цвет изделия</li>
+        </ol>
+        
+        <div style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin-top: 15px;">
+            <strong>⚠️ Важно:</strong> Первая строка должна содержать заголовки колонок и будет пропущена при импорте.
+        </div>
+        
+        <div style="background: #d1ecf1; padding: 15px; border-left: 4px solid #17a2b8; margin-top: 15px;">
+            <strong>ℹ️ Примечание:</strong> Перед импортом убедитесь, что все файлы с указанными ID уже загружены в раздел "Файловые ресурсы".
+        </div>
+    </div>
+    
+    <form method="post" enctype="multipart/form-data" style="padding: 20px; background: white; border: 1px solid #ddd;">
+        {% csrf_token %}
+        
+        <div class="form-row" style="margin-bottom: 20px;">
+            <label for="excel_file" style="display: block; margin-bottom: 10px; font-weight: bold;">
+                Выберите Excel файл (.xlsx):
+            </label>
+            <input type="file" name="excel_file" id="excel_file" accept=".xlsx,.xls" required
+                   style="padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+        
+        <div class="submit-row">
+            <input type="submit" value="Импортировать" class="default" 
+                   style="padding: 10px 20px; background: #417690; color: white; border: none; cursor: pointer; border-radius: 4px;">
+            <a href="{% url 'admin:catalog_product_changelist' %}" class="button cancel-link" 
+               style="margin-left: 10px; padding: 10px 20px; background: #ba2121; color: white; text-decoration: none; border-radius: 4px; display: inline-block;">
+                Отмена
+            </a>
+        </div>
+    </form>
+    
+    <div style="margin-top: 30px; padding: 20px; background: #f0f0f0; border-left: 4px solid #417690;">
+        <h3 style="margin-top: 0;">Пример структуры Excel файла:</h3>
+        <table style="width: 100%; border-collapse: collapse; background: white;">
+            <thead>
+                <tr style="background: #417690; color: white;">
+                    <th style="padding: 10px; border: 1px solid #ddd;">Название</th>
+                    <th style="padding: 10px; border: 1px solid #ddd;">Материал</th>
+                    <th style="padding: 10px; border: 1px solid #ddd;">Цена</th>
+                    <th style="padding: 10px; border: 1px solid #ddd;">ID изображений</th>
+                    <th style="padding: 10px; border: 1px solid #ddd;">ID 3D моделей</th>
+                    <th style="padding: 10px; border: 1px solid #ddd;">ID категории</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Диван "Комфорт"</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Ткань</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">50000</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">img_001,img_002</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">model_001</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">1</td>
+                </tr>
+                <tr style="background: #f9f9f9;">
+                    <td style="padding: 10px; border: 1px solid #ddd;">Кресло "Релакс"</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Кожа</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">35000</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">img_003</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">model_002</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">2</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
