@@ -22,11 +22,86 @@ export default function ModelViewerModal({
 }: ModelViewerModalProps) {
 	const [selectedModelIndex, setSelectedModelIndex] = useState(0)
 	const [error, setError] = useState<string | null>(null)
+	const [isLoading, setIsLoading] = useState(true)
+	const [scriptLoaded, setScriptLoaded] = useState(false)
+
+	// Проверяем, загружен ли скрипт model-viewer
+	useEffect(() => {
+		if (!isOpen) return
+
+		const checkScript = () => {
+			// Проверяем несколько способов определения загрузки
+			if (
+				customElements.get('model-viewer') ||
+				typeof window !== 'undefined' &&
+				(window as any).customElements?.get('model-viewer')
+			) {
+				setScriptLoaded(true)
+				setIsLoading(false)
+				return true
+			}
+			return false
+		}
+
+		// Проверяем сразу
+		if (checkScript()) {
+			return
+		}
+
+		// Если не загружен, проверяем периодически
+		let attempts = 0
+		const maxAttempts = 30 // 3 секунды максимум
+		const interval = setInterval(() => {
+			attempts++
+			if (checkScript() || attempts >= maxAttempts) {
+				clearInterval(interval)
+				if (attempts >= maxAttempts && !checkScript()) {
+					setError(
+						'Скрипт 3D просмотра не загрузился. Пожалуйста, обновите страницу или проверьте подключение к интернету.'
+					)
+					setIsLoading(false)
+				}
+			}
+		}, 100)
+
+		return () => clearInterval(interval)
+	}, [isOpen])
 
 	useEffect(() => {
 		if (isOpen && models.length > 0) {
 			setSelectedModelIndex(0)
 			setError(null)
+			setIsLoading(true)
+			// Отладочная информация
+			console.log('3D Models:', models)
+			console.log('Selected model URL:', models[0]?.file_url)
+
+			// Проверяем доступность файла
+			const checkFileAvailability = async () => {
+				const modelUrl = models[0]?.file_url
+				if (!modelUrl) {
+					setError('URL файла не указан')
+					setIsLoading(false)
+					return
+				}
+
+				try {
+					const response = await fetch(modelUrl, { method: 'HEAD' })
+					if (!response.ok) {
+						console.warn(
+							`File not accessible: ${modelUrl}, Status: ${response.status}`
+						)
+						// Не устанавливаем ошибку, так как некоторые серверы не поддерживают HEAD
+						// model-viewer сам попробует загрузить файл
+					}
+				} catch (err) {
+					console.warn('Error checking file availability:', err)
+					// Не устанавливаем ошибку, так как это может быть CORS проблема
+					// model-viewer сам попробует загрузить файл
+				}
+			}
+
+			checkFileAvailability()
 		}
 	}, [isOpen, models])
 
@@ -49,8 +124,13 @@ export default function ModelViewerModal({
 	const modelFormat = getModelFormat(selectedModel.file_url)
 	const isSupported = modelFormat !== null
 
-	const handleModelError = () => {
-		setError('Не удалось загрузить 3D модель. Возможно, формат не поддерживается.')
+	const handleModelError = (e?: Event) => {
+		console.error('Model viewer error:', e)
+		console.error('Model URL:', selectedModel.file_url)
+		setError(
+			`Не удалось загрузить 3D модель. Проверьте консоль браузера для деталей. URL: ${selectedModel.file_url}`
+		)
+		setIsLoading(false)
 	}
 
 	const handleDownload = () => {
@@ -82,9 +162,17 @@ export default function ModelViewerModal({
 				<div className='flex-1 overflow-hidden flex flex-col'>
 					{/* Model Viewer */}
 					<div className='flex-1 bg-gray-100 flex items-center justify-center min-h-[400px] relative'>
-						{error ? (
+						{isLoading && !error ? (
+							<div className='text-center p-8'>
+								<div className='inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-main1 mb-4'></div>
+								<p className='text-gray'>Загрузка 3D модели...</p>
+							</div>
+						) : error ? (
 							<div className='text-center p-8'>
 								<p className='text-red-500 mb-4'>{error}</p>
+								<div className='text-xs text-gray mb-4 break-all'>
+									URL: {selectedModel.file_url}
+								</div>
 								<button
 									onClick={handleDownload}
 									className='bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main1/90 transition-colors'
@@ -100,6 +188,9 @@ export default function ModelViewerModal({
 								<p className='text-sm text-gray mb-4'>
 									Поддерживаемые форматы: .glb, .gltf, .usdz
 								</p>
+								<div className='text-xs text-gray mb-4 break-all'>
+									URL: {selectedModel.file_url}
+								</div>
 								<button
 									onClick={handleDownload}
 									className='bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main1/90 transition-colors'
@@ -107,21 +198,51 @@ export default function ModelViewerModal({
 									Скачать файл
 								</button>
 							</div>
+						) : !scriptLoaded ? (
+							<div className='text-center p-8'>
+								<div className='inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-main1 mb-4'></div>
+								<p className='text-gray'>Инициализация 3D просмотра...</p>
+								<p className='text-xs text-gray mt-2'>
+									Ожидание загрузки скрипта model-viewer...
+								</p>
+							</div>
 						) : (
-							<model-viewer
-								src={selectedModel.file_url}
-								alt={selectedModel.description || productTitle || '3D Model'}
-								camera-controls
-								auto-rotate
-								ar
-								shadow-intensity='1'
-								style={{
-									width: '100%',
-									height: '100%',
-									backgroundColor: '#f3f4f6',
-								}}
-								onError={handleModelError}
-							/>
+							<>
+								<model-viewer
+									src={selectedModel.file_url}
+									alt={selectedModel.description || productTitle || '3D Model'}
+									camera-controls
+									auto-rotate
+									ar
+									shadow-intensity='1'
+									interaction-policy='allow-when-focused'
+									loading='auto'
+									reveal='auto'
+									style={{
+										width: '100%',
+										height: '100%',
+										backgroundColor: '#f3f4f6',
+									}}
+									onError={(e: any) => {
+										console.error('Model viewer error:', e)
+										console.error('Error details:', e.detail)
+										handleModelError(e)
+									}}
+									onLoad={() => {
+										console.log('Model loaded successfully:', selectedModel.file_url)
+										setIsLoading(false)
+										setError(null)
+									}}
+								/>
+								{/* Отладочная информация в режиме разработки */}
+								{process.env.NODE_ENV === 'development' && (
+									<div className='absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs p-2 rounded z-10 max-w-xs break-all'>
+										<div>URL: {selectedModel.file_url}</div>
+										<div>Format: {modelFormat}</div>
+										<div>Script loaded: {scriptLoaded ? 'Yes' : 'No'}</div>
+									</div>
+								)}
+							</>
 						)}
 					</div>
 

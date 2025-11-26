@@ -271,7 +271,10 @@ export default function ProductPage({ params }: ProductPageProps) {
 									Добавить в корзину
 								</button>
 								<button
-									onClick={() => setIs3DViewerOpen(true)}
+									onClick={() => {
+										console.log('Product 3D models:', product?.asset_3d_models)
+										setIs3DViewerOpen(true)
+									}}
 									disabled={
 										!product?.asset_3d_models ||
 										product.asset_3d_models.length === 0
