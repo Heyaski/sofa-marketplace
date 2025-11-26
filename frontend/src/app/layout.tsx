@@ -22,7 +22,13 @@ export default function RootLayout({
 				<Script
 					type='module'
 					src='https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js'
-					strategy='afterInteractive'
+					strategy='beforeInteractive'
+					onLoad={() => {
+						console.log('Model-viewer script loaded in layout')
+					}}
+					onError={(e) => {
+						console.error('Model-viewer script failed to load:', e)
+					}}
 				/>
 				{children}
 			</body>

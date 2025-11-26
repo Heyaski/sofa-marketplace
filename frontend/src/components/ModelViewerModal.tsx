@@ -32,13 +32,14 @@ export default function ModelViewerModal({
 
 		const checkScript = () => {
 			// Проверяем несколько способов определения загрузки
-			if (
-				customElements.get('model-viewer') ||
+			const isLoaded =
 				typeof window !== 'undefined' &&
-				(window as any).customElements?.get('model-viewer')
-			) {
+				(customElements.get('model-viewer') ||
+					(window as any).customElements?.get('model-viewer'))
+			
+			if (isLoaded) {
+				console.log('Model-viewer script loaded successfully')
 				setScriptLoaded(true)
-				setIsLoading(false)
 				return true
 			}
 			return false
@@ -51,12 +52,13 @@ export default function ModelViewerModal({
 
 		// Если не загружен, проверяем периодически
 		let attempts = 0
-		const maxAttempts = 30 // 3 секунды максимум
+		const maxAttempts = 50 // 5 секунд максимум
 		const interval = setInterval(() => {
 			attempts++
 			if (checkScript() || attempts >= maxAttempts) {
 				clearInterval(interval)
 				if (attempts >= maxAttempts && !checkScript()) {
+					console.error('Model-viewer script failed to load after', maxAttempts, 'attempts')
 					setError(
 						'Скрипт 3D просмотра не загрузился. Пожалуйста, обновите страницу или проверьте подключение к интернету.'
 					)
@@ -101,39 +103,61 @@ export default function ModelViewerModal({
 		if (!scriptLoaded || !isOpen || models.length === 0) return
 
 		const modelViewerId = `model-viewer-${selectedModelIndex}`
+		let checkInterval: NodeJS.Timeout | null = null
+		let timeout: NodeJS.Timeout | null = null
 		
-		// Ждем немного, чтобы элемент появился в DOM
+		// Ждем дольше, чтобы элемент точно появился в DOM и скрипт зарегистрировал компонент
 		const checkTimeout = setTimeout(() => {
-			const modelViewer = document.getElementById(modelViewerId) as any
+			// Пробуем найти элемент несколько раз
+			let attempts = 0
+			const maxAttempts = 30 // 3 секунды
+			
+			const findElement = () => {
+				// Пробуем разные способы поиска элемента
+				const modelViewer = 
+					document.getElementById(modelViewerId) ||
+					document.querySelector(`#${modelViewerId}`) ||
+					document.querySelector('model-viewer') as any
 
-			if (!modelViewer) {
-				console.warn('Model viewer element not found:', modelViewerId)
-				return
-			}
-
-			// Проверяем состояние загрузки периодически
-			const checkInterval = setInterval(() => {
-				if (modelViewer.loaded) {
-					console.log('Model loaded (via DOM check):', models[selectedModelIndex]?.file_url)
-					setIsLoading(false)
-					setError(null)
-					setLoadProgress(100)
-					clearInterval(checkInterval)
+				if (!modelViewer) {
+					attempts++
+					if (attempts < maxAttempts) {
+						setTimeout(findElement, 100)
+					} else {
+						console.warn('Model viewer element not found after', maxAttempts, 'attempts:', modelViewerId)
+						console.warn('Available model-viewer elements:', document.querySelectorAll('model-viewer').length)
+					}
+					return
 				}
-			}, 500)
 
-			// Очищаем интервал через 30 секунд
-			const timeout = setTimeout(() => {
-				clearInterval(checkInterval)
-			}, 30000)
+				console.log('✅ Model viewer element found:', modelViewerId, modelViewer)
 
-			return () => {
-				clearInterval(checkInterval)
-				clearTimeout(timeout)
+				// Проверяем состояние загрузки периодически
+				checkInterval = setInterval(() => {
+					// Проверяем несколько способов определения загрузки
+					if (modelViewer.loaded || modelViewer.modelIsVisible || modelViewer.readyState === 4) {
+						console.log('✅ Model loaded (via DOM check):', models[selectedModelIndex]?.file_url)
+						setIsLoading(false)
+						setError(null)
+						setLoadProgress(100)
+						if (checkInterval) clearInterval(checkInterval)
+					}
+				}, 500)
+
+				// Очищаем интервал через 30 секунд
+				timeout = setTimeout(() => {
+					if (checkInterval) clearInterval(checkInterval)
+				}, 30000)
 			}
-		}, 500)
 
-		return () => clearTimeout(checkTimeout)
+			findElement()
+		}, 1500) // Увеличиваем задержку до 1.5 секунды
+
+		return () => {
+			clearTimeout(checkTimeout)
+			if (checkInterval) clearInterval(checkInterval)
+			if (timeout) clearTimeout(timeout)
+		}
 	}, [scriptLoaded, isOpen, selectedModelIndex, models])
 
 	if (!isOpen || models.length === 0) return null
@@ -251,21 +275,23 @@ export default function ModelViewerModal({
 									ar
 									shadow-intensity='1'
 									interaction-policy='allow-when-focused'
-									loading='auto'
-									reveal='auto'
+									loading='eager'
+									reveal='interaction'
 									style={{
 										width: '100%',
 										height: '100%',
 										backgroundColor: '#f3f4f6',
+										display: 'block',
 									}}
 									onError={(e: any) => {
 										console.error('Model viewer error:', e)
 										console.error('Error details:', e.detail)
 										console.error('Error type:', e.type)
+										console.error('Error target:', e.target)
 										handleModelError(e)
 									}}
 									onLoad={(e: any) => {
-										console.log('Model loaded successfully (onLoad event):', selectedModel.file_url)
+										console.log('✅ Model loaded successfully (onLoad event):', selectedModel.file_url)
 										console.log('Load event details:', e)
 										setIsLoading(false)
 										setError(null)
@@ -275,9 +301,9 @@ export default function ModelViewerModal({
 										const progress = e.detail?.totalProgress || 0
 										const progressPercent = Math.round(progress * 100)
 										setLoadProgress(progressPercent)
-										console.log('Model loading progress:', progressPercent + '%')
-										// Если прогресс больше 10%, скрываем основной индикатор загрузки
-										if (progress > 0.1) {
+										console.log('📊 Model loading progress:', progressPercent + '%')
+										// Если прогресс больше 5%, скрываем основной индикатор загрузки
+										if (progress > 0.05) {
 											setIsLoading(false)
 										}
 									}}
