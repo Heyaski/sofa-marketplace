@@ -56,15 +56,19 @@ class Product(models.Model):
     def get_image_assets(self):
         """Получить все изображения по их ID"""
         if not self.image_asset_ids:
-            return []
+            return FileAsset.objects.none()  # Возвращаем пустой QuerySet, а не список
         ids = [id.strip() for id in self.image_asset_ids.split(',') if id.strip()]
+        if not ids:
+            return FileAsset.objects.none()
         return FileAsset.objects.filter(asset_id__in=ids, file_type='image')
     
     def get_3d_model_assets(self):
         """Получить все 3D модели по их ID"""
         if not self.model_3d_asset_ids:
-            return []
+            return FileAsset.objects.none()  # Возвращаем пустой QuerySet, а не список
         ids = [id.strip() for id in self.model_3d_asset_ids.split(',') if id.strip()]
+        if not ids:
+            return FileAsset.objects.none()
         return FileAsset.objects.filter(asset_id__in=ids, file_type='3d_model')
 
 
