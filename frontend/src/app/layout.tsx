@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import Script from 'next/script'
 import { Inter } from 'next/font/google'
 import '../styles/globals.css'
 
@@ -18,14 +17,7 @@ export default function RootLayout({
 }) {
 	return (
 		<html lang='ru'>
-			<body className={inter.className}>
-				<Script
-					type='module'
-					src='https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js'
-					strategy='beforeInteractive'
-				/>
-				{children}
-			</body>
+			<body className={inter.className}>{children}</body>
 		</html>
 	)
 }

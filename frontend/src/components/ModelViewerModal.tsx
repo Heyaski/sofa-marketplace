@@ -23,51 +23,39 @@ export default function ModelViewerModal({
 	const [selectedModelIndex, setSelectedModelIndex] = useState(0)
 	const [error, setError] = useState<string | null>(null)
 	const [isLoading, setIsLoading] = useState(true)
-	const [scriptLoaded, setScriptLoaded] = useState(false)
+	const [isScriptReady, setIsScriptReady] = useState(false)
 	const [loadProgress, setLoadProgress] = useState(0)
 
-	// Проверяем, загружен ли скрипт model-viewer
+	// Динамически импортируем @google/model-viewer на клиенте
 	useEffect(() => {
 		if (!isOpen) return
 
-		const checkScript = () => {
-			// Проверяем несколько способов определения загрузки
-			const isLoaded =
-				typeof window !== 'undefined' &&
-				(customElements.get('model-viewer') ||
-					(window as any).customElements?.get('model-viewer'))
-			
-			if (isLoaded) {
-				console.log('Model-viewer script loaded successfully')
-				setScriptLoaded(true)
-				return true
-			}
-			return false
-		}
+		let cancelled = false
 
-		// Проверяем сразу
-		if (checkScript()) {
-			return
-		}
-
-		// Если не загружен, проверяем периодически
-		let attempts = 0
-		const maxAttempts = 50 // 5 секунд максимум
-		const interval = setInterval(() => {
-			attempts++
-			if (checkScript() || attempts >= maxAttempts) {
-				clearInterval(interval)
-				if (attempts >= maxAttempts && !checkScript()) {
-					console.error('Model-viewer script failed to load after', maxAttempts, 'attempts')
+		const loadScript = async () => {
+			try {
+				// Импортируем web-component один раз на клиенте
+				await import('@google/model-viewer')
+				if (!cancelled) {
+					console.log('model-viewer component registered via @google/model-viewer')
+					setIsScriptReady(true)
+				}
+			} catch (e) {
+				console.error('Failed to load @google/model-viewer:', e)
+				if (!cancelled) {
 					setError(
-						'Скрипт 3D просмотра не загрузился. Пожалуйста, обновите страницу или проверьте подключение к интернету.'
+						'Не удалось загрузить компонент 3D просмотра. Пожалуйста, обновите страницу или проверьте подключение к интернету.'
 					)
 					setIsLoading(false)
 				}
 			}
-		}, 100)
+		}
 
-		return () => clearInterval(interval)
+		loadScript()
+
+		return () => {
+			cancelled = true
+		}
 	}, [isOpen])
 
 	useEffect(() => {
@@ -98,67 +86,7 @@ export default function ModelViewerModal({
 		}
 	}, [isOpen, models])
 
-	// Проверка загрузки модели через DOM элемент
-	useEffect(() => {
-		if (!scriptLoaded || !isOpen || models.length === 0) return
-
-		const modelViewerId = `model-viewer-${selectedModelIndex}`
-		let checkInterval: NodeJS.Timeout | null = null
-		let timeout: NodeJS.Timeout | null = null
-		
-		// Ждем дольше, чтобы элемент точно появился в DOM и скрипт зарегистрировал компонент
-		const checkTimeout = setTimeout(() => {
-			// Пробуем найти элемент несколько раз
-			let attempts = 0
-			const maxAttempts = 30 // 3 секунды
-			
-			const findElement = () => {
-				// Пробуем разные способы поиска элемента
-				const modelViewer = 
-					document.getElementById(modelViewerId) ||
-					document.querySelector(`#${modelViewerId}`) ||
-					document.querySelector('model-viewer') as any
-
-				if (!modelViewer) {
-					attempts++
-					if (attempts < maxAttempts) {
-						setTimeout(findElement, 100)
-					} else {
-						console.warn('Model viewer element not found after', maxAttempts, 'attempts:', modelViewerId)
-						console.warn('Available model-viewer elements:', document.querySelectorAll('model-viewer').length)
-					}
-					return
-				}
-
-				console.log('✅ Model viewer element found:', modelViewerId, modelViewer)
-
-				// Проверяем состояние загрузки периодически
-				checkInterval = setInterval(() => {
-					// Проверяем несколько способов определения загрузки
-					if (modelViewer.loaded || modelViewer.modelIsVisible || modelViewer.readyState === 4) {
-						console.log('✅ Model loaded (via DOM check):', models[selectedModelIndex]?.file_url)
-						setIsLoading(false)
-						setError(null)
-						setLoadProgress(100)
-						if (checkInterval) clearInterval(checkInterval)
-					}
-				}, 500)
-
-				// Очищаем интервал через 30 секунд
-				timeout = setTimeout(() => {
-					if (checkInterval) clearInterval(checkInterval)
-				}, 30000)
-			}
-
-			findElement()
-		}, 1500) // Увеличиваем задержку до 1.5 секунды
-
-		return () => {
-			clearTimeout(checkTimeout)
-			if (checkInterval) clearInterval(checkInterval)
-			if (timeout) clearTimeout(timeout)
-		}
-	}, [scriptLoaded, isOpen, selectedModelIndex, models])
+	// Упрощённо: без DOM-поллинга, полагаемся на события model-viewer
 
 	if (!isOpen || models.length === 0) return null
 
@@ -256,7 +184,7 @@ export default function ModelViewerModal({
 									Скачать файл
 								</button>
 							</div>
-						) : !scriptLoaded ? (
+						) : !isScriptReady ? (
 							<div className='text-center p-8'>
 								<div className='inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-main1 mb-4'></div>
 								<p className='text-gray'>Инициализация 3D просмотра...</p>
@@ -325,7 +253,7 @@ export default function ModelViewerModal({
 									<div className='absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs p-2 rounded z-10 max-w-xs break-all'>
 										<div>URL: {selectedModel.file_url}</div>
 										<div>Format: {modelFormat}</div>
-										<div>Script loaded: {scriptLoaded ? 'Yes' : 'No'}</div>
+										<div>Script ready: {isScriptReady ? 'Yes' : 'No'}</div>
 										<div>Loading: {isLoading ? 'Yes' : 'No'}</div>
 										<div>Progress: {loadProgress}%</div>
 									</div>
