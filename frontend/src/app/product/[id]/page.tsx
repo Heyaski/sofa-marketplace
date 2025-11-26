@@ -32,6 +32,19 @@ export default function ProductPage({ params }: ProductPageProps) {
 	const { product, loading, error } = useProduct(productId)
 	const { createBasket, addToBasket } = useBaskets()
 
+	// Отладочная информация о продукте
+	useEffect(() => {
+		if (product) {
+			console.log('=== Product Data ===')
+			console.log('Product ID:', product.id)
+			console.log('Product Title:', product.title)
+			console.log('asset_3d_models:', product.asset_3d_models)
+			console.log('asset_3d_models type:', typeof product.asset_3d_models)
+			console.log('asset_3d_models length:', product.asset_3d_models?.length)
+			console.log('Full product:', product)
+		}
+	}, [product])
+
 	// Устанавливаем главное изображение при загрузке продукта
 	useEffect(() => {
 		// Если есть массив изображений, используем первое
@@ -257,6 +270,40 @@ export default function ProductPage({ params }: ProductPageProps) {
 								</div>
 							</div>
 
+							{/* Отладочная информация о 3D моделях (только в режиме разработки) */}
+							{process.env.NODE_ENV === 'development' && (
+								<div className='bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-xs'>
+									<div className='font-semibold mb-2'>🔍 Отладка 3D моделей:</div>
+									<div>
+										asset_3d_models:{' '}
+										{product?.asset_3d_models
+											? `[${product.asset_3d_models.length} моделей]`
+											: 'undefined'}
+									</div>
+									{product?.asset_3d_models && product.asset_3d_models.length > 0 && (
+										<div className='mt-2'>
+											{product.asset_3d_models.map((model, idx) => (
+												<div key={idx} className='text-xs text-gray-600'>
+													- {model.asset_id}: {model.file_url}
+												</div>
+											))}
+										</div>
+									)}
+									{(!product?.asset_3d_models ||
+										product.asset_3d_models.length === 0) && (
+										<div className='mt-2 text-red-600'>
+											⚠️ У товара нет 3D моделей. Проверьте:
+											<ul className='list-disc list-inside mt-1 ml-2'>
+												<li>Добавлен ли FileAsset с типом "3D Модель"</li>
+												<li>Указан ли ID модели в поле "ID 3D моделей" товара</li>
+												<li>Правильно ли работает API endpoint
+												</li>
+											</ul>
+										</div>
+									)}
+								</div>
+							)}
+
 							{/* Кнопка Яндекс */}
 							<button className='w-full border-2 border-red-500 bg-white text-black py-3 px-4 rounded-lg hover:bg-red-50 transition-colors'>
 								Открыть товар в Яндекс
@@ -272,16 +319,27 @@ export default function ProductPage({ params }: ProductPageProps) {
 								</button>
 								<button
 									onClick={() => {
-										console.log('Product 3D models:', product?.asset_3d_models)
+										console.log('Opening 3D Viewer with models:', product?.asset_3d_models)
 										setIs3DViewerOpen(true)
 									}}
 									disabled={
 										!product?.asset_3d_models ||
+										!Array.isArray(product.asset_3d_models) ||
 										product.asset_3d_models.length === 0
 									}
 									className='border-2 border-main1 bg-white text-black py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors whitespace-nowrap text-sm disabled:opacity-50 disabled:cursor-not-allowed'
+									title={
+										!product?.asset_3d_models || product.asset_3d_models.length === 0
+											? 'У товара нет 3D моделей'
+											: 'Открыть 3D просмотр'
+									}
 								>
 									Открыть 3D Viewer
+									{process.env.NODE_ENV === 'development' && (
+										<span className='ml-2 text-xs'>
+											({product?.asset_3d_models?.length || 0})
+										</span>
+									)}
 								</button>
 								<button className='border-2 border-main1 bg-white text-black py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors whitespace-nowrap text-sm'>
 									Примерка GLB
