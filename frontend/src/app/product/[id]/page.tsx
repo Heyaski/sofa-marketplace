@@ -4,6 +4,7 @@ import AuthModal from '@/components/AuthModal'
 import CartModal from '@/components/CartModal'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
+import ModelViewerModal from '@/components/ModelViewerModal'
 import { config } from '@/config'
 import { useBaskets, useProduct } from '@/hooks/useApi'
 import Image from 'next/image'
@@ -26,6 +27,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 	const [mainImage, setMainImage] = useState<string | null>(null)
 	const [isAuthenticated, setIsAuthenticated] = useState(false)
 	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+	const [is3DViewerOpen, setIs3DViewerOpen] = useState(false)
 
 	const { product, loading, error } = useProduct(productId)
 	const { createBasket, addToBasket } = useBaskets()
@@ -268,7 +270,14 @@ export default function ProductPage({ params }: ProductPageProps) {
 								>
 									Добавить в корзину
 								</button>
-								<button className='border-2 border-main1 bg-white text-black py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors whitespace-nowrap text-sm'>
+								<button
+									onClick={() => setIs3DViewerOpen(true)}
+									disabled={
+										!product?.asset_3d_models ||
+										product.asset_3d_models.length === 0
+									}
+									className='border-2 border-main1 bg-white text-black py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors whitespace-nowrap text-sm disabled:opacity-50 disabled:cursor-not-allowed'
+								>
 									Открыть 3D Viewer
 								</button>
 								<button className='border-2 border-main1 bg-white text-black py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors whitespace-nowrap text-sm'>
@@ -308,6 +317,13 @@ export default function ProductPage({ params }: ProductPageProps) {
 					setIsAuthenticated(true)
 					setIsAuthModalOpen(false)
 				}}
+			/>
+
+			<ModelViewerModal
+				isOpen={is3DViewerOpen}
+				onClose={() => setIs3DViewerOpen(false)}
+				models={product?.asset_3d_models || []}
+				productTitle={product?.title}
 			/>
 		</div>
 	)

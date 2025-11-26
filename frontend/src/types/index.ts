@@ -5,6 +5,14 @@ export interface ProductImage {
 	order: number
 }
 
+// Типы для файловых ресурсов (изображения и 3D модели)
+export interface FileAsset {
+	asset_id: string
+	file_type: 'image' | '3d_model'
+	file_url: string
+	description?: string
+}
+
 // Типы для продуктов
 export interface Product {
 	id: number
@@ -19,6 +27,8 @@ export interface Product {
 	is_trending: boolean
 	image?: string | null
 	images?: ProductImage[]
+	asset_images?: FileAsset[]
+	asset_3d_models?: FileAsset[]
 }
 
 // Типы для категорий

@@ -858,6 +858,9 @@ video {
 .min-h-screen {
   min-height: 100vh;
 }
+.min-h-\[400px\] {
+  min-height: 400px;
+}
 .w-10 {
   width: 2.5rem;
 }
@@ -1217,6 +1220,9 @@ video {
 .bg-yellow-50 {
   --tw-bg-opacity: 1;
   background-color: rgb(254 252 232 / var(--tw-bg-opacity, 1));
+}
+.bg-main1\/10 {
+  background-color: rgb(25 118 210 / 0.1);
 }
 .bg-opacity-50 {
   --tw-bg-opacity: 0.5;
