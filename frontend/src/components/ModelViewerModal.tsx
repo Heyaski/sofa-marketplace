@@ -76,32 +76,8 @@ export default function ModelViewerModal({
 			console.log('3D Models:', models)
 			console.log('Selected model URL:', models[0]?.file_url)
 
-			// Проверяем доступность файла
-			const checkFileAvailability = async () => {
-				const modelUrl = models[0]?.file_url
-				if (!modelUrl) {
-					setError('URL файла не указан')
-					setIsLoading(false)
-					return
-				}
-
-				try {
-					const response = await fetch(modelUrl, { method: 'HEAD' })
-					if (!response.ok) {
-						console.warn(
-							`File not accessible: ${modelUrl}, Status: ${response.status}`
-						)
-						// Не устанавливаем ошибку, так как некоторые серверы не поддерживают HEAD
-						// model-viewer сам попробует загрузить файл
-					}
-				} catch (err) {
-					console.warn('Error checking file availability:', err)
-					// Не устанавливаем ошибку, так как это может быть CORS проблема
-					// model-viewer сам попробует загрузить файл
-				}
-			}
-
-			checkFileAvailability()
+			// Не проверяем доступность файла через fetch, так как это вызывает CORS ошибки
+			// model-viewer сам попробует загрузить файл и покажет ошибку, если не получится
 		}
 	}, [isOpen, models])
 
