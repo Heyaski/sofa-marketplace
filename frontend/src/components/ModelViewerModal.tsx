@@ -272,14 +272,6 @@ export default function ModelViewerModal({
 										</div>
 									</div>
 								)}
-								{/* Отладочная информация */}
-								<div className='absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs p-2 rounded z-20 max-w-xs break-all'>
-									<div>URL: {selectedModel.file_url}</div>
-									<div>Format: {modelFormat}</div>
-									<div>Script ready: {isScriptReady ? 'Yes' : 'No'}</div>
-									<div>Loading: {isLoading ? 'Yes' : 'No'}</div>
-									<div>Progress: {loadProgress}%</div>
-								</div>
 							</>
 						)}
 					</div>
