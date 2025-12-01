@@ -34,21 +34,54 @@ class Category(models.Model):
 
 
 class Product(models.Model):
-    title = models.CharField(max_length=255)
-    category = models.ForeignKey(Category, on_delete=models.PROTECT)
-    description = models.TextField(blank=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    material = models.CharField(max_length=120, blank=True)
-    style = models.CharField(max_length=120, blank=True)
-    color = models.CharField(max_length=60, blank=True)
-    is_active = models.BooleanField(default=True)
-    is_trending = models.BooleanField(default=False)
+    AVAILABILITY_CHOICES = [
+        ('in_stock', 'В наличии'),
+        ('on_order', 'Под заказ'),
+        ('out_of_stock', 'Нет в наличии'),
+    ]
+    
+    title = models.CharField(max_length=255, verbose_name="Название")
+    category = models.ForeignKey(Category, on_delete=models.PROTECT, verbose_name="Категория")
+    subcategory = models.CharField(max_length=120, blank=True, verbose_name="Подкатегория")
+    description = models.TextField(blank=True, verbose_name="Описание")
+    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Цена")
+    
+    # Характеристики
+    article = models.CharField(max_length=100, blank=True, verbose_name="Артикул", db_index=True)
+    material = models.CharField(max_length=120, blank=True, verbose_name="Материал")
+    style = models.CharField(max_length=120, blank=True, verbose_name="Стиль")
+    color = models.CharField(max_length=60, blank=True, verbose_name="Цвет")
+    brand = models.CharField(max_length=120, blank=True, verbose_name="Бренд")
+    country = models.CharField(max_length=120, blank=True, verbose_name="Страна")
+    
+    # Размеры (в см/мм)
+    width = models.DecimalField(max_digits=8, decimal_places=1, null=True, blank=True, verbose_name="Ширина")
+    height = models.DecimalField(max_digits=8, decimal_places=1, null=True, blank=True, verbose_name="Высота")
+    depth = models.DecimalField(max_digits=8, decimal_places=1, null=True, blank=True, verbose_name="Глубина")
+    weight = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name="Вес (кг)")
+    
+    # Наличие
+    availability = models.CharField(max_length=20, choices=AVAILABILITY_CHOICES, default='in_stock', verbose_name="Наличие")
+    
+    is_active = models.BooleanField(default=True, verbose_name="Активен")
+    is_trending = models.BooleanField(default=False, verbose_name="В тренде")
+    
     # 🖼️ Основное изображение (для обратной совместимости)
-    image = models.ImageField(upload_to="products/", blank=True, null=True)
+    image = models.ImageField(upload_to="products/", blank=True, null=True, verbose_name="Основное фото")
+    
+    # 📦 URL фотографий (из Excel)
+    photo_url = models.URLField(max_length=500, blank=True, verbose_name="URL фото")
     
     # 📦 Связь с файловыми ресурсами через ID (для импорта из Excel)
     image_asset_ids = models.CharField(max_length=500, blank=True, verbose_name="ID изображений", help_text="ID изображений через запятую (например: img_001,img_002)")
     model_3d_asset_ids = models.CharField(max_length=500, blank=True, verbose_name="ID 3D моделей", help_text="ID 3D моделей через запятую (например: model_001,model_002)")
+    
+    # 📦 Файлы 3D моделей (URL или пути из Excel)
+    model_fbx = models.CharField(max_length=500, blank=True, verbose_name="FBX файл")
+    model_glb = models.CharField(max_length=500, blank=True, verbose_name="GLB файл")
+    model_rfa = models.CharField(max_length=500, blank=True, verbose_name="RFA файл")
+    model_usdz = models.CharField(max_length=500, blank=True, verbose_name="USDZ файл")
+    model_ar_glb = models.CharField(max_length=500, blank=True, verbose_name="AR-GLB файл")
 
     def __str__(self):
         return self.title
@@ -70,6 +103,17 @@ class Product(models.Model):
         if not ids:
             return FileAsset.objects.none()
         return FileAsset.objects.filter(asset_id__in=ids, file_type='3d_model')
+    
+    def get_glb_url(self):
+        """Получить URL GLB модели (приоритет: model_glb, затем FileAsset)"""
+        if self.model_glb:
+            return self.model_glb
+        # Проверяем FileAsset
+        assets = self.get_3d_model_assets()
+        for asset in assets:
+            if asset.file and asset.file.url.lower().endswith('.glb'):
+                return asset.file.url
+        return None
 
 
 class ProductImage(models.Model):

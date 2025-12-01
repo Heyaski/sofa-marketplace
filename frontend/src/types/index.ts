@@ -18,17 +18,43 @@ export interface Product {
 	id: number
 	title: string
 	category: Category
+	subcategory?: string
 	description: string
 	price: number
+	
+	// Характеристики
+	article?: string
 	material: string
 	style: string
 	color: string
+	brand?: string
+	country?: string
+	
+	// Размеры
+	width?: number | null
+	height?: number | null
+	depth?: number | null
+	weight?: number | null
+	
+	// Наличие
+	availability?: 'in_stock' | 'on_order' | 'out_of_stock'
+	
 	is_active: boolean
 	is_trending: boolean
+	
+	// Изображения
 	image?: string | null
+	photo_url?: string
 	images?: ProductImage[]
 	asset_images?: FileAsset[]
+	
+	// 3D модели
 	asset_3d_models?: FileAsset[]
+	model_glb?: string
+	model_fbx?: string
+	model_rfa?: string
+	model_usdz?: string
+	model_ar_glb?: string
 }
 
 // Типы для категорий
@@ -129,6 +155,9 @@ export interface ProductFilters {
 	material?: string
 	style?: string
 	color?: string
+	brand?: string
+	country?: string
+	availability?: 'in_stock' | 'on_order' | 'out_of_stock'
 	price_min?: number
 	price_max?: number
 	is_active?: boolean

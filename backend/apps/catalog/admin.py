@@ -220,38 +220,48 @@ class FileAssetAdmin(admin.ModelAdmin):
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
         "id",
+        "article",
         "title",
         "category",
         "price",
-        "material",
-        "style",
+        "availability",
+        "brand",
         "color",
+        "has_3d_model",
         "is_active",
-        "is_trending",
     )
-    list_filter = ("category", "material", "style", "color", "is_active", "is_trending")
-    search_fields = ("title", "description")
-    list_editable = ("price", "is_active", "is_trending")
+    list_filter = ("category", "availability", "brand", "material", "color", "is_active", "is_trending")
+    search_fields = ("title", "article", "description", "brand")
+    list_editable = ("price", "is_active")
     inlines = [ProductImageInline]
     
-    # Добавляем поля для связи с файловыми ресурсами
+    def has_3d_model(self, obj):
+        """Проверяет наличие 3D модели"""
+        if obj.model_glb or obj.model_fbx or obj.model_usdz or obj.model_3d_asset_ids:
+            return format_html('<span style="color: green;">✅</span>')
+        return format_html('<span style="color: #ccc;">—</span>')
+    has_3d_model.short_description = "3D"
+    
     fieldsets = (
         ('Основная информация', {
-            'fields': ('title', 'category', 'description', 'price')
+            'fields': ('title', 'article', 'category', 'subcategory', 'description', 'price', 'availability')
         }),
         ('Характеристики', {
-            'fields': ('material', 'style', 'color')
+            'fields': ('material', 'style', 'color', 'brand', 'country')
+        }),
+        ('Размеры', {
+            'fields': (('width', 'height', 'depth'), 'weight'),
+            'classes': ('collapse',)
+        }),
+        ('Фотографии', {
+            'fields': ('photo_url', 'image', 'image_asset_ids'),
+        }),
+        ('3D Модели', {
+            'fields': ('model_glb', 'model_fbx', 'model_rfa', 'model_usdz', 'model_ar_glb', 'model_3d_asset_ids'),
+            'classes': ('collapse',)
         }),
         ('Настройки', {
             'fields': ('is_active', 'is_trending')
-        }),
-        ('Файловые ресурсы (ID из таблицы FileAsset)', {
-            'fields': ('image_asset_ids', 'model_3d_asset_ids'),
-            'description': 'Укажите ID файлов из таблицы "Файловые ресурсы" через запятую'
-        }),
-        ('Старый метод (для совместимости)', {
-            'fields': ('image',),
-            'classes': ('collapse',)
         }),
     )
     
@@ -273,65 +283,138 @@ class ProductAdmin(admin.ModelAdmin):
             
             try:
                 wb = openpyxl.load_workbook(excel_file)
+                ws = wb.active
                 
-                # Сначала импортируем файлы (если есть лист "Файлы")
-                files_imported = 0
-                files_errors = []
+                # Читаем заголовки из первой строки для определения колонок
+                headers = [str(cell.value).strip().lower() if cell.value else '' for cell in ws[1]]
                 
-                if "Файлы" in wb.sheetnames or "Files" in wb.sheetnames:
-                    files_sheet = wb["Файлы"] if "Файлы" in wb.sheetnames else wb["Files"]
-                    files_imported, files_errors = self._import_files(files_sheet, request)
+                # Маппинг колонок (поддержка разных названий)
+                column_mapping = {
+                    'id': ['id'],
+                    'title': ['название', 'name', 'title', 'наименование'],
+                    'availability': ['наличие', 'availability', 'налич'],
+                    'width': ['ширина', 'width', 'ши'],
+                    'height': ['высота', 'height', 'вы'],
+                    'depth': ['глубина', 'depth', 'гл'],
+                    'weight': ['вес', 'weight', 'ве'],
+                    'material': ['материал', 'material', 'матер'],
+                    'country': ['страна', 'country', 'стран'],
+                    'brand': ['бренд', 'brand'],
+                    'color': ['цвет', 'color'],
+                    'article': ['артикул', 'article', 'sku', 'код'],
+                    'price': ['цена', 'price'],
+                    'category': ['категория', 'category', 'катег'],
+                    'subcategory': ['подкатегория', 'subcategory', 'подка'],
+                    'description': ['описание', 'description', 'ория'],
+                    'photo_url': ['url photo', 'urlphoto', 'url_photo', 'фото', 'photo', 'image_url'],
+                    'model_fbx': ['fbx', 'model_fbx'],
+                    'model_glb': ['glb', 'model_glb'],
+                    'model_rfa': ['rfa', 'model_rfa'],
+                    'model_usdz': ['usdz', 'model_usdz'],
+                    'model_ar_glb': ['ar-glb', 'ar_glb', 'arglb', 'model_ar_glb'],
+                }
                 
-                # Теперь импортируем товары
-                ws = wb["Товары"] if "Товары" in wb.sheetnames else wb.active
+                # Находим индексы колонок
+                col_indices = {}
+                for field, possible_names in column_mapping.items():
+                    for idx, header in enumerate(headers):
+                        if any(name in header for name in possible_names):
+                            col_indices[field] = idx
+                            break
                 
                 created_count = 0
                 updated_count = 0
                 errors = []
                 
+                def get_cell_value(row, field, default=''):
+                    """Получить значение ячейки по имени поля"""
+                    if field not in col_indices:
+                        return default
+                    idx = col_indices[field]
+                    if idx < len(row) and row[idx] is not None:
+                        return str(row[idx]).strip()
+                    return default
+                
+                def get_decimal_value(row, field, default=None):
+                    """Получить числовое значение"""
+                    val = get_cell_value(row, field, '')
+                    if not val:
+                        return default
+                    try:
+                        # Убираем пробелы и заменяем запятую на точку
+                        val = val.replace(' ', '').replace(',', '.')
+                        return Decimal(val)
+                    except:
+                        return default
+                
+                def parse_availability(val):
+                    """Преобразовать значение наличия"""
+                    val = val.lower()
+                    if 'в наличи' in val or 'наличи' in val or 'in stock' in val:
+                        return 'in_stock'
+                    elif 'заказ' in val or 'order' in val:
+                        return 'on_order'
+                    return 'in_stock'
+                
                 # Пропускаем заголовок
                 for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
                     try:
-                        if not row[0]:  # Пропускаем пустые строки
-                            continue
+                        title = get_cell_value(row, 'title')
+                        if not title:
+                            continue  # Пропускаем пустые строки
                         
-                        title = row[0]
-                        material = row[1] if len(row) > 1 else ""
-                        price = Decimal(str(row[2])) if len(row) > 2 and row[2] else Decimal('0.00')
-                        image_asset_ids = row[3] if len(row) > 3 else ""
-                        model_3d_asset_ids = row[4] if len(row) > 4 else ""
-                        category_id = row[5] if len(row) > 5 and row[5] else None
-                        description = row[6] if len(row) > 6 else ""
-                        style = row[7] if len(row) > 7 else ""
-                        color = row[8] if len(row) > 8 else ""
+                        # Получаем цену
+                        price = get_decimal_value(row, 'price', Decimal('0.00'))
                         
-                        # Получаем или создаем категорию по умолчанию
-                        if category_id:
-                            try:
-                                category = Category.objects.get(id=category_id)
-                            except Category.DoesNotExist:
-                                errors.append(f"Строка {row_num}: Категория с ID {category_id} не найдена")
-                                continue
+                        # Получаем категорию
+                        category_name = get_cell_value(row, 'category', 'Без категории')
+                        if category_name:
+                            category, _ = Category.objects.get_or_create(
+                                name=category_name,
+                                defaults={'slug': category_name.lower().replace(' ', '-')}
+                            )
                         else:
                             category, _ = Category.objects.get_or_create(
                                 slug='default',
                                 defaults={'name': 'Без категории'}
                             )
                         
-                        # Создаем или обновляем продукт
-                        product, created = Product.objects.update_or_create(
-                            title=title,
-                            defaults={
-                                'material': material,
-                                'price': price,
-                                'image_asset_ids': image_asset_ids,
-                                'model_3d_asset_ids': model_3d_asset_ids,
-                                'category': category,
-                                'description': description,
-                                'style': style,
-                                'color': color,
-                            }
-                        )
+                        # Данные для создания/обновления
+                        product_data = {
+                            'category': category,
+                            'price': price,
+                            'availability': parse_availability(get_cell_value(row, 'availability', 'в наличии')),
+                            'width': get_decimal_value(row, 'width'),
+                            'height': get_decimal_value(row, 'height'),
+                            'depth': get_decimal_value(row, 'depth'),
+                            'weight': get_decimal_value(row, 'weight'),
+                            'material': get_cell_value(row, 'material'),
+                            'country': get_cell_value(row, 'country'),
+                            'brand': get_cell_value(row, 'brand'),
+                            'color': get_cell_value(row, 'color'),
+                            'article': get_cell_value(row, 'article'),
+                            'subcategory': get_cell_value(row, 'subcategory'),
+                            'description': get_cell_value(row, 'description'),
+                            'photo_url': get_cell_value(row, 'photo_url'),
+                            'model_fbx': get_cell_value(row, 'model_fbx'),
+                            'model_glb': get_cell_value(row, 'model_glb'),
+                            'model_rfa': get_cell_value(row, 'model_rfa'),
+                            'model_usdz': get_cell_value(row, 'model_usdz'),
+                            'model_ar_glb': get_cell_value(row, 'model_ar_glb'),
+                        }
+                        
+                        # Создаем или обновляем по артикулу (если есть) или по названию
+                        article = get_cell_value(row, 'article')
+                        if article:
+                            product, created = Product.objects.update_or_create(
+                                article=article,
+                                defaults={'title': title, **product_data}
+                            )
+                        else:
+                            product, created = Product.objects.update_or_create(
+                                title=title,
+                                defaults=product_data
+                            )
                         
                         if created:
                             created_count += 1
@@ -342,28 +425,14 @@ class ProductAdmin(admin.ModelAdmin):
                         errors.append(f"Строка {row_num}: {str(e)}")
                 
                 # Формируем сообщение
-                success_parts = []
-                if files_imported > 0:
-                    success_parts.append(f"Файлов загружено: {files_imported}")
                 if created_count or updated_count:
-                    success_parts.append(f"Товаров создано: {created_count}, обновлено: {updated_count}")
+                    messages.success(request, f"Импорт завершен! Создано: {created_count}, обновлено: {updated_count}")
                 
-                if success_parts:
-                    messages.success(request, "Импорт завершен! " + ", ".join(success_parts))
-                
-                # Показываем ошибки файлов
-                if files_errors:
-                    for error in files_errors[:5]:
-                        messages.warning(request, f"[Файлы] {error}")
-                    if len(files_errors) > 5:
-                        messages.warning(request, f"... и еще {len(files_errors) - 5} ошибок с файлами")
-                
-                # Показываем ошибки товаров
                 if errors:
                     for error in errors[:10]:
                         messages.warning(request, error)
                     if len(errors) > 10:
-                        messages.warning(request, f"... и еще {len(errors) - 10} ошибок с товарами")
+                        messages.warning(request, f"... и еще {len(errors) - 10} ошибок")
                         
             except Exception as e:
                 messages.error(request, f"Ошибка при обработке файла: {str(e)}")
@@ -372,62 +441,3 @@ class ProductAdmin(admin.ModelAdmin):
         
         return render(request, "admin/catalog/import_excel.html")
     
-    def _import_files(self, worksheet, request):
-        """Импорт файлов из листа Excel"""
-        import_files_dir = Path(__file__).resolve().parent.parent.parent / 'import_files'
-        
-        imported = 0
-        errors = []
-        
-        # Формат: ID файла | Тип (image/3d_model) | Имя файла | Описание
-        for row_num, row in enumerate(worksheet.iter_rows(min_row=2, values_only=True), start=2):
-            try:
-                if not row[0]:  # Пропускаем пустые строки
-                    continue
-                
-                asset_id = str(row[0]).strip()
-                file_type = str(row[1]).strip() if len(row) > 1 else "image"
-                file_name = str(row[2]).strip() if len(row) > 2 else ""
-                description = str(row[3]).strip() if len(row) > 3 else ""
-                
-                if not file_name:
-                    errors.append(f"Строка {row_num}: не указано имя файла")
-                    continue
-                
-                # Проверяем, существует ли уже FileAsset с таким ID
-                if FileAsset.objects.filter(asset_id=asset_id).exists():
-                    errors.append(f"Строка {row_num}: FileAsset с ID '{asset_id}' уже существует")
-                    continue
-                
-                # Нормализуем тип файла
-                if file_type.lower() in ['image', 'изображение', 'img']:
-                    file_type = 'image'
-                elif file_type.lower() in ['3d_model', '3d', 'model', '3д', 'модель']:
-                    file_type = '3d_model'
-                else:
-                    errors.append(f"Строка {row_num}: неизвестный тип файла '{file_type}'")
-                    continue
-                
-                # Ищем файл в папке import_files
-                file_path = import_files_dir / file_name
-                
-                if not file_path.exists():
-                    errors.append(f"Строка {row_num}: файл '{file_name}' не найден в папке import_files/")
-                    continue
-                
-                # Создаем FileAsset
-                with open(file_path, 'rb') as f:
-                    django_file = File(f, name=file_name)
-                    FileAsset.objects.create(
-                        asset_id=asset_id,
-                        file_type=file_type,
-                        file=django_file,
-                        description=description
-                    )
-                
-                imported += 1
-                
-            except Exception as e:
-                errors.append(f"Строка {row_num}: {str(e)}")
-        
-        return imported, errors

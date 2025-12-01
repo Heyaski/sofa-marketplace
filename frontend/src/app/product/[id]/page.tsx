@@ -32,19 +32,6 @@ export default function ProductPage({ params }: ProductPageProps) {
 	const { product, loading, error } = useProduct(productId)
 	const { createBasket, addToBasket } = useBaskets()
 
-	// Отладочная информация о продукте
-	useEffect(() => {
-		if (product) {
-			console.log('=== Product Data ===')
-			console.log('Product ID:', product.id)
-			console.log('Product Title:', product.title)
-			console.log('asset_3d_models:', product.asset_3d_models)
-			console.log('asset_3d_models type:', typeof product.asset_3d_models)
-			console.log('asset_3d_models length:', product.asset_3d_models?.length)
-			console.log('Full product:', product)
-		}
-	}, [product])
-
 	// Устанавливаем главное изображение при загрузке продукта
 	useEffect(() => {
 		// Если есть массив изображений, используем первое
@@ -238,6 +225,35 @@ export default function ProductPage({ params }: ProductPageProps) {
 								</div>
 							)}
 
+							{/* Артикул и наличие */}
+							<div className='flex items-center gap-4 text-sm'>
+								{product.article && (
+									<span className='text-gray'>
+										Артикул:{' '}
+										<span className='text-black font-medium'>
+											{product.article}
+										</span>
+									</span>
+								)}
+								{product.availability && (
+									<span
+										className={`px-3 py-1 rounded-full text-xs font-medium ${
+											product.availability === 'in_stock'
+												? 'bg-green-100 text-green-700'
+												: product.availability === 'on_order'
+												? 'bg-yellow-100 text-yellow-700'
+												: 'bg-red-100 text-red-700'
+										}`}
+									>
+										{product.availability === 'in_stock'
+											? 'В наличии'
+											: product.availability === 'on_order'
+											? 'Под заказ'
+											: 'Нет в наличии'}
+									</span>
+								)}
+							</div>
+
 							{/* Характеристики */}
 							<div className='space-y-3'>
 								<div className='space-y-2 text-sm'>
@@ -247,6 +263,18 @@ export default function ProductPage({ params }: ProductPageProps) {
 											<span className='text-black'>
 												{product.category.name}
 											</span>
+										</div>
+									)}
+									{product.brand && (
+										<div className='flex justify-between'>
+											<span className='text-gray'>Бренд:</span>
+											<span className='text-black'>{product.brand}</span>
+										</div>
+									)}
+									{product.country && (
+										<div className='flex justify-between'>
+											<span className='text-gray'>Страна:</span>
+											<span className='text-black'>{product.country}</span>
 										</div>
 									)}
 									{product.material && (
@@ -268,41 +296,49 @@ export default function ProductPage({ params }: ProductPageProps) {
 										</div>
 									)}
 								</div>
-							</div>
 
-							{/* Отладочная информация о 3D моделях (только в режиме разработки) */}
-							{process.env.NODE_ENV === 'development' && (
-								<div className='bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-xs'>
-									<div className='font-semibold mb-2'>🔍 Отладка 3D моделей:</div>
-									<div>
-										asset_3d_models:{' '}
-										{product?.asset_3d_models
-											? `[${product.asset_3d_models.length} моделей]`
-											: 'undefined'}
-									</div>
-									{product?.asset_3d_models && product.asset_3d_models.length > 0 && (
-										<div className='mt-2'>
-											{product.asset_3d_models.map((model, idx) => (
-												<div key={idx} className='text-xs text-gray-600'>
-													- {model.asset_id}: {model.file_url}
+								{/* Размеры */}
+								{(product.width ||
+									product.height ||
+									product.depth ||
+									product.weight) && (
+									<div className='border-t pt-3 mt-3'>
+										<div className='text-sm font-medium text-black mb-2'>
+											Размеры:
+										</div>
+										<div className='grid grid-cols-2 gap-2 text-sm'>
+											{product.width && (
+												<div className='flex justify-between'>
+													<span className='text-gray'>Ширина:</span>
+													<span className='text-black'>{product.width} см</span>
 												</div>
-											))}
+											)}
+											{product.height && (
+												<div className='flex justify-between'>
+													<span className='text-gray'>Высота:</span>
+													<span className='text-black'>
+														{product.height} см
+													</span>
+												</div>
+											)}
+											{product.depth && (
+												<div className='flex justify-between'>
+													<span className='text-gray'>Глубина:</span>
+													<span className='text-black'>{product.depth} см</span>
+												</div>
+											)}
+											{product.weight && (
+												<div className='flex justify-between'>
+													<span className='text-gray'>Вес:</span>
+													<span className='text-black'>
+														{product.weight} кг
+													</span>
+												</div>
+											)}
 										</div>
-									)}
-									{(!product?.asset_3d_models ||
-										product.asset_3d_models.length === 0) && (
-										<div className='mt-2 text-red-600'>
-											⚠️ У товара нет 3D моделей. Проверьте:
-											<ul className='list-disc list-inside mt-1 ml-2'>
-												<li>Добавлен ли FileAsset с типом "3D Модель"</li>
-												<li>Указан ли ID модели в поле "ID 3D моделей" товара</li>
-												<li>Правильно ли работает API endpoint
-												</li>
-											</ul>
-										</div>
-									)}
-								</div>
-							)}
+									</div>
+								)}
+							</div>
 
 							{/* Кнопка Яндекс */}
 							<button className='w-full border-2 border-red-500 bg-white text-black py-3 px-4 rounded-lg hover:bg-red-50 transition-colors'>
@@ -318,10 +354,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 									Добавить в корзину
 								</button>
 								<button
-									onClick={() => {
-										console.log('Opening 3D Viewer with models:', product?.asset_3d_models)
-										setIs3DViewerOpen(true)
-									}}
+									onClick={() => setIs3DViewerOpen(true)}
 									disabled={
 										!product?.asset_3d_models ||
 										!Array.isArray(product.asset_3d_models) ||
@@ -329,17 +362,13 @@ export default function ProductPage({ params }: ProductPageProps) {
 									}
 									className='border-2 border-main1 bg-white text-black py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors whitespace-nowrap text-sm disabled:opacity-50 disabled:cursor-not-allowed'
 									title={
-										!product?.asset_3d_models || product.asset_3d_models.length === 0
+										!product?.asset_3d_models ||
+										product.asset_3d_models.length === 0
 											? 'У товара нет 3D моделей'
-											: 'Открыть 3D просмотр'
+											: `Открыть 3D просмотр (${product.asset_3d_models.length})`
 									}
 								>
 									Открыть 3D Viewer
-									{process.env.NODE_ENV === 'development' && (
-										<span className='ml-2 text-xs'>
-											({product?.asset_3d_models?.length || 0})
-										</span>
-									)}
 								</button>
 								<button className='border-2 border-main1 bg-white text-black py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors whitespace-nowrap text-sm'>
 									Примерка GLB

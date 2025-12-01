@@ -5,85 +5,132 @@
 
 {% block content %}
 <div id="content-main">
-    <h1>Импорт товаров из Excel файла</h1>
+    <h1>📥 Импорт товаров из Excel файла</h1>
     
     <div class="module" style="margin-bottom: 20px; padding: 20px; background: #f8f9fa;">
-        <h2 style="margin-top: 0;">Формат Excel файла</h2>
-        <p>Excel файл должен содержать следующие колонки (в указанном порядке):</p>
-        <ol>
-            <li><strong>Название</strong> (обязательно) - название товара</li>
-            <li><strong>Материал</strong> - материал изделия</li>
-            <li><strong>Цена</strong> (обязательно) - цена товара в числовом формате</li>
-            <li><strong>ID изображений</strong> - ID изображений через запятую (например: img_001,img_002)</li>
-            <li><strong>ID 3D моделей</strong> - ID 3D моделей через запятую (например: model_001,model_002)</li>
-            <li><strong>ID категории</strong> - ID категории из базы данных</li>
-            <li><strong>Описание</strong> - описание товара</li>
-            <li><strong>Стиль</strong> - стиль изделия</li>
-            <li><strong>Цвет</strong> - цвет изделия</li>
-        </ol>
+        <h2 style="margin-top: 0;">📋 Формат Excel файла</h2>
+        <p>Система автоматически распознает колонки по заголовкам. Поддерживаемые колонки:</p>
         
-        <div style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin-top: 15px;">
-            <strong>⚠️ Важно:</strong> Первая строка должна содержать заголовки колонок и будет пропущена при импорте.
-        </div>
+        <table style="width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 13px;">
+            <thead>
+                <tr style="background: #e9ecef;">
+                    <th style="padding: 8px; border: 1px solid #dee2e6; text-align: left;">Поле</th>
+                    <th style="padding: 8px; border: 1px solid #dee2e6; text-align: left;">Возможные названия колонок</th>
+                    <th style="padding: 8px; border: 1px solid #dee2e6; text-align: left;">Пример</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;"><strong>Название</strong> ⭐</td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">Название, Name, Title</td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">Диван Chester Classic</td>
+                </tr>
+                <tr style="background: #f9f9f9;">
+                    <td style="padding: 8px; border: 1px solid #dee2e6;"><strong>Артикул</strong></td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">Артикул, Article, SKU</td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">IMR-548931</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;"><strong>Цена</strong> ⭐</td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">Цена, Price</td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">1285000</td>
+                </tr>
+                <tr style="background: #f9f9f9;">
+                    <td style="padding: 8px; border: 1px solid #dee2e6;"><strong>Категория</strong></td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">Категория, Category, Катег</td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">Диваны</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;"><strong>Наличие</strong></td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">Наличие, Availability</td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">В наличии / Под заказ</td>
+                </tr>
+                <tr style="background: #f9f9f9;">
+                    <td style="padding: 8px; border: 1px solid #dee2e6;"><strong>Размеры</strong></td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">Ширина/Ши, Высота/Вы, Глубина/Гл</td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">130, 226, 86</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;"><strong>Вес</strong></td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">Вес, Weight, Ве</td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">75</td>
+                </tr>
+                <tr style="background: #f9f9f9;">
+                    <td style="padding: 8px; border: 1px solid #dee2e6;"><strong>Материал</strong></td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">Материал, Material, Матер</td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">Ткань</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;"><strong>Страна</strong></td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">Страна, Country</td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">Китай</td>
+                </tr>
+                <tr style="background: #f9f9f9;">
+                    <td style="padding: 8px; border: 1px solid #dee2e6;"><strong>Бренд</strong></td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">Бренд, Brand</td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">Mak-inte</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;"><strong>Цвет</strong></td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">Цвет, Color</td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">коричневый</td>
+                </tr>
+                <tr style="background: #d4edda;">
+                    <td style="padding: 8px; border: 1px solid #dee2e6;"><strong>URL фото</strong></td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">URL photo, Photo, Фото</td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">https://example.com/photo.jpg</td>
+                </tr>
+                <tr style="background: #cce5ff;">
+                    <td style="padding: 8px; border: 1px solid #dee2e6;"><strong>3D Модели</strong></td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">FBX, GLB, RFA, USDZ, AR-glb</td>
+                    <td style="padding: 8px; border: 1px solid #dee2e6;">https://example.com/model.glb</td>
+                </tr>
+            </tbody>
+        </table>
         
-        <div style="background: #d1ecf1; padding: 15px; border-left: 4px solid #17a2b8; margin-top: 15px;">
-            <strong>ℹ️ Примечание:</strong> Перед импортом убедитесь, что все файлы с указанными ID уже загружены в раздел "Файловые ресурсы".
-        </div>
+        <p style="color: #666; font-size: 12px;">⭐ — обязательные поля</p>
     </div>
     
-    <form method="post" enctype="multipart/form-data" style="padding: 20px; background: white; border: 1px solid #ddd;">
+    <div class="module" style="margin-bottom: 20px; padding: 20px; background: #d1ecf1; border-left: 4px solid #17a2b8;">
+        <h3 style="margin-top: 0;">💡 Как работает импорт</h3>
+        <ul style="margin: 0; padding-left: 20px;">
+            <li>Первая строка файла считается заголовками</li>
+            <li>Система автоматически определяет колонки по названиям</li>
+            <li>Если товар с таким <strong>артикулом</strong> уже существует — он будет обновлен</li>
+            <li>Если артикула нет — поиск по <strong>названию</strong></li>
+            <li>Категории создаются автоматически, если не существуют</li>
+        </ul>
+    </div>
+    
+    <form method="post" enctype="multipart/form-data" style="padding: 20px; background: white; border: 1px solid #ddd; border-radius: 4px;">
         {% csrf_token %}
         
         <div class="form-row" style="margin-bottom: 20px;">
-            <label for="excel_file" style="display: block; margin-bottom: 10px; font-weight: bold;">
-                Выберите Excel файл (.xlsx):
+            <label for="excel_file" style="display: block; margin-bottom: 10px; font-weight: bold; font-size: 16px;">
+                📄 Выберите Excel файл (.xlsx):
             </label>
             <input type="file" name="excel_file" id="excel_file" accept=".xlsx,.xls" required
-                   style="padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+                   style="padding: 15px; border: 2px dashed #ccc; border-radius: 4px; width: 100%; max-width: 500px; cursor: pointer;">
         </div>
         
-        <div class="submit-row">
-            <input type="submit" value="Импортировать" class="default" 
-                   style="padding: 10px 20px; background: #417690; color: white; border: none; cursor: pointer; border-radius: 4px;">
+        <div class="submit-row" style="margin-top: 20px;">
+            <input type="submit" value="📥 Импортировать товары" class="default" 
+                   style="padding: 12px 30px; background: #28a745; color: white; border: none; cursor: pointer; border-radius: 4px; font-size: 16px;">
             <a href="{% url 'admin:catalog_product_changelist' %}" class="button cancel-link" 
-               style="margin-left: 10px; padding: 10px 20px; background: #ba2121; color: white; text-decoration: none; border-radius: 4px; display: inline-block;">
+               style="margin-left: 15px; padding: 12px 30px; background: #6c757d; color: white; text-decoration: none; border-radius: 4px; display: inline-block; font-size: 16px;">
                 Отмена
             </a>
         </div>
     </form>
     
-    <div style="margin-top: 30px; padding: 20px; background: #f0f0f0; border-left: 4px solid #417690;">
-        <h3 style="margin-top: 0;">Пример структуры Excel файла:</h3>
-        <table style="width: 100%; border-collapse: collapse; background: white;">
-            <thead>
-                <tr style="background: #417690; color: white;">
-                    <th style="padding: 10px; border: 1px solid #ddd;">Название</th>
-                    <th style="padding: 10px; border: 1px solid #ddd;">Материал</th>
-                    <th style="padding: 10px; border: 1px solid #ddd;">Цена</th>
-                    <th style="padding: 10px; border: 1px solid #ddd;">ID изображений</th>
-                    <th style="padding: 10px; border: 1px solid #ddd;">ID 3D моделей</th>
-                    <th style="padding: 10px; border: 1px solid #ddd;">ID категории</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td style="padding: 10px; border: 1px solid #ddd;">Диван "Комфорт"</td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">Ткань</td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">50000</td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">img_001,img_002</td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">model_001</td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">1</td>
-                </tr>
-                <tr style="background: #f9f9f9;">
-                    <td style="padding: 10px; border: 1px solid #ddd;">Кресло "Релакс"</td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">Кожа</td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">35000</td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">img_003</td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">model_002</td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">2</td>
-                </tr>
-            </tbody>
-        </table>
+    <div style="margin-top: 30px; padding: 20px; background: #fff3cd; border-left: 4px solid #ffc107;">
+        <h3 style="margin-top: 0;">⚠️ Рекомендации</h3>
+        <ul style="margin: 0; padding-left: 20px;">
+            <li>Убедитесь, что первая строка содержит заголовки колонок</li>
+            <li>Цены указывайте в числовом формате (без символов валюты)</li>
+            <li>URL фотографий и 3D моделей должны быть полными ссылками</li>
+            <li>Для больших файлов (>1000 строк) импорт может занять несколько минут</li>
+        </ul>
     </div>
 </div>
 {% endblock %}
