@@ -189,15 +189,8 @@ export default function ModelViewerModal({
 				<div className='flex-1 overflow-hidden flex flex-col'>
 					{/* Model Viewer */}
 					<div className='flex-1 bg-gray-100 flex items-center justify-center min-h-[400px] relative'>
-						{isLoading && !error && loadProgress === 0 ? (
-							<div className='text-center p-8'>
-								<div className='inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-main1 mb-4'></div>
-								<p className='text-gray'>Загрузка 3D модели...</p>
-								<p className='text-xs text-gray mt-2'>
-									Пожалуйста, подождите. Это может занять некоторое время.
-								</p>
-							</div>
-						) : error ? (
+						{/* Показываем ошибку */}
+						{error ? (
 							<div className='text-center p-8'>
 								<p className='text-red-500 mb-4'>{error}</p>
 								<div className='text-xs text-gray mb-4 break-all'>
@@ -211,6 +204,7 @@ export default function ModelViewerModal({
 								</button>
 							</div>
 						) : !isSupported || !modelFormat ? (
+							/* Формат не поддерживается */
 							<div className='text-center p-8'>
 								<p className='text-gray mb-4'>
 									Формат {fileExtension} не поддерживается для просмотра в браузере.
@@ -229,6 +223,7 @@ export default function ModelViewerModal({
 								</button>
 							</div>
 						) : !isScriptReady ? (
+							/* Скрипт еще не загружен */
 							<div className='text-center p-8'>
 								<div className='inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-main1 mb-4'></div>
 								<p className='text-gray'>Инициализация 3D просмотра...</p>
@@ -237,6 +232,7 @@ export default function ModelViewerModal({
 								</p>
 							</div>
 						) : (
+							/* Рендерим model-viewer сразу после загрузки скрипта */
 							<>
 								<model-viewer
 									ref={setupModelViewer}
@@ -256,20 +252,28 @@ export default function ModelViewerModal({
 										display: 'block',
 									}}
 								/>
-								{/* Индикатор прогресса загрузки */}
-								{isLoading && loadProgress > 0 && (
-									<div className='absolute top-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white px-4 py-2 rounded-lg z-10'>
-										<div className='text-sm'>Загрузка: {loadProgress}%</div>
-										<div className='w-48 h-2 bg-gray-700 rounded-full mt-2'>
-											<div
-												className='h-2 bg-main1 rounded-full transition-all duration-300'
-												style={{ width: `${loadProgress}%` }}
-											></div>
+								{/* Индикатор загрузки поверх model-viewer */}
+								{isLoading && (
+									<div className='absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-80 z-10'>
+										<div className='text-center p-8'>
+											<div className='inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-main1 mb-4'></div>
+											<p className='text-gray'>Загрузка 3D модели...</p>
+											{loadProgress > 0 && (
+												<>
+													<div className='text-sm mt-2'>Загрузка: {loadProgress}%</div>
+													<div className='w-48 h-2 bg-gray-300 rounded-full mt-2 mx-auto'>
+														<div
+															className='h-2 bg-main1 rounded-full transition-all duration-300'
+															style={{ width: `${loadProgress}%` }}
+														></div>
+													</div>
+												</>
+											)}
 										</div>
 									</div>
 								)}
 								{/* Отладочная информация */}
-								<div className='absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs p-2 rounded z-10 max-w-xs break-all'>
+								<div className='absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs p-2 rounded z-20 max-w-xs break-all'>
 									<div>URL: {selectedModel.file_url}</div>
 									<div>Format: {modelFormat}</div>
 									<div>Script ready: {isScriptReady ? 'Yes' : 'No'}</div>
