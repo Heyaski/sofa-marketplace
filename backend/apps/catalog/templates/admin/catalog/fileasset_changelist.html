@@ -4,14 +4,21 @@
 {% block object-tools-items %}
     {{ block.super }}
     <li>
-        <div style="background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 4px; border: 1px solid #dee2e6;">
-            <p style="margin: 0 0 10px 0; color: #666; font-size: 13px;">
-                💡 <strong>Совет:</strong> Используйте поле "ID файла" для создания уникальных идентификаторов, 
-                которые затем можно указать в Excel при импорте товаров.
-            </p>
-            <p style="margin: 0; color: #666; font-size: 13px;">
-                Например: <code>img_001</code>, <code>img_002</code>, <code>model_001</code>
-            </p>
-        </div>
+        <a href="{% url 'admin:catalog_fileasset_import' %}" class="addlink" style="background: #28a745; padding: 10px 15px; border-radius: 4px;">
+            📦 Массовый импорт (Excel + ZIP)
+        </a>
     </li>
+{% endblock %}
+
+{% block content %}
+    <div style="background: #d1ecf1; padding: 15px; margin-bottom: 20px; border-radius: 4px; border: 1px solid #bee5eb;">
+        <p style="margin: 0 0 10px 0; color: #0c5460; font-size: 13px;">
+            💡 <strong>Совет:</strong> Используйте поле "ID файла" для создания уникальных идентификаторов, 
+            которые затем можно указать в Excel при импорте товаров.
+        </p>
+        <p style="margin: 0; color: #0c5460; font-size: 13px;">
+            Например: <code>img_001</code>, <code>img_002</code>, <code>model_001</code>
+        </p>
+    </div>
+    {{ block.super }}
 {% endblock %}
