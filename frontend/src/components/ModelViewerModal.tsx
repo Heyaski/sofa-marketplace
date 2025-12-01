@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { FileAsset } from '../types'
 
 interface ModelViewerModalProps {
@@ -25,6 +25,8 @@ export default function ModelViewerModal({
 	const [isLoading, setIsLoading] = useState(true)
 	const [isScriptReady, setIsScriptReady] = useState(false)
 	const [loadProgress, setLoadProgress] = useState(0)
+	const modelViewerRef = useRef<any>(null)
+	const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
 	// Динамически импортируем @google/model-viewer на клиенте
 	useEffect(() => {
@@ -68,11 +70,11 @@ export default function ModelViewerModal({
 			console.log('3D Models:', models)
 			console.log('Selected model URL:', models[0]?.file_url)
 
-			// Таймаут для загрузки модели (30 секунд)
-			const loadTimeout = setTimeout(() => {
+			// Таймаут для загрузки модели (60 секунд)
+			timeoutRef.current = setTimeout(() => {
 				setIsLoading((prevLoading) => {
 					if (prevLoading) {
-						console.warn('Model loading timeout after 30 seconds')
+						console.warn('Model loading timeout after 60 seconds')
 						setError(
 							'Загрузка модели занимает слишком много времени. Возможно, файл слишком большой или недоступен. Попробуйте обновить страницу или проверить подключение к интернету.'
 						)
@@ -80,13 +82,64 @@ export default function ModelViewerModal({
 					}
 					return prevLoading
 				})
-			}, 30000)
+			}, 60000)
 
-			return () => clearTimeout(loadTimeout)
+			return () => {
+				if (timeoutRef.current) {
+					clearTimeout(timeoutRef.current)
+				}
+			}
 		}
 	}, [isOpen, models])
 
-	// Упрощённо: без DOM-поллинга, полагаемся на события model-viewer
+	// Подключаем события к model-viewer через ref
+	const setupModelViewer = useCallback((element: any) => {
+		if (!element) return
+		
+		modelViewerRef.current = element
+		console.log('Model viewer element mounted, src:', element.src)
+
+		const handleLoad = () => {
+			console.log('✅ Model loaded successfully!')
+			setIsLoading(false)
+			setError(null)
+			setLoadProgress(100)
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current)
+			}
+		}
+
+		const handleError = (event: any) => {
+			console.error('❌ Model viewer error:', event)
+			setError(`Не удалось загрузить 3D модель. URL: ${element.src}`)
+			setIsLoading(false)
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current)
+			}
+		}
+
+		const handleProgress = (event: any) => {
+			const progress = event.detail?.totalProgress || 0
+			const progressPercent = Math.round(progress * 100)
+			console.log('📊 Model loading progress:', progressPercent + '%')
+			setLoadProgress(progressPercent)
+			if (progress > 0.05) {
+				setIsLoading(false)
+			}
+		}
+
+		// Добавляем слушатели событий
+		element.addEventListener('load', handleLoad)
+		element.addEventListener('error', handleError)
+		element.addEventListener('progress', handleProgress)
+
+		// Cleanup
+		return () => {
+			element.removeEventListener('load', handleLoad)
+			element.removeEventListener('error', handleError)
+			element.removeEventListener('progress', handleProgress)
+		}
+	}, [])
 
 	if (!isOpen || models.length === 0) return null
 
@@ -106,15 +159,6 @@ export default function ModelViewerModal({
 
 	const modelFormat = getModelFormat(selectedModel.file_url)
 	const isSupported = modelFormat !== null
-
-	const handleModelError = (e?: Event) => {
-		console.error('Model viewer error:', e)
-		console.error('Model URL:', selectedModel.file_url)
-		setError(
-			`Не удалось загрузить 3D модель. Проверьте консоль браузера для деталей. URL: ${selectedModel.file_url}`
-		)
-		setIsLoading(false)
-	}
 
 	const handleDownload = () => {
 		window.open(selectedModel.file_url, '_blank')
@@ -195,12 +239,12 @@ export default function ModelViewerModal({
 						) : (
 							<>
 								<model-viewer
+									ref={setupModelViewer}
 									id={`model-viewer-${selectedModelIndex}`}
 									src={selectedModel.file_url}
 									alt={selectedModel.description || productTitle || '3D Model'}
 									camera-controls
 									auto-rotate
-									ar
 									shadow-intensity='1'
 									loading='eager'
 									reveal='auto'
@@ -210,30 +254,6 @@ export default function ModelViewerModal({
 										minHeight: '400px',
 										backgroundColor: '#f3f4f6',
 										display: 'block',
-									}}
-									onError={(e: any) => {
-										console.error('Model viewer error:', e)
-										console.error('Error details:', e.detail)
-										console.error('Error type:', e.type)
-										console.error('Error target:', e.target)
-										handleModelError(e)
-									}}
-									onLoad={(e: any) => {
-										console.log('✅ Model loaded successfully (onLoad event):', selectedModel.file_url)
-										console.log('Load event details:', e)
-										setIsLoading(false)
-										setError(null)
-										setLoadProgress(100)
-									}}
-									onProgress={(e: any) => {
-										const progress = e.detail?.totalProgress || 0
-										const progressPercent = Math.round(progress * 100)
-										setLoadProgress(progressPercent)
-										console.log('📊 Model loading progress:', progressPercent + '%')
-										// Если прогресс больше 5%, скрываем основной индикатор загрузки
-										if (progress > 0.05) {
-											setIsLoading(false)
-										}
 									}}
 								/>
 								{/* Индикатор прогресса загрузки */}
@@ -248,16 +268,14 @@ export default function ModelViewerModal({
 										</div>
 									</div>
 								)}
-								{/* Отладочная информация в режиме разработки */}
-								{process.env.NODE_ENV === 'development' && (
-									<div className='absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs p-2 rounded z-10 max-w-xs break-all'>
-										<div>URL: {selectedModel.file_url}</div>
-										<div>Format: {modelFormat}</div>
-										<div>Script ready: {isScriptReady ? 'Yes' : 'No'}</div>
-										<div>Loading: {isLoading ? 'Yes' : 'No'}</div>
-										<div>Progress: {loadProgress}%</div>
-									</div>
-								)}
+								{/* Отладочная информация */}
+								<div className='absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs p-2 rounded z-10 max-w-xs break-all'>
+									<div>URL: {selectedModel.file_url}</div>
+									<div>Format: {modelFormat}</div>
+									<div>Script ready: {isScriptReady ? 'Yes' : 'No'}</div>
+									<div>Loading: {isLoading ? 'Yes' : 'No'}</div>
+									<div>Progress: {loadProgress}%</div>
+								</div>
 							</>
 						)}
 					</div>
