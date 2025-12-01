@@ -202,12 +202,12 @@ export default function ModelViewerModal({
 									auto-rotate
 									ar
 									shadow-intensity='1'
-									interaction-policy='allow-when-focused'
 									loading='eager'
-									reveal='interaction'
+									reveal='auto'
 									style={{
 										width: '100%',
 										height: '100%',
+										minHeight: '400px',
 										backgroundColor: '#f3f4f6',
 										display: 'block',
 									}}
