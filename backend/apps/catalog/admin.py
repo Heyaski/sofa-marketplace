@@ -145,13 +145,31 @@ class FileAssetAdmin(admin.ModelAdmin):
                             
                             # Нормализуем тип файла
                             file_type_lower = file_type.lower()
+                            recognized_type = False
+                            
                             if file_type_lower in ['image', 'изображение', 'img', 'картинка', 'фото']:
                                 file_type = 'image'
+                                recognized_type = True
                             elif file_type_lower in ['3d_model', '3d', 'model', '3д', 'модель', '3d_модель']:
                                 file_type = '3d_model'
-                            else:
-                                errors.append(f"Строка {row_num}: неизвестный тип файла '{file_type}'")
-                                continue
+                                recognized_type = True
+                            
+                            # Если тип файла не распознан, определяем автоматически по расширению
+                            if not recognized_type:
+                                # Получаем расширение файла
+                                file_ext = os.path.splitext(file_name)[1].lower().lstrip('.')
+                                
+                                # Определяем тип по расширению
+                                image_extensions = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg']
+                                model_extensions = ['glb', 'gltf', 'fbx', 'obj', 'usdz', 'rfa', 'dae', '3ds']
+                                
+                                if file_ext in image_extensions:
+                                    file_type = 'image'
+                                elif file_ext in model_extensions:
+                                    file_type = '3d_model'
+                                else:
+                                    errors.append(f"Строка {row_num}: не удалось определить тип файла для '{file_name}' (расширение: {file_ext})")
+                                    continue
                             
                             # Ищем файл в архиве
                             file_path = files_in_zip.get(file_name.lower())
