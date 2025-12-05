@@ -253,11 +253,18 @@ class ProductAdmin(admin.ModelAdmin):
             'fields': (('width', 'height', 'depth'), 'weight'),
             'classes': ('collapse',)
         }),
-        ('Фотографии', {
-            'fields': ('photo_url', 'image', 'image_asset_ids'),
-        }),
-        ('3D Модели', {
-            'fields': ('model_glb', 'model_fbx', 'model_rfa', 'model_usdz', 'model_ar_glb', 'model_3d_asset_ids'),
+        ('Фотографии и 3D Модели', {
+            'fields': (
+                'photo_url', 
+                'image', 
+                'image_asset_ids',
+                'model_glb', 
+                'model_fbx', 
+                'model_rfa', 
+                'model_usdz', 
+                'model_ar_glb', 
+                'model_3d_asset_ids'
+            ),
         }),
         ('Настройки', {
             'fields': ('is_active', 'is_trending')
