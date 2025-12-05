@@ -296,7 +296,7 @@ class ProductAdmin(admin.ModelAdmin):
                 
                 # Маппинг колонок (поддержка разных названий)
                 column_mapping = {
-                    'id': ['id'],
+                    'id': ['id', 'айди', 'идентификатор', 'код товара'],
                     'title': ['название', 'name', 'title', 'наименование'],
                     'availability': ['наличие', 'availability', 'налич'],
                     'width': ['ширина', 'width', 'ши'],
@@ -329,6 +329,10 @@ class ProductAdmin(admin.ModelAdmin):
                         if any(name in header for name in possible_names):
                             col_indices[field] = idx
                             break
+                
+                # Если колонка ID не найдена по заголовку, используем первую колонку (индекс 0) как ID
+                if 'id' not in col_indices:
+                    col_indices['id'] = 0
                 
                 created_count = 0
                 updated_count = 0
@@ -390,22 +394,19 @@ class ProductAdmin(admin.ModelAdmin):
                         # Получаем ID из первой колонки (если есть)
                         product_id = get_cell_value(row, 'id', '')
                         
-                        # Если ID указан в первой колонке, используем его для поиска изображений и 3D моделей
+                        # Получаем ID изображений и 3D моделей из Excel (если указаны)
                         image_asset_ids = get_cell_value(row, 'image_asset_ids', '')
                         model_3d_asset_ids = get_cell_value(row, 'model_3d_asset_ids', '')
                         
-                        # Если ID продукта указан и поля image_asset_ids/model_3d_asset_ids не заполнены,
-                        # пытаемся найти FileAsset с таким же asset_id
-                        if product_id and not image_asset_ids:
-                            # Ищем изображения с таким же ID
-                            image_assets = FileAsset.objects.filter(asset_id=product_id, file_type='image')
-                            if image_assets.exists():
+                        # Если ID продукта указан в первой колонке и поля image_asset_ids/model_3d_asset_ids 
+                        # не заполнены в Excel, автоматически используем ID из первой колонки
+                        if product_id:
+                            if not image_asset_ids:
+                                # Автоматически используем ID из первой колонки для изображений
                                 image_asset_ids = product_id
-                        
-                        if product_id and not model_3d_asset_ids:
-                            # Ищем 3D модели с таким же ID
-                            model_assets = FileAsset.objects.filter(asset_id=product_id, file_type='3d_model')
-                            if model_assets.exists():
+                            
+                            if not model_3d_asset_ids:
+                                # Автоматически используем ID из первой колонки для 3D моделей
                                 model_3d_asset_ids = product_id
                         
                         # Данные для создания/обновления
