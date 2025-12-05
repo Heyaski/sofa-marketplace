@@ -297,7 +297,7 @@ class FileAssetAdmin(admin.ModelAdmin):
         ws.append([
             r'E:\VizHub\partial\Мягкая мебель — Диваны — Угловые диваны\photos\IMR-1382731_GRY(1).webp',
             f'=TRIM(RIGHT(SUBSTITUTE(A2,"\\",REPT(" ",200)),200))',
-            'img_001',
+            f'=LEFT(B2,FIND(".",B2)-1)',
             f'=LET(f,B2,ext,LOWER(RIGHT(f,LEN(f)-FIND(".",f))),IF(OR(ext="jpg",ext="jpeg",ext="png",ext="webp"),"image",IF(OR(ext="glb",ext="fbx",ext="obj"),"3d_model","unknown")))'
         ])
         
@@ -305,7 +305,7 @@ class FileAssetAdmin(admin.ModelAdmin):
         ws.append([
             r'E:\VizHub\partial\Мягкая мебель — Диваны — Угловые диваны\models\IMR-1382731.glb',
             f'=TRIM(RIGHT(SUBSTITUTE(A3,"\\",REPT(" ",200)),200))',
-            'model_001',
+            f'=LEFT(B3,FIND(".",B3)-1)',
             f'=LET(f,B3,ext,LOWER(RIGHT(f,LEN(f)-FIND(".",f))),IF(OR(ext="jpg",ext="jpeg",ext="png",ext="webp"),"image",IF(OR(ext="glb",ext="fbx",ext="obj"),"3d_model","unknown")))'
         ])
         
