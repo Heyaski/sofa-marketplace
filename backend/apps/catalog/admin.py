@@ -100,8 +100,12 @@ class FileAssetAdmin(admin.ModelAdmin):
                     with zipfile.ZipFile(zip_file, 'r') as zf:
                         zf.extractall(temp_dir)
                     
-                    # Читаем Excel
-                    wb = openpyxl.load_workbook(excel_file)
+                    # Читаем Excel с вычислением формул (data_only=True)
+                    # Если формулы не вычислены, пробуем без data_only
+                    try:
+                        wb = openpyxl.load_workbook(excel_file, data_only=True)
+                    except:
+                        wb = openpyxl.load_workbook(excel_file)
                     ws = wb.active
                     
                     created_count = 0
@@ -125,11 +129,35 @@ class FileAssetAdmin(admin.ModelAdmin):
                     # Формат Excel: URL | Имя файла | ID файла | Тип файла
                     for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
                         try:
-                            # URL (столбец 0) - игнорируется, используется только для отображения
-                            url = str(row[0]).strip() if len(row) > 0 and row[0] else ""
-                            file_name = str(row[1]).strip() if len(row) > 1 and row[1] else ""
+                            # URL (столбец 0) - используется для извлечения имени файла, если в столбце B формула
+                            url_raw = str(row[0]).strip() if len(row) > 0 and row[0] else ""
+                            file_name_raw = str(row[1]).strip() if len(row) > 1 and row[1] else ""
                             asset_id = str(row[2]).strip() if len(row) > 2 and row[2] else ""
                             file_type = str(row[3]).strip() if len(row) > 3 and row[3] else "image"
+                            
+                            # Обрабатываем URL (если это формула, она должна быть вычислена data_only=True)
+                            url = url_raw
+                            if url.startswith('='):
+                                # Если URL тоже формула и не вычислена, пропускаем эту строку
+                                errors.append(f"Строка {row_num}: URL содержит невычисленную формулу")
+                                continue
+                            
+                            # Если имя файла начинается с "=", это формула Excel - извлекаем имя из URL
+                            if file_name_raw.startswith('='):
+                                # Извлекаем имя файла из URL (последняя часть пути)
+                                if url:
+                                    # Обрабатываем как Windows путь (обратные слэши) или URL (прямые слэши)
+                                    file_name = os.path.basename(url.replace('\\', '/'))
+                                    # Убираем параметры запроса и якоря из URL, если есть
+                                    if '?' in file_name:
+                                        file_name = file_name.split('?')[0]
+                                    if '#' in file_name:
+                                        file_name = file_name.split('#')[0]
+                                else:
+                                    errors.append(f"Строка {row_num}: не указан URL для извлечения имени файла")
+                                    continue
+                            else:
+                                file_name = file_name_raw
                             
                             # Пропускаем пустые строки (проверяем ID файла и имя файла)
                             if not asset_id and not file_name:
