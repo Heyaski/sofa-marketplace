@@ -8,7 +8,7 @@ class FileAsset(models.Model):
         ('3d_model', '3D Модель'),
     ]
     
-    asset_id = models.CharField(max_length=50, unique=True, verbose_name="ID файла", help_text="Уникальный идентификатор для ссылки в Excel")
+    asset_id = models.CharField(max_length=50, verbose_name="ID файла", help_text="Уникальный идентификатор для ссылки в Excel")
     file_type = models.CharField(max_length=20, choices=ASSET_TYPE_CHOICES, verbose_name="Тип файла")
     file = models.FileField(upload_to="assets/", verbose_name="Файл")
     description = models.CharField(max_length=255, blank=True, verbose_name="Описание")
@@ -18,6 +18,10 @@ class FileAsset(models.Model):
         verbose_name = "Файловый ресурс"
         verbose_name_plural = "Файловые ресурсы"
         ordering = ['-created_at']
+        # Составная уникальность: один asset_id может быть для image и для 3d_model
+        constraints = [
+            models.UniqueConstraint(fields=['asset_id', 'file_type'], name='unique_asset_id_per_type')
+        ]
     
     def __str__(self):
         return f"{self.asset_id} ({self.get_file_type_display()})"
