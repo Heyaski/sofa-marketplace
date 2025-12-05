@@ -5,6 +5,7 @@ from django.urls import path
 from django.contrib import messages
 from django.core.files import File
 from django.core.files.base import ContentFile
+from django.http import HttpResponse
 from .models import Category, Product, ProductImage, FileAsset
 import openpyxl
 from decimal import Decimal
@@ -13,6 +14,7 @@ from pathlib import Path
 import zipfile
 import tempfile
 import shutil
+from urllib.parse import quote
 
 
 @admin.register(Category)
@@ -74,6 +76,7 @@ class FileAssetAdmin(admin.ModelAdmin):
         urls = super().get_urls()
         custom_urls = [
             path('import-files/', self.import_files_view, name='catalog_fileasset_import'),
+            path('download-template/', self.download_template_view, name='catalog_fileasset_download_template'),
         ]
         return custom_urls + urls
     
@@ -265,6 +268,64 @@ class FileAssetAdmin(admin.ModelAdmin):
             return redirect("..")
         
         return render(request, "admin/catalog/import_files.html")
+    
+    def download_template_view(self, request):
+        """Скачать шаблон Excel файла для импорта файлов"""
+        # Создаем новый Excel файл
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Файлы"
+        
+        # Заголовки столбцов
+        headers = ['URL', 'Имя файла', 'ID файла', 'Тип файла']
+        ws.append(headers)
+        
+        # Форматируем заголовки
+        from openpyxl.styles import Font, PatternFill, Alignment
+        header_fill = PatternFill(start_color="FFE0E0E0", end_color="FFE0E0E0", fill_type="solid")
+        header_font = Font(bold=True, size=12)
+        
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_num)
+            cell.value = header
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+        
+        # Добавляем примеры строк с формулами
+        # Пример 1: изображение
+        ws.append([
+            r'E:\VizHub\partial\Мягкая мебель — Диваны — Угловые диваны\photos\IMR-1382731_GRY(1).webp',
+            f'=TRIM(RIGHT(SUBSTITUTE(A2,"\\",REPT(" ",200)),200))',
+            'img_001',
+            f'=LET(f,B2,ext,LOWER(RIGHT(f,LEN(f)-FIND(".",f))),IF(OR(ext="jpg",ext="jpeg",ext="png",ext="webp"),"image",IF(OR(ext="glb",ext="fbx",ext="obj"),"3d_model","unknown")))'
+        ])
+        
+        # Пример 2: 3D модель
+        ws.append([
+            r'E:\VizHub\partial\Мягкая мебель — Диваны — Угловые диваны\models\IMR-1382731.glb',
+            f'=TRIM(RIGHT(SUBSTITUTE(A3,"\\",REPT(" ",200)),200))',
+            'model_001',
+            f'=LET(f,B3,ext,LOWER(RIGHT(f,LEN(f)-FIND(".",f))),IF(OR(ext="jpg",ext="jpeg",ext="png",ext="webp"),"image",IF(OR(ext="glb",ext="fbx",ext="obj"),"3d_model","unknown")))'
+        ])
+        
+        # Настраиваем ширину столбцов
+        ws.column_dimensions['A'].width = 80
+        ws.column_dimensions['B'].width = 30
+        ws.column_dimensions['C'].width = 20
+        ws.column_dimensions['D'].width = 30
+        
+        # Создаем HTTP ответ с файлом
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        # Правильно кодируем имя файла для русских символов
+        filename = 'Таблица файлов.xlsx'
+        encoded_filename = quote(filename.encode('utf-8'))
+        response['Content-Disposition'] = f'attachment; filename="{filename}"; filename*=UTF-8\'\'{encoded_filename}'
+        
+        wb.save(response)
+        return response
 
 
 @admin.register(Product)

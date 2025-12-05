@@ -4,6 +4,11 @@
 {% block object-tools-items %}
     {{ block.super }}
     <li>
+        <a href="{% url 'admin:catalog_fileasset_download_template' %}" class="addlink" style="background: #17a2b8; padding: 10px 15px; border-radius: 4px; margin-right: 10px;">
+            📥 Скачать шаблон Excel
+        </a>
+    </li>
+    <li>
         <a href="{% url 'admin:catalog_fileasset_import' %}" class="addlink" style="background: #28a745; padding: 10px 15px; border-radius: 4px;">
             📦 Массовый импорт (Excel + ZIP)
         </a>
