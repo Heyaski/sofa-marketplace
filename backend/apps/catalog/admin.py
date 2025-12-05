@@ -122,19 +122,25 @@ class FileAssetAdmin(admin.ModelAdmin):
                             rel_path = os.path.relpath(full_path, temp_dir)
                             files_in_zip[rel_path.lower()] = full_path
                     
-                    # Формат Excel: ID файла | Тип (image/3d_model) | Имя файла | Описание
+                    # Формат Excel: URL | Имя файла | ID файла | Тип файла
                     for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
                         try:
-                            if not row[0]:  # Пропускаем пустые строки
-                                continue
+                            # URL (столбец 0) - игнорируется, используется только для отображения
+                            url = str(row[0]).strip() if len(row) > 0 and row[0] else ""
+                            file_name = str(row[1]).strip() if len(row) > 1 and row[1] else ""
+                            asset_id = str(row[2]).strip() if len(row) > 2 and row[2] else ""
+                            file_type = str(row[3]).strip() if len(row) > 3 and row[3] else "image"
                             
-                            asset_id = str(row[0]).strip()
-                            file_type = str(row[1]).strip() if len(row) > 1 and row[1] else "image"
-                            file_name = str(row[2]).strip() if len(row) > 2 and row[2] else ""
-                            description = str(row[3]).strip() if len(row) > 3 and row[3] else ""
+                            # Пропускаем пустые строки (проверяем ID файла и имя файла)
+                            if not asset_id and not file_name:
+                                continue
                             
                             if not file_name:
                                 errors.append(f"Строка {row_num}: не указано имя файла")
+                                continue
+                            
+                            if not asset_id:
+                                errors.append(f"Строка {row_num}: не указан ID файла")
                                 continue
                             
                             # Нормализуем тип файла
@@ -173,7 +179,6 @@ class FileAssetAdmin(admin.ModelAdmin):
                             if existing:
                                 # Обновляем существующий
                                 existing.file_type = file_type
-                                existing.description = description
                                 existing.file.save(save_filename, ContentFile(file_content), save=True)
                                 updated_count += 1
                             else:
@@ -181,7 +186,7 @@ class FileAssetAdmin(admin.ModelAdmin):
                                 file_asset = FileAsset(
                                     asset_id=asset_id,
                                     file_type=file_type,
-                                    description=description
+                                    description=''
                                 )
                                 file_asset.file.save(save_filename, ContentFile(file_content), save=True)
                                 created_count += 1

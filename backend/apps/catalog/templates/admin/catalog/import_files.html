@@ -20,24 +20,24 @@
             </thead>
             <tbody>
                 <tr>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>A: ID файла</strong></td>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;">Уникальный идентификатор (обязательно)</td>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>img_001</code>, <code>model_sofa_01</code></td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>A: URL</strong></td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">URL для отображения (не используется в логике)</td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>https://example.com/...</code></td>
                 </tr>
                 <tr>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>B: Тип файла</strong></td>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>image</code> или <code>3d_model</code></td>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>image</code>, <code>3d_model</code>, <code>изображение</code>, <code>модель</code></td>
-                </tr>
-                <tr>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>C: Имя файла</strong></td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>B: Имя файла</strong></td>
                     <td style="padding: 10px; border: 1px solid #dee2e6;">Имя файла в ZIP архиве (обязательно)</td>
                     <td style="padding: 10px; border: 1px solid #dee2e6;"><code>sofa_photo.jpg</code>, <code>model.glb</code></td>
                 </tr>
                 <tr>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>D: Описание</strong></td>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;">Описание файла (опционально)</td>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>Фото дивана спереди</code></td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>C: ID файла</strong></td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">Уникальный идентификатор (обязательно)</td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>img_001</code>, <code>model_sofa_01</code></td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>D: Тип файла</strong></td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>image</code> или <code>3d_model</code></td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>image</code>, <code>3d_model</code>, <code>изображение</code>, <code>модель</code></td>
                 </tr>
             </tbody>
         </table>
@@ -45,12 +45,12 @@
         <div style="background: #d1ecf1; padding: 15px; border-left: 4px solid #17a2b8; margin-top: 15px;">
             <strong>💡 Пример Excel файла:</strong>
             <pre style="background: #fff; padding: 10px; margin-top: 10px; overflow-x: auto;">
-ID файла    | Тип       | Имя файла        | Описание
-------------|-----------|------------------|--------------------
-img_001     | image     | sofa_front.jpg   | Фото спереди
-img_002     | image     | sofa_side.jpg    | Фото сбоку
-model_001   | 3d_model  | sofa.glb         | 3D модель дивана
-model_002   | 3d_model  | chair.glb        | 3D модель кресла
+URL                    | Имя файла        | ID файла  | Тип файла
+-----------------------|------------------|-----------|----------
+https://example.com/...| sofa_front.jpg   | img_001   | image
+https://example.com/...| sofa_side.jpg    | img_002   | image
+https://example.com/...| sofa.glb         | model_001 | 3d_model
+https://example.com/...| chair.glb        | model_002 | 3d_model
             </pre>
         </div>
     </div>
