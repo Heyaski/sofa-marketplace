@@ -43,13 +43,13 @@ export default function Footer() {
 					{/* Links */}
 					<div className='flex flex-col sm:flex-row gap-4 sm:gap-8'>
 						<a
-							href='#'
+							href='/offer'
 							className='text-sm hover:text-gray-200 transition-colors'
 						>
-							Условия предоставления услуг
+							Договор-оферта
 						</a>
 						<a
-							href='#'
+							href='/privacy'
 							className='text-sm hover:text-gray-200 transition-colors'
 						>
 							Политика Конфиденциальности
