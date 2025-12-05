@@ -258,7 +258,6 @@ class ProductAdmin(admin.ModelAdmin):
         }),
         ('3D Модели', {
             'fields': ('model_glb', 'model_fbx', 'model_rfa', 'model_usdz', 'model_ar_glb', 'model_3d_asset_ids'),
-            'classes': ('collapse',)
         }),
         ('Настройки', {
             'fields': ('is_active', 'is_trending')
@@ -307,6 +306,8 @@ class ProductAdmin(admin.ModelAdmin):
                     'subcategory': ['подкатегория', 'subcategory', 'подка'],
                     'description': ['описание', 'description', 'ория'],
                     'photo_url': ['url photo', 'urlphoto', 'url_photo', 'фото', 'photo', 'image_url'],
+                    'image_asset_ids': ['id изображений', 'image_asset_ids', 'image_ids', 'id изображения', 'id фото'],
+                    'model_3d_asset_ids': ['id 3d моделей', 'model_3d_asset_ids', '3d_asset_ids', 'id 3d', 'id модели', 'id моделей'],
                     'model_fbx': ['fbx', 'model_fbx'],
                     'model_glb': ['glb', 'model_glb'],
                     'model_rfa': ['rfa', 'model_rfa'],
@@ -379,6 +380,27 @@ class ProductAdmin(admin.ModelAdmin):
                                 defaults={'name': 'Без категории'}
                             )
                         
+                        # Получаем ID из первой колонки (если есть)
+                        product_id = get_cell_value(row, 'id', '')
+                        
+                        # Если ID указан в первой колонке, используем его для поиска изображений и 3D моделей
+                        image_asset_ids = get_cell_value(row, 'image_asset_ids', '')
+                        model_3d_asset_ids = get_cell_value(row, 'model_3d_asset_ids', '')
+                        
+                        # Если ID продукта указан и поля image_asset_ids/model_3d_asset_ids не заполнены,
+                        # пытаемся найти FileAsset с таким же asset_id
+                        if product_id and not image_asset_ids:
+                            # Ищем изображения с таким же ID
+                            image_assets = FileAsset.objects.filter(asset_id=product_id, file_type='image')
+                            if image_assets.exists():
+                                image_asset_ids = product_id
+                        
+                        if product_id and not model_3d_asset_ids:
+                            # Ищем 3D модели с таким же ID
+                            model_assets = FileAsset.objects.filter(asset_id=product_id, file_type='3d_model')
+                            if model_assets.exists():
+                                model_3d_asset_ids = product_id
+                        
                         # Данные для создания/обновления
                         product_data = {
                             'category': category,
@@ -396,6 +418,8 @@ class ProductAdmin(admin.ModelAdmin):
                             'subcategory': get_cell_value(row, 'subcategory'),
                             'description': get_cell_value(row, 'description'),
                             'photo_url': get_cell_value(row, 'photo_url'),
+                            'image_asset_ids': image_asset_ids,
+                            'model_3d_asset_ids': model_3d_asset_ids,
                             'model_fbx': get_cell_value(row, 'model_fbx'),
                             'model_glb': get_cell_value(row, 'model_glb'),
                             'model_rfa': get_cell_value(row, 'model_rfa'),

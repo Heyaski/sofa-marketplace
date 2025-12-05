@@ -34,14 +34,19 @@ export default function ProductPage({ params }: ProductPageProps) {
 
 	// Устанавливаем главное изображение при загрузке продукта
 	useEffect(() => {
-		// Если есть массив изображений, используем первое
-		if (product?.images && product.images.length > 0) {
+		// Приоритет 1: asset_images (из FileAsset)
+		if (product?.asset_images && product.asset_images.length > 0) {
+			setMainImage(product.asset_images[0].file_url)
+		} 
+		// Приоритет 2: images (из ProductImage)
+		else if (product?.images && product.images.length > 0) {
 			setMainImage(product.images[0].image_url)
-		} else if (product?.image) {
-			// Иначе используем старое поле image (для обратной совместимости)
+		} 
+		// Приоритет 3: старое поле image (для обратной совместимости)
+		else if (product?.image) {
 			setMainImage(product.image)
 		}
-	}, [product?.images, product?.image])
+	}, [product?.asset_images, product?.images, product?.image])
 
 	// Проверка авторизации пользователя
 	useEffect(() => {
@@ -82,14 +87,32 @@ export default function ProductPage({ params }: ProductPageProps) {
 
 	// Получаем массив изображений для миниатюр
 	const getThumbnails = () => {
+		const thumbnails: string[] = []
+		
+		// Добавляем изображения из asset_images (FileAsset)
+		if (product?.asset_images && product.asset_images.length > 0) {
+			product.asset_images.forEach(asset => {
+				if (asset.file_url) {
+					thumbnails.push(asset.file_url)
+				}
+			})
+		}
+		
+		// Добавляем изображения из images (ProductImage)
 		if (product?.images && product.images.length > 0) {
-			return product.images.map(img => img.image_url)
+			product.images.forEach(img => {
+				if (img.image_url) {
+					thumbnails.push(img.image_url)
+				}
+			})
 		}
-		// Если нет изображений в массиве, но есть старое поле image
-		if (product?.image) {
-			return [product.image]
+		
+		// Если нет изображений в массивах, но есть старое поле image
+		if (thumbnails.length === 0 && product?.image) {
+			thumbnails.push(product.image)
 		}
-		return []
+		
+		return thumbnails
 	}
 	const thumbnails = getThumbnails()
 
