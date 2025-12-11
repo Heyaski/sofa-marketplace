@@ -22,6 +22,10 @@ class CategoryAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "slug", "parent", "preview_image")
     search_fields = ("name",)
     prepopulated_fields = {"slug": ("name",)}
+    
+    class Meta:
+        verbose_name = "Категория"
+        verbose_name_plural = "Категории"
 
     # красивый предпросмотр картинки
     def preview_image(self, obj):
@@ -41,6 +45,8 @@ class ProductImageInline(admin.TabularInline):
     extra = 1
     fields = ('image', 'order', 'preview')
     readonly_fields = ('preview',)
+    verbose_name = "Изображение товара"
+    verbose_name_plural = "Изображения товаров"
 
     def preview(self, obj):
         if obj.pk and obj.image:
@@ -58,6 +64,10 @@ class FileAssetAdmin(admin.ModelAdmin):
     list_filter = ("file_type", "created_at")
     search_fields = ("asset_id", "description")
     ordering = ("-created_at",)
+    
+    class Meta:
+        verbose_name = "Файловый ресурс"
+        verbose_name_plural = "Файловые ресурсы"
     
     def preview(self, obj):
         if obj.file_type == 'image' and obj.file:

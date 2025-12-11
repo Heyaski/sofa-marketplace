@@ -153,7 +153,7 @@ export default function Header() {
 								onClick={() => setIsAuthModalOpen(true)}
 								className='text-main1 hover:text-main2 font-medium text-sm'
 							>
-								Войти / Зарегестрироваться
+								Войти / Зарегистрироваться
 							</button>
 						)}
 					</div>

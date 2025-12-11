@@ -62,7 +62,7 @@ export default function Footer() {
 							onClick={() => (window.location.href = '/')}
 							className='bg-white text-main1 px-6 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors'
 						>
-							Войти / Зарегестрироваться
+							Войти / Зарегистрироваться
 						</button>
 					)}
 				</div>

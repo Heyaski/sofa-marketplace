@@ -248,16 +248,8 @@ export default function ProductPage({ params }: ProductPageProps) {
 								</div>
 							)}
 
-							{/* Артикул и наличие */}
+							{/* Наличие */}
 							<div className='flex items-center gap-4 text-sm'>
-								{product.article && (
-									<span className='text-gray'>
-										Артикул:{' '}
-										<span className='text-black font-medium'>
-											{product.article}
-										</span>
-									</span>
-								)}
 								{product.availability && (
 									<span
 										className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -405,7 +397,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 										className='hover:text-black transition-colors cursor-pointer'
 										onClick={() => setIsAuthModalOpen(true)}
 									>
-										Войти / Зарегестрироваться
+										Войти / Зарегистрироваться
 									</button>
 								</div>
 							)}

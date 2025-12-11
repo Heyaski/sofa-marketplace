@@ -28,10 +28,14 @@ class FileAsset(models.Model):
 
 
 class Category(models.Model):
-    name = models.CharField(max_length=120)
-    slug = models.SlugField(unique=True)
-    parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE)
-    image = models.ImageField(upload_to="categories/", blank=True, null=True)
+    name = models.CharField(max_length=120, verbose_name="Название")
+    slug = models.SlugField(unique=True, verbose_name="URL")
+    parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, verbose_name="Родительская категория")
+    image = models.ImageField(upload_to="categories/", blank=True, null=True, verbose_name="Изображение")
+
+    class Meta:
+        verbose_name = "Категория"
+        verbose_name_plural = "Категории"
 
     def __str__(self):
         return self.name
@@ -87,6 +91,11 @@ class Product(models.Model):
     model_usdz = models.CharField(max_length=500, blank=True, verbose_name="USDZ файл")
     model_ar_glb = models.CharField(max_length=500, blank=True, verbose_name="AR-GLB файл")
 
+    class Meta:
+        verbose_name = "Товар"
+        verbose_name_plural = "Товары"
+        ordering = ['-id']
+    
     def __str__(self):
         return self.title
     
@@ -122,10 +131,10 @@ class Product(models.Model):
 
 class ProductImage(models.Model):
     """Модель для хранения нескольких изображений товара"""
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to="products/", blank=False, null=False)
-    order = models.PositiveIntegerField(default=0, help_text="Порядок отображения изображения")
-    created_at = models.DateTimeField(auto_now_add=True)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images', verbose_name="Товар")
+    image = models.ImageField(upload_to="products/", blank=False, null=False, verbose_name="Изображение")
+    order = models.PositiveIntegerField(default=0, help_text="Порядок отображения изображения", verbose_name="Порядок")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
 
     class Meta:
         ordering = ['order', 'created_at']

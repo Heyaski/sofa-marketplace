@@ -1,13 +1,14 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from .models import UserProfile
 
 
 class UserProfileInline(admin.StackedInline):
     model = UserProfile
     can_delete = False
-    verbose_name_plural = 'Профиль'
+    verbose_name = 'Профиль'
+    verbose_name_plural = 'Профили'
     fields = ('subscription_type', 'card_number', 'card_holder', 'card_expiry', 'card_cvv', 
               'chat_notifications', 'new_models_notifications')
 
@@ -40,4 +41,17 @@ class UserProfileAdmin(admin.ModelAdmin):
             'fields': ('chat_notifications', 'new_models_notifications')
         }),
     )
+
+
+# Русификация стандартных моделей Django
+admin.site.unregister(Group)
+@admin.register(Group)
+class GroupAdmin(admin.ModelAdmin):
+    pass
+
+# Добавляем русские названия для стандартных моделей
+User._meta.verbose_name = "Пользователь"
+User._meta.verbose_name_plural = "Пользователи"
+Group._meta.verbose_name = "Группа"
+Group._meta.verbose_name_plural = "Группы"
 

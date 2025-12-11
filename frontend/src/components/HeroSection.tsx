@@ -28,7 +28,7 @@ export default function HeroSection({ onOpenAuth }: HeroSectionProps) {
 								onClick={onOpenAuth}
 								className='bg-main1 text-white px-8 py-4 rounded-lg text-lg font-medium hover:bg-main2 transition-colors'
 							>
-								Зарегестрироваться бесплатно
+								Зарегистрироваться бесплатно
 							</button>
 						</div>
 					</div>

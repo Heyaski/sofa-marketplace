@@ -177,15 +177,28 @@ JAZZMIN_SETTINGS = {
         "catalog.Category": "fas fa-folder",
         "catalog.Product": "fas fa-couch",
         "catalog.ProductImage": "fas fa-images",
+        "catalog.FileAsset": "fas fa-file",
         "baskets.Basket": "fas fa-shopping-cart",
         "baskets.BasketItem": "fas fa-shopping-basket",
         "subscriptions.Plan": "fas fa-crown",
         "subscriptions.Subscription": "fas fa-id-card",
         "downloads.Download": "fas fa-download",
         "orders.Order": "fas fa-receipt",
+        "orders.OrderItem": "fas fa-list",
         "users.UserProfile": "fas fa-user-circle",
         "chats.Chat": "fas fa-comments",
         "chats.Message": "fas fa-envelope",
+        "chats.MessageProduct": "fas fa-box",
+        "chats.MessageBasket": "fas fa-shopping-bag",
+    },
+    
+    # Русские названия приложений
+    "custom_links": {
+        "auth": [{
+            "name": "Пользователи",
+            "url": "admin:auth_user_changelist",
+            "icon": "fas fa-users",
+        }],
     },
     
     # Настройки интерфейса
