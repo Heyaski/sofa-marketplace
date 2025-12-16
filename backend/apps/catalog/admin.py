@@ -111,11 +111,23 @@ class FileAssetAdmin(admin.ModelAdmin):
                     created_count = 0
                     updated_count = 0
                     skipped_count = 0
+                    products_linked_count = 0
                     errors = []
                     
                     # Расширения файлов для определения типа
                     image_extensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.svg']
                     model_extensions = ['.glb', '.gltf', '.fbx', '.obj', '.usdz', '.rfa', '.dae', '.3ds']
+                    
+                    # Функция для извлечения базового артикула из asset_id
+                    def extract_base_article(asset_id):
+                        """Извлекает базовый артикул из asset_id (например: IMR-556065(1) -> IMR-556065)"""
+                        if '(' in asset_id:
+                            base = asset_id.split('(')[0].strip()
+                            return base
+                        return asset_id.strip()
+                    
+                    # Словарь для группировки созданных FileAsset по артикулам
+                    articles_files = {}  # {article: {'images': [FileAsset], 'models': [FileAsset]}}
                     
                     # Собираем все файлы из архива (включая вложенные папки)
                     for root, dirs, files in os.walk(temp_dir):
@@ -159,6 +171,7 @@ class FileAssetAdmin(admin.ModelAdmin):
                                 if existing:
                                     # Обновляем существующий
                                     existing.file.save(save_filename, ContentFile(file_content), save=True)
+                                    file_asset = existing
                                     updated_count += 1
                                 else:
                                     # Создаем новый
@@ -169,18 +182,110 @@ class FileAssetAdmin(admin.ModelAdmin):
                                     )
                                     file_asset.file.save(save_filename, ContentFile(file_content), save=True)
                                     created_count += 1
+                                
+                                # Группируем файлы по базовому артикулу
+                                base_article = extract_base_article(asset_id)
+                                if base_article not in articles_files:
+                                    articles_files[base_article] = {'images': [], 'models': []}
+                                
+                                if file_type == 'image':
+                                    articles_files[base_article]['images'].append(file_asset)
+                                else:
+                                    articles_files[base_article]['models'].append(file_asset)
                                     
                             except Exception as e:
                                 errors.append(f"Ошибка при обработке файла '{filename}': {str(e)}")
                     
+                    # После создания всех FileAsset, привязываем их к существующим товарам по артикулу
+                    for article, files_data in articles_files.items():
+                        try:
+                            # Ищем товар по артикулу (без учета регистра)
+                            product = Product.objects.filter(article__iexact=article).first()
+                            
+                            if product:
+                                # Привязываем изображения
+                                if files_data['images']:
+                                    # Сортируем изображения по asset_id (чтобы IMR-556065(1) был после IMR-556065)
+                                    sorted_images = sorted(files_data['images'], key=lambda x: x.asset_id)
+                                    
+                                    image_asset_ids = [asset.asset_id for asset in sorted_images]
+                                    # Объединяем с существующими ID
+                                    existing_ids = product.image_asset_ids.split(',') if product.image_asset_ids else []
+                                    existing_ids = [id.strip() for id in existing_ids if id.strip()]
+                                    all_image_ids = list(set(existing_ids + image_asset_ids))
+                                    product.image_asset_ids = ','.join(all_image_ids)
+                                    
+                                    # Создаем ProductImage для каждого изображения
+                                    for order, asset in enumerate(sorted_images, start=0):
+                                        try:
+                                            # Проверяем, не существует ли уже такое изображение
+                                            existing_image = product.images.filter(
+                                                image__icontains=os.path.basename(asset.file.name)
+                                            ).first()
+                                            
+                                            if not existing_image and asset.file:
+                                                # Копируем файл из FileAsset в ProductImage
+                                                asset.file.open('rb')
+                                                file_content = asset.file.read()
+                                                asset.file.close()
+                                                
+                                                product_image = ProductImage(
+                                                    product=product,
+                                                    order=order
+                                                )
+                                                filename = os.path.basename(asset.file.name)
+                                                product_image.image.save(
+                                                    filename,
+                                                    ContentFile(file_content),
+                                                    save=True
+                                                )
+                                        except Exception as img_error:
+                                            errors.append(f"Ошибка при создании ProductImage для товара '{article}': {str(img_error)}")
+                                
+                                # Привязываем 3D модели
+                                if files_data['models']:
+                                    model_asset_ids = [asset.asset_id for asset in files_data['models']]
+                                    # Объединяем с существующими ID
+                                    existing_model_ids = product.model_3d_asset_ids.split(',') if product.model_3d_asset_ids else []
+                                    existing_model_ids = [id.strip() for id in existing_model_ids if id.strip()]
+                                    all_model_ids = list(set(existing_model_ids + model_asset_ids))
+                                    product.model_3d_asset_ids = ','.join(all_model_ids)
+                                    
+                                    # Устанавливаем соответствующие поля моделей
+                                    for asset in files_data['models']:
+                                        try:
+                                            if asset.file and hasattr(asset.file, 'url'):
+                                                file_ext = os.path.splitext(asset.file.name)[1].lower()
+                                                file_url = asset.file.url
+                                                
+                                                if file_ext == '.glb' and not product.model_glb:
+                                                    product.model_glb = file_url
+                                                elif file_ext == '.fbx' and not product.model_fbx:
+                                                    product.model_fbx = file_url
+                                                elif file_ext == '.usdz' and not product.model_usdz:
+                                                    product.model_usdz = file_url
+                                                elif file_ext == '.rfa' and not product.model_rfa:
+                                                    product.model_rfa = file_url
+                                        except Exception:
+                                            pass
+                                
+                                # Сохраняем товар
+                                product.save(update_fields=['image_asset_ids', 'model_3d_asset_ids', 'model_glb', 'model_fbx', 'model_usdz', 'model_rfa'])
+                                products_linked_count += 1
+                                
+                        except Exception as e:
+                            errors.append(f"Ошибка при привязке файлов к товару с артикулом '{article}': {str(e)}")
+                    
                     # Формируем сообщение
                     success_parts = []
                     if created_count > 0:
-                        success_parts.append(f"создано: {created_count}")
+                        success_parts.append(f"файлов создано: {created_count}")
                     if updated_count > 0:
-                        success_parts.append(f"обновлено: {updated_count}")
+                        success_parts.append(f"файлов обновлено: {updated_count}")
+                    if products_linked_count > 0:
+                        success_parts.append(f"товаров обновлено: {products_linked_count}")
                     if skipped_count > 0:
-                        success_parts.append(f"пропущено: {skipped_count}")
+                        success_parts.append(f"файлов пропущено: {skipped_count}")
                     
                     if success_parts:
                         messages.success(
