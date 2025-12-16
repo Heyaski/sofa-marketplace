@@ -495,8 +495,14 @@ class ProductAdmin(admin.ModelAdmin):
                 for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
                     try:
                         title = get_cell_value(row, 'title')
-                        if not title:
+                        if not title or title.strip() == '':
                             continue  # Пропускаем пустые строки
+                        
+                        # Получаем цену
+                        price = get_decimal_value(row, 'price', Decimal('0.00'))
+                        if price is None or price <= 0:
+                            errors.append(f"Строка {row_num}: не указана цена или цена некорректна (цена: {price})")
+                            continue
                         
                         # Получаем цену
                         price = get_decimal_value(row, 'price', Decimal('0.00'))
@@ -556,6 +562,7 @@ class ProductAdmin(admin.ModelAdmin):
                             'model_rfa': get_cell_value(row, 'model_rfa'),
                             'model_usdz': get_cell_value(row, 'model_usdz'),
                             'model_ar_glb': get_cell_value(row, 'model_ar_glb'),
+                            'is_active': True,  # Всегда активируем товары при импорте
                         }
                         
                         # Создаем или обновляем по артикулу (если есть) или по названию
@@ -576,21 +583,63 @@ class ProductAdmin(admin.ModelAdmin):
                         else:
                             updated_count += 1
                         
-                        # Если загружен ZIP архив и есть артикул, ищем изображения по артикулу
+                        # Если есть артикул, ищем FileAsset по артикулу и автоматически связываем
+                        if article:
+                            try:
+                                # Ищем FileAsset с asset_id, начинающимся с артикула
+                                # Поддерживаем форматы: IMR-556065, IMR-556065(1), IMR-556065(2) и т.д.
+                                matching_assets = FileAsset.objects.filter(
+                                    asset_id__startswith=article,
+                                    file_type='image'
+                                ).order_by('asset_id')
+                                
+                                if matching_assets.exists():
+                                    # Формируем список ID для image_asset_ids
+                                    asset_ids = [asset.asset_id for asset in matching_assets]
+                                    product.image_asset_ids = ','.join(asset_ids)
+                                    product.save(update_fields=['image_asset_ids'])
+                                    
+                                    # Также создаем ProductImage для обратной совместимости
+                                    for order, asset in enumerate(matching_assets):
+                                        # Проверяем, не существует ли уже такое изображение
+                                        existing_image = product.images.filter(
+                                            image__icontains=os.path.basename(asset.file.name)
+                                        ).first()
+                                        
+                                        if not existing_image and asset.file:
+                                            # Копируем файл из FileAsset в ProductImage
+                                            try:
+                                                asset.file.open('rb')
+                                                file_content = asset.file.read()
+                                                asset.file.close()
+                                                
+                                                product_image = ProductImage(
+                                                    product=product,
+                                                    order=order
+                                                )
+                                                filename = os.path.basename(asset.file.name)
+                                                product_image.image.save(
+                                                    filename,
+                                                    ContentFile(file_content),
+                                                    save=True
+                                                )
+                                                images_attached_count += 1
+                                            except Exception as img_error:
+                                                errors.append(f"Строка {row_num}: ошибка при копировании изображения из FileAsset '{asset.asset_id}': {str(img_error)}")
+                            except Exception as e:
+                                errors.append(f"Строка {row_num}: ошибка при поиске FileAsset для артикула '{article}': {str(e)}")
+                        
+                        # Если загружен ZIP архив и есть артикул, ищем изображения по артикулу в ZIP
                         if zip_file and article and files_in_zip:
                             try:
                                 found_images = find_images_by_article(article, files_in_zip)
                                 if found_images:
-                                    # Удаляем старые изображения товара (опционально, можно закомментировать)
-                                    # product.images.all().delete()
-                                    
                                     # Создаем новые ProductImage для каждого найденного изображения
                                     for order, image_path in enumerate(found_images, start=0):
                                         try:
                                             image_filename = os.path.basename(image_path)
                                             
                                             # Проверяем, не существует ли уже такое изображение по имени файла
-                                            # Проверяем имя файла в пути сохраненного изображения
                                             existing_images = product.images.all()
                                             image_exists = False
                                             for existing_img in existing_images:
@@ -617,7 +666,7 @@ class ProductAdmin(admin.ModelAdmin):
                                         except Exception as img_error:
                                             errors.append(f"Строка {row_num}: ошибка при добавлении изображения '{os.path.basename(image_path)}': {str(img_error)}")
                             except Exception as e:
-                                errors.append(f"Строка {row_num}: ошибка при поиске изображений для артикула '{article}': {str(e)}")
+                                errors.append(f"Строка {row_num}: ошибка при поиске изображений в ZIP для артикула '{article}': {str(e)}")
                             
                     except Exception as e:
                         errors.append(f"Строка {row_num}: {str(e)}")
