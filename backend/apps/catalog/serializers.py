@@ -49,7 +49,7 @@ class FileAssetSerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
     image = serializers.SerializerMethodField()
-    images = ProductImageSerializer(many=True, read_only=True, source='images.all')
+    images = serializers.SerializerMethodField()
     
     # Новые поля для файловых ресурсов
     asset_images = serializers.SerializerMethodField()
@@ -59,13 +59,21 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = "__all__"
         ref_name = "CatalogProduct"
+    
+    def get_images(self, obj):
+        """Получить все изображения из ProductImage с правильным контекстом"""
+        request = self.context.get("request")
+        images = obj.images.all().order_by('order', 'created_at')
+        return ProductImageSerializer(images, many=True, context={'request': request}).data
 
     def get_image(self, obj):
         request = self.context.get("request")
         
-        # Приоритет 1: photo_url (из Excel импорта)
-        if obj.photo_url:
-            return obj.photo_url
+        # Приоритет 1: Изображения в ProductImage (созданные через импорт)
+        if obj.images.exists():
+            first_image = obj.images.first()
+            if first_image.image and hasattr(first_image.image, "url"):
+                return request.build_absolute_uri(first_image.image.url) if request else first_image.image.url
         
         # Приоритет 2: Изображения из FileAsset по ID
         image_assets = obj.get_image_assets()
@@ -74,11 +82,9 @@ class ProductSerializer(serializers.ModelSerializer):
             if first_asset.file and hasattr(first_asset.file, "url"):
                 return request.build_absolute_uri(first_asset.file.url) if request else first_asset.file.url
         
-        # Приоритет 3: Изображения в ProductImage
-        if obj.images.exists():
-            first_image = obj.images.first()
-            if first_image.image and hasattr(first_image.image, "url"):
-                return request.build_absolute_uri(first_image.image.url) if request else first_image.image.url
+        # Приоритет 3: photo_url (из Excel импорта)
+        if obj.photo_url:
+            return obj.photo_url
         
         # Приоритет 4: Старое поле image (для обратной совместимости)
         if obj.image and hasattr(obj.image, "url"):
