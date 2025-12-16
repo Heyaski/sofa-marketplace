@@ -99,6 +99,19 @@
             <li>Если товар с таким <strong>артикулом</strong> уже существует — он будет обновлен</li>
             <li>Если артикула нет — поиск по <strong>названию</strong></li>
             <li>Категории создаются автоматически, если не существуют</li>
+            <li><strong>📸 Автоматическая привязка изображений:</strong> Если загружен ZIP архив, система автоматически найдет изображения по артикулу из Excel и привяжет их к товарам</li>
+        </ul>
+    </div>
+    
+    <div class="module" style="margin-bottom: 20px; padding: 20px; background: #d4edda; border-left: 4px solid #28a745;">
+        <h3 style="margin-top: 0;">📸 Привязка изображений по артикулу</h3>
+        <p style="margin-bottom: 10px;">Если вы загружаете ZIP архив с изображениями, система автоматически свяжет их с товарами по артикулу:</p>
+        <ul style="margin: 0; padding-left: 20px;">
+            <li>В Excel таблице должен быть столбец <strong>"Артикул"</strong> (например: IMR-556065)</li>
+            <li>В ZIP архиве должны быть файлы с названиями, начинающимися с артикула</li>
+            <li>Поддерживаются форматы: <code>IMR-556065.jpg</code>, <code>IMR-556065(1).jpg</code>, <code>IMR-556065(2).jpg</code> и т.д.</li>
+            <li>Система найдет все изображения для каждого артикула и автоматически добавит их в карточку товара</li>
+            <li>Поддерживаемые форматы изображений: JPG, JPEG, PNG, WEBP, GIF, BMP</li>
         </ul>
     </div>
     
@@ -107,10 +120,21 @@
         
         <div class="form-row" style="margin-bottom: 20px;">
             <label for="excel_file" style="display: block; margin-bottom: 10px; font-weight: bold; font-size: 16px;">
-                📄 Выберите Excel файл (.xlsx):
+                📄 Выберите Excel файл (.xlsx): <span style="color: red;">*</span>
             </label>
             <input type="file" name="excel_file" id="excel_file" accept=".xlsx,.xls" required
                    style="padding: 15px; border: 2px dashed #ccc; border-radius: 4px; width: 100%; max-width: 500px; cursor: pointer;">
+        </div>
+        
+        <div class="form-row" style="margin-bottom: 20px;">
+            <label for="zip_file" style="display: block; margin-bottom: 10px; font-weight: bold; font-size: 16px;">
+                📦 Выберите ZIP архив с изображениями (опционально):
+            </label>
+            <input type="file" name="zip_file" id="zip_file" accept=".zip" 
+                   style="padding: 15px; border: 2px dashed #ccc; border-radius: 4px; width: 100%; max-width: 500px; cursor: pointer;">
+            <p style="margin-top: 5px; color: #666; font-size: 13px;">
+                💡 Изображения в архиве должны иметь названия, начинающиеся с артикула из Excel (например: IMR-556065.jpg, IMR-556065(1).jpg)
+            </p>
         </div>
         
         <div class="submit-row" style="margin-top: 20px;">

@@ -405,11 +405,42 @@ class ProductAdmin(admin.ModelAdmin):
     def import_excel(self, request):
         if request.method == "POST":
             excel_file = request.FILES.get('excel_file')
+            zip_file = request.FILES.get('zip_file')  # Опциональный ZIP архив с изображениями
+            
             if not excel_file:
                 messages.error(request, "Пожалуйста, выберите Excel файл")
                 return redirect("..")
             
             try:
+                # Обработка ZIP архива (если загружен)
+                temp_dir = None
+                files_in_zip = {}
+                image_extensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp']
+                
+                if zip_file:
+                    try:
+                        temp_dir = tempfile.mkdtemp()
+                        # Распаковываем ZIP
+                        with zipfile.ZipFile(zip_file, 'r') as zf:
+                            zf.extractall(temp_dir)
+                        
+                        # Собираем все файлы из архива (включая вложенные папки)
+                        for root, dirs, files in os.walk(temp_dir):
+                            for filename in files:
+                                # Игнорируем системные файлы
+                                if filename.startswith('.') or filename == '__MACOSX':
+                                    continue
+                                full_path = os.path.join(root, filename)
+                                # Сохраняем по имени файла (без пути) в нижнем регистре для поиска
+                                files_in_zip[filename.lower()] = full_path
+                                # Также сохраняем с относительным путём
+                                rel_path = os.path.relpath(full_path, temp_dir)
+                                files_in_zip[rel_path.lower()] = full_path
+                    except zipfile.BadZipFile:
+                        messages.warning(request, "Некорректный ZIP файл. Импорт товаров продолжится без изображений.")
+                    except Exception as e:
+                        messages.warning(request, f"Ошибка при обработке ZIP архива: {str(e)}. Импорт товаров продолжится без изображений.")
+                
                 wb = openpyxl.load_workbook(excel_file)
                 ws = wb.active
                 
@@ -458,6 +489,7 @@ class ProductAdmin(admin.ModelAdmin):
                 
                 created_count = 0
                 updated_count = 0
+                images_attached_count = 0
                 errors = []
                 
                 def get_cell_value(row, field, default=''):
@@ -489,6 +521,47 @@ class ProductAdmin(admin.ModelAdmin):
                     elif 'заказ' in val or 'order' in val:
                         return 'on_order'
                     return 'in_stock'
+                
+                def find_images_by_article(article, files_dict):
+                    """Найти все изображения для артикула в ZIP архиве"""
+                    if not article or not files_dict:
+                        return []
+                    
+                    article_clean = article.strip().upper()
+                    found_images = []
+                    
+                    # Ищем файлы, которые начинаются с артикула
+                    for filename_lower, file_path in files_dict.items():
+                        filename_upper = filename_lower.upper()
+                        # Проверяем расширение файла
+                        file_ext = os.path.splitext(filename_lower)[1].lower()
+                        if file_ext not in image_extensions:
+                            continue
+                        
+                        # Убираем расширение для сравнения
+                        name_without_ext = os.path.splitext(filename_upper)[0]
+                        
+                        # Проверяем точное совпадение артикула или артикул с номером в скобках
+                        # Например: IMR-556065.jpg или IMR-556065(1).jpg или IMR-556065(2).jpg
+                        if name_without_ext == article_clean:
+                            # Точное совпадение без скобок
+                            found_images.append((file_path, 0))
+                        elif name_without_ext.startswith(article_clean + '('):
+                            # Артикул с номером в скобках: IMR-556065(1)
+                            try:
+                                # Извлекаем номер из скобок
+                                rest = name_without_ext[len(article_clean) + 1:]  # Убираем "IMR-556065("
+                                if rest.endswith(')'):
+                                    number_str = rest[:-1]  # Убираем закрывающую скобку
+                                    number = int(number_str)
+                                    found_images.append((file_path, number))
+                            except (ValueError, IndexError):
+                                # Если не удалось распарсить номер, все равно добавляем
+                                found_images.append((file_path, 999))
+                    
+                    # Сортируем по номеру в скобках (если есть)
+                    found_images.sort(key=lambda x: x[1])
+                    return [img_path for img_path, _ in found_images]
                 
                 # Пропускаем заголовок
                 for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
@@ -574,13 +647,66 @@ class ProductAdmin(admin.ModelAdmin):
                             created_count += 1
                         else:
                             updated_count += 1
+                        
+                        # Если загружен ZIP архив и есть артикул, ищем изображения по артикулу
+                        if zip_file and article and files_in_zip:
+                            try:
+                                found_images = find_images_by_article(article, files_in_zip)
+                                if found_images:
+                                    # Удаляем старые изображения товара (опционально, можно закомментировать)
+                                    # product.images.all().delete()
+                                    
+                                    # Создаем новые ProductImage для каждого найденного изображения
+                                    for order, image_path in enumerate(found_images, start=0):
+                                        try:
+                                            image_filename = os.path.basename(image_path)
+                                            
+                                            # Проверяем, не существует ли уже такое изображение по имени файла
+                                            # Проверяем имя файла в пути сохраненного изображения
+                                            existing_images = product.images.all()
+                                            image_exists = False
+                                            for existing_img in existing_images:
+                                                if existing_img.image and image_filename.lower() in existing_img.image.name.lower():
+                                                    image_exists = True
+                                                    break
+                                            
+                                            if not image_exists:
+                                                # Читаем содержимое файла
+                                                with open(image_path, 'rb') as f:
+                                                    file_content = f.read()
+                                                
+                                                # Создаем ProductImage
+                                                product_image = ProductImage(
+                                                    product=product,
+                                                    order=order
+                                                )
+                                                product_image.image.save(
+                                                    image_filename,
+                                                    ContentFile(file_content),
+                                                    save=True
+                                                )
+                                                images_attached_count += 1
+                                        except Exception as img_error:
+                                            errors.append(f"Строка {row_num}: ошибка при добавлении изображения '{os.path.basename(image_path)}': {str(img_error)}")
+                            except Exception as e:
+                                errors.append(f"Строка {row_num}: ошибка при поиске изображений для артикула '{article}': {str(e)}")
                             
                     except Exception as e:
                         errors.append(f"Строка {row_num}: {str(e)}")
                 
+                # Очищаем временную директорию
+                if temp_dir:
+                    try:
+                        shutil.rmtree(temp_dir, ignore_errors=True)
+                    except:
+                        pass
+                
                 # Формируем сообщение
-                if created_count or updated_count:
-                    messages.success(request, f"Импорт завершен! Создано: {created_count}, обновлено: {updated_count}")
+                success_msg = f"Импорт завершен! Создано: {created_count}, обновлено: {updated_count}"
+                if images_attached_count > 0:
+                    success_msg += f", прикреплено изображений: {images_attached_count}"
+                if created_count or updated_count or images_attached_count:
+                    messages.success(request, success_msg)
                 
                 if errors:
                     for error in errors[:10]:
@@ -589,6 +715,12 @@ class ProductAdmin(admin.ModelAdmin):
                         messages.warning(request, f"... и еще {len(errors) - 10} ошибок")
                         
             except Exception as e:
+                # Очищаем временную директорию в случае ошибки
+                if temp_dir:
+                    try:
+                        shutil.rmtree(temp_dir, ignore_errors=True)
+                    except:
+                        pass
                 messages.error(request, f"Ошибка при обработке файла: {str(e)}")
             
             return redirect("..")
