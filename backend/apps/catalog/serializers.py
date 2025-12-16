@@ -106,36 +106,47 @@ class ProductSerializer(serializers.ModelSerializer):
         model_assets = obj.get_3d_model_assets()
         models.extend(FileAssetSerializer(model_assets, many=True, context={'request': request}).data)
         
-        # Добавляем прямые URL моделей (из Excel импорта)
-        if obj.model_glb:
+        # Функция для проверки валидности URL
+        def is_valid_url(url):
+            """Проверяет, является ли URL валидным HTTP URL"""
+            if not url:
+                return False
+            url_lower = url.lower().strip()
+            # Проверяем, что это HTTP URL или относительный путь
+            return url_lower.startswith('http://') or url_lower.startswith('https://') or url_lower.startswith('/')
+        
+        # Добавляем прямые URL моделей (из Excel импорта) только если это валидные HTTP URL
+        if obj.model_glb and is_valid_url(obj.model_glb):
             models.append({
                 'asset_id': 'glb_direct',
                 'file_type': '3d_model',
                 'file_url': obj.model_glb,
                 'description': 'GLB модель'
             })
-        if obj.model_fbx:
+        # FBX не поддерживается для просмотра в браузере, но оставляем для скачивания
+        if obj.model_fbx and is_valid_url(obj.model_fbx):
             models.append({
                 'asset_id': 'fbx_direct',
                 'file_type': '3d_model',
                 'file_url': obj.model_fbx,
-                'description': 'FBX модель'
+                'description': 'FBX модель (не поддерживается для просмотра)'
             })
-        if obj.model_usdz:
+        if obj.model_usdz and is_valid_url(obj.model_usdz):
             models.append({
                 'asset_id': 'usdz_direct',
                 'file_type': '3d_model',
                 'file_url': obj.model_usdz,
                 'description': 'USDZ модель (iOS AR)'
             })
-        if obj.model_rfa:
+        # RFA не поддерживается для просмотра в браузере, но оставляем для скачивания
+        if obj.model_rfa and is_valid_url(obj.model_rfa):
             models.append({
                 'asset_id': 'rfa_direct',
                 'file_type': '3d_model',
                 'file_url': obj.model_rfa,
-                'description': 'RFA модель (Revit)'
+                'description': 'RFA модель (Revit, не поддерживается для просмотра)'
             })
-        if obj.model_ar_glb:
+        if obj.model_ar_glb and is_valid_url(obj.model_ar_glb):
             models.append({
                 'asset_id': 'ar_glb_direct',
                 'file_type': '3d_model',

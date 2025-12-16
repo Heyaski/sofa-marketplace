@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { FileAsset } from '../types'
 
 interface ModelViewerModalProps {
@@ -21,6 +21,20 @@ export default function ModelViewerModal({
 	productTitle,
 }: ModelViewerModalProps) {
 	const [selectedModelIndex, setSelectedModelIndex] = useState(0)
+
+	// Функция для проверки, является ли URL валидным HTTP URL
+	const isValidHttpUrl = useCallback(
+		(url: string | null | undefined): boolean => {
+			if (!url) return false
+			const urlLower = url.toLowerCase()
+			return (
+				urlLower.startsWith('http://') ||
+				urlLower.startsWith('https://') ||
+				urlLower.startsWith('/')
+			)
+		},
+		[]
+	)
 	const [error, setError] = useState<string | null>(null)
 	const [isLoading, setIsLoading] = useState(true)
 	const [isScriptReady, setIsScriptReady] = useState(false)
@@ -39,7 +53,9 @@ export default function ModelViewerModal({
 				// Импортируем web-component один раз на клиенте
 				await import('@google/model-viewer')
 				if (!cancelled) {
-					console.log('model-viewer component registered via @google/model-viewer')
+					console.log(
+						'model-viewer component registered via @google/model-viewer'
+					)
 					setIsScriptReady(true)
 				}
 			} catch (e) {
@@ -61,18 +77,27 @@ export default function ModelViewerModal({
 	}, [isOpen])
 
 	useEffect(() => {
-		if (isOpen && models.length > 0) {
+		// Фильтруем поддерживаемые модели
+		const supported = models.filter(model => {
+			if (!model.file_url || !isValidHttpUrl(model.file_url)) return false
+			const url = model.file_url.toLowerCase()
+			const ext = url.substring(url.lastIndexOf('.') + 1).split('?')[0]
+			return MODEL_VIEWER_FORMATS.includes(ext)
+		})
+
+		if (isOpen && supported.length > 0) {
 			setSelectedModelIndex(0)
 			setError(null)
 			setIsLoading(true)
 			setLoadProgress(0)
 			// Отладочная информация
-			console.log('3D Models:', models)
-			console.log('Selected model URL:', models[0]?.file_url)
+			console.log('3D Models (all):', models)
+			console.log('3D Models (supported):', supported)
+			console.log('Selected model URL:', supported[0]?.file_url)
 
 			// Таймаут для загрузки модели (60 секунд)
 			timeoutRef.current = setTimeout(() => {
-				setIsLoading((prevLoading) => {
+				setIsLoading(prevLoading => {
 					if (prevLoading) {
 						console.warn('Model loading timeout after 60 seconds')
 						setError(
@@ -95,7 +120,7 @@ export default function ModelViewerModal({
 	// Подключаем события к model-viewer через ref
 	const setupModelViewer = useCallback((element: any) => {
 		if (!element) return
-		
+
 		modelViewerRef.current = element
 		console.log('Model viewer element mounted, src:', element.src)
 
@@ -141,16 +166,83 @@ export default function ModelViewerModal({
 		}
 	}, [])
 
-	if (!isOpen || models.length === 0) return null
+	// Фильтруем модели, оставляя только поддерживаемые форматы
+	const supportedModels = models.filter(model => {
+		if (!model.file_url) return false
+		const url = model.file_url.toLowerCase()
+		// Проверяем, что это HTTP URL, а не локальный путь
+		if (
+			!url.startsWith('http://') &&
+			!url.startsWith('https://') &&
+			!url.startsWith('/')
+		) {
+			return false
+		}
+		const ext = url.substring(url.lastIndexOf('.') + 1).split('?')[0] // Убираем query параметры
+		return MODEL_VIEWER_FORMATS.includes(ext)
+	})
 
-	const selectedModel = models[selectedModelIndex]
-	const fileExtension = selectedModel.file_url
-		.toLowerCase()
-		.substring(selectedModel.file_url.lastIndexOf('.'))
-	
+	if (!isOpen || supportedModels.length === 0) {
+		// Если нет поддерживаемых моделей, показываем сообщение
+		if (isOpen && models.length > 0) {
+			return (
+				<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4'>
+					<div className='bg-white rounded-3xl max-w-2xl w-full p-6'>
+						<div className='flex justify-between items-center mb-4'>
+							<h2 className='text-xl font-bold text-black'>
+								{productTitle ? `3D Просмотр: ${productTitle}` : '3D Просмотр'}
+							</h2>
+							<button
+								onClick={onClose}
+								className='text-black hover:text-gray transition-colors text-4xl font-light'
+							>
+								×
+							</button>
+						</div>
+						<div className='text-center p-8'>
+							<p className='text-gray mb-4'>
+								Нет поддерживаемых 3D моделей для просмотра в браузере.
+							</p>
+							<p className='text-sm text-gray mb-4'>
+								Поддерживаемые форматы: <strong>.glb</strong>,{' '}
+								<strong>.gltf</strong>, <strong>.usdz</strong>
+							</p>
+							<p className='text-xs text-gray mb-4'>
+								Доступные модели:{' '}
+								{models
+									.map(m => {
+										const ext =
+											m.file_url
+												?.toLowerCase()
+												.substring(m.file_url.lastIndexOf('.')) || 'неизвестно'
+										return ext
+									})
+									.join(', ')}
+							</p>
+							<button
+								onClick={onClose}
+								className='bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main1/90 transition-colors'
+							>
+								Закрыть
+							</button>
+						</div>
+					</div>
+				</div>
+			)
+		}
+		return null
+	}
+
+	// Обновляем индекс выбранной модели, если он выходит за границы
+	const validIndex =
+		selectedModelIndex >= supportedModels.length ? 0 : selectedModelIndex
+	const selectedModel = supportedModels[validIndex]
+
 	// Определяем формат для model-viewer
 	const getModelFormat = (url: string): string | null => {
-		const ext = url.toLowerCase().substring(url.lastIndexOf('.') + 1)
+		if (!url) return null
+		const urlLower = url.toLowerCase()
+		const ext = urlLower.substring(urlLower.lastIndexOf('.') + 1).split('?')[0] // Убираем query параметры
 		if (MODEL_VIEWER_FORMATS.includes(ext)) {
 			return ext
 		}
@@ -174,7 +266,9 @@ export default function ModelViewerModal({
 							{productTitle ? `3D Просмотр: ${productTitle}` : '3D Просмотр'}
 						</h2>
 						{selectedModel.description && (
-							<p className='text-sm text-gray mt-1'>{selectedModel.description}</p>
+							<p className='text-sm text-gray mt-1'>
+								{selectedModel.description}
+							</p>
 						)}
 					</div>
 					<button
@@ -207,7 +301,12 @@ export default function ModelViewerModal({
 							/* Формат не поддерживается */
 							<div className='text-center p-8'>
 								<p className='text-gray mb-4'>
-									Формат {fileExtension} не поддерживается для просмотра в браузере.
+									Формат{' '}
+									{selectedModel.file_url
+										?.toLowerCase()
+										.substring(selectedModel.file_url.lastIndexOf('.')) ||
+										'неизвестно'}{' '}
+									не поддерживается для просмотра в браузере.
 								</p>
 								<p className='text-sm text-gray mb-4'>
 									Поддерживаемые форматы: .glb, .gltf, .usdz
@@ -236,14 +335,20 @@ export default function ModelViewerModal({
 							<>
 								<model-viewer
 									ref={setupModelViewer}
-									id={`model-viewer-${selectedModelIndex}`}
+									id={`model-viewer-${validIndex}`}
 									src={selectedModel.file_url}
-									alt={selectedModel.description || productTitle || '3D Model'}
+									alt={
+										selectedModel.description ||
+										selectedModel.asset_id ||
+										productTitle ||
+										'3D Model'
+									}
 									camera-controls
 									auto-rotate
 									shadow-intensity='1'
 									loading='eager'
 									reveal='auto'
+									interaction-policy='allow-when-focused'
 									style={{
 										width: '100%',
 										height: '100%',
@@ -260,7 +365,9 @@ export default function ModelViewerModal({
 											<p className='text-gray'>Загрузка 3D модели...</p>
 											{loadProgress > 0 && (
 												<>
-													<div className='text-sm mt-2'>Загрузка: {loadProgress}%</div>
+													<div className='text-sm mt-2'>
+														Загрузка: {loadProgress}%
+													</div>
 													<div className='w-48 h-2 bg-gray-300 rounded-full mt-2 mx-auto'>
 														<div
 															className='h-2 bg-main1 rounded-full transition-all duration-300'
@@ -276,37 +383,44 @@ export default function ModelViewerModal({
 						)}
 					</div>
 
-					{/* Model selector - если есть несколько моделей */}
-					{models.length > 1 && (
+					{/* Model selector - если есть несколько поддерживаемых моделей */}
+					{supportedModels.length > 1 && (
 						<div className='border-t border-gray-200 p-4'>
 							<div className='flex gap-2 overflow-x-auto pb-2'>
-								{models.map((model, index) => {
+								{supportedModels.map((model, index) => {
 									const ext = model.file_url
 										.toLowerCase()
 										.substring(model.file_url.lastIndexOf('.'))
 									const modelFormat = getModelFormat(model.file_url)
 									const isModelSupported = modelFormat !== null
+									const isSelected = validIndex === index
 
 									return (
 										<button
 											key={index}
 											onClick={() => {
-												setSelectedModelIndex(index)
+												// Находим индекс в исходном массиве models
+												const originalIndex = models.findIndex(
+													m => m.file_url === model.file_url
+												)
+												setSelectedModelIndex(
+													originalIndex >= 0 ? originalIndex : index
+												)
 												setError(null)
+												setIsLoading(true)
 											}}
 											className={`flex-shrink-0 px-4 py-2 rounded-lg border-2 transition-colors ${
-												selectedModelIndex === index
+												isSelected
 													? 'border-main1 bg-main1/10 text-main1'
 													: 'border-gray-300 bg-white text-black hover:border-main1'
 											}`}
 										>
 											<div className='text-sm font-medium'>
-												{model.description || `Модель ${index + 1}`}
+												{model.description ||
+													model.asset_id ||
+													`Модель ${index + 1}`}
 											</div>
-											<div className='text-xs text-gray mt-1'>
-												{ext}
-												{!isModelSupported && ' (не поддерживается)'}
-											</div>
+											<div className='text-xs text-gray mt-1'>{ext}</div>
 										</button>
 									)
 								})}
@@ -317,8 +431,8 @@ export default function ModelViewerModal({
 					{/* Controls info */}
 					<div className='border-t border-gray-200 p-4 bg-gray-50'>
 						<div className='text-xs text-gray text-center'>
-							💡 Используйте мышь для вращения, колесико для масштабирования, зажмите
-							правую кнопку для перемещения
+							💡 Используйте мышь для вращения, колесико для масштабирования,
+							зажмите правую кнопку для перемещения
 						</div>
 					</div>
 				</div>
@@ -326,4 +440,3 @@ export default function ModelViewerModal({
 		</div>
 	)
 }
-
