@@ -124,6 +124,20 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Настройки для загрузки больших файлов (3D модели могут быть очень большими)
+# Максимальный размер файла в памяти перед записью на диск (по умолчанию 2.5MB)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100 MB
+
+# Максимальный размер данных запроса (исключая файлы)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100 MB
+
+# Максимальное количество файлов в одном запросе
+DATA_UPLOAD_MAX_NUMBER_FILES = 1000
+
+# Максимальный размер одного файла (настраивается на уровне веб-сервера)
+# Для Nginx: client_max_body_size 500M;
+# Для Apache: LimitRequestBody 524288000
+
 # Статика
 STATIC_ROOT = BASE_DIR / 'staticfiles'  # Директория для collectstatic
 

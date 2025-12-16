@@ -162,12 +162,11 @@ class FileAssetAdmin(admin.ModelAdmin):
                                 # Это работает с артикулами типа IMR-556065, IMR-556065(1) и т.д.
                                 asset_id = os.path.splitext(filename)[0]
                                 
-                                # Читаем содержимое файла
-                                with open(full_path, 'rb') as f:
-                                    file_content = f.read()
-                                
                                 # Определяем имя файла для сохранения
                                 save_filename = filename
+                                
+                                # Проверяем размер файла для больших 3D моделей
+                                file_size = os.path.getsize(full_path)
                                 
                                 # Проверяем, существует ли уже FileAsset с таким ID и типом
                                 existing = FileAsset.objects.filter(
@@ -175,20 +174,44 @@ class FileAssetAdmin(admin.ModelAdmin):
                                     file_type=file_type
                                 ).first()
                                 
-                                if existing:
-                                    # Обновляем существующий
-                                    existing.file.save(save_filename, ContentFile(file_content), save=True)
-                                    file_asset = existing
-                                    updated_count += 1
+                                # Для больших файлов используем прямое сохранение из файла
+                                # вместо чтения всего содержимого в память
+                                if file_size > 50 * 1024 * 1024:  # Если файл больше 50MB
+                                    # Используем прямое сохранение из файла для экономии памяти
+                                    with open(full_path, 'rb') as f:
+                                        if existing:
+                                            # Обновляем существующий
+                                            existing.file.save(save_filename, f, save=True)
+                                            file_asset = existing
+                                            updated_count += 1
+                                        else:
+                                            # Создаем новый
+                                            file_asset = FileAsset(
+                                                asset_id=asset_id,
+                                                file_type=file_type,
+                                                description=''
+                                            )
+                                            file_asset.file.save(save_filename, f, save=True)
+                                            created_count += 1
                                 else:
-                                    # Создаем новый
-                                    file_asset = FileAsset(
-                                        asset_id=asset_id,
-                                        file_type=file_type,
-                                        description=''
-                                    )
-                                    file_asset.file.save(save_filename, ContentFile(file_content), save=True)
-                                    created_count += 1
+                                    # Для небольших файлов читаем в память (быстрее)
+                                    with open(full_path, 'rb') as f:
+                                        file_content = f.read()
+                                    
+                                    if existing:
+                                        # Обновляем существующий
+                                        existing.file.save(save_filename, ContentFile(file_content), save=True)
+                                        file_asset = existing
+                                        updated_count += 1
+                                    else:
+                                        # Создаем новый
+                                        file_asset = FileAsset(
+                                            asset_id=asset_id,
+                                            file_type=file_type,
+                                            description=''
+                                        )
+                                        file_asset.file.save(save_filename, ContentFile(file_content), save=True)
+                                        created_count += 1
                                 
                                 # Группируем файлы по базовому артикулу
                                 base_article = extract_base_article(asset_id)
@@ -724,10 +747,13 @@ class ProductAdmin(admin.ModelAdmin):
                     found_files = []
                     
                     # Определяем расширения в зависимости от типа
+                    image_exts = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.svg']
+                    model_exts = ['.glb', '.gltf', '.fbx', '.obj', '.usdz', '.rfa', '.dae', '.3ds']
+                    
                     if file_type == 'image':
-                        allowed_extensions = image_extensions
+                        allowed_extensions = image_exts
                     else:
-                        allowed_extensions = model_extensions
+                        allowed_extensions = model_exts
                     
                     # Ищем файлы, которые начинаются с артикула
                     for filename_lower, file_path in files_dict.items():
