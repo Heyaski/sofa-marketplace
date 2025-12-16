@@ -418,6 +418,7 @@ class ProductAdmin(admin.ModelAdmin):
                 created_count = 0
                 updated_count = 0
                 images_attached_count = 0
+                models_attached_count = 0
                 errors = []
                 
                 def get_cell_value(row, field, default=''):
@@ -450,20 +451,26 @@ class ProductAdmin(admin.ModelAdmin):
                         return 'on_order'
                     return 'in_stock'
                 
-                def find_images_by_article(article, files_dict):
-                    """Найти все изображения для артикула в ZIP архиве"""
+                def find_files_by_article(article, files_dict, file_type='image'):
+                    """Найти все файлы (изображения или 3D модели) для артикула в ZIP архиве"""
                     if not article or not files_dict:
                         return []
                     
                     article_clean = article.strip().upper()
-                    found_images = []
+                    found_files = []
+                    
+                    # Определяем расширения в зависимости от типа
+                    if file_type == 'image':
+                        allowed_extensions = image_extensions
+                    else:
+                        allowed_extensions = model_extensions
                     
                     # Ищем файлы, которые начинаются с артикула
                     for filename_lower, file_path in files_dict.items():
                         filename_upper = filename_lower.upper()
                         # Проверяем расширение файла
                         file_ext = os.path.splitext(filename_lower)[1].lower()
-                        if file_ext not in image_extensions:
+                        if file_ext not in allowed_extensions:
                             continue
                         
                         # Убираем расширение для сравнения
@@ -473,7 +480,7 @@ class ProductAdmin(admin.ModelAdmin):
                         # Например: IMR-556065.jpg или IMR-556065(1).jpg или IMR-556065(2).jpg
                         if name_without_ext == article_clean:
                             # Точное совпадение без скобок
-                            found_images.append((file_path, 0))
+                            found_files.append((file_path, 0))
                         elif name_without_ext.startswith(article_clean + '('):
                             # Артикул с номером в скобках: IMR-556065(1)
                             try:
@@ -482,14 +489,14 @@ class ProductAdmin(admin.ModelAdmin):
                                 if rest.endswith(')'):
                                     number_str = rest[:-1]  # Убираем закрывающую скобку
                                     number = int(number_str)
-                                    found_images.append((file_path, number))
+                                    found_files.append((file_path, number))
                             except (ValueError, IndexError):
                                 # Если не удалось распарсить номер, все равно добавляем
-                                found_images.append((file_path, 999))
+                                found_files.append((file_path, 999))
                     
                     # Сортируем по номеру в скобках (если есть)
-                    found_images.sort(key=lambda x: x[1])
-                    return [img_path for img_path, _ in found_images]
+                    found_files.sort(key=lambda x: x[1])
+                    return [file_path for file_path, _ in found_files]
                 
                 # Пропускаем заголовок
                 for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
@@ -503,9 +510,6 @@ class ProductAdmin(admin.ModelAdmin):
                         if price is None or price <= 0:
                             errors.append(f"Строка {row_num}: не указана цена или цена некорректна (цена: {price})")
                             continue
-                        
-                        # Получаем цену
-                        price = get_decimal_value(row, 'price', Decimal('0.00'))
                         
                         # Получаем категорию
                         category_name = get_cell_value(row, 'category', 'Без категории')
@@ -629,17 +633,41 @@ class ProductAdmin(admin.ModelAdmin):
                             except Exception as e:
                                 errors.append(f"Строка {row_num}: ошибка при поиске FileAsset для артикула '{article}': {str(e)}")
                         
-                        # Если загружен ZIP архив и есть артикул, ищем изображения по артикулу в ZIP
+                        # Если загружен ZIP архив и есть артикул, обрабатываем файлы из ZIP
                         if zip_file and article and files_in_zip:
                             try:
-                                found_images = find_images_by_article(article, files_in_zip)
+                                # Ищем изображения по артикулу в ZIP
+                                found_images = find_files_by_article(article, files_in_zip, 'image')
                                 if found_images:
-                                    # Создаем новые ProductImage для каждого найденного изображения
+                                    # Создаем FileAsset для каждого изображения (если еще нет)
+                                    image_asset_ids_list = []
                                     for order, image_path in enumerate(found_images, start=0):
                                         try:
                                             image_filename = os.path.basename(image_path)
+                                            asset_id = os.path.splitext(image_filename)[0]
                                             
-                                            # Проверяем, не существует ли уже такое изображение по имени файла
+                                            # Проверяем, существует ли уже FileAsset
+                                            file_asset = FileAsset.objects.filter(
+                                                asset_id=asset_id,
+                                                file_type='image'
+                                            ).first()
+                                            
+                                            if not file_asset:
+                                                # Читаем содержимое файла
+                                                with open(image_path, 'rb') as f:
+                                                    file_content = f.read()
+                                                
+                                                # Создаем FileAsset
+                                                file_asset = FileAsset(
+                                                    asset_id=asset_id,
+                                                    file_type='image',
+                                                    description=''
+                                                )
+                                                file_asset.file.save(image_filename, ContentFile(file_content), save=True)
+                                            
+                                            image_asset_ids_list.append(asset_id)
+                                            
+                                            # Проверяем, не существует ли уже такое изображение в ProductImage
                                             existing_images = product.images.all()
                                             image_exists = False
                                             for existing_img in existing_images:
@@ -648,11 +676,11 @@ class ProductAdmin(admin.ModelAdmin):
                                                     break
                                             
                                             if not image_exists:
-                                                # Читаем содержимое файла
-                                                with open(image_path, 'rb') as f:
-                                                    file_content = f.read()
-                                                
                                                 # Создаем ProductImage
+                                                file_asset.file.open('rb')
+                                                file_content = file_asset.file.read()
+                                                file_asset.file.close()
+                                                
                                                 product_image = ProductImage(
                                                     product=product,
                                                     order=order
@@ -665,8 +693,71 @@ class ProductAdmin(admin.ModelAdmin):
                                                 images_attached_count += 1
                                         except Exception as img_error:
                                             errors.append(f"Строка {row_num}: ошибка при добавлении изображения '{os.path.basename(image_path)}': {str(img_error)}")
+                                    
+                                    # Обновляем image_asset_ids товара
+                                    if image_asset_ids_list:
+                                        product.image_asset_ids = ','.join(image_asset_ids_list)
+                                        product.save(update_fields=['image_asset_ids'])
+                                
+                                # Ищем 3D модели по артикулу в ZIP
+                                found_models = find_files_by_article(article, files_in_zip, '3d_model')
+                                if found_models:
+                                    # Создаем FileAsset для каждой 3D модели (если еще нет)
+                                    model_asset_ids_list = []
+                                    for model_path in found_models:
+                                        try:
+                                            model_filename = os.path.basename(model_path)
+                                            asset_id = os.path.splitext(model_filename)[0]
+                                            
+                                            # Определяем расширение для установки соответствующего поля
+                                            file_ext = os.path.splitext(model_filename)[1].lower()
+                                            
+                                            # Проверяем, существует ли уже FileAsset
+                                            file_asset = FileAsset.objects.filter(
+                                                asset_id=asset_id,
+                                                file_type='3d_model'
+                                            ).first()
+                                            
+                                            if not file_asset:
+                                                # Читаем содержимое файла
+                                                with open(model_path, 'rb') as f:
+                                                    file_content = f.read()
+                                                
+                                                # Создаем FileAsset
+                                                file_asset = FileAsset(
+                                                    asset_id=asset_id,
+                                                    file_type='3d_model',
+                                                    description=''
+                                                )
+                                                file_asset.file.save(model_filename, ContentFile(file_content), save=True)
+                                            
+                                            model_asset_ids_list.append(asset_id)
+                                            
+                                            # Устанавливаем соответствующее поле модели в зависимости от расширения
+                                            # Сохраняем относительный URL (полный URL будет формироваться в сериализаторе)
+                                            if file_asset.file and hasattr(file_asset.file, 'url'):
+                                                file_url = file_asset.file.url
+                                                
+                                                if file_ext == '.glb' and not product.model_glb:
+                                                    product.model_glb = file_url
+                                                elif file_ext == '.fbx' and not product.model_fbx:
+                                                    product.model_fbx = file_url
+                                                elif file_ext == '.usdz' and not product.model_usdz:
+                                                    product.model_usdz = file_url
+                                                elif file_ext == '.rfa' and not product.model_rfa:
+                                                    product.model_rfa = file_url
+                                            
+                                        except Exception as model_error:
+                                            errors.append(f"Строка {row_num}: ошибка при добавлении 3D модели '{os.path.basename(model_path)}': {str(model_error)}")
+                                    
+                                    # Обновляем model_3d_asset_ids товара
+                                    if model_asset_ids_list:
+                                        product.model_3d_asset_ids = ','.join(model_asset_ids_list)
+                                        product.save(update_fields=['model_3d_asset_ids', 'model_glb', 'model_fbx', 'model_usdz', 'model_rfa'])
+                                        models_attached_count += len(model_asset_ids_list)
+                                
                             except Exception as e:
-                                errors.append(f"Строка {row_num}: ошибка при поиске изображений в ZIP для артикула '{article}': {str(e)}")
+                                errors.append(f"Строка {row_num}: ошибка при поиске файлов в ZIP для артикула '{article}': {str(e)}")
                             
                     except Exception as e:
                         errors.append(f"Строка {row_num}: {str(e)}")
@@ -682,7 +773,9 @@ class ProductAdmin(admin.ModelAdmin):
                 success_msg = f"Импорт завершен! Создано: {created_count}, обновлено: {updated_count}"
                 if images_attached_count > 0:
                     success_msg += f", прикреплено изображений: {images_attached_count}"
-                if created_count or updated_count or images_attached_count:
+                if models_attached_count > 0:
+                    success_msg += f", прикреплено 3D моделей: {models_attached_count}"
+                if created_count or updated_count or images_attached_count or models_attached_count:
                     messages.success(request, success_msg)
                 
                 if errors:

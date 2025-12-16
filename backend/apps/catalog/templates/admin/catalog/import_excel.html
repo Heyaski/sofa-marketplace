@@ -104,14 +104,16 @@
     </div>
     
     <div class="module" style="margin-bottom: 20px; padding: 20px; background: #d4edda; border-left: 4px solid #28a745;">
-        <h3 style="margin-top: 0;">📸 Привязка изображений по артикулу</h3>
-        <p style="margin-bottom: 10px;">Если вы загружаете ZIP архив с изображениями, система автоматически свяжет их с товарами по артикулу:</p>
+        <h3 style="margin-top: 0;">📸 Привязка изображений и 3D моделей по артикулу</h3>
+        <p style="margin-bottom: 10px;">Если вы загружаете ZIP архив с файлами, система автоматически свяжет их с товарами по артикулу:</p>
         <ul style="margin: 0; padding-left: 20px;">
             <li>В Excel таблице должен быть столбец <strong>"Артикул"</strong> (например: IMR-556065)</li>
             <li>В ZIP архиве должны быть файлы с названиями, начинающимися с артикула</li>
             <li>Поддерживаются форматы: <code>IMR-556065.jpg</code>, <code>IMR-556065(1).jpg</code>, <code>IMR-556065(2).jpg</code> и т.д.</li>
-            <li>Система найдет все изображения для каждого артикула и автоматически добавит их в карточку товара</li>
-            <li>Поддерживаемые форматы изображений: JPG, JPEG, PNG, WEBP, GIF, BMP</li>
+            <li>Система найдет все изображения и 3D модели для каждого артикула и автоматически добавит их в карточку товара</li>
+            <li><strong>Изображения:</strong> JPG, JPEG, PNG, WEBP, GIF, BMP, SVG</li>
+            <li><strong>3D модели:</strong> GLB, GLTF, FBX, OBJ, USDZ, RFA, DAE, 3DS</li>
+            <li>Файлы автоматически создаются в FileAsset и привязываются к товарам</li>
         </ul>
     </div>
     

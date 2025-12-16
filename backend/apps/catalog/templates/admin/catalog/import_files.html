@@ -1,79 +1,201 @@
-{% extends "admin/base_site.html" %}
-{% load static %}
-
-{% block title %}Массовый импорт файлов{% endblock %}
-
-{% block content %}
+{% extends "admin/base_site.html" %} {% load static %} {% block title %}Массовый
+импорт файлов{% endblock %} {% block content %}
 <div id="content-main">
     <h1>📦 Массовый импорт файлов (изображения и 3D модели)</h1>
-    
-    <div class="module" style="margin-bottom: 20px; padding: 20px; background: #d4edda; border-left: 4px solid #28a745;">
-        <h2 style="margin-top: 0;">✨ Автоматический импорт файлов</h2>
-        <p style="margin-bottom: 10px;">Система автоматически определит тип файла и создаст ID на основе имени файла:</p>
-        <ul style="margin: 0; padding-left: 20px;">
-            <li><strong>ID файла</strong> формируется из имени файла без расширения</li>
-            <li><strong>Тип файла</strong> определяется автоматически по расширению</li>
-            <li>Поддерживаются файлы с артикулами: <code>IMR-556065.jpg</code>, <code>IMR-556065(1).jpg</code>, <code>IMR-556065(2).jpg</code></li>
+
+    <div
+        class="module"
+        style="
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+        "
+    >
+        <h2 style="margin-top: 0">✨ Автоматический импорт файлов</h2>
+        <p style="margin-bottom: 10px">
+            Система автоматически определит тип файла и создаст ID на основе
+            имени файла:
+        </p>
+        <ul style="margin: 0; padding-left: 20px">
+            <li>
+                <strong>ID файла</strong> формируется из имени файла без
+                расширения
+            </li>
+            <li>
+                <strong>Тип файла</strong> определяется автоматически по
+                расширению
+            </li>
+            <li>
+                Поддерживаются файлы с артикулами: <code>IMR-556065.jpg</code>,
+                <code>IMR-556065(1).jpg</code>, <code>IMR-556065(2).jpg</code>
+            </li>
             <li>Файлы могут быть в корне архива или в подпапках</li>
         </ul>
     </div>
-    
-    <div class="module" style="margin-bottom: 20px; padding: 20px; background: #f8f9fa;">
-        <h2 style="margin-top: 0;">📁 Формат ZIP архива</h2>
-        <p style="margin-bottom: 10px;">Просто упакуйте все файлы в ZIP архив:</p>
-        <ul style="margin: 0; padding-left: 20px;">
+
+    <div
+        class="module"
+        style="margin-bottom: 20px; padding: 20px; background: #f8f9fa"
+    >
+        <h2 style="margin-top: 0">📁 Формат ZIP архива</h2>
+        <p style="margin-bottom: 10px">
+            Просто упакуйте все файлы в ZIP архив:
+        </p>
+        <ul style="margin: 0; padding-left: 20px">
             <li>Файлы могут быть в корне архива или в подпапках</li>
-            <li>Поддерживаемые форматы изображений: <code>.jpg</code>, <code>.jpeg</code>, <code>.png</code>, <code>.webp</code>, <code>.gif</code>, <code>.bmp</code>, <code>.svg</code></li>
-            <li>Поддерживаемые форматы 3D: <code>.glb</code>, <code>.gltf</code>, <code>.fbx</code>, <code>.obj</code>, <code>.usdz</code>, <code>.rfa</code>, <code>.dae</code>, <code>.3ds</code></li>
+            <li>
+                Поддерживаемые форматы изображений: <code>.jpg</code>,
+                <code>.jpeg</code>, <code>.png</code>, <code>.webp</code>,
+                <code>.gif</code>, <code>.bmp</code>, <code>.svg</code>
+            </li>
+            <li>
+                Поддерживаемые форматы 3D: <code>.glb</code>,
+                <code>.gltf</code>, <code>.fbx</code>, <code>.obj</code>,
+                <code>.usdz</code>, <code>.rfa</code>, <code>.dae</code>,
+                <code>.3ds</code>
+            </li>
             <li>Файлы с другими расширениями будут автоматически пропущены</li>
         </ul>
-        
-        <div style="background: #d1ecf1; padding: 15px; border-left: 4px solid #17a2b8; margin-top: 15px;">
+
+        <div
+            style="
+                background: #d1ecf1;
+                padding: 15px;
+                border-left: 4px solid #17a2b8;
+                margin-top: 15px;
+            "
+        >
             <strong>💡 Примеры имен файлов:</strong>
-            <ul style="margin: 10px 0 0 0; padding-left: 20px;">
-                <li><code>IMR-556065.jpg</code> → ID: <code>IMR-556065</code>, Тип: <code>image</code></li>
-                <li><code>IMR-556065(1).jpg</code> → ID: <code>IMR-556065(1)</code>, Тип: <code>image</code></li>
-                <li><code>IMR-556065(2).png</code> → ID: <code>IMR-556065(2)</code>, Тип: <code>image</code></li>
-                <li><code>IMR-556065.glb</code> → ID: <code>IMR-556065</code>, Тип: <code>3d_model</code></li>
+            <ul style="margin: 10px 0 0 0; padding-left: 20px">
+                <li>
+                    <code>IMR-556065.jpg</code> → ID: <code>IMR-556065</code>,
+                    Тип: <code>image</code>
+                </li>
+                <li>
+                    <code>IMR-556065(1).jpg</code> → ID:
+                    <code>IMR-556065(1)</code>, Тип: <code>image</code>
+                </li>
+                <li>
+                    <code>IMR-556065(2).png</code> → ID:
+                    <code>IMR-556065(2)</code>, Тип: <code>image</code>
+                </li>
+                <li>
+                    <code>IMR-556065.glb</code> → ID: <code>IMR-556065</code>,
+                    Тип: <code>3d_model</code>
+                </li>
             </ul>
         </div>
     </div>
-    
-    <form method="post" enctype="multipart/form-data" style="padding: 20px; background: white; border: 1px solid #ddd;">
+
+    <form
+        method="post"
+        enctype="multipart/form-data"
+        style="padding: 20px; background: white; border: 1px solid #ddd"
+    >
         {% csrf_token %}
-        
-        <div class="form-row" style="margin-bottom: 20px;">
-            <label for="zip_file" style="display: block; margin-bottom: 10px; font-weight: bold; font-size: 16px;">
-                📦 Выберите ZIP архив с файлами: <span style="color: red;">*</span>
+
+        <div class="form-row" style="margin-bottom: 20px">
+            <label
+                for="zip_file"
+                style="
+                    display: block;
+                    margin-bottom: 10px;
+                    font-weight: bold;
+                    font-size: 16px;
+                "
+            >
+                📦 Выберите ZIP архив с файлами:
+                <span style="color: red">*</span>
             </label>
-            <input type="file" name="zip_file" id="zip_file" accept=".zip" required
-                   style="padding: 15px; border: 2px dashed #ccc; border-radius: 4px; width: 100%; max-width: 500px; cursor: pointer;">
-            <p style="color: #666; font-size: 13px; margin-top: 8px;">
-                💡 Система автоматически определит тип файла и создаст ID на основе имени файла<br>
-                Максимальный размер зависит от настроек сервера (обычно до 100 МБ)
+            <input
+                type="file"
+                name="zip_file"
+                id="zip_file"
+                accept=".zip"
+                required
+                style="
+                    padding: 15px;
+                    border: 2px dashed #ccc;
+                    border-radius: 4px;
+                    width: 100%;
+                    max-width: 500px;
+                    cursor: pointer;
+                "
+            />
+            <p style="color: #666; font-size: 13px; margin-top: 8px">
+                💡 Система автоматически определит тип файла и создаст ID на
+                основе имени файла<br />
+                Максимальный размер зависит от настроек сервера (обычно до 100
+                МБ)
             </p>
         </div>
-        
-        <div class="submit-row" style="margin-top: 20px;">
-            <input type="submit" value="📥 Импортировать файлы" class="default" 
-                   style="padding: 12px 24px; background: #28a745; color: white; border: none; cursor: pointer; border-radius: 4px; font-size: 14px;">
-            <a href="{% url 'admin:catalog_fileasset_changelist' %}" class="button cancel-link" 
-               style="margin-left: 10px; padding: 12px 24px; background: #6c757d; color: white; text-decoration: none; border-radius: 4px; display: inline-block; font-size: 14px;">
+
+        <div class="submit-row" style="margin-top: 20px">
+            <input
+                type="submit"
+                value="📥 Импортировать файлы"
+                class="default"
+                style="
+                    padding: 12px 24px;
+                    background: #28a745;
+                    color: white;
+                    border: none;
+                    cursor: pointer;
+                    border-radius: 4px;
+                    font-size: 14px;
+                "
+            />
+            <a
+                href="{% url 'admin:catalog_fileasset_changelist' %}"
+                class="button cancel-link"
+                style="
+                    margin-left: 10px;
+                    padding: 12px 24px;
+                    background: #6c757d;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 4px;
+                    display: inline-block;
+                    font-size: 14px;
+                "
+            >
                 Отмена
             </a>
         </div>
     </form>
-    
-    <div style="margin-top: 30px; padding: 20px; background: #fff3cd; border-left: 4px solid #ffc107;">
-        <h3 style="margin-top: 0;">⚠️ Важно</h3>
-        <ul style="margin: 0; padding-left: 20px;">
-            <li>Если файл с таким ID и типом уже существует, он будет <strong>обновлен</strong></li>
-            <li>ID файла формируется из имени файла без расширения (например: <code>IMR-556065.jpg</code> → ID: <code>IMR-556065</code>)</li>
-            <li>После импорта используйте ID файлов при создании/импорте товаров через Excel</li>
-            <li>Файлы с неподдерживаемыми расширениями будут автоматически пропущены</li>
-            <li><strong>💡 Совет:</strong> Используйте артикулы в именах файлов для автоматической привязки при импорте товаров</li>
+
+    <div
+        style="
+            margin-top: 30px;
+            padding: 20px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+        "
+    >
+        <h3 style="margin-top: 0">⚠️ Важно</h3>
+        <ul style="margin: 0; padding-left: 20px">
+            <li>
+                Если файл с таким ID и типом уже существует, он будет
+                <strong>обновлен</strong>
+            </li>
+            <li>
+                ID файла формируется из имени файла без расширения (например:
+                <code>IMR-556065.jpg</code> → ID: <code>IMR-556065</code>)
+            </li>
+            <li>
+                После импорта используйте ID файлов при создании/импорте товаров
+                через Excel
+            </li>
+            <li>
+                Файлы с неподдерживаемыми расширениями будут автоматически
+                пропущены
+            </li>
+            <li>
+                <strong>💡 Совет:</strong> Используйте артикулы в именах файлов
+                для автоматической привязки при импорте товаров
+            </li>
         </ul>
     </div>
 </div>
 {% endblock %}
-
