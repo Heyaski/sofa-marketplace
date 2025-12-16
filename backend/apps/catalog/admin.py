@@ -87,6 +87,7 @@ class FileAssetAdmin(admin.ModelAdmin):
         custom_urls = [
             path('import-files/', self.import_files_view, name='catalog_fileasset_import'),
             path('download-template/', self.download_template_view, name='catalog_fileasset_download_template'),
+            path('sync-with-products/', self.sync_files_with_products_view, name='catalog_fileasset_sync'),
         ]
         return custom_urls + urls
     
@@ -120,11 +121,17 @@ class FileAssetAdmin(admin.ModelAdmin):
                     
                     # Функция для извлечения базового артикула из asset_id
                     def extract_base_article(asset_id):
-                        """Извлекает базовый артикул из asset_id (например: IMR-556065(1) -> IMR-556065)"""
+                        """Извлекает базовый артикул из asset_id (например: IMR-556065(1) -> IMR-556065, IMR-517626 (2) -> IMR-517626)"""
+                        if not asset_id:
+                            return ''
+                        # Убираем пробелы в начале и конце
+                        asset_id = asset_id.strip()
+                        # Ищем скобку (может быть с пробелом: " (2)" или без: "(2)")
                         if '(' in asset_id:
+                            # Разделяем по скобке и берем первую часть
                             base = asset_id.split('(')[0].strip()
                             return base
-                        return asset_id.strip()
+                        return asset_id
                     
                     # Словарь для группировки созданных FileAsset по артикулам
                     articles_files = {}  # {article: {'images': [FileAsset], 'models': [FileAsset]}}
@@ -272,9 +279,14 @@ class FileAssetAdmin(admin.ModelAdmin):
                                 # Сохраняем товар
                                 product.save(update_fields=['image_asset_ids', 'model_3d_asset_ids', 'model_glb', 'model_fbx', 'model_usdz', 'model_rfa'])
                                 products_linked_count += 1
+                            else:
+                                # Товар не найден - добавляем в ошибки для информации
+                                if files_data['images'] or files_data['models']:
+                                    errors.append(f"Товар с артикулом '{article}' не найден. Файлы созданы в FileAsset, но не привязаны.")
                                 
                         except Exception as e:
                             errors.append(f"Ошибка при привязке файлов к товару с артикулом '{article}': {str(e)}")
+                    
                     
                     # Формируем сообщение
                     success_parts = []
@@ -311,6 +323,153 @@ class FileAssetAdmin(admin.ModelAdmin):
             return redirect("..")
         
         return render(request, "admin/catalog/import_files.html")
+    
+    def sync_files_with_products_view(self, request):
+        """Синхронизация существующих FileAsset с товарами по артикулу"""
+        if request.method == "POST":
+            try:
+                # Функция для извлечения базового артикула
+                def extract_base_article(asset_id):
+                    """Извлекает базовый артикул из asset_id"""
+                    if not asset_id:
+                        return ''
+                    asset_id = asset_id.strip()
+                    if '(' in asset_id:
+                        base = asset_id.split('(')[0].strip()
+                        return base
+                    return asset_id
+                
+                # Группируем FileAsset по артикулам
+                articles_files = {}
+                all_file_assets = FileAsset.objects.all()
+                
+                for asset in all_file_assets:
+                    base_article = extract_base_article(asset.asset_id)
+                    if not base_article:
+                        continue
+                    
+                    if base_article not in articles_files:
+                        articles_files[base_article] = {'images': [], 'models': []}
+                    
+                    if asset.file_type == 'image':
+                        articles_files[base_article]['images'].append(asset)
+                    else:
+                        articles_files[base_article]['models'].append(asset)
+                
+                products_linked_count = 0
+                images_attached_count = 0
+                errors = []
+                
+                # Привязываем файлы к товарам
+                for article, files_data in articles_files.items():
+                    try:
+                        # Ищем товар по артикулу (без учета регистра)
+                        # Убираем пробелы из артикула для поиска
+                        article_clean = article.strip().upper()
+                        product = Product.objects.filter(article__iexact=article_clean).first()
+                        
+                        # Если не найдено, пробуем поиск без учета пробелов в артикуле товара
+                        if not product:
+                            # Ищем товары, у которых артикул совпадает после удаления пробелов
+                            all_products = Product.objects.all()
+                            for p in all_products:
+                                if p.article and p.article.strip().upper().replace(' ', '') == article_clean.replace(' ', ''):
+                                    product = p
+                                    break
+                        
+                        if product:
+                            # Привязываем изображения
+                            if files_data['images']:
+                                sorted_images = sorted(files_data['images'], key=lambda x: x.asset_id)
+                                image_asset_ids = [asset.asset_id for asset in sorted_images]
+                                
+                                # Объединяем с существующими ID
+                                existing_ids = product.image_asset_ids.split(',') if product.image_asset_ids else []
+                                existing_ids = [id.strip() for id in existing_ids if id.strip()]
+                                all_image_ids = list(set(existing_ids + image_asset_ids))
+                                product.image_asset_ids = ','.join(all_image_ids)
+                                
+                                # Создаем ProductImage для каждого изображения
+                                for order, asset in enumerate(sorted_images, start=0):
+                                    try:
+                                        existing_image = product.images.filter(
+                                            image__icontains=os.path.basename(asset.file.name)
+                                        ).first()
+                                        
+                                        if not existing_image and asset.file:
+                                            asset.file.open('rb')
+                                            file_content = asset.file.read()
+                                            asset.file.close()
+                                            
+                                            product_image = ProductImage(
+                                                product=product,
+                                                order=order
+                                            )
+                                            filename = os.path.basename(asset.file.name)
+                                            product_image.image.save(
+                                                filename,
+                                                ContentFile(file_content),
+                                                save=True
+                                            )
+                                            images_attached_count += 1
+                                    except Exception as img_error:
+                                        errors.append(f"Ошибка при создании ProductImage для товара '{article}': {str(img_error)}")
+                            
+                            # Привязываем 3D модели
+                            if files_data['models']:
+                                model_asset_ids = [asset.asset_id for asset in files_data['models']]
+                                existing_model_ids = product.model_3d_asset_ids.split(',') if product.model_3d_asset_ids else []
+                                existing_model_ids = [id.strip() for id in existing_model_ids if id.strip()]
+                                all_model_ids = list(set(existing_model_ids + model_asset_ids))
+                                product.model_3d_asset_ids = ','.join(all_model_ids)
+                                
+                                # Устанавливаем соответствующие поля моделей
+                                for asset in files_data['models']:
+                                    try:
+                                        if asset.file and hasattr(asset.file, 'url'):
+                                            file_ext = os.path.splitext(asset.file.name)[1].lower()
+                                            file_url = asset.file.url
+                                            
+                                            if file_ext == '.glb' and not product.model_glb:
+                                                product.model_glb = file_url
+                                            elif file_ext == '.fbx' and not product.model_fbx:
+                                                product.model_fbx = file_url
+                                            elif file_ext == '.usdz' and not product.model_usdz:
+                                                product.model_usdz = file_url
+                                            elif file_ext == '.rfa' and not product.model_rfa:
+                                                product.model_rfa = file_url
+                                    except Exception:
+                                        pass
+                            
+                            # Сохраняем товар
+                            product.save(update_fields=['image_asset_ids', 'model_3d_asset_ids', 'model_glb', 'model_fbx', 'model_usdz', 'model_rfa'])
+                            products_linked_count += 1
+                            
+                    except Exception as e:
+                        errors.append(f"Ошибка при привязке файлов к товару с артикулом '{article}': {str(e)}")
+                
+                # Формируем сообщение
+                success_msg = f"Синхронизация завершена! Товаров обновлено: {products_linked_count}"
+                if images_attached_count > 0:
+                    success_msg += f", изображений привязано: {images_attached_count}"
+                
+                if products_linked_count > 0 or images_attached_count > 0:
+                    messages.success(request, success_msg)
+                else:
+                    messages.info(request, "Не найдено товаров для привязки файлов. Убедитесь, что артикулы в товарах совпадают с артикулами в именах файлов.")
+                
+                if errors:
+                    for error in errors[:10]:
+                        messages.warning(request, error)
+                    if len(errors) > 10:
+                        messages.warning(request, f"... и еще {len(errors) - 10} ошибок")
+                        
+            except Exception as e:
+                messages.error(request, f"Ошибка при синхронизации: {str(e)}")
+            
+            return redirect("..")
+        
+        return render(request, "admin/catalog/sync_files.html")
     
     def download_template_view(self, request):
         """Скачать шаблон Excel файла для импорта файлов"""

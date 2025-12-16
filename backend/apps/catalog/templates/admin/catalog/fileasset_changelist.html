@@ -9,8 +9,13 @@
         </a>
     </li>
     <li>
-        <a href="{% url 'admin:catalog_fileasset_import' %}" class="addlink" style="background: #28a745; padding: 10px 15px; border-radius: 4px;">
-            📦 Массовый импорт (Excel + ZIP)
+        <a href="{% url 'admin:catalog_fileasset_import' %}" class="addlink" style="background: #28a745; padding: 10px 15px; border-radius: 4px; margin-right: 10px;">
+            📦 Массовый импорт (ZIP)
+        </a>
+    </li>
+    <li>
+        <a href="{% url 'admin:catalog_fileasset_sync' %}" class="addlink" style="background: #17a2b8; padding: 10px 15px; border-radius: 4px;">
+            🔄 Синхронизировать с товарами
         </a>
     </li>
 {% endblock %}

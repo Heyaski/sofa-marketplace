@@ -1,0 +1,46 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Синхронизация файлов с товарами{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>🔄 Синхронизация файлов с товарами</h1>
+    
+    <div class="module" style="margin-bottom: 20px; padding: 20px; background: #d4edda; border-left: 4px solid #28a745;">
+        <h2 style="margin-top: 0;">✨ Что делает синхронизация</h2>
+        <p style="margin-bottom: 10px;">Система автоматически привяжет все существующие FileAsset к товарам по артикулу:</p>
+        <ul style="margin: 0; padding-left: 20px;">
+            <li>Извлекает артикул из ID файла (например: <code>IMR-556065(1)</code> → артикул: <code>IMR-556065</code>)</li>
+            <li>Ищет товар с таким артикулом</li>
+            <li>Привязывает все изображения и 3D модели к найденному товару</li>
+            <li>Создает ProductImage для каждого изображения</li>
+            <li>Обновляет поля товара с информацией о файлах</li>
+        </ul>
+    </div>
+    
+    <div class="module" style="margin-bottom: 20px; padding: 20px; background: #fff3cd; border-left: 4px solid #ffc107;">
+        <h3 style="margin-top: 0;">⚠️ Важно</h3>
+        <ul style="margin: 0; padding-left: 20px;">
+            <li>Убедитесь, что в товарах указаны артикулы, соответствующие именам файлов</li>
+            <li>Артикулы должны совпадать точно (например: <code>IMR-556065</code> в товаре и <code>IMR-556065.jpg</code> в файле)</li>
+            <li>Файлы с номерами в скобках (например: <code>IMR-556065(1).jpg</code>) привязываются к товару с базовым артикулом <code>IMR-556065</code></li>
+            <li>Если товар с таким артикулом не найден, файлы не будут привязаны</li>
+        </ul>
+    </div>
+    
+    <form method="post" style="padding: 20px; background: white; border: 1px solid #ddd; border-radius: 4px;">
+        {% csrf_token %}
+        
+        <div class="submit-row" style="margin-top: 20px;">
+            <input type="submit" value="🔄 Синхронизировать файлы с товарами" class="default" 
+                   style="padding: 12px 30px; background: #28a745; color: white; border: none; cursor: pointer; border-radius: 4px; font-size: 16px;">
+            <a href="{% url 'admin:catalog_fileasset_changelist' %}" class="button cancel-link" 
+               style="margin-left: 15px; padding: 12px 30px; background: #6c757d; color: white; text-decoration: none; border-radius: 4px; display: inline-block; font-size: 16px;">
+                Отмена
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
