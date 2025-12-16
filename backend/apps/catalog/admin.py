@@ -91,14 +91,9 @@ class FileAssetAdmin(admin.ModelAdmin):
         return custom_urls + urls
     
     def import_files_view(self, request):
-        """Массовый импорт файлов через Excel + ZIP архив"""
+        """Массовый импорт файлов через ZIP архив (автоматическое определение типа и ID)"""
         if request.method == "POST":
-            excel_file = request.FILES.get('excel_file')
             zip_file = request.FILES.get('zip_file')
-            
-            if not excel_file:
-                messages.error(request, "Пожалуйста, выберите Excel файл")
-                return redirect("..")
             
             if not zip_file:
                 messages.error(request, "Пожалуйста, выберите ZIP архив с файлами")
@@ -113,151 +108,84 @@ class FileAssetAdmin(admin.ModelAdmin):
                     with zipfile.ZipFile(zip_file, 'r') as zf:
                         zf.extractall(temp_dir)
                     
-                    # Читаем Excel с вычислением формул (data_only=True)
-                    # Если формулы не вычислены, пробуем без data_only
-                    try:
-                        wb = openpyxl.load_workbook(excel_file, data_only=True)
-                    except:
-                        wb = openpyxl.load_workbook(excel_file)
-                    ws = wb.active
-                    
                     created_count = 0
                     updated_count = 0
+                    skipped_count = 0
                     errors = []
                     
+                    # Расширения файлов для определения типа
+                    image_extensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.svg']
+                    model_extensions = ['.glb', '.gltf', '.fbx', '.obj', '.usdz', '.rfa', '.dae', '.3ds']
+                    
                     # Собираем все файлы из архива (включая вложенные папки)
-                    files_in_zip = {}
                     for root, dirs, files in os.walk(temp_dir):
                         for filename in files:
-                            # Игнорируем системные файлы macOS
+                            # Игнорируем системные файлы
                             if filename.startswith('.') or filename == '__MACOSX':
                                 continue
-                            full_path = os.path.join(root, filename)
-                            # Сохраняем по имени файла (без пути)
-                            files_in_zip[filename.lower()] = full_path
-                            # Также сохраняем с относительным путём
-                            rel_path = os.path.relpath(full_path, temp_dir)
-                            files_in_zip[rel_path.lower()] = full_path
-                    
-                    # Формат Excel: URL | Имя файла | ID файла | Тип файла
-                    for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-                        try:
-                            # URL (столбец 0) - используется для извлечения имени файла, если в столбце B формула
-                            url_raw = str(row[0]).strip() if len(row) > 0 and row[0] else ""
-                            file_name_raw = str(row[1]).strip() if len(row) > 1 and row[1] else ""
-                            asset_id = str(row[2]).strip() if len(row) > 2 and row[2] else ""
-                            file_type = str(row[3]).strip() if len(row) > 3 and row[3] else "image"
                             
-                            # Обрабатываем URL (если это формула, она должна быть вычислена data_only=True)
-                            url = url_raw
-                            if url.startswith('='):
-                                # Если URL тоже формула и не вычислена, пропускаем эту строку
-                                errors.append(f"Строка {row_num}: URL содержит невычисленную формулу")
-                                continue
-                            
-                            # Если имя файла начинается с "=", это формула Excel - извлекаем имя из URL
-                            if file_name_raw.startswith('='):
-                                # Извлекаем имя файла из URL (последняя часть пути)
-                                if url:
-                                    # Обрабатываем как Windows путь (обратные слэши) или URL (прямые слэши)
-                                    file_name = os.path.basename(url.replace('\\', '/'))
-                                    # Убираем параметры запроса и якоря из URL, если есть
-                                    if '?' in file_name:
-                                        file_name = file_name.split('?')[0]
-                                    if '#' in file_name:
-                                        file_name = file_name.split('#')[0]
-                                else:
-                                    errors.append(f"Строка {row_num}: не указан URL для извлечения имени файла")
-                                    continue
-                            else:
-                                file_name = file_name_raw
-                            
-                            # Пропускаем пустые строки (проверяем ID файла и имя файла)
-                            if not asset_id and not file_name:
-                                continue
-                            
-                            if not file_name:
-                                errors.append(f"Строка {row_num}: не указано имя файла")
-                                continue
-                            
-                            if not asset_id:
-                                errors.append(f"Строка {row_num}: не указан ID файла")
-                                continue
-                            
-                            # Нормализуем тип файла
-                            file_type_lower = file_type.lower()
-                            recognized_type = False
-                            
-                            if file_type_lower in ['image', 'изображение', 'img', 'картинка', 'фото']:
-                                file_type = 'image'
-                                recognized_type = True
-                            elif file_type_lower in ['3d_model', '3d', 'model', '3д', 'модель', '3d_модель']:
-                                file_type = '3d_model'
-                                recognized_type = True
-                            
-                            # Если тип файла не распознан, определяем автоматически по расширению
-                            if not recognized_type:
-                                # Получаем расширение файла
-                                file_ext = os.path.splitext(file_name)[1].lower().lstrip('.')
+                            try:
+                                full_path = os.path.join(root, filename)
                                 
-                                # Определяем тип по расширению
-                                image_extensions = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg']
-                                model_extensions = ['glb', 'gltf', 'fbx', 'obj', 'usdz', 'rfa', 'dae', '3ds']
+                                # Определяем тип файла по расширению
+                                file_ext = os.path.splitext(filename)[1].lower()
                                 
                                 if file_ext in image_extensions:
                                     file_type = 'image'
                                 elif file_ext in model_extensions:
                                     file_type = '3d_model'
                                 else:
-                                    errors.append(f"Строка {row_num}: не удалось определить тип файла для '{file_name}' (расширение: {file_ext})")
+                                    # Пропускаем файлы с неподдерживаемыми расширениями
+                                    skipped_count += 1
                                     continue
-                            
-                            # Ищем файл в архиве
-                            file_path = files_in_zip.get(file_name.lower())
-                            if not file_path:
-                                # Пробуем найти без расширения
-                                base_name = os.path.splitext(file_name)[0].lower()
-                                for key, path in files_in_zip.items():
-                                    if os.path.splitext(key)[0] == base_name:
-                                        file_path = path
-                                        break
-                            
-                            if not file_path:
-                                errors.append(f"Строка {row_num}: файл '{file_name}' не найден в ZIP архиве")
-                                continue
-                            
-                            # Читаем содержимое файла
-                            with open(file_path, 'rb') as f:
-                                file_content = f.read()
-                            
-                            # Определяем имя файла для сохранения
-                            save_filename = os.path.basename(file_path)
-                            
-                            # Проверяем, существует ли уже FileAsset с таким ID
-                            existing = FileAsset.objects.filter(asset_id=asset_id).first()
-                            if existing:
-                                # Обновляем существующий
-                                existing.file_type = file_type
-                                existing.file.save(save_filename, ContentFile(file_content), save=True)
-                                updated_count += 1
-                            else:
-                                # Создаем новый
-                                file_asset = FileAsset(
-                                    asset_id=asset_id,
-                                    file_type=file_type,
-                                    description=''
-                                )
-                                file_asset.file.save(save_filename, ContentFile(file_content), save=True)
-                                created_count += 1
                                 
-                        except Exception as e:
-                            errors.append(f"Строка {row_num}: {str(e)}")
+                                # Используем имя файла без расширения как asset_id
+                                # Это работает с артикулами типа IMR-556065, IMR-556065(1) и т.д.
+                                asset_id = os.path.splitext(filename)[0]
+                                
+                                # Читаем содержимое файла
+                                with open(full_path, 'rb') as f:
+                                    file_content = f.read()
+                                
+                                # Определяем имя файла для сохранения
+                                save_filename = filename
+                                
+                                # Проверяем, существует ли уже FileAsset с таким ID и типом
+                                existing = FileAsset.objects.filter(
+                                    asset_id=asset_id,
+                                    file_type=file_type
+                                ).first()
+                                
+                                if existing:
+                                    # Обновляем существующий
+                                    existing.file.save(save_filename, ContentFile(file_content), save=True)
+                                    updated_count += 1
+                                else:
+                                    # Создаем новый
+                                    file_asset = FileAsset(
+                                        asset_id=asset_id,
+                                        file_type=file_type,
+                                        description=''
+                                    )
+                                    file_asset.file.save(save_filename, ContentFile(file_content), save=True)
+                                    created_count += 1
+                                    
+                            except Exception as e:
+                                errors.append(f"Ошибка при обработке файла '{filename}': {str(e)}")
                     
                     # Формируем сообщение
-                    if created_count or updated_count:
+                    success_parts = []
+                    if created_count > 0:
+                        success_parts.append(f"создано: {created_count}")
+                    if updated_count > 0:
+                        success_parts.append(f"обновлено: {updated_count}")
+                    if skipped_count > 0:
+                        success_parts.append(f"пропущено: {skipped_count}")
+                    
+                    if success_parts:
                         messages.success(
                             request, 
-                            f"Импорт завершен! Создано: {created_count}, обновлено: {updated_count}"
+                            f"Импорт завершен! {', '.join(success_parts)}"
                         )
                     
                     if errors:

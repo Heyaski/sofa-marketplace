@@ -7,83 +7,49 @@
 <div id="content-main">
     <h1>📦 Массовый импорт файлов (изображения и 3D модели)</h1>
     
-    <div class="module" style="margin-bottom: 20px; padding: 20px; background: #f8f9fa;">
-        <h2 style="margin-top: 0;">📋 Формат Excel файла</h2>
-        <p>Excel файл должен содержать следующие колонки:</p>
-        <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
-            <thead>
-                <tr style="background: #e9ecef;">
-                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">Колонка</th>
-                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">Описание</th>
-                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">Пример</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>A: URL</strong></td>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;">URL для отображения (не используется в логике)</td>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>https://example.com/...</code></td>
-                </tr>
-                <tr>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>B: Имя файла</strong></td>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;">Имя файла в ZIP архиве (обязательно)</td>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>sofa_photo.jpg</code>, <code>model.glb</code></td>
-                </tr>
-                <tr>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>C: ID файла</strong></td>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;">Уникальный идентификатор (обязательно)</td>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>img_001</code>, <code>model_sofa_01</code></td>
-                </tr>
-                <tr>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>D: Тип файла</strong></td>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>image</code> или <code>3d_model</code></td>
-                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>image</code>, <code>3d_model</code>, <code>изображение</code>, <code>модель</code></td>
-                </tr>
-            </tbody>
-        </table>
-        
-        <div style="background: #d1ecf1; padding: 15px; border-left: 4px solid #17a2b8; margin-top: 15px;">
-            <strong>💡 Пример Excel файла:</strong>
-            <pre style="background: #fff; padding: 10px; margin-top: 10px; overflow-x: auto;">
-URL                    | Имя файла        | ID файла  | Тип файла
------------------------|------------------|-----------|----------
-https://example.com/...| sofa_front.jpg   | img_001   | image
-https://example.com/...| sofa_side.jpg    | img_002   | image
-https://example.com/...| sofa.glb         | model_001 | 3d_model
-https://example.com/...| chair.glb        | model_002 | 3d_model
-            </pre>
-        </div>
+    <div class="module" style="margin-bottom: 20px; padding: 20px; background: #d4edda; border-left: 4px solid #28a745;">
+        <h2 style="margin-top: 0;">✨ Автоматический импорт файлов</h2>
+        <p style="margin-bottom: 10px;">Система автоматически определит тип файла и создаст ID на основе имени файла:</p>
+        <ul style="margin: 0; padding-left: 20px;">
+            <li><strong>ID файла</strong> формируется из имени файла без расширения</li>
+            <li><strong>Тип файла</strong> определяется автоматически по расширению</li>
+            <li>Поддерживаются файлы с артикулами: <code>IMR-556065.jpg</code>, <code>IMR-556065(1).jpg</code>, <code>IMR-556065(2).jpg</code></li>
+            <li>Файлы могут быть в корне архива или в подпапках</li>
+        </ul>
     </div>
     
     <div class="module" style="margin-bottom: 20px; padding: 20px; background: #f8f9fa;">
         <h2 style="margin-top: 0;">📁 Формат ZIP архива</h2>
+        <p style="margin-bottom: 10px;">Просто упакуйте все файлы в ZIP архив:</p>
         <ul style="margin: 0; padding-left: 20px;">
-            <li>Все файлы, указанные в Excel, должны быть в ZIP архиве</li>
             <li>Файлы могут быть в корне архива или в подпапках</li>
-            <li>Поиск файлов осуществляется по имени (регистронезависимый)</li>
-            <li>Поддерживаемые форматы изображений: <code>.jpg</code>, <code>.jpeg</code>, <code>.png</code>, <code>.webp</code>, <code>.gif</code></li>
-            <li>Поддерживаемые форматы 3D: <code>.glb</code>, <code>.gltf</code>, <code>.fbx</code>, <code>.usdz</code></li>
+            <li>Поддерживаемые форматы изображений: <code>.jpg</code>, <code>.jpeg</code>, <code>.png</code>, <code>.webp</code>, <code>.gif</code>, <code>.bmp</code>, <code>.svg</code></li>
+            <li>Поддерживаемые форматы 3D: <code>.glb</code>, <code>.gltf</code>, <code>.fbx</code>, <code>.obj</code>, <code>.usdz</code>, <code>.rfa</code>, <code>.dae</code>, <code>.3ds</code></li>
+            <li>Файлы с другими расширениями будут автоматически пропущены</li>
         </ul>
+        
+        <div style="background: #d1ecf1; padding: 15px; border-left: 4px solid #17a2b8; margin-top: 15px;">
+            <strong>💡 Примеры имен файлов:</strong>
+            <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+                <li><code>IMR-556065.jpg</code> → ID: <code>IMR-556065</code>, Тип: <code>image</code></li>
+                <li><code>IMR-556065(1).jpg</code> → ID: <code>IMR-556065(1)</code>, Тип: <code>image</code></li>
+                <li><code>IMR-556065(2).png</code> → ID: <code>IMR-556065(2)</code>, Тип: <code>image</code></li>
+                <li><code>IMR-556065.glb</code> → ID: <code>IMR-556065</code>, Тип: <code>3d_model</code></li>
+            </ul>
+        </div>
     </div>
     
     <form method="post" enctype="multipart/form-data" style="padding: 20px; background: white; border: 1px solid #ddd;">
         {% csrf_token %}
         
         <div class="form-row" style="margin-bottom: 20px;">
-            <label for="excel_file" style="display: block; margin-bottom: 10px; font-weight: bold;">
-                📄 Excel файл с маппингом (.xlsx):
-            </label>
-            <input type="file" name="excel_file" id="excel_file" accept=".xlsx,.xls" required
-                   style="padding: 10px; border: 1px solid #ccc; border-radius: 4px; width: 100%; max-width: 400px;">
-        </div>
-        
-        <div class="form-row" style="margin-bottom: 20px;">
-            <label for="zip_file" style="display: block; margin-bottom: 10px; font-weight: bold;">
-                📦 ZIP архив с файлами:
+            <label for="zip_file" style="display: block; margin-bottom: 10px; font-weight: bold; font-size: 16px;">
+                📦 Выберите ZIP архив с файлами: <span style="color: red;">*</span>
             </label>
             <input type="file" name="zip_file" id="zip_file" accept=".zip" required
-                   style="padding: 10px; border: 1px solid #ccc; border-radius: 4px; width: 100%; max-width: 400px;">
-            <p style="color: #666; font-size: 12px; margin-top: 5px;">
+                   style="padding: 15px; border: 2px dashed #ccc; border-radius: 4px; width: 100%; max-width: 500px; cursor: pointer;">
+            <p style="color: #666; font-size: 13px; margin-top: 8px;">
+                💡 Система автоматически определит тип файла и создаст ID на основе имени файла<br>
                 Максимальный размер зависит от настроек сервера (обычно до 100 МБ)
             </p>
         </div>
@@ -101,9 +67,11 @@ https://example.com/...| chair.glb        | model_002 | 3d_model
     <div style="margin-top: 30px; padding: 20px; background: #fff3cd; border-left: 4px solid #ffc107;">
         <h3 style="margin-top: 0;">⚠️ Важно</h3>
         <ul style="margin: 0; padding-left: 20px;">
-            <li>Первая строка Excel файла считается заголовком и будет пропущена</li>
-            <li>Если файл с таким ID уже существует, он будет <strong>обновлен</strong></li>
-            <li>После импорта используйте ID файлов при создании/импорте товаров</li>
+            <li>Если файл с таким ID и типом уже существует, он будет <strong>обновлен</strong></li>
+            <li>ID файла формируется из имени файла без расширения (например: <code>IMR-556065.jpg</code> → ID: <code>IMR-556065</code>)</li>
+            <li>После импорта используйте ID файлов при создании/импорте товаров через Excel</li>
+            <li>Файлы с неподдерживаемыми расширениями будут автоматически пропущены</li>
+            <li><strong>💡 Совет:</strong> Используйте артикулы в именах файлов для автоматической привязки при импорте товаров</li>
         </ul>
     </div>
 </div>
