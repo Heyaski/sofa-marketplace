@@ -199,6 +199,11 @@ if USE_S3_STORAGE:
             AWS_DEFAULT_ACL = 'private'
             AWS_QUERYSTRING_AUTH = True  # Требовать подпись для URL
             AWS_QUERYSTRING_EXPIRE = 3600  # Срок действия подписанного URL (1 час)
+            # Для подписанных URL лучше использовать endpoint URL вместо custom domain
+            # чтобы избежать проблем с CORS и подписью
+            if AWS_S3_CUSTOM_DOMAIN:
+                print(f"⚠️ ВНИМАНИЕ: При использовании подписанных URL рекомендуется использовать endpoint URL вместо custom domain")
+                print(f"   Текущий custom domain будет использован, но могут возникнуть проблемы с подписью")
         else:
             # Публичный доступ - файлы доступны по прямой ссылке
             AWS_DEFAULT_ACL = 'public-read'

@@ -31,7 +31,20 @@ class ProductImageSerializer(serializers.ModelSerializer):
     def get_image_url(self, obj):
         request = self.context.get("request")
         if obj.image and hasattr(obj.image, "url"):
-            image_url = obj.image.url
+            # Проверяем режим доступа к файлам
+            from django.conf import settings
+            use_signed_urls = getattr(settings, 'S3_FILE_ACCESS_MODE', 'public') == 'signed'
+            
+            if use_signed_urls and hasattr(obj.image, 'storage'):
+                try:
+                    storage = obj.image.storage
+                    image_url = storage.url(obj.image.name)
+                    return image_url
+                except Exception:
+                    image_url = obj.image.url
+            else:
+                image_url = obj.image.url
+            
             # Если URL уже полный (начинается с http:// или https://), возвращаем как есть
             if image_url.startswith(('http://', 'https://')):
                 return image_url
@@ -57,16 +70,18 @@ class FileAssetSerializer(serializers.ModelSerializer):
             if use_signed_urls and hasattr(obj.file, 'storage'):
                 # Генерируем подписанный URL для приватных файлов
                 try:
-                    # Получаем storage и генерируем подписанный URL
                     storage = obj.file.storage
-                    if hasattr(storage, 'url') and callable(getattr(storage, 'url', None)):
-                        # Для S3 storage используем метод url() который автоматически генерирует подписанный URL
-                        # если AWS_QUERYSTRING_AUTH = True
-                        file_url = storage.url(obj.file.name)
-                    else:
-                        file_url = obj.file.url
-                except Exception:
-                    # Если не удалось сгенерировать подписанный URL, используем обычный
+                    # Используем метод url() storage, который автоматически генерирует подписанный URL
+                    # когда AWS_QUERYSTRING_AUTH = True
+                    file_url = storage.url(obj.file.name)
+                    # Подписанный URL уже полный и содержит query параметры с подписью
+                    return file_url
+                except Exception as e:
+                    # Если не удалось сгенерировать подписанный URL, логируем ошибку
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Ошибка генерации подписанного URL: {e}")
+                    # Возвращаем обычный URL как fallback (но он не будет работать для приватных файлов)
                     file_url = obj.file.url
             else:
                 # Используем обычный URL для публичных файлов
