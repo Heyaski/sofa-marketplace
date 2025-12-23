@@ -1,14 +1,22 @@
 from django.contrib import admin
-from .models import Chat, Message, MessageProduct, MessageBasket
+from .models import Chat, Message, MessageProduct, MessageBasket, ChatParticipant
 
 
 @admin.register(Chat)
 class ChatAdmin(admin.ModelAdmin):
-    list_display = ('id', 'participant1', 'participant2', 'created_at', 'updated_at', 'is_pinned')
-    list_filter = ('created_at', 'is_pinned')
-    search_fields = ('participant1__username', 'participant2__username')
+    list_display = ('id', 'chat_type', 'name', 'participant1', 'participant2', 'created_at', 'updated_at', 'is_pinned')
+    list_filter = ('chat_type', 'created_at', 'is_pinned')
+    search_fields = ('name', 'participant1__username', 'participant2__username')
     readonly_fields = ('created_at', 'updated_at')
     date_hierarchy = 'created_at'
+
+
+@admin.register(ChatParticipant)
+class ChatParticipantAdmin(admin.ModelAdmin):
+    list_display = ('id', 'chat', 'user', 'is_admin', 'joined_at')
+    list_filter = ('is_admin', 'joined_at')
+    search_fields = ('chat__name', 'user__username')
+    readonly_fields = ('joined_at',)
 
 
 @admin.register(Message)

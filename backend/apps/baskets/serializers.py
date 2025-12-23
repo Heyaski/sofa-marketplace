@@ -1,7 +1,7 @@
 # apps/baskets/serializers.py
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Basket, BasketItem
+from .models import Basket, BasketItem, BasketEditRequest
 from apps.catalog.models import Product
 
 
@@ -41,8 +41,54 @@ class BasketUserSerializer(serializers.ModelSerializer):
 class BasketSerializer(serializers.ModelSerializer):
     items = BasketItemSerializer(many=True, read_only=True)
     user = BasketUserSerializer(read_only=True)
+    share_token = serializers.CharField(read_only=True)
+    share_url = serializers.SerializerMethodField()
+    can_edit = serializers.SerializerMethodField()
+    is_owner = serializers.SerializerMethodField()
 
     class Meta:
         model = Basket
-        fields = ["id", "name", "user", "created_at", "updated_at", "items"]
-        read_only_fields = ["user", "created_at", "updated_at"]
+        fields = ["id", "name", "user", "created_at", "updated_at", "items", "share_token", "share_url", "can_edit", "is_owner"]
+        read_only_fields = ["user", "created_at", "updated_at", "share_token"]
+    
+    def get_share_url(self, obj):
+        request = self.context.get("request")
+        if obj.share_token:
+            return obj.get_share_url(request)
+        return None
+    
+    def get_can_edit(self, obj):
+        """Проверяет, может ли текущий пользователь редактировать корзину"""
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+        
+        # Владелец всегда может редактировать
+        if obj.user == request.user:
+            return True
+        
+        # Проверяем, есть ли одобренный запрос на редактирование
+        return BasketEditRequest.objects.filter(
+            basket=obj,
+            requester=request.user,
+            status='approved'
+        ).exists()
+    
+    def get_is_owner(self, obj):
+        """Проверяет, является ли текущий пользователь владельцем корзины"""
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+        return obj.user == request.user
+
+
+class BasketEditRequestSerializer(serializers.ModelSerializer):
+    """Сериализатор для запросов на редактирование корзины"""
+    requester = BasketUserSerializer(read_only=True)
+    basket = BasketSerializer(read_only=True)
+    basket_id = serializers.IntegerField(write_only=True)
+
+    class Meta:
+        model = BasketEditRequest
+        fields = ["id", "basket", "basket_id", "requester", "status", "created_at", "updated_at", "message"]
+        read_only_fields = ["requester", "status", "created_at", "updated_at"]

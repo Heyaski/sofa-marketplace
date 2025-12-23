@@ -26,11 +26,21 @@ class ChatViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Получить все чаты текущего пользователя"""
         user = self.request.user
-        return Chat.objects.filter(
-            Q(participant1=user) | Q(participant2=user)
-        ).annotate(
+        # Приватные чаты (старая логика)
+        private_chats = Chat.objects.filter(
+            Q(participant1=user) | Q(participant2=user),
+            chat_type='private'
+        )
+        # Групповые чаты, где пользователь является участником
+        group_chats = Chat.objects.filter(
+            participants__user=user,
+            chat_type='group'
+        )
+        # Объединяем и убираем дубликаты
+        all_chats = (private_chats | group_chats).distinct().annotate(
             last_message_time=Max('messages__created_at')
         ).order_by('-last_message_time', '-updated_at')
+        return all_chats
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -72,14 +82,12 @@ class MessageViewSet(viewsets.ModelViewSet):
         chat_id = self.request.query_params.get('chat_id')
         if chat_id:
             # Проверяем, что пользователь является участником чата
-            chat = Chat.objects.filter(
-                Q(id=chat_id) & (
-                    Q(participant1=self.request.user) |
-                    Q(participant2=self.request.user)
-                )
-            ).first()
-            if chat:
-                return Message.objects.filter(chat=chat)
+            try:
+                chat = Chat.objects.get(id=chat_id)
+                if chat.is_participant(self.request.user):
+                    return Message.objects.filter(chat=chat)
+            except Chat.DoesNotExist:
+                pass
         return Message.objects.none()
 
     def perform_create(self, serializer):
@@ -95,16 +103,17 @@ class MessageViewSet(viewsets.ModelViewSet):
             try:
                 # Преобразуем в число, если это строка
                 chat_id = int(chat_id) if isinstance(chat_id, str) else chat_id
-                chat = Chat.objects.filter(
-                    Q(id=chat_id) & (
-                        Q(participant1=request.user) |
-                        Q(participant2=request.user)
-                    )
-                ).first()
-                if not chat:
+                try:
+                    chat = Chat.objects.get(id=chat_id)
+                    if not chat.is_participant(request.user):
+                        return Response(
+                            {'error': 'Чат не найден или у вас нет доступа к этому чату'},
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+                except Chat.DoesNotExist:
                     return Response(
-                        {'error': 'Чат не найден или у вас нет доступа к этому чату'},
-                        status=status.HTTP_403_FORBIDDEN
+                        {'error': 'Чат не найден'},
+                        status=status.HTTP_404_NOT_FOUND
                     )
             except (ValueError, TypeError) as e:
                 return Response(
@@ -142,14 +151,14 @@ class MessageViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        chat = Chat.objects.filter(
-            Q(id=chat_id) & (
-                Q(participant1=request.user) |
-                Q(participant2=request.user)
-            )
-        ).first()
-
-        if not chat:
+        try:
+            chat = Chat.objects.get(id=chat_id)
+            if not chat.is_participant(request.user):
+                return Response(
+                    {'error': 'Chat not found or access denied'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        except Chat.DoesNotExist:
             return Response(
                 {'error': 'Chat not found'},
                 status=status.HTTP_404_NOT_FOUND

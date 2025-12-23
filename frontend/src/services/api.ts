@@ -3,6 +3,7 @@ import {
 	ApiResponse,
 	AuthTokens,
 	Basket,
+	BasketEditRequest,
 	Category,
 	Chat,
 	Download,
@@ -19,9 +20,11 @@ import {
 
 // Сервис для работы с продуктами
 export const productService = {
-	// Получить все продукты с фильтрацией
+	// Получить все продукты с фильтрацией и пагинацией
 	getProducts: async (
-		filters?: ProductFilters
+		filters?: ProductFilters,
+		page?: number,
+		pageSize?: number
 	): Promise<ApiResponse<Product>> => {
 		const params = new URLSearchParams()
 
@@ -31,6 +34,13 @@ export const productService = {
 					params.append(key, value.toString())
 				}
 			})
+		}
+
+		if (page) {
+			params.append('page', page.toString())
+		}
+		if (pageSize) {
+			params.append('page_size', pageSize.toString())
 		}
 
 		const response = await apiClient.get(`/api/products/?${params.toString()}`)
@@ -151,6 +161,48 @@ export const basketService = {
 	clearBasket: async (basketId: number): Promise<void> => {
 		await apiClient.delete(`/api/baskets/${basketId}/items/`)
 	},
+
+	// Генерировать публичную ссылку на корзину
+	generateShareLink: async (basketId: number): Promise<{ share_token: string; share_url: string }> => {
+		const response = await apiClient.post(`/api/baskets/${basketId}/generate_share_link/`)
+		return response.data
+	},
+
+	// Получить корзину по публичному токену (без авторизации)
+	getBasketByShareToken: async (shareToken: string): Promise<Basket> => {
+		const response = await apiClient.get(`/api/baskets/share/${shareToken}/`)
+		return response.data
+	},
+}
+
+// Сервис для работы с запросами на редактирование корзины
+export const basketEditRequestService = {
+	// Получить все запросы
+	getRequests: async (): Promise<ApiResponse<BasketEditRequest>> => {
+		const response = await apiClient.get('/api/basket-edit-requests/')
+		return response.data
+	},
+
+	// Создать запрос на редактирование
+	createRequest: async (basketId: number, message?: string): Promise<BasketEditRequest> => {
+		const response = await apiClient.post('/api/basket-edit-requests/', {
+			basket_id: basketId,
+			message,
+		})
+		return response.data
+	},
+
+	// Одобрить запрос
+	approveRequest: async (requestId: number): Promise<BasketEditRequest> => {
+		const response = await apiClient.post(`/api/basket-edit-requests/${requestId}/approve/`)
+		return response.data
+	},
+
+	// Отклонить запрос
+	rejectRequest: async (requestId: number): Promise<BasketEditRequest> => {
+		const response = await apiClient.post(`/api/basket-edit-requests/${requestId}/reject/`)
+		return response.data
+	},
 }
 
 // Сервис для работы с заказами
@@ -270,11 +322,23 @@ export const chatService = {
 		return response.data
 	},
 
-	// Создать новый чат
-	createChat: async (participant2Id: number): Promise<Chat> => {
-		const response = await apiClient.post('/api/chats/', {
-			participant2_id: participant2Id,
-		})
+	// Создать новый чат (приватный или групповой)
+	createChat: async (
+		participant2Id?: number,
+		participantIds?: number[],
+		name?: string,
+		chatType: 'private' | 'group' = 'private'
+	): Promise<Chat> => {
+		const data: any = {
+			chat_type: chatType,
+		}
+		if (chatType === 'private' && participant2Id) {
+			data.participant2_id = participant2Id
+		} else if (chatType === 'group' && participantIds) {
+			data.participant_ids = participantIds
+			data.name = name
+		}
+		const response = await apiClient.post('/api/chats/', data)
 		return response.data
 	},
 

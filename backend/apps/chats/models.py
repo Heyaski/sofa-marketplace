@@ -5,37 +5,77 @@ from apps.baskets.models import Basket
 
 
 class Chat(models.Model):
-    """Модель чата между двумя пользователями"""
+    """Модель чата между пользователями (поддерживает групповые чаты)"""
+    CHAT_TYPES = [
+        ('private', 'Приватный'),
+        ('group', 'Групповой'),
+    ]
+    
+    chat_type = models.CharField(max_length=10, choices=CHAT_TYPES, default='private', verbose_name="Тип чата")
+    name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Название (для групповых чатов)")
     participant1 = models.ForeignKey(
         User,
         related_name="chats_as_participant1",
         on_delete=models.CASCADE,
-        verbose_name="Участник 1"
+        null=True,
+        blank=True,
+        verbose_name="Участник 1 (для обратной совместимости)"
     )
     participant2 = models.ForeignKey(
         User,
         related_name="chats_as_participant2",
         on_delete=models.CASCADE,
-        verbose_name="Участник 2"
+        null=True,
+        blank=True,
+        verbose_name="Участник 2 (для обратной совместимости)"
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
     is_pinned = models.BooleanField(default=False, verbose_name="Закреплён")
+    created_by = models.ForeignKey(
+        User,
+        related_name="created_chats",
+        on_delete=models.SET_NULL,
+        null=True,
+        verbose_name="Создатель чата"
+    )
 
     class Meta:
-        unique_together = [['participant1', 'participant2']]
         ordering = ['-updated_at']
         verbose_name = "Чат"
         verbose_name_plural = "Чаты"
 
     def __str__(self):
-        return f"Чат между {self.participant1.username} и {self.participant2.username}"
+        if self.chat_type == 'group' and self.name:
+            return f"Групповой чат: {self.name}"
+        elif self.participant1 and self.participant2:
+            return f"Чат между {self.participant1.username} и {self.participant2.username}"
+        return f"Чат {self.id}"
 
     def get_other_participant(self, user):
-        """Получить другого участника чата"""
+        """Получить другого участника чата (для приватных чатов)"""
+        if self.chat_type == 'group':
+            return None
         if user == self.participant1:
             return self.participant2
         return self.participant1
+    
+    def get_all_participants(self):
+        """Получить всех участников чата"""
+        participants = set()
+        if self.participant1:
+            participants.add(self.participant1)
+        if self.participant2:
+            participants.add(self.participant2)
+        # Добавляем участников из ChatParticipant
+        participants.update(self.participants.all())
+        return list(participants)
+    
+    def is_participant(self, user):
+        """Проверить, является ли пользователь участником чата"""
+        if self.chat_type == 'private':
+            return user == self.participant1 or user == self.participant2
+        return user in self.get_all_participants()
 
     def get_unread_count(self, user):
         """Получить количество непрочитанных сообщений для пользователя"""
@@ -44,6 +84,22 @@ class Chat(models.Model):
             ~Q(sender=user),
             is_read=False
         ).count()
+
+
+class ChatParticipant(models.Model):
+    """Модель для участников группового чата"""
+    chat = models.ForeignKey(Chat, related_name="participants", on_delete=models.CASCADE, verbose_name="Чат")
+    user = models.ForeignKey(User, related_name="chat_participations", on_delete=models.CASCADE, verbose_name="Пользователь")
+    joined_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата присоединения")
+    is_admin = models.BooleanField(default=False, verbose_name="Администратор")
+    
+    class Meta:
+        unique_together = [['chat', 'user']]
+        verbose_name = "Участник чата"
+        verbose_name_plural = "Участники чатов"
+    
+    def __str__(self):
+        return f"{self.user.username} в чате {self.chat.id}"
 
 
 class Message(models.Model):

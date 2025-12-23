@@ -45,11 +45,14 @@ export default function CatalogPage() {
 
 	const [filters, setFilters] = useState<ProductFilters>({})
 
-	// ✅ API хуки
+	// ✅ API хуки с пагинацией
 	const {
 		products,
 		loading: productsLoading,
+		loadingMore,
 		error: productsError,
+		hasMore,
+		loadMore,
 	} = useProducts(filters)
 	const {
 		categories,
@@ -334,15 +337,28 @@ export default function CatalogPage() {
 							Продукты не найдены
 						</div>
 					) : (
-						<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'>
-							{products.map(product => (
-								<ProductCard
-									key={product.id}
-									product={product}
-									onAddToCart={handleAddToCart}
-								/>
-							))}
-						</div>
+						<>
+							<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'>
+								{products.map(product => (
+									<ProductCard
+										key={product.id}
+										product={product}
+										onAddToCart={handleAddToCart}
+									/>
+								))}
+							</div>
+							{hasMore && (
+								<div className='mt-8 flex justify-center'>
+									<button
+										onClick={loadMore}
+										disabled={loadingMore}
+										className='bg-main1 text-white px-8 py-3 rounded-lg hover:bg-main2 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed'
+									>
+										{loadingMore ? 'Загрузка...' : 'Загрузить еще'}
+									</button>
+								</div>
+							)}
+						</>
 					)}
 				</div>
 			</main>

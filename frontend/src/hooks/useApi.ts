@@ -10,32 +10,78 @@ const extractResults = (response: any) => {
 }
 
 // ---------------------------
-// 🛍️ useProducts
+// 🛍️ useProducts (с пагинацией)
 // ---------------------------
-export const useProducts = (filters?: ProductFilters) => {
+export const useProducts = (filters?: ProductFilters, loadMore?: boolean) => {
 	const [products, setProducts] = useState<Product[]>([])
 	const [loading, setLoading] = useState(true)
+	const [loadingMore, setLoadingMore] = useState(false)
 	const [error, setError] = useState<string | null>(null)
+	const [nextPage, setNextPage] = useState<number | null>(2)
+	const [hasMore, setHasMore] = useState(true)
 
-	const fetchProducts = useCallback(async () => {
+	const fetchProducts = useCallback(async (page: number = 1, append: boolean = false) => {
 		try {
-			setLoading(true)
+			if (append) {
+				setLoadingMore(true)
+			} else {
+				setLoading(true)
+			}
 			setError(null)
-			const response = await productService.getProducts(filters)
-			const productsData = extractResults(response)
-			setProducts(productsData)
+			const response = await productService.getProducts(filters, page, 20)
+			
+			// Обрабатываем пагинированный ответ
+			let productsData: Product[] = []
+			let next: number | null = null
+			
+			if (response && Array.isArray(response.results)) {
+				// Пагинированный ответ
+				productsData = response.results
+				next = response.next ? page + 1 : null
+				setHasMore(!!response.next)
+			} else if (Array.isArray(response)) {
+				// Обычный массив (для обратной совместимости)
+				productsData = response
+				setHasMore(false)
+			} else {
+				productsData = extractResults(response)
+				setHasMore(false)
+			}
+			
+			if (append) {
+				setProducts(prev => [...prev, ...productsData])
+			} else {
+				setProducts(productsData)
+			}
+			
+			setNextPage(next)
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Ошибка загрузки продуктов')
 		} finally {
 			setLoading(false)
+			setLoadingMore(false)
 		}
 	}, [JSON.stringify(filters || {})])
 
 	useEffect(() => {
-		fetchProducts()
+		fetchProducts(1, false)
 	}, [fetchProducts])
 
-	return { products, loading, error, refetch: fetchProducts }
+	const loadMoreProducts = useCallback(() => {
+		if (nextPage && hasMore && !loadingMore) {
+			fetchProducts(nextPage, true)
+		}
+	}, [nextPage, hasMore, loadingMore, fetchProducts])
+
+	return { 
+		products, 
+		loading, 
+		loadingMore,
+		error, 
+		hasMore,
+		loadMore: loadMoreProducts,
+		refetch: () => fetchProducts(1, false)
+	}
 }
 
 // ---------------------------

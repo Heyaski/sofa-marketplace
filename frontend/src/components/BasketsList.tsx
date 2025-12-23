@@ -3,11 +3,13 @@
 import {
 	ArrowDownTrayIcon,
 	ChatBubbleLeftRightIcon,
+	LinkIcon,
 	MapPinIcon,
 	TrashIcon,
 } from '@heroicons/react/24/outline'
 import { useState } from 'react'
 import apiClient from '../lib/api'
+import { basketService } from '../services/api'
 import { Basket } from '../types'
 import CreateBasketModal from './CreateBasketModal'
 import SendBasketModal from './SendBasketModal'
@@ -62,6 +64,19 @@ export default function BasketsList({ baskets, onRefresh }: BasketsListProps) {
 		setIsSendBasketModalOpen(true)
 	}
 
+	const handleGenerateShareLink = async (basket: Basket) => {
+		try {
+			const result = await basketService.generateShareLink(basket.id)
+			// Копируем ссылку в буфер обмена
+			const shareUrl = result.share_url || `${window.location.origin}/basket/share/${result.share_token}/`
+			await navigator.clipboard.writeText(shareUrl)
+			alert('Публичная ссылка скопирована в буфер обмена!')
+		} catch (error: any) {
+			console.error('Ошибка при генерации ссылки:', error)
+			alert(error.response?.data?.error || 'Ошибка при генерации ссылки')
+		}
+	}
+
 	return (
 		<>
 			<div className='flex items-center justify-between mb-6'>
@@ -103,11 +118,20 @@ export default function BasketsList({ baskets, onRefresh }: BasketsListProps) {
 									<MapPinIcon className='w-5 h-5' />
 								</button>
 
+								{/* Generate share link button */}
+								<button
+									onClick={() => handleGenerateShareLink(basket)}
+									className='text-gray hover:text-main1 transition-colors'
+									title='Создать публичную ссылку'
+								>
+									<LinkIcon className='w-5 h-5' />
+								</button>
+
 								{/* Share button */}
 								<button
 									onClick={() => handleShare(basket)}
 									className='text-gray hover:text-main1 transition-colors'
-									title='Поделиться'
+									title='Поделиться в чате'
 								>
 									<ChatBubbleLeftRightIcon className='w-5 h-5' />
 								</button>

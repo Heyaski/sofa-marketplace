@@ -1,11 +1,12 @@
 from rest_framework import viewsets, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from django.db.models import Q
 
-from .models import Basket, BasketItem
-from .serializers import BasketSerializer, BasketItemSerializer
+from .models import Basket, BasketItem, BasketEditRequest
+from .serializers import BasketSerializer, BasketItemSerializer, BasketEditRequestSerializer
 from apps.catalog.models import Product
 from apps.chats.models import MessageBasket
 
@@ -57,16 +58,29 @@ class BasketViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("У вас нет доступа к этой корзине")
         
         return obj
+    
+    def _can_edit_basket(self, basket):
+        """Проверяет, может ли пользователь редактировать корзину"""
+        # Владелец всегда может редактировать
+        if basket.user == self.request.user:
+            return True
+        
+        # Проверяем, есть ли одобренный запрос на редактирование
+        return BasketEditRequest.objects.filter(
+            basket=basket,
+            requester=self.request.user,
+            status='approved'
+        ).exists()
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
     
     def update(self, request, *args, **kwargs):
-        """Обновление корзины - только для владельца"""
+        """Обновление корзины - для владельца или пользователя с одобренным запросом"""
         basket = self.get_object()
-        if basket.user != request.user:
+        if not self._can_edit_basket(basket):
             return Response(
-                {"error": "Вы можете редактировать только свои корзины"},
+                {"error": "У вас нет прав на редактирование этой корзины"},
                 status=status.HTTP_403_FORBIDDEN
             )
         return super().update(request, *args, **kwargs)
@@ -92,10 +106,10 @@ class BasketViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def add_product(self, request, pk=None):
         basket = self.get_object()
-        # Проверяем, что пользователь является владельцем корзины
-        if basket.user != request.user:
+        # Проверяем права на редактирование
+        if not self._can_edit_basket(basket):
             return Response(
-                {"error": "Вы можете добавлять товары только в свои корзины"},
+                {"error": "У вас нет прав на редактирование этой корзины"},
                 status=status.HTTP_403_FORBIDDEN
             )
         
@@ -120,10 +134,10 @@ class BasketViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["delete"], url_path="remove-product/(?P<product_id>[^/.]+)")
     def remove_product(self, request, pk=None, product_id=None):
         basket = self.get_object()
-        # Проверяем, что пользователь является владельцем корзины
-        if basket.user != request.user:
+        # Проверяем права на редактирование
+        if not self._can_edit_basket(basket):
             return Response(
-                {"error": "Вы можете удалять товары только из своих корзин"},
+                {"error": "У вас нет прав на редактирование этой корзины"},
                 status=status.HTTP_403_FORBIDDEN
             )
         
@@ -133,6 +147,35 @@ class BasketViewSet(viewsets.ModelViewSet):
             return Response({"message": "Товар удалён"})
         except BasketItem.DoesNotExist:
             return Response({"error": "Товар не найден в корзине"}, status=404)
+    
+    # Генерация публичной ссылки
+    @action(detail=True, methods=["post"])
+    def generate_share_link(self, request, pk=None):
+        """Генерирует публичную ссылку на корзину"""
+        basket = self.get_object()
+        if basket.user != request.user:
+            return Response(
+                {"error": "Только владелец может создать публичную ссылку"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        share_token = basket.generate_share_token()
+        share_url = basket.get_share_url(request)
+        return Response({"share_token": share_token, "share_url": share_url})
+    
+    # Получение корзины по публичной ссылке (без авторизации)
+    @action(detail=False, methods=["get"], url_path="share/(?P<share_token>[^/.]+)", permission_classes=[AllowAny])
+    def get_by_share_token(self, request, share_token=None):
+        """Получить корзину по публичному токену (без авторизации)"""
+        try:
+            basket = Basket.objects.get(share_token=share_token)
+            serializer = BasketSerializer(basket, context={'request': request})
+            return Response(serializer.data)
+        except Basket.DoesNotExist:
+            return Response(
+                {"error": "Корзина не найдена"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 
 class BasketItemViewSet(viewsets.ModelViewSet):
@@ -145,3 +188,94 @@ class BasketItemViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         basket, created = Basket.objects.get_or_create(user=self.request.user)
         serializer.save(basket=basket)
+
+
+class BasketEditRequestViewSet(viewsets.ModelViewSet):
+    """ViewSet для работы с запросами на редактирование корзины"""
+    serializer_class = BasketEditRequestSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+    
+    def get_queryset(self):
+        """Получить запросы, где пользователь является запрашивающим или владельцем корзины"""
+        user = self.request.user
+        return BasketEditRequest.objects.filter(
+            Q(requester=user) | Q(basket__user=user)
+        ).distinct()
+    
+    def perform_create(self, serializer):
+        """Создать запрос на редактирование"""
+        basket_id = serializer.validated_data.get('basket_id')
+        try:
+            basket = Basket.objects.get(id=basket_id)
+        except Basket.DoesNotExist:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("Корзина не найдена")
+        
+        # Нельзя запросить редактирование своей корзины
+        if basket.user == self.request.user:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("Вы не можете запросить редактирование своей корзины")
+        
+        # Проверяем, нет ли уже активного запроса
+        existing_request = BasketEditRequest.objects.filter(
+            basket=basket,
+            requester=self.request.user,
+            status='pending'
+        ).first()
+        
+        if existing_request:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("У вас уже есть активный запрос на редактирование этой корзины")
+        
+        serializer.save(requester=self.request.user, basket=basket)
+    
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        """Одобрить запрос на редактирование (только владелец корзины)"""
+        edit_request = self.get_object()
+        
+        if edit_request.basket.user != request.user:
+            return Response(
+                {"error": "Только владелец корзины может одобрить запрос"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if edit_request.status != 'pending':
+            return Response(
+                {"error": "Запрос уже обработан"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        edit_request.status = 'approved'
+        edit_request.save()
+        
+        serializer = self.get_serializer(edit_request)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        """Отклонить запрос на редактирование (только владелец корзины)"""
+        edit_request = self.get_object()
+        
+        if edit_request.basket.user != request.user:
+            return Response(
+                {"error": "Только владелец корзины может отклонить запрос"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if edit_request.status != 'pending':
+            return Response(
+                {"error": "Запрос уже обработан"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        edit_request.status = 'rejected'
+        edit_request.save()
+        
+        serializer = self.get_serializer(edit_request)
+        return Response(serializer.data)

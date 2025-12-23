@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Chat, Message, MessageProduct, MessageBasket
+from .models import Chat, Message, MessageProduct, MessageBasket, ChatParticipant
 from apps.catalog.serializers import ProductSerializer
 from apps.baskets.serializers import BasketSerializer
 from apps.baskets.models import Basket
@@ -167,22 +167,39 @@ class MessageCreateSerializer(serializers.ModelSerializer):
         return message
 
 
+class ChatParticipantSerializer(serializers.ModelSerializer):
+    """Сериализатор для участника чата"""
+    user = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = ChatParticipant
+        fields = ['id', 'user', 'joined_at', 'is_admin']
+        read_only_fields = ['joined_at']
+
+
 class ChatSerializer(serializers.ModelSerializer):
     """Сериализатор для чата"""
     participant1 = UserSerializer(read_only=True)
     participant2 = UserSerializer(read_only=True)
+    participants_list = serializers.SerializerMethodField()
     last_message = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
     other_participant = serializers.SerializerMethodField()
+    created_by = UserSerializer(read_only=True)
 
     class Meta:
         model = Chat
         fields = [
-            'id', 'participant1', 'participant2', 'created_at',
-            'updated_at', 'is_pinned', 'last_message', 'unread_count',
-            'other_participant'
+            'id', 'chat_type', 'name', 'participant1', 'participant2',
+            'participants_list', 'created_at', 'updated_at', 'is_pinned',
+            'last_message', 'unread_count', 'other_participant', 'created_by'
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'created_by']
+
+    def get_participants_list(self, obj):
+        """Получить список всех участников чата"""
+        participants = obj.get_all_participants()
+        return UserSerializer(participants, many=True).data
 
     def get_last_message(self, obj):
         last_msg = obj.messages.last()
@@ -197,42 +214,100 @@ class ChatSerializer(serializers.ModelSerializer):
         return 0
 
     def get_other_participant(self, obj):
+        """Для приватных чатов возвращает другого участника"""
         request = self.context.get('request')
-        if request and request.user:
+        if request and request.user and obj.chat_type == 'private':
             other = obj.get_other_participant(request.user)
-            return UserSerializer(other).data
+            return UserSerializer(other).data if other else None
         return None
 
 
 class ChatCreateSerializer(serializers.ModelSerializer):
     """Сериализатор для создания чата"""
-    participant2_id = serializers.IntegerField(write_only=True)
+    participant2_id = serializers.IntegerField(write_only=True, required=False)
+    participant_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False,
+        allow_empty=True
+    )
+    name = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = Chat
-        fields = ['participant2_id']
+        fields = ['participant2_id', 'participant_ids', 'name', 'chat_type']
+
+    def validate(self, attrs):
+        """Валидация данных для создания чата"""
+        chat_type = attrs.get('chat_type', 'private')
+        participant2_id = attrs.get('participant2_id')
+        participant_ids = attrs.get('participant_ids', [])
+        
+        if chat_type == 'private':
+            if not participant2_id:
+                raise serializers.ValidationError("Для приватного чата необходимо указать participant2_id")
+        elif chat_type == 'group':
+            if not participant_ids:
+                raise serializers.ValidationError("Для группового чата необходимо указать хотя бы одного участника")
+            if not attrs.get('name'):
+                raise serializers.ValidationError("Для группового чата необходимо указать название")
+        
+        return attrs
 
     def create(self, validated_data):
-        participant2_id = validated_data.pop('participant2_id')
-        participant1 = self.context['request'].user
+        chat_type = validated_data.get('chat_type', 'private')
+        participant2_id = validated_data.pop('participant2_id', None)
+        participant_ids = validated_data.pop('participant_ids', [])
+        name = validated_data.pop('name', None)
+        creator = self.context['request'].user
 
-        # Проверяем, существует ли уже чат
-        chat = Chat.objects.filter(
-            participant1=participant1,
-            participant2_id=participant2_id
-        ).first()
-
-        if not chat:
+        if chat_type == 'private':
+            # Создание приватного чата (старая логика)
+            participant1 = creator
+            
+            # Проверяем, существует ли уже чат
             chat = Chat.objects.filter(
-                participant1_id=participant2_id,
-                participant2=participant1
+                participant1=participant1,
+                participant2_id=participant2_id,
+                chat_type='private'
             ).first()
 
-        if not chat:
+            if not chat:
+                chat = Chat.objects.filter(
+                    participant1_id=participant2_id,
+                    participant2=participant1,
+                    chat_type='private'
+                ).first()
+
+            if not chat:
+                chat = Chat.objects.create(
+                    chat_type='private',
+                    participant1=participant1,
+                    participant2_id=participant2_id,
+                    created_by=creator
+                )
+        else:
+            # Создание группового чата
             chat = Chat.objects.create(
-                participant1=participant1,
-                participant2_id=participant2_id
+                chat_type='group',
+                name=name,
+                created_by=creator
             )
+            
+            # Добавляем создателя как участника и администратора
+            ChatParticipant.objects.create(
+                chat=chat,
+                user=creator,
+                is_admin=True
+            )
+            
+            # Добавляем остальных участников
+            for user_id in participant_ids:
+                if user_id != creator.id:  # Создатель уже добавлен
+                    ChatParticipant.objects.get_or_create(
+                        chat=chat,
+                        user_id=user_id
+                    )
 
         return chat
 

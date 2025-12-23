@@ -81,6 +81,20 @@ export interface Basket {
 	items: BasketItem[]
 	created_at: string
 	updated_at: string
+	share_token?: string
+	share_url?: string
+	can_edit?: boolean
+	is_owner?: boolean
+}
+
+export interface BasketEditRequest {
+	id: number
+	basket: Basket
+	requester: User
+	status: 'pending' | 'approved' | 'rejected'
+	created_at: string
+	updated_at: string
+	message?: string
 }
 
 // Типы для заказов
@@ -189,14 +203,18 @@ export interface AuthTokens {
 // Типы для чатов
 export interface Chat {
 	id: number
-	participant1: User
-	participant2: User
+	chat_type: 'private' | 'group'
+	name?: string
+	participant1?: User
+	participant2?: User
+	participants_list?: User[]
 	created_at: string
 	updated_at: string
 	is_pinned: boolean
 	last_message?: Message | null
 	unread_count: number
 	other_participant?: User
+	created_by?: User
 }
 
 export interface Message {

@@ -106,9 +106,14 @@ export default function ChatsList({
 					</div>
 				) : (
 					chats.map(chat => {
+						const isGroupChat = chat.chat_type === 'group'
 						const otherUser = chat.other_participant || chat.participant2
 						const isSelected = selectedChatId === chat.id
 						const previewText = getPreviewText(chat)
+						const chatName = isGroupChat
+							? chat.name || 'Групповой чат'
+							: otherUser?.username || 'Имя пользователя'
+						const participants = chat.participants_list || []
 
 						return (
 							<div
@@ -119,15 +124,56 @@ export default function ChatsList({
 								}`}
 							>
 								{/* Avatar */}
-								<div className='flex-shrink-0 w-12 h-12 rounded-full bg-gray-bg overflow-hidden'>
-									<Image
-										src='/img/profile_default.svg'
-										alt={otherUser?.username || 'User'}
-										width={48}
-										height={48}
-										className='w-full h-full object-cover'
-									/>
-								</div>
+								{isGroupChat ? (
+									<div className='flex-shrink-0 relative w-12 h-12'>
+										{participants.slice(0, 2).map((participant, idx) => (
+											<div
+												key={participant.id}
+												className='absolute w-8 h-8 rounded-full bg-gray-bg overflow-hidden border-2 border-white'
+												style={{
+													left: idx * 12,
+													top: idx * 4,
+													zIndex: 10 - idx,
+												}}
+											>
+												<Image
+													src='/img/profile_default.svg'
+													alt={participant.username}
+													width={32}
+													height={32}
+													className='w-full h-full object-cover'
+												/>
+											</div>
+										))}
+										{participants.length === 0 && (
+											<div className='w-12 h-12 rounded-full bg-gray-bg flex items-center justify-center'>
+												<svg
+													className='w-6 h-6 text-gray'
+													fill='none'
+													stroke='currentColor'
+													viewBox='0 0 24 24'
+												>
+													<path
+														strokeLinecap='round'
+														strokeLinejoin='round'
+														strokeWidth={2}
+														d='M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z'
+													/>
+												</svg>
+											</div>
+										)}
+									</div>
+								) : (
+									<div className='flex-shrink-0 w-12 h-12 rounded-full bg-gray-bg overflow-hidden'>
+										<Image
+											src='/img/profile_default.svg'
+											alt={otherUser?.username || 'User'}
+											width={48}
+											height={48}
+											className='w-full h-full object-cover'
+										/>
+									</div>
+								)}
 
 								{/* Content */}
 								<div className='flex-1 min-w-0'>
@@ -137,7 +183,7 @@ export default function ChatsList({
 												isSelected ? 'text-white' : 'text-black'
 											}`}
 										>
-											{otherUser?.username || 'Имя пользователя'}
+											{chatName}
 										</h3>
 										{chat.last_message && (
 											<span

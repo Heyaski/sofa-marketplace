@@ -21,6 +21,9 @@ export default function CreateChatModal({
 	const [loading, setLoading] = useState(false)
 	const [creating, setCreating] = useState(false)
 	const [currentUser, setCurrentUser] = useState<User | null>(null)
+	const [chatType, setChatType] = useState<'private' | 'group'>('private')
+	const [selectedUsers, setSelectedUsers] = useState<User[]>([])
+	const [groupName, setGroupName] = useState('')
 
 	const fetchCurrentUser = async () => {
 		try {
@@ -74,22 +77,61 @@ export default function CreateChatModal({
 		}
 	}, [searchQuery, isOpen, searchUsers])
 
-	const handleCreateChat = async (userId: number) => {
+	const handleCreateChat = async (userId?: number) => {
 		setCreating(true)
 		try {
-			const chat = await chatService.createChat(userId)
+			let chat: Chat
+			if (chatType === 'private' && userId) {
+				chat = await chatService.createChat(userId)
+			} else if (chatType === 'group') {
+				if (selectedUsers.length === 0) {
+					alert('Выберите хотя бы одного участника')
+					setCreating(false)
+					return
+				}
+				if (!groupName.trim()) {
+					alert('Введите название группового чата')
+					setCreating(false)
+					return
+				}
+				const participantIds = selectedUsers.map(u => u.id)
+				chat = await chatService.createChat(undefined, participantIds, groupName, 'group')
+			} else {
+				setCreating(false)
+				return
+			}
 			onChatCreated(chat)
 			handleClose()
-		} catch (error) {
+		} catch (error: any) {
 			console.error('Ошибка при создании чата:', error)
+			alert(error.response?.data?.error || 'Ошибка при создании чата')
 		} finally {
 			setCreating(false)
 		}
 	}
 
+	const handleSelectUser = (user: User) => {
+		if (chatType === 'private') {
+			handleCreateChat(user.id)
+		} else {
+			// Для группового чата добавляем пользователя в список
+			if (!selectedUsers.find(u => u.id === user.id)) {
+				setSelectedUsers([...selectedUsers, user])
+				setSearchQuery('')
+			}
+		}
+	}
+
+	const handleRemoveSelectedUser = (userId: number) => {
+		setSelectedUsers(selectedUsers.filter(u => u.id !== userId))
+	}
+
 	const handleClose = () => {
 		setSearchQuery('')
 		setUsers([])
+		setSelectedUsers([])
+		setGroupName('')
+		setChatType('private')
 		onClose()
 	}
 
@@ -110,6 +152,70 @@ export default function CreateChatModal({
 				<h2 className='text-xl font-bold text-black mb-6 text-left'>
 					Новый чат
 				</h2>
+
+				{/* Выбор типа чата */}
+				<div className='mb-6 flex gap-2'>
+					<button
+						onClick={() => {
+							setChatType('private')
+							setSelectedUsers([])
+							setGroupName('')
+						}}
+						className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+							chatType === 'private'
+								? 'bg-main1 text-white'
+								: 'bg-gray-bg text-black hover:bg-gray-200'
+						}`}
+					>
+						Приватный чат
+					</button>
+					<button
+						onClick={() => setChatType('group')}
+						className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+							chatType === 'group'
+								? 'bg-main1 text-white'
+								: 'bg-gray-bg text-black hover:bg-gray-200'
+						}`}
+					>
+						Групповой чат
+					</button>
+				</div>
+
+				{/* Название группового чата */}
+				{chatType === 'group' && (
+					<div className='mb-4'>
+						<input
+							type='text'
+							value={groupName}
+							onChange={e => setGroupName(e.target.value)}
+							placeholder='Название группового чата'
+							className='w-full px-4 py-3 rounded-lg bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1'
+						/>
+					</div>
+				)}
+
+				{/* Выбранные участники для группового чата */}
+				{chatType === 'group' && selectedUsers.length > 0 && (
+					<div className='mb-4'>
+						<p className='text-sm text-gray mb-2'>Выбранные участники:</p>
+						<div className='flex flex-wrap gap-2'>
+							{selectedUsers.map(user => (
+								<div
+									key={user.id}
+									className='flex items-center gap-2 bg-main1 text-white px-3 py-1 rounded-full text-sm'
+								>
+									<span>{user.username}</span>
+									<button
+										onClick={() => handleRemoveSelectedUser(user.id)}
+										className='hover:text-red-200'
+									>
+										×
+									</button>
+								</div>
+							))}
+						</div>
+					</div>
+				)}
 
 				{/* Поиск */}
 				<div className='mb-6'>
@@ -139,34 +245,53 @@ export default function CreateChatModal({
 						</div>
 					) : (
 						<div className='space-y-2'>
-							{users.map(user => (
-								<button
-									key={user.id}
-									onClick={() => handleCreateChat(user.id)}
-									disabled={creating}
-									className='w-full flex items-center gap-3 p-3 bg-gray-bg rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 text-left'
-								>
-									<div className='flex-shrink-0 w-10 h-10 rounded-full bg-gray-200 overflow-hidden'>
-										<Image
-											src='/img/profile_default.svg'
-											alt={user.username}
-											width={40}
-											height={40}
-											className='w-full h-full object-cover'
-										/>
-									</div>
-									<div className='flex-1 min-w-0'>
-										<p className='text-sm font-medium text-black truncate'>
-											{user.username}
-										</p>
-										{user.email && (
-											<p className='text-xs text-gray truncate'>{user.email}</p>
+							{users
+								.filter(user => !selectedUsers.find(u => u.id === user.id))
+								.map(user => (
+									<button
+										key={user.id}
+										onClick={() => handleSelectUser(user)}
+										disabled={creating}
+										className='w-full flex items-center gap-3 p-3 bg-gray-bg rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 text-left'
+									>
+										<div className='flex-shrink-0 w-10 h-10 rounded-full bg-gray-200 overflow-hidden'>
+											<Image
+												src='/img/profile_default.svg'
+												alt={user.username}
+												width={40}
+												height={40}
+												className='w-full h-full object-cover'
+											/>
+										</div>
+										<div className='flex-1 min-w-0'>
+											<p className='text-sm font-medium text-black truncate'>
+												{user.username}
+											</p>
+											{user.email && (
+												<p className='text-xs text-gray truncate'>{user.email}</p>
+											)}
+										</div>
+										{chatType === 'group' && (
+											<span className='text-main1 text-sm'>+</span>
 										)}
-									</div>
-								</button>
-							))}
+									</button>
+								))}
 						</div>
 					)}
+				</div>
+
+				{/* Кнопка создания группового чата */}
+				{chatType === 'group' && selectedUsers.length > 0 && (
+					<div className='mt-4'>
+						<button
+							onClick={() => handleCreateChat()}
+							disabled={creating || !groupName.trim()}
+							className='w-full bg-main1 text-white px-6 py-3 rounded-lg hover:bg-main2 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed'
+						>
+							{creating ? 'Создание...' : 'Создать групповой чат'}
+						</button>
+					</div>
+				)}
 				</div>
 			</div>
 		</div>
