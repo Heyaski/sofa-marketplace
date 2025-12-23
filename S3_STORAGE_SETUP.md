@@ -44,6 +44,7 @@ AWS_STORAGE_BUCKET_NAME=your-bucket-name
 AWS_S3_ENDPOINT_URL=https://s3.beget.com
 
 # Публичный URL бакета (из раздела "Реквизиты доступа" -> "Публичный URL бакета")
+# ВАЖНО: Указывайте ТОЛЬКО домен БЕЗ протокола (без https://)
 # Используйте virtual hosted style (рекомендуется)
 AWS_S3_CUSTOM_DOMAIN=your-bucket-name.s3.beget.com
 ```
@@ -56,6 +57,7 @@ AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
 AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 AWS_STORAGE_BUCKET_NAME=sofa-marketplace-models
 AWS_S3_ENDPOINT_URL=https://s3.beget.com
+# ВАЖНО: БЕЗ https:// в начале!
 AWS_S3_CUSTOM_DOMAIN=sofa-marketplace-models.s3.beget.com
 ```
 

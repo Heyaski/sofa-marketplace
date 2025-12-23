@@ -156,8 +156,9 @@ if USE_S3_STORAGE:
         AWS_S3_ENDPOINT_URL = get_env("AWS_S3_ENDPOINT_URL", "https://s3.beget.com")
         
         # Публичный URL бакета (из панели управления Beget -> Реквизиты доступа -> Публичный URL бакета)
-        # Можно использовать path style или virtual hosted style
-        AWS_S3_CUSTOM_DOMAIN = get_env("AWS_S3_CUSTOM_DOMAIN", "")
+        # ВАЖНО: Указывайте только домен БЕЗ протокола (например: bucket.s3.beget.com)
+        # НЕ указывайте https:// в начале!
+        AWS_S3_CUSTOM_DOMAIN = get_env("AWS_S3_CUSTOM_DOMAIN", "").replace('https://', '').replace('http://', '').strip('/')
         
         # Настройки для работы с файлами
         AWS_S3_OBJECT_PARAMETERS = {
@@ -167,7 +168,9 @@ if USE_S3_STORAGE:
         # Используем S3 для медиа-файлов (3D модели, изображения)
         DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
         
-        # URL для доступа к медиа-файлам через S3
+        # Для S3 хранилища MEDIA_URL не используется напрямую,
+        # так как S3Boto3Storage сам генерирует полные URL через AWS_S3_CUSTOM_DOMAIN
+        # Но оставляем для совместимости с другими частями кода
         if AWS_S3_CUSTOM_DOMAIN:
             # Используем кастомный домен (публичный URL бакета)
             MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
