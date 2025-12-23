@@ -155,6 +155,10 @@ if USE_S3_STORAGE:
         # Endpoint URL для Beget S3 (из панели управления Beget -> Реквизиты доступа -> URL)
         AWS_S3_ENDPOINT_URL = get_env("AWS_S3_ENDPOINT_URL", "https://s3.beget.com")
         
+        # Регион для подписи URL (определяется автоматически из endpoint URL, но можно указать явно)
+        # Если endpoint содержит ru1, используется ru1, иначе можно указать в AWS_S3_REGION_NAME
+        AWS_S3_REGION_NAME_FOR_SIGNING = get_env("AWS_S3_REGION_NAME_FOR_SIGNING", None)
+        
         # Режим доступа к файлам (проверяем ДО установки custom domain)
         # 'public-read' - публичный доступ (любой может скачать по прямой ссылке)
         # 'private' - приватный доступ (только через подписанные URL)
@@ -202,7 +206,8 @@ if USE_S3_STORAGE:
             # Используем endpoint URL с именем бакета
             MEDIA_URL = f'{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/'
         
-        # Настройки для регионов (для Beget не требуется, но может быть полезно)
+        # Настройки для регионов (для Beget не требуется)
+        # Важно: Beget S3 не использует регионы, поэтому оставляем None
         AWS_S3_REGION_NAME = None
         
         # Подпись URL (для приватных файлов, если нужно)

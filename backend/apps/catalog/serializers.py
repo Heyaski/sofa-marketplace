@@ -86,14 +86,35 @@ class FileAssetSerializer(serializers.ModelSerializer):
                     # Создаем клиент с правильной конфигурацией для path-style URL
                     # Path-style формат: https://endpoint/bucket/path/to/file
                     # Это избегает проблем с дублированием пути
+                    # Важно: для Beget S3 нужно определить регион из endpoint URL для правильной подписи
+                    # Если endpoint содержит ru1, используем ru1, иначе проверяем настройки
+                    region_for_signature = getattr(settings, 'AWS_S3_REGION_NAME_FOR_SIGNING', None)
+                    
+                    if not region_for_signature:
+                        # Автоматически определяем регион из endpoint URL
+                        if 'ru1' in endpoint_url.lower():
+                            region_for_signature = 'ru1'
+                        elif 'ru' in endpoint_url.lower():
+                            # Извлекаем регион из URL если есть (например, ru1, ru2 и т.д.)
+                            import re
+                            region_match = re.search(r'\.(ru\d+)\.', endpoint_url.lower())
+                            if region_match:
+                                region_for_signature = region_match.group(1)
+                        else:
+                            # Если регион не найден, используем дефолтный (может потребоваться настройка)
+                            region_for_signature = 'us-east-1'
+                    
                     s3_client = boto3.client(
                         's3',
                         endpoint_url=endpoint_url,
                         aws_access_key_id=aws_access_key_id,
                         aws_secret_access_key=aws_secret_access_key,
+                        region_name=region_for_signature,
                         config=Config(
                             signature_version='s3v4',
-                            s3={'addressing_style': 'path'}  # Используем path-style вместо virtual-hosted-style
+                            s3={
+                                'addressing_style': 'path',  # Используем path-style вместо virtual-hosted-style
+                            }
                         )
                     )
                     
