@@ -33,6 +33,9 @@ class Basket(models.Model):
         if request:
             # Получаем базовый URL
             base_url = request.build_absolute_uri('/').rstrip('/')
+            # Убираем поддомен api. из хоста
+            if '://api.' in base_url:
+                base_url = base_url.replace('://api.', '://')
             # Убираем /api если есть в конце
             if base_url.endswith('/api'):
                 base_url = base_url[:-4]

@@ -161,6 +161,9 @@ class BasketViewSet(viewsets.ModelViewSet):
         
         share_token = basket.generate_share_token()
         share_url = basket.get_share_url(request)
+        # Убираем поддомен api. из URL если он есть
+        if '://api.' in share_url:
+            share_url = share_url.replace('://api.', '://')
         # Убираем /api/ из URL если он есть
         if '/api/' in share_url:
             share_url = share_url.replace('/api/', '/')
