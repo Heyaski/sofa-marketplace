@@ -7,6 +7,7 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.core.mail import send_mail
 from django.conf import settings
+from django.db.models import Q
 
 from .serializers import (
     UserSerializer,
@@ -35,14 +36,12 @@ class UserSearchView(generics.ListAPIView):
         queryset = User.objects.filter(is_active=True).exclude(id=self.request.user.id)
         search = self.request.query_params.get('search', None)
         if search:
+            # Используем Q объекты для правильного OR запроса
             queryset = queryset.filter(
-                username__icontains=search
-            ) | queryset.filter(
-                email__icontains=search
-            ) | queryset.filter(
-                first_name__icontains=search
-            ) | queryset.filter(
-                last_name__icontains=search
+                Q(username__icontains=search) |
+                Q(email__icontains=search) |
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search)
             )
         return queryset[:20]  # Ограничиваем 20 результатами
 
