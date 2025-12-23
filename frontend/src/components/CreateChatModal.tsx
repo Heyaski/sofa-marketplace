@@ -43,8 +43,14 @@ export default function CreateChatModal({
 		setLoading(true)
 		try {
 			const response = await authService.searchUsers(searchQuery.trim())
-			// response всегда массив User[]
-			const usersList = Array.isArray(response) ? response : []
+			// Обрабатываем пагинированный ответ или обычный массив
+			let usersList: User[] = []
+			if (Array.isArray(response)) {
+				usersList = response
+			} else if (response && response.results && Array.isArray(response.results)) {
+				// Пагинированный ответ
+				usersList = response.results
+			}
 
 			// Фильтруем текущего пользователя из результатов
 			const filteredUsers = usersList.filter(
