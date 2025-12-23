@@ -27,12 +27,17 @@ AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_STORAGE_BUCKET_NAME=your-bucket-name
 AWS_S3_ENDPOINT_URL=https://s3.beget.com
-AWS_S3_CUSTOM_DOMAIN=your-bucket.s3.beget.com  # БЕЗ https://
+# ВАЖНО: При использовании подписанных URL custom domain будет автоматически отключен
+# и будет использоваться endpoint URL для правильной генерации подписи
+AWS_S3_CUSTOM_DOMAIN=your-bucket.s3.beget.com  # БЕЗ https:// (будет игнорироваться в режиме signed)
 ```
+
+**Важно:** При использовании режима `signed` система автоматически отключает `AWS_S3_CUSTOM_DOMAIN` и использует endpoint URL для правильной генерации подписанных URL.
 
 ## ✅ Шаг 3: Не включайте публичную политику в Beget
 
 **Важно:** При использовании режима `signed`:
+
 - ❌ **НЕ включайте** публичную политику в настройках бакета Beget
 - ✅ Файлы должны быть **приватными** в бакете
 - ✅ Доступ только через подписанные URL, генерируемые Django
@@ -64,17 +69,27 @@ python manage.py runserver
 
 ## 🚨 Если проблема сохраняется
 
-### Вариант 1: Используйте endpoint URL вместо custom domain
+### Вариант 1: Проверьте логи Django
 
-В некоторых случаях подписанные URL лучше работают с endpoint URL. В файле `.env`:
+Проверьте логи Django на наличие ошибок генерации подписанных URL:
 
 ```bash
-# Закомментируйте или удалите AWS_S3_CUSTOM_DOMAIN
-# AWS_S3_CUSTOM_DOMAIN=your-bucket.s3.beget.com
-
-# Используйте только endpoint URL
-AWS_S3_ENDPOINT_URL=https://s3.beget.com
+# В консоли Django сервера должны быть сообщения об ошибках, если они есть
 ```
+
+### Вариант 2: Убедитесь, что файлы перезагружены
+
+**Критически важно:** Файлы, загруженные до переключения на режим `signed`, имеют публичный ACL и не будут работать. Обязательно перезагрузите все файлы через админ-панель.
+
+### Вариант 3: Проверьте формат URL в API ответе
+
+Откройте API endpoint (например, `/api/catalog/products/1/`) и проверьте поле `file_url` в ответе. URL должен содержать query параметры:
+
+```
+https://s3.beget.com/bucket-name/assets/file.glb?AWSAccessKeyId=...&Expires=...&Signature=...
+```
+
+Если URL не содержит этих параметров, значит подписанный URL не генерируется.
 
 ### Вариант 2: Переключитесь на публичный доступ (временно)
 
@@ -92,4 +107,3 @@ S3_FILE_ACCESS_MODE=public
 - Подписанные URL действительны **1 час** (настраивается через `AWS_QUERYSTRING_EXPIRE`)
 - После истечения срока URL становится недействительным
 - Для получения нового URL нужно снова запросить файл через API
-

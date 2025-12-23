@@ -73,14 +73,26 @@ class FileAssetSerializer(serializers.ModelSerializer):
                     storage = obj.file.storage
                     # Используем метод url() storage, который автоматически генерирует подписанный URL
                     # когда AWS_QUERYSTRING_AUTH = True
+                    # Важно: для подписанных URL нужно использовать storage.url() напрямую
                     file_url = storage.url(obj.file.name)
+                    
+                    # Проверяем, что URL содержит подпись (query параметры)
+                    if '?' not in file_url and 'AWSAccessKeyId' not in file_url:
+                        # Если подпись не сгенерировалась, пробуем другой способ
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.warning(f"Подписанный URL не содержит query параметров. URL: {file_url}")
+                        # Пробуем использовать метод url() с параметром expire
+                        if hasattr(storage, 'url'):
+                            file_url = storage.url(obj.file.name, expire=3600)
+                    
                     # Подписанный URL уже полный и содержит query параметры с подписью
                     return file_url
                 except Exception as e:
                     # Если не удалось сгенерировать подписанный URL, логируем ошибку
                     import logging
                     logger = logging.getLogger(__name__)
-                    logger.error(f"Ошибка генерации подписанного URL: {e}")
+                    logger.error(f"Ошибка генерации подписанного URL: {e}", exc_info=True)
                     # Возвращаем обычный URL как fallback (но он не будет работать для приватных файлов)
                     file_url = obj.file.url
             else:

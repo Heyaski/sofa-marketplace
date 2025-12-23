@@ -199,11 +199,13 @@ if USE_S3_STORAGE:
             AWS_DEFAULT_ACL = 'private'
             AWS_QUERYSTRING_AUTH = True  # Требовать подпись для URL
             AWS_QUERYSTRING_EXPIRE = 3600  # Срок действия подписанного URL (1 час)
-            # Для подписанных URL лучше использовать endpoint URL вместо custom domain
-            # чтобы избежать проблем с CORS и подписью
+            # Для подписанных URL ОБЯЗАТЕЛЬНО использовать endpoint URL вместо custom domain
+            # Custom domain не поддерживает подпись правильно в django-storages
             if AWS_S3_CUSTOM_DOMAIN:
-                print(f"⚠️ ВНИМАНИЕ: При использовании подписанных URL рекомендуется использовать endpoint URL вместо custom domain")
-                print(f"   Текущий custom domain будет использован, но могут возникнуть проблемы с подписью")
+                print(f"⚠️ ВНИМАНИЕ: При использовании подписанных URL custom domain будет отключен")
+                print(f"   Используется endpoint URL для правильной генерации подписанных URL")
+                # Временно отключаем custom domain для подписанных URL
+                AWS_S3_CUSTOM_DOMAIN = None
         else:
             # Публичный доступ - файлы доступны по прямой ссылке
             AWS_DEFAULT_ACL = 'public-read'
