@@ -246,7 +246,7 @@ export default function BasketSharePage({ params }: BasketSharePageProps) {
 			<AuthModal
 				isOpen={isAuthModalOpen}
 				onClose={() => setIsAuthModalOpen(false)}
-				onAuthSuccess={handleAuthSuccess}
+				onSuccess={handleAuthSuccess}
 			/>
 		</div>
 	)
