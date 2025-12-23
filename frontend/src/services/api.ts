@@ -173,6 +173,12 @@ export const basketService = {
 		const response = await apiClient.get(`/api/baskets/share/${shareToken}/`)
 		return response.data
 	},
+
+	// Получить запросы на редактирование для корзины
+	getBasketEditRequests: async (basketId: number): Promise<BasketEditRequest[]> => {
+		const response = await apiClient.get(`/api/baskets/${basketId}/edit_requests/`)
+		return response.data
+	},
 }
 
 // Сервис для работы с запросами на редактирование корзины

@@ -67,8 +67,10 @@ export default function BasketsList({ baskets, onRefresh }: BasketsListProps) {
 	const handleGenerateShareLink = async (basket: Basket) => {
 		try {
 			const result = await basketService.generateShareLink(basket.id)
-			// Копируем ссылку в буфер обмена
-			const shareUrl = result.share_url || `${window.location.origin}/basket/share/${result.share_token}/`
+			// Копируем ссылку в буфер обмена, убираем /api/ если есть
+			let shareUrl = result.share_url || `${window.location.origin}/basket/share/${result.share_token}/`
+			// Убираем /api/ из URL если он есть
+			shareUrl = shareUrl.replace('/api/', '/')
 			await navigator.clipboard.writeText(shareUrl)
 			alert('Публичная ссылка скопирована в буфер обмена!')
 		} catch (error: any) {

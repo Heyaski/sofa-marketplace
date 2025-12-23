@@ -31,7 +31,14 @@ class Basket(models.Model):
         if not self.share_token:
             self.generate_share_token()
         if request:
-            return request.build_absolute_uri(f'/basket/share/{self.share_token}/')
+            # Получаем базовый URL
+            base_url = request.build_absolute_uri('/').rstrip('/')
+            # Убираем /api если есть в конце
+            if base_url.endswith('/api'):
+                base_url = base_url[:-4]
+            # Убираем /api/ из середины URL если есть
+            base_url = base_url.replace('/api/', '/')
+            return f'{base_url}/basket/share/{self.share_token}/'
         return f'/basket/share/{self.share_token}/'
 
 

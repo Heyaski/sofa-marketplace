@@ -1,7 +1,7 @@
 'use client'
 
-import { basketService, messageService, basketEditRequestService } from '@/services/api'
-import { Basket, Chat, Message, BasketEditRequest } from '@/types'
+import { basketService, messageService } from '@/services/api'
+import { Basket, Chat, Message } from '@/types'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
@@ -23,14 +23,12 @@ export default function ChatDetail({
 	const [messageText, setMessageText] = useState('')
 	const [baskets, setBaskets] = useState<Basket[]>([])
 	const [showBasketSelector, setShowBasketSelector] = useState(false)
-	const [editRequests, setEditRequests] = useState<BasketEditRequest[]>([])
 	const messagesEndRef = useRef<HTMLDivElement>(null)
 
 	useEffect(() => {
 		if (chat) {
 			fetchMessages()
 			fetchBaskets()
-			fetchEditRequests()
 		}
 	}, [chat])
 
@@ -96,58 +94,6 @@ export default function ChatDetail({
 		}
 	}
 
-	const fetchEditRequests = async () => {
-		try {
-			const response = await basketEditRequestService.getRequests()
-			const requests = response && response.results ? response.results : Array.isArray(response) ? response : []
-			setEditRequests(requests)
-		} catch (error) {
-			console.error('Ошибка при загрузке запросов на редактирование:', error)
-			setEditRequests([])
-		}
-	}
-
-	const handleRequestEdit = async (basketId: number) => {
-		try {
-			await basketEditRequestService.createRequest(basketId)
-			alert('Запрос на редактирование корзины отправлен')
-			await fetchEditRequests()
-		} catch (error: any) {
-			console.error('Ошибка при создании запроса:', error)
-			alert(error.response?.data?.error || 'Ошибка при отправке запроса')
-		}
-	}
-
-	const handleApproveRequest = async (requestId: number) => {
-		try {
-			await basketEditRequestService.approveRequest(requestId)
-			alert('Запрос одобрен')
-			await fetchEditRequests()
-			await fetchBaskets() // Обновляем корзины, чтобы обновить can_edit
-		} catch (error: any) {
-			console.error('Ошибка при одобрении запроса:', error)
-			alert(error.response?.data?.error || 'Ошибка при одобрении запроса')
-		}
-	}
-
-	const handleRejectRequest = async (requestId: number) => {
-		try {
-			await basketEditRequestService.rejectRequest(requestId)
-			alert('Запрос отклонен')
-			await fetchEditRequests()
-		} catch (error: any) {
-			console.error('Ошибка при отклонении запроса:', error)
-			alert(error.response?.data?.error || 'Ошибка при отклонении запроса')
-		}
-	}
-
-	const getBasketEditRequest = (basketId: number): BasketEditRequest | undefined => {
-		return editRequests.find(req => req.basket.id === basketId && req.status === 'pending')
-	}
-
-	const hasApprovedRequest = (basketId: number): boolean => {
-		return editRequests.some(req => req.basket.id === basketId && req.status === 'approved')
-	}
 
 	const scrollToBottom = () => {
 		messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -358,105 +304,36 @@ export default function ChatDetail({
 										{/* Basket message */}
 										{message.message_type === 'basket' &&
 											message.baskets &&
-											message.baskets.map(basketMsg => {
-												const basket = basketMsg.basket
-												const isOwner = basket.is_owner || (basket.user && typeof basket.user === 'object' && basket.user.id === currentUserId)
-												const canEdit = basket.can_edit || isOwner
-												const editRequest = getBasketEditRequest(basket.id)
-												const hasApproved = hasApprovedRequest(basket.id)
-												
-												return (
-													<div
-														key={basketMsg.id}
-														className='bg-white rounded-lg p-3 mb-2 last:mb-0 w-full'
-													>
-														<button
-															onClick={() =>
-																router.push(
-																	`/profile/basket/${basket.id}`
-																)
-															}
-															className='w-full text-left flex items-center gap-2 hover:bg-gray-50 transition-colors rounded p-2'
+											message.baskets.map(basketMsg => (
+												<button
+													key={basketMsg.id}
+													onClick={() =>
+														router.push(
+															`/profile/basket/${basketMsg.basket.id}`
+														)
+													}
+													className='bg-white rounded-lg p-3 mb-2 last:mb-0 hover:bg-gray-50 transition-colors w-full text-left'
+												>
+													<div className='flex items-center gap-2'>
+														<svg
+															className='w-5 h-5 text-gray'
+															fill='none'
+															stroke='currentColor'
+															viewBox='0 0 24 24'
 														>
-															<svg
-																className='w-5 h-5 text-gray'
-																fill='none'
-																stroke='currentColor'
-																viewBox='0 0 24 24'
-															>
-																<path
-																	strokeLinecap='round'
-																	strokeLinejoin='round'
-																	strokeWidth={2}
-																	d='M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z'
-																/>
-															</svg>
-															<p className='text-sm font-medium text-black flex-1'>
-																{basket.name}
-															</p>
-														</button>
-														
-														{/* Кнопка запроса редактирования для не-владельцев */}
-														{!isOwner && !canEdit && !editRequest && (
-															<button
-																onClick={(e) => {
-																	e.stopPropagation()
-																	handleRequestEdit(basket.id)
-																}}
-																className='mt-2 w-full px-3 py-1.5 text-xs bg-main1 text-white rounded hover:bg-main2 transition-colors'
-															>
-																Запросить редактирование
-															</button>
-														)}
-														
-														{/* Статус запроса */}
-														{editRequest && (
-															<div className='mt-2 text-xs text-gray'>
-																{editRequest.status === 'pending' && (
-																	<span>Запрос на редактирование отправлен</span>
-																)}
-																{editRequest.status === 'approved' && (
-																	<span className='text-green-600'>Редактирование разрешено</span>
-																)}
-																{editRequest.status === 'rejected' && (
-																	<span className='text-red-600'>Запрос отклонен</span>
-																)}
-															</div>
-														)}
-														
-														{/* Кнопки для владельца корзины */}
-														{isOwner && editRequest && editRequest.status === 'pending' && (
-															<div className='mt-2 flex gap-2'>
-																<button
-																	onClick={(e) => {
-																		e.stopPropagation()
-																		handleApproveRequest(editRequest.id)
-																	}}
-																	className='flex-1 px-3 py-1.5 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors'
-																>
-																	Одобрить
-																</button>
-																<button
-																	onClick={(e) => {
-																		e.stopPropagation()
-																		handleRejectRequest(editRequest.id)
-																	}}
-																	className='flex-1 px-3 py-1.5 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors'
-																>
-																	Отклонить
-																</button>
-															</div>
-														)}
-														
-														{/* Индикатор разрешенного редактирования */}
-														{canEdit && !isOwner && (
-															<div className='mt-2 text-xs text-green-600'>
-																Вы можете редактировать эту корзину
-															</div>
-														)}
+															<path
+																strokeLinecap='round'
+																strokeLinejoin='round'
+																strokeWidth={2}
+																d='M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z'
+															/>
+														</svg>
+														<p className='text-sm font-medium text-black'>
+															{basketMsg.basket.name}
+														</p>
 													</div>
-												)
-											})}
+												</button>
+											))}
 
 										<span
 											className={`text-xs mt-2 block ${

@@ -161,7 +161,26 @@ class BasketViewSet(viewsets.ModelViewSet):
         
         share_token = basket.generate_share_token()
         share_url = basket.get_share_url(request)
+        # Убираем /api/ из URL если он есть
+        if '/api/' in share_url:
+            share_url = share_url.replace('/api/', '/')
         return Response({"share_token": share_token, "share_url": share_url})
+    
+    @action(detail=True, methods=["get"])
+    def edit_requests(self, request, pk=None):
+        """Получить запросы на редактирование для этой корзины"""
+        basket = self.get_object()
+        # Только владелец может видеть запросы
+        if basket.user != request.user:
+            return Response(
+                {"error": "Только владелец может просматривать запросы на редактирование"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        from .serializers import BasketEditRequestSerializer
+        requests = BasketEditRequest.objects.filter(basket=basket, status='pending')
+        serializer = BasketEditRequestSerializer(requests, many=True, context={'request': request})
+        return Response(serializer.data)
     
     # Получение корзины по публичной ссылке (без авторизации)
     @action(detail=False, methods=["get"], url_path="share/(?P<share_token>[^/.]+)", permission_classes=[AllowAny])

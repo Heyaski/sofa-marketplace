@@ -5,8 +5,9 @@ import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import UpgradeSubscriptionModal from '@/components/UpgradeSubscriptionModal'
 import { config } from '@/config'
-import { authService, basketService } from '@/services/api'
-import { Basket, BasketItem, User } from '@/types'
+import apiClient from '@/lib/api'
+import { authService, basketService, basketEditRequestService } from '@/services/api'
+import { Basket, BasketItem, User, BasketEditRequest } from '@/types'
 import {
 	ArrowDownTrayIcon,
 	ArrowLeftIcon,
@@ -30,6 +31,9 @@ export default function BasketDetailPage() {
 	const [isAddProductsModalOpen, setIsAddProductsModalOpen] = useState(false)
 	const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false)
 	const [upgradeModalMessage, setUpgradeModalMessage] = useState<string>('')
+	const [editRequests, setEditRequests] = useState<BasketEditRequest[]>([])
+	const [showEditRequests, setShowEditRequests] = useState(false)
+	const [hasPendingRequest, setHasPendingRequest] = useState(false)
 
 	useEffect(() => {
 		const fetchData = async () => {
@@ -41,6 +45,18 @@ export default function BasketDetailPage() {
 				// Загружаем корзину
 				const data = await basketService.getBasket(basketId)
 				setBasket(data)
+
+				// Если пользователь - владелец, загружаем запросы на редактирование
+				if (data.is_owner) {
+					await fetchEditRequests()
+				} else {
+					// Если не владелец, проверяем, есть ли у него активный запрос
+					await checkPendingRequest()
+					// Если пользователь имеет право редактирования, обновляем canEdit
+					if (data.can_edit) {
+						// Пользователь может редактировать - обновляем состояние
+					}
+				}
 			} catch (error) {
 				console.error('Ошибка загрузки данных:', error)
 			} finally {
@@ -52,6 +68,66 @@ export default function BasketDetailPage() {
 			fetchData()
 		}
 	}, [basketId])
+
+	const fetchEditRequests = async () => {
+		try {
+			const requests = await basketService.getBasketEditRequests(basketId)
+			setEditRequests(Array.isArray(requests) ? requests : [])
+		} catch (error) {
+			console.error('Ошибка при загрузке запросов:', error)
+			setEditRequests([])
+		}
+	}
+
+	const checkPendingRequest = async () => {
+		try {
+			const response = await basketEditRequestService.getRequests()
+			const requests = response && response.results ? response.results : Array.isArray(response) ? response : []
+			const pending = requests.find((req: BasketEditRequest) => 
+				req.basket.id === basketId && req.status === 'pending'
+			)
+			setHasPendingRequest(!!pending)
+		} catch (error) {
+			console.error('Ошибка при проверке запроса:', error)
+		}
+	}
+
+	const handleRequestEdit = async () => {
+		if (!basket) return
+		try {
+			await basketEditRequestService.createRequest(basket.id)
+			alert('Запрос на редактирование корзины отправлен')
+			setHasPendingRequest(true)
+		} catch (error: any) {
+			console.error('Ошибка при создании запроса:', error)
+			alert(error.response?.data?.error || 'Ошибка при отправке запроса')
+		}
+	}
+
+	const handleApproveRequest = async (requestId: number) => {
+		try {
+			await basketEditRequestService.approveRequest(requestId)
+			alert('Запрос одобрен. Пользователь, который запросил редактирование, должен обновить страницу корзины.')
+			await fetchEditRequests()
+			// Перезагружаем корзину для обновления can_edit (для текущего пользователя)
+			const updatedBasket = await basketService.getBasket(basketId)
+			setBasket(updatedBasket)
+		} catch (error: any) {
+			console.error('Ошибка при одобрении запроса:', error)
+			alert(error.response?.data?.error || 'Ошибка при одобрении запроса')
+		}
+	}
+
+	const handleRejectRequest = async (requestId: number) => {
+		try {
+			await basketEditRequestService.rejectRequest(requestId)
+			alert('Запрос отклонен')
+			await fetchEditRequests()
+		} catch (error: any) {
+			console.error('Ошибка при отклонении запроса:', error)
+			alert(error.response?.data?.error || 'Ошибка при отклонении запроса')
+		}
+	}
 
 	const handleFormatChange = (itemId: number, format: string) => {
 		setSelectedFormats(prev => ({
@@ -210,6 +286,10 @@ export default function BasketDetailPage() {
 		basket &&
 		((typeof basket.user === 'object' && basket.user?.id === currentUser.id) ||
 			(typeof basket.user === 'number' && basket.user === currentUser.id))
+	
+	// can_edit приходит с сервера и обновляется при загрузке корзины
+	// После одобрения запроса пользователь должен обновить страницу корзины
+	const canEdit = basket?.can_edit === true || isOwner
 
 	if (loading) {
 		return (
@@ -256,15 +336,104 @@ export default function BasketDetailPage() {
 								{basket.name || 'Проект_Квартира_Ивановых'}
 							</h1>
 						</div>
-						{isOwner && (
-							<button
-								onClick={() => setIsAddProductsModalOpen(true)}
-								className='bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main2 transition-colors font-medium'
-							>
-								Добавить из каталога
-							</button>
-						)}
+						<div className='flex items-center gap-3'>
+							{/* Кнопка запроса редактирования для не-владельцев */}
+							{!isOwner && !canEdit && !hasPendingRequest && (
+								<button
+									onClick={handleRequestEdit}
+									className='bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main2 transition-colors font-medium'
+								>
+									Запросить редактирование
+								</button>
+							)}
+							{!isOwner && hasPendingRequest && (
+								<span className='text-sm text-gray'>Запрос на редактирование отправлен</span>
+							)}
+							{/* Кнопка просмотра запросов для владельца */}
+							{isOwner && (
+								<>
+									<button
+										onClick={() => {
+											setShowEditRequests(!showEditRequests)
+											if (!showEditRequests) {
+												fetchEditRequests()
+											}
+										}}
+										className='bg-gray-bg text-black px-6 py-2 rounded-lg hover:bg-gray-200 transition-colors font-medium'
+									>
+										Запросы на редактирование {editRequests.length > 0 && `(${editRequests.length})`}
+									</button>
+									<button
+										onClick={() => setIsAddProductsModalOpen(true)}
+										className='bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main2 transition-colors font-medium'
+									>
+										Добавить из каталога
+									</button>
+								</>
+							)}
+							{/* Кнопка добавления для пользователей с правом редактирования */}
+							{canEdit && !isOwner && (
+								<button
+									onClick={() => setIsAddProductsModalOpen(true)}
+									className='bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main2 transition-colors font-medium'
+								>
+									Добавить из каталога
+								</button>
+							)}
+						</div>
 					</div>
+
+					{/* Список запросов на редактирование (для владельца) */}
+					{isOwner && showEditRequests && (
+						<div className='mb-6 p-4 bg-gray-bg rounded-lg'>
+							<h3 className='text-lg font-semibold text-black mb-4'>
+								Запросы на редактирование
+							</h3>
+							{editRequests.length === 0 ? (
+								<p className='text-gray text-sm'>Нет активных запросов</p>
+							) : (
+								<div className='space-y-3'>
+									{editRequests.map((request) => (
+										<div
+											key={request.id}
+											className='flex items-center justify-between p-3 bg-white rounded-lg'
+										>
+											<div>
+												<p className='text-sm font-medium text-black'>
+													{request.requester.username}
+													{request.requester.email && (
+														<span className='text-gray ml-2'>
+															({request.requester.email})
+														</span>
+													)}
+												</p>
+												{request.message && (
+													<p className='text-xs text-gray mt-1'>{request.message}</p>
+												)}
+												<p className='text-xs text-gray mt-1'>
+													{new Date(request.created_at).toLocaleString('ru-RU')}
+												</p>
+											</div>
+											<div className='flex gap-2'>
+												<button
+													onClick={() => handleApproveRequest(request.id)}
+													className='px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm'
+												>
+													Одобрить
+												</button>
+												<button
+													onClick={() => handleRejectRequest(request.id)}
+													className='px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm'
+												>
+													Отклонить
+												</button>
+											</div>
+										</div>
+									))}
+								</div>
+							)}
+						</div>
+					)}
 
 					{/* Items list */}
 					<div className='space-y-0'>
@@ -370,8 +539,8 @@ export default function BasketDetailPage() {
 										</div>
 									</div>
 
-									{/* Action buttons - только для владельца корзины */}
-									{isOwner ? (
+									{/* Action buttons - для владельца или пользователя с правом редактирования */}
+									{(isOwner || canEdit) ? (
 										<div className='flex items-center gap-3'>
 											<button
 												onClick={() =>
@@ -416,19 +585,47 @@ export default function BasketDetailPage() {
 									ИТОГО: {calculateTotal().toLocaleString('ru-RU')} P
 								</p>
 							</div>
-							{/* Кнопка "Заказать" только для владельца корзины */}
-							{currentUser &&
-							basket &&
-							((typeof basket.user === 'object' &&
-								basket.user?.id === currentUser.id) ||
-								(typeof basket.user === 'number' &&
-									basket.user === currentUser.id)) ? (
+							{/* Кнопка "Заказать" для владельца или пользователя с правом редактирования */}
+							{currentUser && basket && (isOwner || canEdit) ? (
 								<button className='bg-main1 text-white px-12 py-3 rounded-lg hover:bg-main2 transition-colors font-medium text-lg'>
 									Заказать
 								</button>
+							) : currentUser && basket && !isOwner && !canEdit ? (
+								<div className='flex flex-col items-end gap-2'>
+									<p className='text-gray text-sm'>
+										Эта корзина принадлежит другому пользователю
+									</p>
+									{!hasPendingRequest && (
+										<button
+											onClick={handleRequestEdit}
+											className='bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main2 transition-colors font-medium text-sm'
+										>
+											Запросить редактирование
+										</button>
+									)}
+									{hasPendingRequest && (
+										<div className='flex flex-col items-end gap-2'>
+											<p className='text-sm text-gray'>Запрос на редактирование отправлен</p>
+											<button
+												onClick={async () => {
+													// Обновляем корзину, чтобы проверить, был ли запрос одобрен
+													const updatedBasket = await basketService.getBasket(basketId)
+													setBasket(updatedBasket)
+													if (updatedBasket.can_edit) {
+														alert('Вам предоставлено право редактирования!')
+														setHasPendingRequest(false)
+													}
+												}}
+												className='bg-gray-bg text-black px-4 py-1.5 rounded-lg hover:bg-gray-200 transition-colors font-medium text-xs'
+											>
+												Обновить статус
+											</button>
+										</div>
+									)}
+								</div>
 							) : (
 								<p className='text-gray text-sm'>
-									Эта корзина принадлежит другому пользователю
+									Войдите, чтобы заказать
 								</p>
 							)}
 						</div>
