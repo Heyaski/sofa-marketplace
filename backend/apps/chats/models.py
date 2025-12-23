@@ -67,8 +67,9 @@ class Chat(models.Model):
             participants.add(self.participant1)
         if self.participant2:
             participants.add(self.participant2)
-        # Добавляем участников из ChatParticipant
-        participants.update(self.participants.all())
+        # Добавляем участников из ChatParticipant (получаем user из каждого ChatParticipant)
+        for chat_participant in self.participants.all():
+            participants.add(chat_participant.user)
         return list(participants)
     
     def is_participant(self, user):

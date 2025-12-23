@@ -198,8 +198,14 @@ class ChatSerializer(serializers.ModelSerializer):
 
     def get_participants_list(self, obj):
         """Получить список всех участников чата"""
-        participants = obj.get_all_participants()
-        return UserSerializer(participants, many=True).data
+        if obj.chat_type == 'group':
+            # Для групповых чатов получаем участников через ChatParticipant
+            participants = obj.participants.all()
+            return [UserSerializer(participant.user).data for participant in participants]
+        else:
+            # Для приватных чатов используем старую логику
+            participants = obj.get_all_participants()
+            return UserSerializer(participants, many=True).data
 
     def get_last_message(self, obj):
         last_msg = obj.messages.last()
