@@ -123,8 +123,80 @@ EMAIL_HOST_PASSWORD = "plryjeqormckvdta"
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # Медиа-файлы (загрузка изображений, фото и т.п.)
+# Если используется S3 хранилище, эти настройки будут переопределены ниже
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# ============================================
+# Настройки S3 хранилища (Beget)
+# ============================================
+# Для использования S3 хранилища установите переменные окружения:
+# USE_S3_STORAGE=1
+# AWS_ACCESS_KEY_ID=your_access_key
+# AWS_SECRET_ACCESS_KEY=your_secret_key
+# AWS_STORAGE_BUCKET_NAME=your_bucket_name
+# AWS_S3_ENDPOINT_URL=https://s3.beget.com (или ваш endpoint URL из панели Beget)
+# AWS_S3_CUSTOM_DOMAIN=your-bucket.s3.beget.com (публичный URL бакета из панели Beget)
+
+USE_S3_STORAGE = bool(int(get_env("USE_S3_STORAGE", "0")))
+
+if USE_S3_STORAGE:
+    # Настройки для S3 хранилища Beget
+    AWS_ACCESS_KEY_ID = get_env("AWS_ACCESS_KEY_ID", "")
+    AWS_SECRET_ACCESS_KEY = get_env("AWS_SECRET_ACCESS_KEY", "")
+    AWS_STORAGE_BUCKET_NAME = get_env("AWS_STORAGE_BUCKET_NAME", "")
+    
+    # Проверка наличия обязательных параметров
+    if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY or not AWS_STORAGE_BUCKET_NAME:
+        print("⚠️ ВНИМАНИЕ: S3 хранилище активировано, но не указаны обязательные параметры!")
+        print("   Установите в .env: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_STORAGE_BUCKET_NAME")
+        print("   Или установите USE_S3_STORAGE=0 для использования локального хранилища")
+    else:
+        # Endpoint URL для Beget S3 (из панели управления Beget -> Реквизиты доступа -> URL)
+        AWS_S3_ENDPOINT_URL = get_env("AWS_S3_ENDPOINT_URL", "https://s3.beget.com")
+        
+        # Публичный URL бакета (из панели управления Beget -> Реквизиты доступа -> Публичный URL бакета)
+        # Можно использовать path style или virtual hosted style
+        AWS_S3_CUSTOM_DOMAIN = get_env("AWS_S3_CUSTOM_DOMAIN", "")
+        
+        # Настройки для работы с файлами
+        AWS_S3_OBJECT_PARAMETERS = {
+            'CacheControl': 'max-age=86400',  # Кэширование на 1 день
+        }
+        
+        # Используем S3 для медиа-файлов (3D модели, изображения)
+        DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+        
+        # URL для доступа к медиа-файлам через S3
+        if AWS_S3_CUSTOM_DOMAIN:
+            # Используем кастомный домен (публичный URL бакета)
+            MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
+        else:
+            # Используем endpoint URL с именем бакета
+            MEDIA_URL = f'{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/'
+        
+        # Настройки для регионов (для Beget не требуется, но может быть полезно)
+        AWS_S3_REGION_NAME = None
+        
+        # Подпись URL (для приватных файлов, если нужно)
+        AWS_S3_SIGNATURE_VERSION = 's3v4'
+        
+        # Разрешить автоматическое определение Content-Type
+        AWS_S3_FILE_OVERWRITE = False  # Не перезаписывать файлы с одинаковыми именами
+        AWS_DEFAULT_ACL = 'public-read'  # Публичный доступ на чтение (для публичных файлов)
+        
+        # Для работы с большими файлами (3D модели)
+        AWS_S3_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100 MB
+        AWS_S3_MULTIPART_THRESHOLD = 100 * 1024 * 1024  # 100 MB
+        AWS_S3_MULTIPART_CHUNKSIZE = 10 * 1024 * 1024  # 10 MB
+        
+        print(f"✅ S3 хранилище активировано: {AWS_STORAGE_BUCKET_NAME}")
+        if AWS_S3_CUSTOM_DOMAIN:
+            print(f"   Публичный URL: https://{AWS_S3_CUSTOM_DOMAIN}/")
+        else:
+            print(f"   Endpoint URL: {AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/")
+else:
+    print("ℹ️ Используется локальное хранилище (MEDIA_ROOT)")
 
 # Настройки для загрузки больших файлов (3D модели могут быть очень большими)
 # Максимальный размер файла в памяти перед записью на диск (по умолчанию 2.5MB)

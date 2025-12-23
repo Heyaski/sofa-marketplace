@@ -12,7 +12,11 @@ class CategorySerializer(serializers.ModelSerializer):
     def get_image(self, obj):
         request = self.context.get("request")
         if obj.image and hasattr(obj.image, "url"):
-            return request.build_absolute_uri(obj.image.url) if request else obj.image.url
+            image_url = obj.image.url
+            # Если URL уже полный (начинается с http:// или https://), возвращаем как есть
+            if image_url.startswith(('http://', 'https://')):
+                return image_url
+            return request.build_absolute_uri(image_url) if request else image_url
         return None
 
 
@@ -27,7 +31,11 @@ class ProductImageSerializer(serializers.ModelSerializer):
     def get_image_url(self, obj):
         request = self.context.get("request")
         if obj.image and hasattr(obj.image, "url"):
-            return request.build_absolute_uri(obj.image.url) if request else obj.image.url
+            image_url = obj.image.url
+            # Если URL уже полный (начинается с http:// или https://), возвращаем как есть
+            if image_url.startswith(('http://', 'https://')):
+                return image_url
+            return request.build_absolute_uri(image_url) if request else image_url
         return None
 
 
@@ -42,7 +50,13 @@ class FileAssetSerializer(serializers.ModelSerializer):
     def get_file_url(self, obj):
         request = self.context.get("request")
         if obj.file and hasattr(obj.file, "url"):
-            return request.build_absolute_uri(obj.file.url) if request else obj.file.url
+            file_url = obj.file.url
+            # Если URL уже полный (начинается с http:// или https://), возвращаем как есть
+            # Это важно для S3 хранилища, где URL уже полный
+            if file_url.startswith(('http://', 'https://')):
+                return file_url
+            # Иначе строим абсолютный URL из запроса
+            return request.build_absolute_uri(file_url) if request else file_url
         return None
 
 
@@ -73,14 +87,20 @@ class ProductSerializer(serializers.ModelSerializer):
         if obj.images.exists():
             first_image = obj.images.first()
             if first_image.image and hasattr(first_image.image, "url"):
-                return request.build_absolute_uri(first_image.image.url) if request else first_image.image.url
+                image_url = first_image.image.url
+                if image_url.startswith(('http://', 'https://')):
+                    return image_url
+                return request.build_absolute_uri(image_url) if request else image_url
         
         # Приоритет 2: Изображения из FileAsset по ID
         image_assets = obj.get_image_assets()
         if image_assets.exists():
             first_asset = image_assets.first()
             if first_asset.file and hasattr(first_asset.file, "url"):
-                return request.build_absolute_uri(first_asset.file.url) if request else first_asset.file.url
+                file_url = first_asset.file.url
+                if file_url.startswith(('http://', 'https://')):
+                    return file_url
+                return request.build_absolute_uri(file_url) if request else file_url
         
         # Приоритет 3: photo_url (из Excel импорта)
         if obj.photo_url:
@@ -88,7 +108,10 @@ class ProductSerializer(serializers.ModelSerializer):
         
         # Приоритет 4: Старое поле image (для обратной совместимости)
         if obj.image and hasattr(obj.image, "url"):
-            return request.build_absolute_uri(obj.image.url) if request else obj.image.url
+            image_url = obj.image.url
+            if image_url.startswith(('http://', 'https://')):
+                return image_url
+            return request.build_absolute_uri(image_url) if request else image_url
         return None
     
     def get_asset_images(self, obj):
