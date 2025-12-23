@@ -301,7 +301,7 @@ export const authService = {
 	},
 
 	// Поиск пользователей
-	searchUsers: async (search?: string): Promise<User[]> => {
+	searchUsers: async (search?: string): Promise<User[] | ApiResponse<User>> => {
 		const params = search ? `?search=${encodeURIComponent(search)}` : ''
 		const response = await apiClient.get(`/api/users/search${params}`)
 		return response.data

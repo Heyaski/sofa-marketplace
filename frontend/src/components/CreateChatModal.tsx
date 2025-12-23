@@ -47,9 +47,12 @@ export default function CreateChatModal({
 			let usersList: User[] = []
 			if (Array.isArray(response)) {
 				usersList = response
-			} else if (response && response.results && Array.isArray(response.results)) {
+			} else if (response && typeof response === 'object' && 'results' in response) {
 				// Пагинированный ответ
-				usersList = response.results
+				const paginatedResponse = response as { results: User[] }
+				if (Array.isArray(paginatedResponse.results)) {
+					usersList = paginatedResponse.results
+				}
 			}
 
 			// Фильтруем текущего пользователя из результатов
