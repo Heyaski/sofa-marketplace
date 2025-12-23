@@ -67,74 +67,65 @@ class FileAssetSerializer(serializers.ModelSerializer):
             from django.conf import settings
             use_signed_urls = getattr(settings, 'S3_FILE_ACCESS_MODE', 'public') == 'signed'
             
-            if use_signed_urls and hasattr(obj.file, 'storage'):
-                # Генерируем подписанный URL для приватных файлов
+            if use_signed_urls:
+                # Генерируем подписанный URL для приватных файлов через boto3 напрямую
+                # Это гарантирует правильный формат URL без дублирования пути
                 try:
-                    storage = obj.file.storage
+                    import boto3
+                    from django.conf import settings
+                    from botocore.client import Config
                     
-                    # Проверяем, что storage поддерживает подписанные URL
-                    if not hasattr(storage, 'url'):
-                        raise AttributeError("Storage не поддерживает метод url()")
+                    endpoint_url = getattr(settings, 'AWS_S3_ENDPOINT_URL', None)
+                    aws_access_key_id = getattr(settings, 'AWS_ACCESS_KEY_ID', None)
+                    aws_secret_access_key = getattr(settings, 'AWS_SECRET_ACCESS_KEY', None)
+                    bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', None)
                     
-                    # Используем метод url() storage, который автоматически генерирует подписанный URL
-                    # когда AWS_QUERYSTRING_AUTH = True
-                    # Важно: для подписанных URL нужно использовать storage.url() напрямую
-                    file_url = storage.url(obj.file.name)
+                    if not all([endpoint_url, aws_access_key_id, aws_secret_access_key, bucket_name]):
+                        raise ValueError("Не все настройки S3 указаны для генерации подписанного URL")
                     
-                    # Проверяем, что URL содержит подпись (query параметры)
-                    if '?' not in file_url or 'AWSAccessKeyId' not in file_url:
-                        # Если подпись не сгенерировалась, это проблема конфигурации
+                    # Создаем клиент с правильной конфигурацией для path-style URL
+                    # Path-style формат: https://endpoint/bucket/path/to/file
+                    # Это избегает проблем с дублированием пути
+                    s3_client = boto3.client(
+                        's3',
+                        endpoint_url=endpoint_url,
+                        aws_access_key_id=aws_access_key_id,
+                        aws_secret_access_key=aws_secret_access_key,
+                        config=Config(
+                            signature_version='s3v4',
+                            s3={'addressing_style': 'path'}  # Используем path-style вместо virtual-hosted-style
+                        )
+                    )
+                    
+                    # Генерируем подписанный URL
+                    file_url = s3_client.generate_presigned_url(
+                        'get_object',
+                        Params={'Bucket': bucket_name, 'Key': obj.file.name},
+                        ExpiresIn=3600
+                    )
+                    
+                    # Проверяем, что URL не содержит дублирования пути
+                    if f'/{bucket_name}/{bucket_name}/' in file_url:
                         import logging
                         logger = logging.getLogger(__name__)
-                        logger.error(
-                            f"Подписанный URL не содержит query параметров. "
-                            f"URL: {file_url}, "
-                            f"AWS_QUERYSTRING_AUTH: {getattr(settings, 'AWS_QUERYSTRING_AUTH', None)}, "
-                            f"AWS_S3_CUSTOM_DOMAIN: {getattr(settings, 'AWS_S3_CUSTOM_DOMAIN', None)}"
-                        )
-                        # Пробуем явно указать expire для генерации подписи
-                        # Для S3Boto3Storage можно использовать boto3 напрямую
-                        try:
-                            import boto3
-                            from django.conf import settings
-                            from botocore.client import Config
-                            
-                            endpoint_url = getattr(settings, 'AWS_S3_ENDPOINT_URL', None)
-                            aws_access_key_id = getattr(settings, 'AWS_ACCESS_KEY_ID', None)
-                            aws_secret_access_key = getattr(settings, 'AWS_SECRET_ACCESS_KEY', None)
-                            bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', None)
-                            
-                            # Создаем клиент с правильной конфигурацией для path-style URL
-                            s3_client = boto3.client(
-                                's3',
-                                endpoint_url=endpoint_url,
-                                aws_access_key_id=aws_access_key_id,
-                                aws_secret_access_key=aws_secret_access_key,
-                                config=Config(
-                                    signature_version='s3v4',
-                                    s3={'addressing_style': 'path'}  # Используем path-style вместо virtual-hosted-style
-                                )
-                            )
-                            
-                            file_url = s3_client.generate_presigned_url(
-                                'get_object',
-                                Params={'Bucket': bucket_name, 'Key': obj.file.name},
-                                ExpiresIn=3600
-                            )
-                            
-                            logger.info(f"Подписанный URL сгенерирован через boto3: {file_url[:100]}...")
-                        except Exception as e2:
-                            logger.error(f"Не удалось сгенерировать подписанный URL через boto3: {e2}", exc_info=True)
-                            raise e
+                        logger.warning(f"Обнаружено дублирование пути в URL: {file_url}")
+                        # Исправляем URL, убирая дублирование
+                        file_url = file_url.replace(f'/{bucket_name}/{bucket_name}/', f'/{bucket_name}/')
                     
-                    # Подписанный URL уже полный и содержит query параметры с подписью
                     return file_url
                 except Exception as e:
                     # Если не удалось сгенерировать подписанный URL, логируем ошибку
                     import logging
                     logger = logging.getLogger(__name__)
-                    logger.error(f"Ошибка генерации подписанного URL: {e}", exc_info=True)
-                    # Возвращаем обычный URL как fallback (но он не будет работать для приватных файлов)
+                    logger.error(f"Ошибка генерации подписанного URL через boto3: {e}", exc_info=True)
+                    # Пробуем использовать storage.url() как fallback
+                    if hasattr(obj.file, 'storage') and hasattr(obj.file.storage, 'url'):
+                        try:
+                            file_url = obj.file.storage.url(obj.file.name)
+                            return file_url
+                        except Exception:
+                            pass
+                    # Если ничего не помогло, возвращаем обычный URL (но он не будет работать для приватных файлов)
                     file_url = obj.file.url
             else:
                 # Используем обычный URL для публичных файлов
