@@ -97,20 +97,34 @@ class FileAssetSerializer(serializers.ModelSerializer):
                         try:
                             import boto3
                             from django.conf import settings
+                            from botocore.client import Config
+                            
+                            endpoint_url = getattr(settings, 'AWS_S3_ENDPOINT_URL', None)
+                            aws_access_key_id = getattr(settings, 'AWS_ACCESS_KEY_ID', None)
+                            aws_secret_access_key = getattr(settings, 'AWS_SECRET_ACCESS_KEY', None)
+                            bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', None)
+                            
+                            # Создаем клиент с правильной конфигурацией для path-style URL
                             s3_client = boto3.client(
                                 's3',
-                                endpoint_url=getattr(settings, 'AWS_S3_ENDPOINT_URL', None),
-                                aws_access_key_id=getattr(settings, 'AWS_ACCESS_KEY_ID', None),
-                                aws_secret_access_key=getattr(settings, 'AWS_SECRET_ACCESS_KEY', None),
+                                endpoint_url=endpoint_url,
+                                aws_access_key_id=aws_access_key_id,
+                                aws_secret_access_key=aws_secret_access_key,
+                                config=Config(
+                                    signature_version='s3v4',
+                                    s3={'addressing_style': 'path'}  # Используем path-style вместо virtual-hosted-style
+                                )
                             )
-                            bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', None)
+                            
                             file_url = s3_client.generate_presigned_url(
                                 'get_object',
                                 Params={'Bucket': bucket_name, 'Key': obj.file.name},
                                 ExpiresIn=3600
                             )
+                            
+                            logger.info(f"Подписанный URL сгенерирован через boto3: {file_url[:100]}...")
                         except Exception as e2:
-                            logger.error(f"Не удалось сгенерировать подписанный URL через boto3: {e2}")
+                            logger.error(f"Не удалось сгенерировать подписанный URL через boto3: {e2}", exc_info=True)
                             raise e
                     
                     # Подписанный URL уже полный и содержит query параметры с подписью

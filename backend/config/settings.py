@@ -185,6 +185,13 @@ if USE_S3_STORAGE:
         # Используем S3 для медиа-файлов (3D модели, изображения)
         DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
         
+        # Для подписанных URL используем path-style addressing вместо virtual-hosted-style
+        # чтобы избежать проблем с дублированием пути в URL
+        if S3_FILE_ACCESS_MODE == 'signed':
+            # Используем path-style URL формат: https://endpoint/bucket/path/to/file
+            # вместо virtual-hosted-style: https://bucket.endpoint/path/to/file
+            AWS_S3_ADDRESSING_STYLE = 'path'
+        
         # Для S3 хранилища MEDIA_URL не используется напрямую,
         # так как S3Boto3Storage сам генерирует полные URL через AWS_S3_CUSTOM_DOMAIN
         # Но оставляем для совместимости с другими частями кода
