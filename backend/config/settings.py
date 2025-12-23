@@ -186,7 +186,23 @@ if USE_S3_STORAGE:
         
         # Разрешить автоматическое определение Content-Type
         AWS_S3_FILE_OVERWRITE = False  # Не перезаписывать файлы с одинаковыми именами
-        AWS_DEFAULT_ACL = 'public-read'  # Публичный доступ на чтение (для публичных файлов)
+        
+        # Режим доступа к файлам
+        # 'public-read' - публичный доступ (любой может скачать по прямой ссылке)
+        # 'private' - приватный доступ (только через подписанные URL)
+        # По умолчанию используем публичный доступ для простоты
+        # Для более безопасного варианта используйте 'private' и подписанные URL
+        S3_FILE_ACCESS_MODE = get_env("S3_FILE_ACCESS_MODE", "public")  # 'public' или 'signed'
+        
+        if S3_FILE_ACCESS_MODE == 'signed':
+            # Приватный доступ - файлы доступны только через подписанные URL
+            AWS_DEFAULT_ACL = 'private'
+            AWS_QUERYSTRING_AUTH = True  # Требовать подпись для URL
+            AWS_QUERYSTRING_EXPIRE = 3600  # Срок действия подписанного URL (1 час)
+        else:
+            # Публичный доступ - файлы доступны по прямой ссылке
+            AWS_DEFAULT_ACL = 'public-read'
+            AWS_QUERYSTRING_AUTH = False  # Не требовать подпись для URL
         
         # Для работы с большими файлами (3D модели)
         AWS_S3_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100 MB

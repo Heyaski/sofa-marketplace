@@ -50,9 +50,29 @@ class FileAssetSerializer(serializers.ModelSerializer):
     def get_file_url(self, obj):
         request = self.context.get("request")
         if obj.file and hasattr(obj.file, "url"):
-            file_url = obj.file.url
+            # Проверяем режим доступа к файлам
+            from django.conf import settings
+            use_signed_urls = getattr(settings, 'S3_FILE_ACCESS_MODE', 'public') == 'signed'
+            
+            if use_signed_urls and hasattr(obj.file, 'storage'):
+                # Генерируем подписанный URL для приватных файлов
+                try:
+                    # Получаем storage и генерируем подписанный URL
+                    storage = obj.file.storage
+                    if hasattr(storage, 'url') and callable(getattr(storage, 'url', None)):
+                        # Для S3 storage используем метод url() который автоматически генерирует подписанный URL
+                        # если AWS_QUERYSTRING_AUTH = True
+                        file_url = storage.url(obj.file.name)
+                    else:
+                        file_url = obj.file.url
+                except Exception:
+                    # Если не удалось сгенерировать подписанный URL, используем обычный
+                    file_url = obj.file.url
+            else:
+                # Используем обычный URL для публичных файлов
+                file_url = obj.file.url
+            
             # Если URL уже полный (начинается с http:// или https://), возвращаем как есть
-            # Это важно для S3 хранилища, где URL уже полный
             if file_url.startswith(('http://', 'https://')):
                 return file_url
             # Иначе строим абсолютный URL из запроса
