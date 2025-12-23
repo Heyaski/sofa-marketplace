@@ -292,7 +292,6 @@ export default function CreateChatModal({
 						</button>
 					</div>
 				)}
-				</div>
 			</div>
 		</div>
 	)

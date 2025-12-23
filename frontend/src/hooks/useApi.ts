@@ -38,7 +38,7 @@ export const useProducts = (filters?: ProductFilters, loadMore?: boolean) => {
 				// Пагинированный ответ
 				productsData = response.results
 				next = response.next ? page + 1 : null
-				setHasMore(!!response.next)
+				setHasMore(response.next !== null && response.next !== undefined)
 			} else if (Array.isArray(response)) {
 				// Обычный массив (для обратной совместимости)
 				productsData = response
