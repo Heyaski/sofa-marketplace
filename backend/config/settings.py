@@ -155,10 +155,27 @@ if USE_S3_STORAGE:
         # Endpoint URL для Beget S3 (из панели управления Beget -> Реквизиты доступа -> URL)
         AWS_S3_ENDPOINT_URL = get_env("AWS_S3_ENDPOINT_URL", "https://s3.beget.com")
         
+        # Режим доступа к файлам (проверяем ДО установки custom domain)
+        # 'public-read' - публичный доступ (любой может скачать по прямой ссылке)
+        # 'private' - приватный доступ (только через подписанные URL)
+        S3_FILE_ACCESS_MODE = get_env("S3_FILE_ACCESS_MODE", "public")  # 'public' или 'signed'
+        
         # Публичный URL бакета (из панели управления Beget -> Реквизиты доступа -> Публичный URL бакета)
         # ВАЖНО: Указывайте только домен БЕЗ протокола (например: bucket.s3.beget.com)
         # НЕ указывайте https:// в начале!
-        AWS_S3_CUSTOM_DOMAIN = get_env("AWS_S3_CUSTOM_DOMAIN", "").replace('https://', '').replace('http://', '').strip('/')
+        # Для подписанных URL custom domain будет автоматически отключен
+        custom_domain_raw = get_env("AWS_S3_CUSTOM_DOMAIN", "").replace('https://', '').replace('http://', '').strip('/')
+        
+        if S3_FILE_ACCESS_MODE == 'signed':
+            # Для подписанных URL ОБЯЗАТЕЛЬНО использовать endpoint URL вместо custom domain
+            # Custom domain не поддерживает подпись правильно в django-storages
+            AWS_S3_CUSTOM_DOMAIN = None
+            if custom_domain_raw:
+                print(f"⚠️ ВНИМАНИЕ: При использовании подписанных URL custom domain будет отключен")
+                print(f"   Используется endpoint URL для правильной генерации подписанных URL")
+        else:
+            # Для публичного доступа используем custom domain если указан
+            AWS_S3_CUSTOM_DOMAIN = custom_domain_raw if custom_domain_raw else None
         
         # Настройки для работы с файлами
         AWS_S3_OBJECT_PARAMETERS = {
@@ -187,25 +204,11 @@ if USE_S3_STORAGE:
         # Разрешить автоматическое определение Content-Type
         AWS_S3_FILE_OVERWRITE = False  # Не перезаписывать файлы с одинаковыми именами
         
-        # Режим доступа к файлам
-        # 'public-read' - публичный доступ (любой может скачать по прямой ссылке)
-        # 'private' - приватный доступ (только через подписанные URL)
-        # По умолчанию используем публичный доступ для простоты
-        # Для более безопасного варианта используйте 'private' и подписанные URL
-        S3_FILE_ACCESS_MODE = get_env("S3_FILE_ACCESS_MODE", "public")  # 'public' или 'signed'
-        
         if S3_FILE_ACCESS_MODE == 'signed':
             # Приватный доступ - файлы доступны только через подписанные URL
             AWS_DEFAULT_ACL = 'private'
             AWS_QUERYSTRING_AUTH = True  # Требовать подпись для URL
             AWS_QUERYSTRING_EXPIRE = 3600  # Срок действия подписанного URL (1 час)
-            # Для подписанных URL ОБЯЗАТЕЛЬНО использовать endpoint URL вместо custom domain
-            # Custom domain не поддерживает подпись правильно в django-storages
-            if AWS_S3_CUSTOM_DOMAIN:
-                print(f"⚠️ ВНИМАНИЕ: При использовании подписанных URL custom domain будет отключен")
-                print(f"   Используется endpoint URL для правильной генерации подписанных URL")
-                # Временно отключаем custom domain для подписанных URL
-                AWS_S3_CUSTOM_DOMAIN = None
         else:
             # Публичный доступ - файлы доступны по прямой ссылке
             AWS_DEFAULT_ACL = 'public-read'

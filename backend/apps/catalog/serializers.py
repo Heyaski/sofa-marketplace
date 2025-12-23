@@ -71,20 +71,47 @@ class FileAssetSerializer(serializers.ModelSerializer):
                 # Генерируем подписанный URL для приватных файлов
                 try:
                     storage = obj.file.storage
+                    
+                    # Проверяем, что storage поддерживает подписанные URL
+                    if not hasattr(storage, 'url'):
+                        raise AttributeError("Storage не поддерживает метод url()")
+                    
                     # Используем метод url() storage, который автоматически генерирует подписанный URL
                     # когда AWS_QUERYSTRING_AUTH = True
                     # Важно: для подписанных URL нужно использовать storage.url() напрямую
                     file_url = storage.url(obj.file.name)
                     
                     # Проверяем, что URL содержит подпись (query параметры)
-                    if '?' not in file_url and 'AWSAccessKeyId' not in file_url:
-                        # Если подпись не сгенерировалась, пробуем другой способ
+                    if '?' not in file_url or 'AWSAccessKeyId' not in file_url:
+                        # Если подпись не сгенерировалась, это проблема конфигурации
                         import logging
                         logger = logging.getLogger(__name__)
-                        logger.warning(f"Подписанный URL не содержит query параметров. URL: {file_url}")
-                        # Пробуем использовать метод url() с параметром expire
-                        if hasattr(storage, 'url'):
-                            file_url = storage.url(obj.file.name, expire=3600)
+                        logger.error(
+                            f"Подписанный URL не содержит query параметров. "
+                            f"URL: {file_url}, "
+                            f"AWS_QUERYSTRING_AUTH: {getattr(settings, 'AWS_QUERYSTRING_AUTH', None)}, "
+                            f"AWS_S3_CUSTOM_DOMAIN: {getattr(settings, 'AWS_S3_CUSTOM_DOMAIN', None)}"
+                        )
+                        # Пробуем явно указать expire для генерации подписи
+                        # Для S3Boto3Storage можно использовать boto3 напрямую
+                        try:
+                            import boto3
+                            from django.conf import settings
+                            s3_client = boto3.client(
+                                's3',
+                                endpoint_url=getattr(settings, 'AWS_S3_ENDPOINT_URL', None),
+                                aws_access_key_id=getattr(settings, 'AWS_ACCESS_KEY_ID', None),
+                                aws_secret_access_key=getattr(settings, 'AWS_SECRET_ACCESS_KEY', None),
+                            )
+                            bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', None)
+                            file_url = s3_client.generate_presigned_url(
+                                'get_object',
+                                Params={'Bucket': bucket_name, 'Key': obj.file.name},
+                                ExpiresIn=3600
+                            )
+                        except Exception as e2:
+                            logger.error(f"Не удалось сгенерировать подписанный URL через boto3: {e2}")
+                            raise e
                     
                     # Подписанный URL уже полный и содержит query параметры с подписью
                     return file_url
