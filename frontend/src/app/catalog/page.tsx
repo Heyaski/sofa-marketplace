@@ -6,9 +6,8 @@ import Header from '@/components/Header'
 import ProductCard from '@/components/ProductCard'
 import { useBaskets, useCategories, useProducts } from '@/hooks/useApi'
 import { ProductFilters } from '@/types'
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 
 // 💡 Типы для категорий и продуктов (чтобы не было ошибок типов)
 interface Category {
@@ -38,12 +37,8 @@ export default function CatalogPage() {
 		id: number
 		format: string
 	} | null>(null)
-	const [hoveredCategory, setHoveredCategory] = useState<string | null>(null)
-	const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 })
-	const categoryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
-	const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-
 	const [filters, setFilters] = useState<ProductFilters>({})
+	const [visibleCategoriesCount, setVisibleCategoriesCount] = useState(10) // Показываем первые 10 категорий
 
 	// ✅ API хуки с пагинацией
 	const {
@@ -100,55 +95,18 @@ export default function CatalogPage() {
 		setSelectedProduct(null)
 	}
 
-	const scrollLeft = () => {
-		const container = document.getElementById('categories-slider')
-		if (container) {
-			container.scrollBy({ left: -200, behavior: 'smooth' })
-		}
+	const handleShowMoreCategories = () => {
+		setVisibleCategoriesCount(prev => prev + 10) // Показываем еще 10 категорий
 	}
 
-	const scrollRight = () => {
-		const container = document.getElementById('categories-slider')
-		if (container) {
-			container.scrollBy({ left: 200, behavior: 'smooth' })
-		}
-	}
-
-	const handleCategoryHover = (
-		categoryName: string,
-		event: React.MouseEvent
-	) => {
-		if (hoverTimeoutRef.current) {
-			clearTimeout(hoverTimeoutRef.current)
-		}
-
-		const rect = event.currentTarget.getBoundingClientRect()
-		setDropdownPosition({
-			top: rect.bottom + window.scrollY + 4,
-			left: rect.left + window.scrollX,
-		})
-		setHoveredCategory(categoryName)
-	}
-
-	const handleCategoryLeave = () => {
-		hoverTimeoutRef.current = setTimeout(() => {
-			setHoveredCategory(null)
-		}, 150)
-	}
-
-	useEffect(() => {
-		return () => {
-			if (hoverTimeoutRef.current) {
-				clearTimeout(hoverTimeoutRef.current)
-			}
-		}
-	}, [])
+	const visibleCategories = categories?.slice(0, visibleCategoriesCount) || []
+	const hasMoreCategories = categories && categories.length > visibleCategoriesCount
 
 	return (
 		<div className='min-h-screen bg-gray-bg'>
 			<Header />
 
-			<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-visible'>
+			<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
 				{/* 🧭 Хлебные крошки */}
 				<div className='mb-6'>
 					<nav className='text-sm text-gray'>
@@ -158,98 +116,98 @@ export default function CatalogPage() {
 					</nav>
 				</div>
 
-				{/* 🏷️ Слайдер категорий */}
-				<div className='mb-8 overflow-visible'>
-					<div className='flex items-center space-x-4 overflow-visible'>
-						<button
-							onClick={scrollLeft}
-							className='p-2 rounded-full bg-white hover:bg-gray-100 transition-colors shadow-sm'
-						>
-							<ChevronLeftIcon className='w-5 h-5 text-gray-600' />
-						</button>
-
-						<div
-							id='categories-slider'
-							className='flex space-x-4 overflow-x-hidden overflow-y-visible flex-1 scrollbar-hide'
-							style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-						>
+				{/* 📦 Двухколоночный layout: категории слева, товары справа */}
+				<div className='flex flex-col lg:flex-row gap-6'>
+					{/* 🏷️ Левая колонка: Категории */}
+					<aside className='w-full lg:w-64 flex-shrink-0'>
+						<div className='bg-white rounded-xl p-6 sticky top-4'>
+							<h2 className='text-lg font-bold text-black mb-4'>Категории</h2>
+							
 							{categoriesLoading ? (
-								<div className='text-center py-4'>Загрузка категорий...</div>
+								<div className='text-center py-4 text-sm text-gray-500'>
+									Загрузка категорий...
+								</div>
 							) : categoriesError ? (
-								<div className='text-center py-4 text-red-500'>
+								<div className='text-center py-4 text-sm text-red-500'>
 									Ошибка загрузки категорий
 								</div>
-							) : categories && categories.length > 0 ? (
-								categories.map((category: Category) => (
-									<div
-										key={category.id}
-										className='relative group flex-shrink-0'
-										ref={el => {
-											categoryRefs.current[category.name] = el
-										}}
-									>
+							) : visibleCategories.length > 0 ? (
+								<>
+									<div className='space-y-2'>
+										{/* Кнопка "Все категории" для сброса фильтра */}
 										<button
-											className='whitespace-nowrap px-4 py-2 rounded-lg transition-all flex items-center space-x-2 bg-white text-black hover:bg-gray2 focus:outline-none shadow-sm'
-											onClick={() =>
-												setFilters({ ...filters, category: category.id })
-											}
-											onMouseEnter={e =>
-												handleCategoryHover(category.name, e)
-											}
-											onMouseLeave={handleCategoryLeave}
+											onClick={() => setFilters({ ...filters, category: undefined })}
+											className={`w-full text-left px-4 py-2 rounded-lg transition-all flex items-center space-x-2 ${
+												!filters.category
+													? 'bg-main1 text-white'
+													: 'bg-gray-bg text-black hover:bg-gray2'
+											}`}
 										>
-											{/* 🖼️ Миниатюра категории */}
-											{category.image && typeof category.image === 'string' ? (
-												<Image
-													src={category.image}
-													alt={category.name || 'Категория'}
-													width={24}
-													height={24}
-													className='w-6 h-6 object-cover rounded-md shadow-sm'
-													unoptimized
-												/>
-											) : (
-												<Image
-													src='/img/no-image.svg'
-													alt='Нет изображения'
-													width={24}
-													height={24}
-													className='w-6 h-6 opacity-40'
-												/>
-											)}
-
-											<span className='text-sm font-medium'>
-												{category.name}
-											</span>
-
-											<Image
-												src='/img/arrow-down.svg'
-												alt='Arrow'
-												width={16}
-												height={16}
-												className='w-4 h-4 opacity-60'
-											/>
+											<span className='text-sm font-medium'>Все категории</span>
 										</button>
+
+										{/* Список категорий */}
+										{visibleCategories.map((category: Category) => (
+											<button
+												key={category.id}
+												onClick={() =>
+													setFilters({ ...filters, category: category.id })
+												}
+												className={`w-full text-left px-4 py-2 rounded-lg transition-all flex items-center space-x-2 ${
+													filters.category === category.id
+														? 'bg-main1 text-white'
+														: 'bg-gray-bg text-black hover:bg-gray2'
+												}`}
+											>
+												{/* 🖼️ Миниатюра категории */}
+												{category.image && typeof category.image === 'string' ? (
+													<Image
+														src={category.image}
+														alt={category.name || 'Категория'}
+														width={24}
+														height={24}
+														className='w-6 h-6 object-cover rounded-md shadow-sm'
+														unoptimized
+													/>
+												) : (
+													<Image
+														src='/img/no-image.svg'
+														alt='Нет изображения'
+														width={24}
+														height={24}
+														className='w-6 h-6 opacity-40'
+													/>
+												)}
+
+												<span className='text-sm font-medium'>
+													{category.name}
+												</span>
+											</button>
+										))}
 									</div>
-								))
+
+									{/* Кнопка "Показать еще" */}
+									{hasMoreCategories && (
+										<div className='mt-4 pt-4 border-t border-gray2'>
+											<button
+												onClick={handleShowMoreCategories}
+												className='w-full px-4 py-2 text-sm text-main1 hover:bg-gray-bg rounded-lg transition-colors font-medium'
+											>
+												Показать еще ({categories.length - visibleCategoriesCount})
+											</button>
+										</div>
+									)}
+								</>
 							) : (
-								<div className='text-center py-4 text-gray-500'>
+								<div className='text-center py-4 text-sm text-gray-500'>
 									Категории не найдены
 								</div>
 							)}
 						</div>
+					</aside>
 
-						<button
-							onClick={scrollRight}
-							className='p-2 rounded-full bg-white hover:bg-gray-100 transition-colors shadow-sm'
-						>
-							<ChevronRightIcon className='w-5 h-5 text-gray-600' />
-						</button>
-					</div>
-				</div>
-
-				{/* 📦 Каталог товаров */}
-				<div className='bg-white rounded-xl p-8'>
+					{/* 📦 Правая колонка: Каталог товаров */}
+					<div className='flex-1 bg-white rounded-xl p-8'>
 					<h1 className='text-3xl font-bold text-black mb-8'>Каталог</h1>
 
 					{/* ⚙️ Фильтры */}
@@ -259,26 +217,6 @@ export default function CatalogPage() {
 
 							<select className='w-32 px-3 py-2 rounded-lg bg-gray-bg text-black text-sm focus:outline-none focus:ring-2 focus:ring-main1'>
 								<option>Цена</option>
-							</select>
-
-							<select
-								className='w-32 px-3 py-2 rounded-lg bg-gray-bg text-black text-sm focus:outline-none focus:ring-2 focus:ring-main1'
-								onChange={e =>
-									setFilters({
-										...filters,
-										category: e.target.value
-											? parseInt(e.target.value)
-											: undefined,
-									})
-								}
-								value={filters.category || ''}
-							>
-								<option value=''>Категория</option>
-								{categories?.map(cat => (
-									<option key={cat.id} value={cat.id}>
-										{cat.name}
-									</option>
-								))}
 							</select>
 
 							<select
@@ -360,6 +298,7 @@ export default function CatalogPage() {
 							)}
 						</>
 					)}
+					</div>
 				</div>
 			</main>
 
