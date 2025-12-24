@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "apps.orders",
     "apps.users",
     "apps.chats",
+    "apps.pages",
     "django_filters",
 ]
 

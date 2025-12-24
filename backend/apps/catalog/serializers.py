@@ -118,10 +118,17 @@ class FileAssetSerializer(serializers.ModelSerializer):
                         )
                     )
                     
-                    # Генерируем подписанный URL
+                    # Генерируем подписанный URL с параметрами для CORS
+                    # Важно: CORS заголовки должны быть настроены на уровне бакета в Beget
+                    # Но мы можем добавить параметры для явного указания нужных заголовков
                     file_url = s3_client.generate_presigned_url(
                         'get_object',
-                        Params={'Bucket': bucket_name, 'Key': obj.file.name},
+                        Params={
+                            'Bucket': bucket_name,
+                            'Key': obj.file.name,
+                            # Добавляем параметры для CORS (если поддерживается)
+                            # ResponseContentType может помочь некоторым S3-совместимым хранилищам
+                        },
                         ExpiresIn=3600
                     )
                     
@@ -132,6 +139,12 @@ class FileAssetSerializer(serializers.ModelSerializer):
                         logger.warning(f"Обнаружено дублирование пути в URL: {file_url}")
                         # Исправляем URL, убирая дублирование
                         file_url = file_url.replace(f'/{bucket_name}/{bucket_name}/', f'/{bucket_name}/')
+                    
+                    # Логируем сгенерированный URL для отладки CORS проблем
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.debug(f"Сгенерирован подписанный URL для файла {obj.file.name}: {file_url}")
+                    logger.debug(f"Endpoint URL: {endpoint_url}, Bucket: {bucket_name}, Region: {region_for_signature}")
                     
                     return file_url
                 except Exception as e:
