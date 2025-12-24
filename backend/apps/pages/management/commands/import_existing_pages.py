@@ -205,6 +205,7 @@ class Command(BaseCommand):
             defaults={
                 'title': 'Политика конфиденциальности',
                 'content': privacy_content,
+                'slug': 'politika-konfidentsialnosti',
                 'is_active': True,
             }
         )
@@ -224,6 +225,7 @@ class Command(BaseCommand):
             defaults={
                 'title': 'ПУБЛИЧНАЯ ОФЕРТА',
                 'content': terms_content,
+                'slug': 'publichnaya-oferta',
                 'is_active': True,
             }
         )
