@@ -6,14 +6,15 @@ server {
     listen 80;
     server_name api.yourdomain.com;
 
-    # Увеличиваем лимит размера загружаемых файлов (для больших 3D моделей)
-    client_max_body_size 500M;
+    # Увеличиваем лимит размера загружаемых файлов (для больших ZIP архивов с множеством 3D моделей)
+    # Увеличено до 2GB для загрузки больших архивов
+    client_max_body_size 2G;
 
-    # Увеличиваем таймауты для загрузки больших файлов
-    proxy_connect_timeout 300s;
-    proxy_send_timeout 300s;
-    proxy_read_timeout 300s;
-    send_timeout 300s;
+    # Увеличиваем таймауты для загрузки больших файлов (2GB архивы могут загружаться долго)
+    proxy_connect_timeout 600s;  # 10 минут
+    proxy_send_timeout 600s;    # 10 минут
+    proxy_read_timeout 600s;    # 10 минут
+    send_timeout 600s;          # 10 минут
 
     location / {
         proxy_pass http://127.0.0.1:8000;
@@ -22,10 +23,10 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         
-        # Таймауты для больших файлов
-        proxy_connect_timeout 300s;
-        proxy_send_timeout 300s;
-        proxy_read_timeout 300s;
+        # Таймауты для больших файлов (2GB архивы могут загружаться долго)
+        proxy_connect_timeout 600s;  # 10 минут
+        proxy_send_timeout 600s;     # 10 минут
+        proxy_read_timeout 600s;     # 10 минут
     }
 
     location /static/ {

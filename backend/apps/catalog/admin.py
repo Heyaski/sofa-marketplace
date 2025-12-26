@@ -101,13 +101,32 @@ class FileAssetAdmin(admin.ModelAdmin):
                 return redirect("..")
             
             try:
+                # Проверяем размер ZIP файла
+                zip_file.seek(0, 2)  # Перемещаемся в конец файла
+                zip_size = zip_file.tell()
+                zip_file.seek(0)  # Возвращаемся в начало
+                
                 # Создаем временную директорию для распаковки
                 temp_dir = tempfile.mkdtemp()
                 
                 try:
-                    # Распаковываем ZIP
-                    with zipfile.ZipFile(zip_file, 'r') as zf:
-                        zf.extractall(temp_dir)
+                    # Для больших ZIP архивов сохраняем на диск перед распаковкой
+                    # чтобы не загружать весь архив в память
+                    if zip_size > 100 * 1024 * 1024:  # Если ZIP больше 100MB
+                        # Сохраняем ZIP на диск
+                        temp_zip_path = os.path.join(temp_dir, 'archive.zip')
+                        with open(temp_zip_path, 'wb') as f:
+                            # Читаем файл по частям для экономии памяти
+                            for chunk in zip_file.chunks(chunk_size=10 * 1024 * 1024):  # 10MB chunks
+                                f.write(chunk)
+                        
+                        # Распаковываем ZIP с диска
+                        with zipfile.ZipFile(temp_zip_path, 'r') as zf:
+                            zf.extractall(temp_dir)
+                    else:
+                        # Для небольших ZIP читаем напрямую из памяти
+                        with zipfile.ZipFile(zip_file, 'r') as zf:
+                            zf.extractall(temp_dir)
                     
                     created_count = 0
                     updated_count = 0
