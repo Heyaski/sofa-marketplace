@@ -428,36 +428,22 @@ export const pageService = {
 	// Добавляем timestamp для предотвращения кеширования
 	getPageByType: async (pageType: string): Promise<StaticPage> => {
 		const timestamp = Date.now()
-		const response = await apiClient.get(`/api/pages/${pageType}/?t=${timestamp}`, {
-			headers: {
-				'Cache-Control': 'no-cache',
-				'Pragma': 'no-cache',
-			},
-		})
+		// Используем только timestamp, без дополнительных заголовков (чтобы избежать CORS проблем)
+		const response = await apiClient.get(`/api/pages/${pageType}/?t=${timestamp}`)
 		return response.data
 	},
 
 	// Получить страницу по slug
 	getPageBySlug: async (slug: string): Promise<StaticPage> => {
 		const timestamp = Date.now()
-		const response = await apiClient.get(`/api/pages/by-slug/?slug=${slug}&t=${timestamp}`, {
-			headers: {
-				'Cache-Control': 'no-cache',
-				'Pragma': 'no-cache',
-			},
-		})
+		const response = await apiClient.get(`/api/pages/by-slug/?slug=${slug}&t=${timestamp}`)
 		return response.data
 	},
 
 	// Получить все страницы
 	getPages: async (): Promise<ApiResponse<StaticPage>> => {
 		const timestamp = Date.now()
-		const response = await apiClient.get(`/api/pages/?t=${timestamp}`, {
-			headers: {
-				'Cache-Control': 'no-cache',
-				'Pragma': 'no-cache',
-			},
-		})
+		const response = await apiClient.get(`/api/pages/?t=${timestamp}`)
 		return response.data
 	},
 }
