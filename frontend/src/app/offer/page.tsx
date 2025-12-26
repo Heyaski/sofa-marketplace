@@ -1,122 +1,104 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { pageService } from '@/services/api'
+import { StaticPage } from '@/types'
 
 export default function OfferPage() {
+	const [page, setPage] = useState<StaticPage | null>(null)
+	const [loading, setLoading] = useState(true)
+	const [error, setError] = useState<string | null>(null)
+
+	const loadPage = async () => {
+		try {
+			setLoading(true)
+			setError(null)
+			// Добавляем timestamp для предотвращения кеширования
+			const data = await pageService.getPageByType('terms')
+			setPage(data)
+		} catch (err: any) {
+			console.error('Ошибка загрузки страницы:', err)
+			setError(err.response?.data?.detail || 'Не удалось загрузить страницу')
+		} finally {
+			setLoading(false)
+		}
+	}
+
+	useEffect(() => {
+		loadPage()
+	}, [])
+
+	// Обновляем страницу при возврате фокуса (когда пользователь возвращается на вкладку)
+	useEffect(() => {
+		const handleFocus = () => {
+			loadPage()
+		}
+		window.addEventListener('focus', handleFocus)
+		return () => {
+			window.removeEventListener('focus', handleFocus)
+		}
+	}, [])
+
+	if (loading) {
+		return (
+			<div className='min-h-screen bg-gray-bg'>
+				<Header />
+				<main className='max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12'>
+					<div className='bg-white rounded-lg shadow-sm p-8 md:p-12'>
+						<div className='text-center text-gray-600'>Загрузка...</div>
+					</div>
+				</main>
+				<Footer />
+			</div>
+		)
+	}
+
+	if (error || !page) {
+		return (
+			<div className='min-h-screen bg-gray-bg'>
+				<Header />
+				<main className='max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12'>
+					<div className='bg-white rounded-lg shadow-sm p-8 md:p-12'>
+						<div className='text-center text-red-600 mb-4'>
+							{error || 'Страница не найдена'}
+						</div>
+						<button
+							onClick={loadPage}
+							className='mx-auto block px-4 py-2 bg-main1 text-white rounded hover:bg-main1/90'
+						>
+							Обновить страницу
+						</button>
+					</div>
+				</main>
+				<Footer />
+			</div>
+		)
+	}
+
 	return (
 		<div className='min-h-screen bg-gray-bg'>
 			<Header />
 			<main className='max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12'>
 				<div className='bg-white rounded-lg shadow-sm p-8 md:p-12'>
-					<h1 className='text-3xl md:text-4xl font-bold text-gray-900 mb-8'>
-						ПУБЛИЧНАЯ ОФЕРТА
-					</h1>
-					<p className='text-lg text-gray-700 mb-8'>
-						о заключении договора возмездного предоставления доступа к информационной базе данных и сервисам для совместной работы
-					</p>
-
-					<div className='prose prose-lg max-w-none text-gray-700 space-y-8'>
-						<section>
-							<h2 className='text-2xl font-semibold text-gray-900 mb-4'>
-								1. Термины и акцепт
-							</h2>
-							<p className='mb-4'>
-								1.1. Настоящая публичная оферта определяет условия предоставления доступа к профессиональной платформе «VizHub» (далее — «Платформа»), включающей Базу данных 3D-моделей и сервисы для совместной работы.
-							</p>
-							<p className='mb-4'>
-								1.2. Исполнитель — <strong>Индивидуальный предприниматель Руденко Филипп Сергеевич</strong> (ИНН 253600303874, ОГРНИП 313254331000066).
-							</p>
-							<p className='mb-4'>
-								1.3. Заказчик — лицо, совершившее акцепт Оферты путем полной оплаты одного из тарифных планов, представленных на Сайте.
-							</p>
-							<p>
-								1.4. Акцепт Оферты происходит в момент успешной оплаты выбранного тарифа. С этого момента Договор считается заключенным.
-							</p>
-						</section>
-
-						<section>
-							<h2 className='text-2xl font-semibold text-gray-900 mb-4'>
-								2. Предмет Оферты
-							</h2>
-							<p className='mb-4'>
-								2.1. Исполнитель предоставляет Заказчику на условиях простой (неисключительной) лицензии <strong>комплексный доступ к Платформе</strong>, включающий:
-							</p>
-							<ul className='list-disc pl-6 mb-4 space-y-2'>
-								<li>Право использования Базы данных, содержащей коммерческую информацию о предметах мебели и сопутствующие 3D-модели.</li>
-								<li>Право на неограниченное скачивание 3D-моделей в личных и коммерческих целях.</li>
-								<li>Доступ к сервису <strong>«Профессиональный чат»</strong>, в рамках которого Заказчик вправе обмениваться с другими пользователями ссылками на контент Платформы, а также созданными внутри Платформы подборками моделей («корзинами проектов»).</li>
-							</ul>
-							<p>
-								2.2. Полный перечень функций, срок доступа и стоимость указаны в описании каждого тарифного плана на Сайте в момент оплаты.
-							</p>
-						</section>
-
-						<section>
-							<h2 className='text-2xl font-semibold text-gray-900 mb-4'>
-								3. Право использования и ограничения
-							</h2>
-							<p className='mb-4'>
-								3.1. Заказчик вправе использовать скачанные 3D-модели и информацию для создания дизайн-проектов, визуализаций, презентаций.
-							</p>
-							<p className='mb-4'>
-								3.2. <strong>Строго запрещается:</strong>
-							</p>
-							<ul className='list-disc pl-6 mb-4 space-y-2'>
-								<li>Перепродажа, массовое распространение, передача третьим лицам исходных файлов 3D-моделей в виде, аналогичном их размещению на Платформе.</li>
-								<li>Систематическое извлечение или копирование данных с целью создания конкурирующей или производной базы данных.</li>
-								<li>Размещение скачанных файлов в открытом доступе (торрент-трекеры, публичные библиотеки).</li>
-								<li>Использование чата для спама, распространения запрещенного контента или нарушения общепринятых норм общения.</li>
-							</ul>
-							<p>
-								3.3. <strong>Обмен ссылками и корзинами в чате</strong> является санкционированным способом совместного использования контента Платформы в рамках текущих проектов между действующими подписчиками.
-							</p>
-						</section>
-
-						<section>
-							<h2 className='text-2xl font-semibold text-gray-900 mb-4'>
-								4. Порядок предоставления доступа и оплаты
-							</h2>
-							<p className='mb-4'>
-								4.1. Оплата производится в полном объеме авансом через платежный шлюз Сайта.
-							</p>
-							<p className='mb-4'>
-								4.2. Доступ предоставляется автоматически в момент подтверждения платежа и действует в течение фиксированного оплаченного периода. Автопродление (рекуррентный платеж) не осуществляется.
-							</p>
-							<p>
-								4.3. Услуга считается оказанной надлежащим образом с момента активации учетной записи Заказчика и предоставления технической возможности использовать все функции оплаченного тарифа.
-							</p>
-						</section>
-
-						<section>
-							<h2 className='text-2xl font-semibold text-gray-900 mb-4'>
-								5. Возврат средств
-							</h2>
-							<p className='mb-4'>
-								5.1. Услуга носит характер предоставления доступа к цифровому контенту и сервисам, которые могут быть использованы Заказчиком немедленно. В связи с этим, <strong>возврат денежных средств после активации доступа не производится</strong>.
-							</p>
-							<p>
-								5.2. Претензия о возврате может быть рассмотрена Исполнителем только в случае, если техническая возможность доступа к Платформе не была предоставлена Заказчику в течение 24 часов с момента оплаты, а обращение в техническую поддержку не привело к решению проблемы.
-							</p>
-						</section>
-
-						<section>
-							<h2 className='text-2xl font-semibold text-gray-900 mb-4'>
-								6. Реквизиты Исполнителя
-							</h2>
-							<div className='bg-gray-50 p-6 rounded-lg space-y-2'>
-								<p className='font-semibold'>Индивидуальный предприниматель Руденко Филипп Сергеевич</p>
-								<p>ИНН 253600303874 / ОГРНИП 313254331000066</p>
-								<p>Юр. адрес: 690068 г. Владивосток, ул. Чкалова, д. 12, кв. 40</p>
-								<p>Тел.: 8 989 2027522</p>
-								<p>E-mail: support@vizhub.art</p>
-								<p>Сайт: vizhub.art</p>
-								<div className='mt-4 pt-4 border-t border-gray-200'>
-									<p className='font-semibold mb-2'>Банковские реквизиты:</p>
-									<p>Р/с 40802810820020000706 в ФИЛИАЛ "ХАБАРОВСКИЙ" АО "АЛЬФА-БАНК"</p>
-									<p>БИК 040813770, к/с 30101810800000000770</p>
-								</div>
-							</div>
-						</section>
+					<div className='flex justify-between items-center mb-8'>
+						<h1 className='text-3xl md:text-4xl font-bold text-gray-900'>
+							{page.title}
+						</h1>
+						<button
+							onClick={loadPage}
+							disabled={loading}
+							className='px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed'
+							title='Обновить контент страницы'
+						>
+							{loading ? 'Обновление...' : '🔄 Обновить'}
+						</button>
 					</div>
+					<div 
+						className='prose prose-lg max-w-none text-gray-700 space-y-8'
+						dangerouslySetInnerHTML={{ __html: page.content }}
+					/>
 				</div>
 			</main>
 			<Footer />

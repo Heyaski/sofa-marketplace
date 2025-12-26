@@ -14,6 +14,7 @@ import {
 	Product,
 	ProductFilters,
 	RegisterData,
+	StaticPage,
 	Subscription,
 	User,
 } from '../types'
@@ -415,6 +416,47 @@ export const messageService = {
 	markChatRead: async (chatId: number): Promise<{ status: string }> => {
 		const response = await apiClient.post('/api/messages/mark_chat_read/', {
 			chat_id: Number(chatId), // Убеждаемся, что это число
+		})
+		return response.data
+	},
+}
+
+// Сервис для работы со статическими страницами
+export const pageService = {
+	// Получить страницу по типу (privacy, terms и т.д.)
+	// Использует стандартный DRF retrieve endpoint с lookup_field='page_type'
+	// Добавляем timestamp для предотвращения кеширования
+	getPageByType: async (pageType: string): Promise<StaticPage> => {
+		const timestamp = Date.now()
+		const response = await apiClient.get(`/api/pages/${pageType}/?t=${timestamp}`, {
+			headers: {
+				'Cache-Control': 'no-cache',
+				'Pragma': 'no-cache',
+			},
+		})
+		return response.data
+	},
+
+	// Получить страницу по slug
+	getPageBySlug: async (slug: string): Promise<StaticPage> => {
+		const timestamp = Date.now()
+		const response = await apiClient.get(`/api/pages/by-slug/?slug=${slug}&t=${timestamp}`, {
+			headers: {
+				'Cache-Control': 'no-cache',
+				'Pragma': 'no-cache',
+			},
+		})
+		return response.data
+	},
+
+	// Получить все страницы
+	getPages: async (): Promise<ApiResponse<StaticPage>> => {
+		const timestamp = Date.now()
+		const response = await apiClient.get(`/api/pages/?t=${timestamp}`, {
+			headers: {
+				'Cache-Control': 'no-cache',
+				'Pragma': 'no-cache',
+			},
 		})
 		return response.data
 	},

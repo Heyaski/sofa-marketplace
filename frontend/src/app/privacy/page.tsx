@@ -1,112 +1,104 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { pageService } from '@/services/api'
+import { StaticPage } from '@/types'
 
 export default function PrivacyPage() {
+	const [page, setPage] = useState<StaticPage | null>(null)
+	const [loading, setLoading] = useState(true)
+	const [error, setError] = useState<string | null>(null)
+
+	const loadPage = async () => {
+		try {
+			setLoading(true)
+			setError(null)
+			// Добавляем timestamp для предотвращения кеширования
+			const data = await pageService.getPageByType('privacy')
+			setPage(data)
+		} catch (err: any) {
+			console.error('Ошибка загрузки страницы:', err)
+			setError(err.response?.data?.detail || 'Не удалось загрузить страницу')
+		} finally {
+			setLoading(false)
+		}
+	}
+
+	useEffect(() => {
+		loadPage()
+	}, [])
+
+	// Обновляем страницу при возврате фокуса (когда пользователь возвращается на вкладку)
+	useEffect(() => {
+		const handleFocus = () => {
+			loadPage()
+		}
+		window.addEventListener('focus', handleFocus)
+		return () => {
+			window.removeEventListener('focus', handleFocus)
+		}
+	}, [])
+
+	if (loading) {
+		return (
+			<div className='min-h-screen bg-gray-bg'>
+				<Header />
+				<main className='max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12'>
+					<div className='bg-white rounded-lg shadow-sm p-8 md:p-12'>
+						<div className='text-center text-gray-600'>Загрузка...</div>
+					</div>
+				</main>
+				<Footer />
+			</div>
+		)
+	}
+
+	if (error || !page) {
+		return (
+			<div className='min-h-screen bg-gray-bg'>
+				<Header />
+				<main className='max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12'>
+					<div className='bg-white rounded-lg shadow-sm p-8 md:p-12'>
+						<div className='text-center text-red-600 mb-4'>
+							{error || 'Страница не найдена'}
+						</div>
+						<button
+							onClick={loadPage}
+							className='mx-auto block px-4 py-2 bg-main1 text-white rounded hover:bg-main1/90'
+						>
+							Обновить страницу
+						</button>
+					</div>
+				</main>
+				<Footer />
+			</div>
+		)
+	}
+
 	return (
 		<div className='min-h-screen bg-gray-bg'>
 			<Header />
 			<main className='max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12'>
 				<div className='bg-white rounded-lg shadow-sm p-8 md:p-12'>
-					<h1 className='text-3xl md:text-4xl font-bold text-gray-900 mb-8'>
-						Политика конфиденциальности
-					</h1>
-
-					<div className='prose prose-lg max-w-none text-gray-700 space-y-8'>
-						<section>
-							<h2 className='text-2xl font-semibold text-gray-900 mb-4'>
-								О базе данных VizHub.art и условиях доступа
-							</h2>
-							<p className='mb-4'>
-								VizHub.art — это <strong>профессиональная база данных 3D-объектов и платформа для совместной работы над дизайн-проектами</strong>. Мы предоставляем доступ к постоянно обновляемой библиотеке точных цифровых аналогов реальной мебели и уникальный инструмент для командной работы.
-							</p>
-
-							<h3 className='text-xl font-semibold text-gray-900 mt-6 mb-3'>
-								Реальный контент:
-							</h3>
-							<p className='mb-4'>
-								Каждая позиция в нашей базе данных соответствует <strong>конкретному предмету мебели</strong>, представленному на рынке. В карточке объекта указаны:
-							</p>
-							<ul className='list-disc pl-6 mb-4 space-y-2'>
-								<li>Актуальное <strong>коммерческое название</strong>.</li>
-								<li>Детальная <strong>спецификация от производителя</strong> (габариты, материалы, опции).</li>
-								<li><strong>Рекомендованная или среднерыночная цена</strong> на физический товар (для составления смет).</li>
-								<li>Высококачественные <strong>3D-модели</strong>, созданные по реальным чертежам, доступные для скачивания в производственных форматах: <strong>FBX, GLB, USDZ, RFA</strong>.</li>
-							</ul>
-
-							<h3 className='text-xl font-semibold text-gray-900 mt-6 mb-3'>
-								Цены и доступ:
-							</h3>
-							<p className='mb-4'>
-								Мы предлагаем доступ к платформе по системе коммерческой подписки. На сайте представлены фиксированные тарифные планы, детали которых указаны в разделе "Подписка".
-							</p>
-
-							<h3 className='text-xl font-semibold text-gray-900 mt-6 mb-3'>
-								Что входит в подписку:
-							</h3>
-							<ul className='list-disc pl-6 mb-4 space-y-2'>
-								<li><strong>Неограниченное скачивание</strong> любых 3D-моделей из всей базы данных.</li>
-								<li>
-									<strong>Доступ к профессиональному чату для пользователей</strong> — ключевой инструмент для работы над проектами. В чате вы можете:
-									<ul className='list-circle pl-6 mt-2 space-y-1'>
-										<li>Обмениваться <strong>ссылками на конкретные модели</strong> из каталога.</li>
-										<li>Делиться сформированными <strong>«Корзинами» или «Папками проекта»</strong>, которые объединяют всю номенклатуру мебели для конкретного дизайн-проекта, упрощая согласование с коллегами, заказчиками или подрядчиками.</li>
-										<li>Обсуждать детали и получать консультации.</li>
-									</ul>
-								</li>
-								<li><strong>Регулярное пополнение базы</strong> новыми актуальными моделями.</li>
-							</ul>
-						</section>
-
-						<section>
-							<h2 className='text-2xl font-semibold text-gray-900 mb-4'>
-								Как активировать доступ к платформе
-							</h2>
-							<ol className='list-decimal pl-6 space-y-3'>
-								<li>
-									<strong>Выберите и оплатите</strong> подходящий тарифный план на странице "Подписка". Оплата открывает доступ ко всей базе данных и функционалу платформы.
-								</li>
-								<li>
-									<strong>Мгновенная активация:</strong> Сразу после подтверждения платежа система автоматически активирует вашу учетную запись.
-								</li>
-								<li>
-									<strong>Письмо с доступом:</strong> На ваш email будет отправлено письмо с подтверждением и инструкциями по входу в личный кабинет.
-								</li>
-								<li>
-									С этого момента вы получаете полный доступ к возможностям VizHub:
-									<ul className='list-disc pl-6 mt-2 space-y-1'>
-										<li><strong>Работа с каталогом:</strong> Поиск, фильтрация и скачивание любых 3D-моделей.</li>
-										<li><strong>Организация проектов:</strong> Формирование персональных подборок (корзин) по вашим проектам.</li>
-										<li><strong>Совместная работа:</strong> Использование закрытого чата для обмена ссылками на модели и целыми подборками, что позволяет мгновенно передавать коллегам полную спецификацию мебели для визуализации.</li>
-									</ul>
-								</li>
-								<li>Доступ действует ровно на оплаченный период. Мы заранее уведомим вас об окончании срока подписки.</li>
-								<li>Для технической поддержки обращайтесь по адресу: <a href='mailto:support@vizhub.art' className='text-main1 hover:underline'>support@vizhub.art</a>.</li>
-							</ol>
-						</section>
-
-						<section>
-							<h2 className='text-2xl font-semibold text-gray-900 mb-4'>
-								Обработка персональных данных
-							</h2>
-							<p className='mb-4'>
-								Мы обрабатываем ваши персональные данные в соответствии с требованиями законодательства Российской Федерации о защите персональных данных.
-							</p>
-							<p className='mb-4'>
-								При регистрации и использовании платформы мы собираем следующие данные:
-							</p>
-							<ul className='list-disc pl-6 mb-4 space-y-2'>
-								<li>Имя пользователя и email для идентификации и связи с вами</li>
-								<li>Информация о подписке и платежах</li>
-								<li>Данные об использовании платформы (для улучшения сервиса)</li>
-							</ul>
-							<p className='mb-4'>
-								Мы не передаем ваши персональные данные третьим лицам, за исключением случаев, предусмотренных законодательством.
-							</p>
-							<p>
-								По всем вопросам, связанным с обработкой персональных данных, обращайтесь по адресу: <a href='mailto:support@vizhub.art' className='text-main1 hover:underline'>support@vizhub.art</a>.
-							</p>
-						</section>
+					<div className='flex justify-between items-center mb-8'>
+						<h1 className='text-3xl md:text-4xl font-bold text-gray-900'>
+							{page.title}
+						</h1>
+						<button
+							onClick={loadPage}
+							disabled={loading}
+							className='px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed'
+							title='Обновить контент страницы'
+						>
+							{loading ? 'Обновление...' : '🔄 Обновить'}
+						</button>
 					</div>
+					<div 
+						className='prose prose-lg max-w-none text-gray-700 space-y-8'
+						dangerouslySetInnerHTML={{ __html: page.content }}
+					/>
 				</div>
 			</main>
 			<Footer />

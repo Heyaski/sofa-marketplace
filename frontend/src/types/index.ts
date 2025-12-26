@@ -239,3 +239,15 @@ export interface MessageBasket {
 	id: number
 	basket: Basket
 }
+
+// Типы для статических страниц
+export interface StaticPage {
+	id: number
+	page_type: 'privacy' | 'terms' | 'about' | 'contact' | 'other'
+	title: string
+	content: string
+	slug: string
+	is_active: boolean
+	created_at: string
+	updated_at: string
+}
