@@ -128,6 +128,17 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Настройка хранилища файлов (Django 5.2+)
+# По умолчанию используем локальное хранилище
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
+
 # ============================================
 # Настройки S3 хранилища (Beget)
 # ============================================
@@ -188,7 +199,10 @@ if USE_S3_STORAGE:
         }
         
         # Используем S3 для медиа-файлов (3D модели, изображения)
-        DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+        # В Django 5.2+ используется STORAGES вместо DEFAULT_FILE_STORAGE
+        STORAGES["default"] = {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        }
         
         # Для подписанных URL используем path-style addressing вместо virtual-hosted-style
         # чтобы избежать проблем с дублированием пути в URL
@@ -254,8 +268,8 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024 * 1024  # 1 GB
 DATA_UPLOAD_MAX_NUMBER_FILES = 10000  # Увеличиваем для массовой загрузки
 
 # Максимальный размер одного файла (настраивается на уровне веб-сервера)
-# Для Nginx: client_max_body_size 2G; (увеличьте в конфигурации Nginx)
-# Для Apache: LimitRequestBody 2147483648
+# Для Nginx: client_max_body_size 5G; (увеличьте в конфигурации Nginx для архивов 3GB+)
+# Для Apache: LimitRequestBody 5368709120
 # 
 # ВАЖНО: После изменения этих настроек:
 # 1. Перезапустите Django сервер
