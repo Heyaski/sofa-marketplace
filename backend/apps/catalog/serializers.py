@@ -4,6 +4,7 @@ from .models import Product, Category, ProductImage, FileAsset
 
 class CategorySerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
+    parent_category = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
@@ -17,6 +18,16 @@ class CategorySerializer(serializers.ModelSerializer):
             if image_url.startswith(('http://', 'https://')):
                 return image_url
             return request.build_absolute_uri(image_url) if request else image_url
+        return None
+    
+    def get_parent_category(self, obj):
+        """Возвращает информацию о родительской категории, если она есть"""
+        if obj.parent:
+            return {
+                'id': obj.parent.id,
+                'name': obj.parent.name,
+                'slug': obj.parent.slug,
+            }
         return None
 
 

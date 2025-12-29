@@ -63,6 +63,11 @@ export interface Category {
 	name: string
 	slug: string
 	parent?: number | null
+	parent_category?: {
+		id: number
+		name: string
+		slug: string
+	} | null
 	image?: string | null
 }
 

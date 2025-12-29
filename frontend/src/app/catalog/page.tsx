@@ -16,6 +16,11 @@ interface Category {
 	slug: string
 	image?: string | null
 	parent?: number | null
+	parent_category?: {
+		id: number
+		name: string
+		slug: string
+	} | null
 }
 
 interface Product {

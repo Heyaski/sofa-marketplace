@@ -2,6 +2,7 @@ from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import AllowAny
 from rest_framework.pagination import PageNumberPagination
+from django.db import models
 from .models import Product, Category
 from .serializers import ProductSerializer, CategorySerializer
 
@@ -27,9 +28,43 @@ class ProductViewSet(viewsets.ModelViewSet):
         context['request'] = self.request
         return context
 
+    def get_queryset(self):
+        """Переопределяем queryset для поддержки фильтрации по категориям с учетом подкатегорий"""
+        queryset = super().get_queryset()
+        
+        # Получаем параметр фильтрации по категории
+        category_id = self.request.query_params.get('category', None)
+        
+        if category_id:
+            try:
+                category_id = int(category_id)
+                # Получаем категорию
+                from .models import Category
+                category = Category.objects.filter(id=category_id).first()
+                
+                if category:
+                    # Если выбрана основная категория (без parent), показываем:
+                    # 1. Продукты с этой категорией
+                    # 2. Продукты с подкатегориями этой категории
+                    if category.parent is None:
+                        # Получаем все подкатегории этой категории
+                        subcategories = Category.objects.filter(parent=category)
+                        # Фильтруем продукты: либо категория = основная, либо категория в подкатегориях
+                        queryset = queryset.filter(
+                            models.Q(category=category) | 
+                            models.Q(category__in=subcategories)
+                        )
+                    else:
+                        # Если выбрана подкатегория, показываем только продукты с этой подкатегорией
+                        queryset = queryset.filter(category=category)
+            except (ValueError, TypeError):
+                # Если category_id невалидный, игнорируем фильтр
+                pass
+        
+        return queryset
+
     # Фильтрация
     filterset_fields = {
-        "category": ["exact"],
         "material": ["exact"],
         "style": ["exact"],
         "color": ["exact"],
