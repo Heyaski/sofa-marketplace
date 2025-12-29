@@ -820,18 +820,44 @@ class ProductAdmin(admin.ModelAdmin):
                             errors.append(f"Строка {row_num}: не указана цена или цена некорректна (цена: {price})")
                             continue
                         
-                        # Получаем категорию
+                        # Получаем категорию и подкатегорию
                         category_name = get_cell_value(row, 'category', 'Без категории')
+                        subcategory_name = get_cell_value(row, 'subcategory', '').strip()
+                        
+                        # Создаем или получаем основную категорию
                         if category_name:
-                            category, _ = Category.objects.get_or_create(
+                            main_category, _ = Category.objects.get_or_create(
                                 name=category_name,
+                                parent=None,  # Основная категория без родителя
                                 defaults={'slug': category_name.lower().replace(' ', '-')}
                             )
                         else:
-                            category, _ = Category.objects.get_or_create(
+                            main_category, _ = Category.objects.get_or_create(
                                 slug='default',
+                                parent=None,
                                 defaults={'name': 'Без категории'}
                             )
+                        
+                        # Если есть подкатегория, создаем её как Category с parent = основная категория
+                        # и используем её как категорию продукта
+                        if subcategory_name:
+                            # Создаем подкатегорию как Category с parent = основная категория
+                            base_slug = f"{main_category.slug}-{subcategory_name.lower().replace(' ', '-')}"
+                            # Убеждаемся, что slug уникален (slug должен быть глобально уникальным)
+                            subcategory_slug = base_slug
+                            counter = 1
+                            while Category.objects.filter(slug=subcategory_slug).exists():
+                                subcategory_slug = f"{base_slug}-{counter}"
+                                counter += 1
+                            
+                            category, _ = Category.objects.get_or_create(
+                                name=subcategory_name,
+                                parent=main_category,
+                                defaults={'slug': subcategory_slug}
+                            )
+                        else:
+                            # Если подкатегории нет, используем основную категорию
+                            category = main_category
                         
                         # Получаем ID из первой колонки (если есть)
                         product_id = get_cell_value(row, 'id', '')

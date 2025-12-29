@@ -246,7 +246,7 @@ export default function SendBasketModal({
 
 				{/* Send options - side by side */}
 				<div className='grid grid-cols-2 gap-4 mb-6'>
-					{/* Send to VizHub.art user */}
+					{/* Send to VizHub.pro user */}
 					<label
 						className={`flex items-center gap-3 cursor-pointer p-4 rounded-lg border transition-colors ${
 							sendToUser
@@ -265,7 +265,7 @@ export default function SendBasketModal({
 							}}
 							className='w-4 h-4 text-main1 focus:ring-main1 border-gray2 rounded'
 						/>
-						<span className='text-black'>Пользователю VizHub.art</span>
+						<span className='text-black'>Пользователю VizHub.pro</span>
 					</label>
 
 					{/* Send to email */}

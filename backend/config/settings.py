@@ -292,9 +292,9 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 # Настройки Jazzmin для красивой админ-панели
 JAZZMIN_SETTINGS = {
     # Заголовок сайта
-    "site_title": "VIZHUB.ART Admin",
-    "site_header": "VIZHUB.ART",
-    "site_brand": "VIZHUB.ART",
+    "site_title": "VIZHUB.PRO Admin",
+    "site_header": "VIZHUB.PRO",
+    "site_brand": "VIZHUB.PRO",
     "site_logo": None,
     "login_logo": None,
     "login_logo_dark": None,
@@ -358,7 +358,7 @@ JAZZMIN_SETTINGS = {
     "default_icon_children": "fas fa-circle",
     
     # Настройки футера
-    "copyright": "VIZHUB.ART",
+    "copyright": "VIZHUB.PRO",
     
     # Настройки поиска
     "search_model": ["auth.User", "catalog.Product"],

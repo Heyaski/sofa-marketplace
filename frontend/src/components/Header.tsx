@@ -75,12 +75,12 @@ export default function Header() {
 					>
 						<Image
 							src='/img/logo.svg'
-							alt='VizHub.art Logo'
+							alt='VizHub.pro Logo'
 							width={32}
 							height={32}
 							className='w-8 h-8'
 						/>
-						<span className='text-xl text-black'>VIZHUB.ART</span>
+						<span className='text-xl text-black'>VIZHUB.PRO</span>
 					</a>
 
 					{/* Center navigation */}

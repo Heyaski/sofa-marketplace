@@ -1,4 +1,4 @@
-# Изображения для VizHub.art
+# Изображения для VizHub.pro
 
 Эта папка содержит все изображения для фронтенда маркетплейса.
 
@@ -20,7 +20,7 @@
 
 ### 3. **Дополнительные иконки** ✅
 
-- **logo.svg** - логотип VizHub.art (используется в Header и Footer)
+- **logo.svg** - логотип VizHub.pro (используется в Header и Footer)
 - **menu-burger.svg** - иконка меню (используется в кнопке "Каталог")
 - **inst.svg** - Instagram (используется в Footer)
 - **telegram.svg** - Telegram (используется в Footer)

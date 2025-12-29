@@ -5,7 +5,7 @@ import '../styles/globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-	title: 'VizHub.art - Маркетплейс 3D моделей мебели',
+	title: 'VizHub.pro - Маркетплейс 3D моделей мебели',
 	description:
 		'Реалистичная мебель в 3D для интерьеров, которые хочется трогать',
 }

@@ -13,10 +13,10 @@ class Command(BaseCommand):
         # Контент политики конфиденциальности
         privacy_content = """<section>
 	<h2 class='text-2xl font-semibold text-gray-900 mb-4'>
-		О базе данных VizHub.art и условиях доступа
+		О базе данных VizHub.pro и условиях доступа
 	</h2>
 	<p class='mb-4'>
-		VizHub.art — это <strong>профессиональная база данных 3D-объектов и платформа для совместной работы над дизайн-проектами</strong>. Мы предоставляем доступ к постоянно обновляемой библиотеке точных цифровых аналогов реальной мебели и уникальный инструмент для командной работы.
+		VizHub.pro — это <strong>профессиональная база данных 3D-объектов и платформа для совместной работы над дизайн-проектами</strong>. Мы предоставляем доступ к постоянно обновляемой библиотеке точных цифровых аналогов реальной мебели и уникальный инструмент для командной работы.
 	</p>
 	<h3 class='text-xl font-semibold text-gray-900 mt-6 mb-3'>
 		Реальный контент:
@@ -75,7 +75,7 @@ class Command(BaseCommand):
 			</ul>
 		</li>
 		<li>Доступ действует ровно на оплаченный период. Мы заранее уведомим вас об окончании срока подписки.</li>
-		<li>Для технической поддержки обращайтесь по адресу: <a href='mailto:support@vizhub.art' class='text-main1 hover:underline'>support@vizhub.art</a>.</li>
+		<li>Для технической поддержки обращайтесь по адресу: <a href='mailto:support@vizhub.pro' class='text-main1 hover:underline'>support@vizhub.pro</a>.</li>
 	</ol>
 </section>
 <section>
@@ -97,7 +97,7 @@ class Command(BaseCommand):
 		Мы не передаем ваши персональные данные третьим лицам, за исключением случаев, предусмотренных законодательством.
 	</p>
 	<p>
-		По всем вопросам, связанным с обработкой персональных данных, обращайтесь по адресу: <a href='mailto:support@vizhub.art' class='text-main1 hover:underline'>support@vizhub.art</a>.
+		По всем вопросам, связанным с обработкой персональных данных, обращайтесь по адресу: <a href='mailto:support@vizhub.pro' class='text-main1 hover:underline'>support@vizhub.pro</a>.
 	</p>
 </section>"""
 
@@ -189,8 +189,8 @@ class Command(BaseCommand):
 		<p>ИНН 253600303874 / ОГРНИП 313254331000066</p>
 		<p>Юр. адрес: 690068 г. Владивосток, ул. Чкалова, д. 12, кв. 40</p>
 		<p>Тел.: 8 989 2027522</p>
-		<p>E-mail: support@vizhub.art</p>
-		<p>Сайт: vizhub.art</p>
+		<p>E-mail: support@vizhub.pro</p>
+		<p>Сайт: vizhub.pro</p>
 		<div class='mt-4 pt-4 border-t border-gray-200'>
 			<p class='font-semibold mb-2'>Банковские реквизиты:</p>
 			<p>Р/с 40802810820020000706 в ФИЛИАЛ "ХАБАРОВСКИЙ" АО "АЛЬФА-БАНК"</p>

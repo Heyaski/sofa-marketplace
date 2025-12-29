@@ -32,12 +32,12 @@ export default function Footer() {
 					<div className='bg-white rounded-lg p-3 flex items-center space-x-3'>
 						<Image
 							src='/img/logo.svg'
-							alt='VizHub.art Logo'
+							alt='VizHub.pro Logo'
 							width={32}
 							height={32}
 							className='w-8 h-8'
 						/>
-						<span className='text-xl font-medium text-black'>VIZHUB.ART</span>
+						<span className='text-xl font-medium text-black'>VIZHUB.PRO</span>
 					</div>
 
 					{/* Links */}

@@ -479,7 +479,7 @@ function AuthForm({ onSuccess }: AuthFormProps) {
 				{/* Footer */}
 				<div className='text-center'>
 					<p className='text-xs text-gray'>
-						© 2024 VizHub.art. Все права защищены.
+						© 2024 VizHub.pro. Все права защищены.
 					</p>
 				</div>
 			</div>

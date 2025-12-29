@@ -41,7 +41,7 @@ const nextConfig = {
 			// Домен для продакшена
 			{
 				protocol: 'https',
-				hostname: 'api.vizhub.art',
+				hostname: 'api.vizhub.pro',
 				pathname: '/media/**',
 			},
 		],
