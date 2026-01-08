@@ -701,7 +701,8 @@ class ProductAdmin(admin.ModelAdmin):
                     'description': ['описание', 'description', 'ория'],
                     'photo_url': ['url photo', 'urlphoto', 'url_photo', 'фото', 'photo', 'image_url'],
                     'image_asset_ids': ['id изображений', 'image_asset_ids', 'image_ids', 'id изображения', 'id фото'],
-                    'model_3d_asset_ids': ['id 3d моделей', 'model_3d_asset_ids', '3d_asset_ids', 'id 3d', 'id модели', 'id моделей'],
+                    'id_3d': ['id 3d', 'id3d', '3d id', '3d_id'],
+                    'model_3d_asset_ids': ['id 3d моделей', 'model_3d_asset_ids', '3d_asset_ids', 'id модели', 'id моделей', '3d model id', '3d_model_id'],
                     'model_fbx': ['fbx', 'model_fbx'],
                     'model_glb': ['glb', 'model_glb'],
                     'model_rfa': ['rfa', 'model_rfa'],
@@ -864,7 +865,14 @@ class ProductAdmin(admin.ModelAdmin):
                         
                         # Получаем ID изображений и 3D моделей из Excel (если указаны)
                         image_asset_ids = get_cell_value(row, 'image_asset_ids', '')
+                        
+                        # Сначала проверяем колонку "id 3d" (приоритет), затем "ID 3D моделей"
+                        id_3d = get_cell_value(row, 'id_3d', '')
                         model_3d_asset_ids = get_cell_value(row, 'model_3d_asset_ids', '')
+                        
+                        # Если указана колонка "id 3d", используем её значение
+                        if id_3d:
+                            model_3d_asset_ids = id_3d
                         
                         # Если ID продукта указан в первой колонке и поля image_asset_ids/model_3d_asset_ids 
                         # не заполнены в Excel, автоматически используем ID из первой колонки

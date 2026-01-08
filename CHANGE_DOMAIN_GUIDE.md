@@ -277,3 +277,5 @@ api.yourdomain.com → yourdomain.com
 - Логи Next.js: `sudo journalctl -u sofa-frontend -f`
 - Консоль браузера (F12) на наличие CORS ошибок
 
+
+
