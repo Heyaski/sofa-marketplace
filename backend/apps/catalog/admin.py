@@ -825,40 +825,39 @@ class ProductAdmin(admin.ModelAdmin):
                         category_name = get_cell_value(row, 'category', 'Без категории')
                         subcategory_name = get_cell_value(row, 'subcategory', '').strip()
                         
-                        # Создаем или получаем основную категорию
-                        if category_name:
-                            main_category, _ = Category.objects.get_or_create(
-                                name=category_name,
-                                parent=None,  # Основная категория без родителя
-                                defaults={'slug': category_name.lower().replace(' ', '-')}
-                            )
-                        else:
-                            main_category, _ = Category.objects.get_or_create(
-                                slug='default',
-                                parent=None,
-                                defaults={'name': 'Без категории'}
-                            )
-                        
-                        # Если есть подкатегория, создаем её как Category с parent = основная категория
-                        # и используем её как категорию продукта
+                        # Используем подкатегорию как основную категорию продукта (если она указана)
+                        # Если подкатегории нет, используем категорию
                         if subcategory_name:
-                            # Создаем подкатегорию как Category с parent = основная категория
-                            base_slug = f"{main_category.slug}-{subcategory_name.lower().replace(' ', '-')}"
-                            # Убеждаемся, что slug уникален (slug должен быть глобально уникальным)
-                            subcategory_slug = base_slug
+                            # Создаем подкатегорию как основную категорию (без parent)
+                            # Это будет категория, которая отображается на сайте
+                            category_slug = subcategory_name.lower().replace(' ', '-')
+                            # Убеждаемся, что slug уникален
+                            base_slug = category_slug
                             counter = 1
-                            while Category.objects.filter(slug=subcategory_slug).exists():
-                                subcategory_slug = f"{base_slug}-{counter}"
+                            while Category.objects.filter(slug=category_slug).exists():
+                                category_slug = f"{base_slug}-{counter}"
                                 counter += 1
                             
                             category, _ = Category.objects.get_or_create(
                                 name=subcategory_name,
-                                parent=main_category,
-                                defaults={'slug': subcategory_slug}
+                                parent=None,  # Подкатегория становится основной категорией
+                                defaults={'slug': category_slug}
                             )
                         else:
-                            # Если подкатегории нет, используем основную категорию
-                            category = main_category
+                            # Если подкатегории нет, используем категорию из колонки "категория"
+                            if category_name:
+                                category, _ = Category.objects.get_or_create(
+                                    name=category_name,
+                                    parent=None,
+                                    defaults={'slug': category_name.lower().replace(' ', '-')}
+                                )
+                            else:
+                                # Если нет ни категории, ни подкатегории
+                                category, _ = Category.objects.get_or_create(
+                                    slug='default',
+                                    parent=None,
+                                    defaults={'name': 'Без категории'}
+                                )
                         
                         # Получаем ID из первой колонки (если есть)
                         product_id = get_cell_value(row, 'id', '')
