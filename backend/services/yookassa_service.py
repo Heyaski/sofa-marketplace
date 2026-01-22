@@ -80,8 +80,35 @@ class YooKassaService:
         logger.info(f"Отправка запроса в ЮКассу: {payment_data}")
         
         try:
+            # Проверяем, что Configuration настроена
+            if not Configuration.account_id or not Configuration.secret_key:
+                error_msg = "Configuration ЮКассы не настроена. Проверьте YOOKASSA_ACCOUNT_ID и YOOKASSA_SECRET_KEY"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            
+            # Убеждаемся, что сумма в правильном формате (строка с двумя знаками после запятой)
+            if isinstance(amount, (int, float)):
+                amount = f"{amount:.2f}"
+            elif not isinstance(amount, str):
+                amount = str(amount)
+            
+            # Обновляем payment_data с правильным форматом суммы
+            payment_data["amount"]["value"] = amount
+            
+            # Проверяем return_url
+            if not return_url or not return_url.startswith(('http://', 'https://')):
+                error_msg = f"Некорректный return_url: {return_url}. URL должен начинаться с http:// или https://"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            
+            logger.info(f"Отправка запроса в ЮКассу: {payment_data}")
+            logger.info(f"Configuration: account_id={Configuration.account_id[:10]}..., test_mode={self.test_mode}")
+            
             # Создаем платеж
-            payment = Payment.create(payment_data, uuid.uuid4())
+            idempotence_key = uuid.uuid4()
+            logger.info(f"Idempotence key: {idempotence_key}")
+            
+            payment = Payment.create(payment_data, idempotence_key)
             
             logger.info(f"Платеж создан успешно. ID: {payment.id}, статус: {payment.status}")
             
@@ -121,8 +148,43 @@ class YooKassaService:
                 "currency": currency_value,
             }
         except Exception as e:
-            logger.error(f"Ошибка при создании платежа: {str(e)}", exc_info=True)
-            raise
+            # Пытаемся извлечь детальную информацию об ошибке
+            error_details = str(e)
+            error_type = type(e).__name__
+            
+            # Проверяем различные атрибуты, которые могут содержать детали ошибки
+            if hasattr(e, 'response') and e.response:
+                try:
+                    if hasattr(e.response, 'json'):
+                        error_json = e.response.json()
+                        error_details = f"{error_details}. Детали: {error_json}"
+                    elif hasattr(e.response, 'text'):
+                        error_details = f"{error_details}. Ответ: {e.response.text}"
+                except:
+                    pass
+            
+            # Проверяем атрибуты исключения
+            if hasattr(e, 'code'):
+                error_details = f"{error_details}. Код: {e.code}"
+            if hasattr(e, 'description'):
+                error_details = f"{error_details}. Описание: {e.description}"
+            if hasattr(e, 'message'):
+                error_details = f"{error_details}. Сообщение: {e.message}"
+            
+            # Логируем полную информацию об ошибке
+            logger.error(f"Ошибка при создании платежа (тип: {error_type}): {error_details}", exc_info=True)
+            
+            # Формируем понятное сообщение для пользователя
+            if "400" in error_details or "Bad Request" in error_details:
+                user_message = f"Некорректный запрос к ЮКассе. Проверьте настройки платежной системы. Детали: {error_details}"
+            elif "401" in error_details or "Unauthorized" in error_details:
+                user_message = f"Ошибка авторизации в ЮКассе. Проверьте YOOKASSA_ACCOUNT_ID и YOOKASSA_SECRET_KEY. Детали: {error_details}"
+            elif "403" in error_details or "Forbidden" in error_details:
+                user_message = f"Доступ запрещен в ЮКассе. Проверьте права доступа. Детали: {error_details}"
+            else:
+                user_message = f"Ошибка при создании платежа в ЮКассе: {error_details}"
+            
+            raise ValueError(user_message)
     
     def get_payment_status(self, payment_id):
         """

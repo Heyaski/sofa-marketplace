@@ -60,7 +60,33 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
                 return_url = getattr(
                     settings,
                     'YOOKASSA_RETURN_URL',
-                    f"{request.scheme}://{request.get_host()}/profile/subscription?payment_success=true"
+                    None
+                )
+                
+                if not return_url:
+                    # Формируем URL на основе текущего запроса
+                    host = request.get_host()
+                    # Убираем порт, если он есть (для продакшена)
+                    if ':' in host and not host.endswith(':443') and not host.endswith(':80'):
+                        # Оставляем порт только если это не стандартные порты
+                        pass
+                    else:
+                        # Убираем порт для стандартных портов
+                        host = host.split(':')[0]
+                    
+                    scheme = request.scheme
+                    # В продакшене обычно используется https
+                    if not request.is_secure() and not settings.DEBUG:
+                        scheme = 'https'
+                    
+                    return_url = f"{scheme}://{host}/profile/subscription?payment_success=true"
+            
+            # Валидация return_url
+            if not return_url.startswith(('http://', 'https://')):
+                logger.error(f"Некорректный return_url: {return_url}")
+                return Response(
+                    {"error": "Некорректный URL для возврата после оплаты"},
+                    status=status.HTTP_400_BAD_REQUEST
                 )
             
             logger.info(f"Создание платежа для типа подписки: {subscription_type}, return_url: {return_url}")
