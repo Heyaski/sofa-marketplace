@@ -117,7 +117,8 @@ export default function SubscriptionManagement() {
 		}
 
 		checkPaymentStatus()
-	}, [searchParams])
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []) // Запускаем только один раз при монтировании компонента
 
 	// Определяем текущую подписку пользователя
 	const currentSubscription = user?.profile?.subscription_type || 'trial'
