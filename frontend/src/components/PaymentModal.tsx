@@ -1,6 +1,6 @@
 'use client'
 
-import { authService } from '@/services/api'
+import { authService, subscriptionService } from '@/services/api'
 import { User } from '@/types'
 import {
 	formatCardCVV,
@@ -33,6 +33,7 @@ export default function PaymentModal({
 	const [showNewCardForm, setShowNewCardForm] = useState(false)
 	const [selectedCard, setSelectedCard] = useState<'saved' | 'new'>('saved')
 	const [loading, setLoading] = useState(false)
+	const [paymentId, setPaymentId] = useState<string | null>(null)
 
 	// Данные новой карты
 	const [newCardData, setNewCardData] = useState({
@@ -130,16 +131,27 @@ export default function PaymentModal({
 				})
 			}
 
-			// Здесь будет логика оплаты подписки через API
-			// Пока что просто имитируем успешную оплату
-			await new Promise(resolve => setTimeout(resolve, 1000))
+			// Создаем платеж через ЮКассу
+			const returnUrl = `${window.location.origin}/profile/subscription?payment_success=true&planId=${planId}`
+			const paymentData = await subscriptionService.createSubscriptionPayment(
+				planId,
+				returnUrl
+			)
 
-			onPaymentSuccess()
-			onClose()
+			// Сохраняем payment_id для проверки статуса после возврата
+			setPaymentId(paymentData.payment_id)
+			localStorage.setItem('pending_payment_id', paymentData.payment_id)
+			localStorage.setItem('pending_payment_plan', planId)
+
+			// Перенаправляем пользователя на страницу оплаты ЮКассы
+			window.location.href = paymentData.confirmation_url
 		} catch (error: any) {
-			console.error('Ошибка при оплате:', error)
-			alert(error.response?.data?.detail || 'Ошибка при оплате подписки')
-		} finally {
+			console.error('Ошибка при создании платежа:', error)
+			alert(
+				error.response?.data?.error ||
+					error.response?.data?.detail ||
+					'Ошибка при создании платежа'
+			)
 			setLoading(false)
 		}
 	}

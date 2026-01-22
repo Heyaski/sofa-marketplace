@@ -13,9 +13,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = [
             'subscription_type', 'subscription_type_display',
+            'subscription_end_date', 'auto_renewal', 'yookassa_payment_id',
             'card_number', 'card_holder', 'card_expiry', 'card_cvv',
             'chat_notifications', 'new_models_notifications'
         ]
+        read_only_fields = ['subscription_end_date', 'auto_renewal', 'yookassa_payment_id']
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -55,6 +57,9 @@ class UserSerializer(serializers.ModelSerializer):
             representation['profile'] = {
                 'subscription_type': 'trial',
                 'subscription_type_display': 'Пробная',
+                'subscription_end_date': None,
+                'auto_renewal': False,
+                'yookassa_payment_id': None,
                 'card_number': '',
                 'card_holder': '',
                 'card_expiry': '',

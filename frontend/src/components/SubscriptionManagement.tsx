@@ -1,6 +1,6 @@
 'use client'
 
-import { authService } from '@/services/api'
+import { authService, subscriptionService } from '@/services/api'
 import { User } from '@/types'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
@@ -70,6 +70,54 @@ export default function SubscriptionManagement() {
 
 		fetchUser()
 	}, [])
+
+	// Проверяем статус платежа после возврата с ЮКассы
+	useEffect(() => {
+		const checkPaymentStatus = async () => {
+			// Получаем параметры из URL
+			const urlParams = new URLSearchParams(window.location.search)
+			const paymentSuccess = urlParams.get('payment_success')
+			const pendingPaymentId = localStorage.getItem('pending_payment_id')
+
+			if (paymentSuccess === 'true' && pendingPaymentId) {
+				try {
+					// Проверяем статус платежа
+					const paymentStatus = await subscriptionService.checkPaymentStatus(
+						pendingPaymentId
+					)
+
+					if (paymentStatus.paid && paymentStatus.subscription_activated) {
+						// Обновляем данные пользователя
+						const userData = await authService.getCurrentUser()
+						setUser(userData)
+						if (userData.profile?.subscription_type) {
+							setSelectedPlan(userData.profile.subscription_type)
+						}
+
+						// Очищаем localStorage
+						localStorage.removeItem('pending_payment_id')
+						localStorage.removeItem('pending_payment_plan')
+
+						// Показываем сообщение об успехе
+						alert('Подписка успешно активирована!')
+					} else if (paymentStatus.paid && !paymentStatus.subscription_activated) {
+						alert(
+							'Платеж успешен, но произошла ошибка при активации подписки. Обратитесь в поддержку.'
+						)
+					} else {
+						alert('Платеж еще не обработан. Подписка будет активирована автоматически.')
+					}
+				} catch (error: any) {
+					console.error('Ошибка при проверке статуса платежа:', error)
+					alert(
+						'Ошибка при проверке статуса платежа. Если платеж был успешным, подписка будет активирована автоматически.'
+					)
+				}
+			}
+		}
+
+		checkPaymentStatus()
+	}, [searchParams])
 
 	// Определяем текущую подписку пользователя
 	const currentSubscription = user?.profile?.subscription_type || 'trial'

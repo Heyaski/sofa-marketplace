@@ -123,6 +123,11 @@ EMAIL_HOST_USER = "antontenditnik60@gmail.com"
 EMAIL_HOST_PASSWORD = "plryjeqormckvdta"
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
+# Настройки ЮКассы
+YOOKASSA_ACCOUNT_ID = get_env("YOOKASSA_ACCOUNT_ID", "")
+YOOKASSA_SECRET_KEY = get_env("YOOKASSA_SECRET_KEY", "")
+YOOKASSA_TEST_MODE = bool(int(get_env("YOOKASSA_TEST_MODE", "1")))  # По умолчанию тестовый режим
+
 # Медиа-файлы (загрузка изображений, фото и т.п.)
 # Если используется S3 хранилище, эти настройки будут переопределены ниже
 MEDIA_URL = '/media/'

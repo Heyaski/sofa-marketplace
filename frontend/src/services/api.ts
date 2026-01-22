@@ -266,6 +266,37 @@ export const subscriptionService = {
 		const response = await apiClient.post('/subscriptions/', { plan: planId })
 		return response.data
 	},
+
+	// Создать платеж для подписки через ЮКассу
+	createSubscriptionPayment: async (
+		subscriptionType: string,
+		returnUrl?: string
+	): Promise<{
+		payment_id: string
+		confirmation_url: string
+		amount: string
+		currency: string
+	}> => {
+		const response = await apiClient.post('/subscriptions/create_payment/', {
+			subscription_type: subscriptionType,
+			return_url: returnUrl,
+		})
+		return response.data
+	},
+
+	// Проверить статус платежа
+	checkPaymentStatus: async (paymentId: string): Promise<{
+		status: string
+		paid: boolean
+		subscription_activated?: boolean
+		subscription_type?: string
+		subscription_end_date?: string
+	}> => {
+		const response = await apiClient.post('/subscriptions/check_payment_status/', {
+			payment_id: paymentId,
+		})
+		return response.data
+	},
 }
 
 // Сервис для аутентификации
