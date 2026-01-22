@@ -12,9 +12,13 @@ logger = logging.getLogger(__name__)
 
 
 class PlanViewSet(viewsets.ModelViewSet):
-    queryset = Plan.objects.all()
+    queryset = Plan.objects.filter(is_active=True)
     serializer_class = PlanSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    
+    def get_queryset(self):
+        # Возвращаем только активные планы, отсортированные по типу
+        return Plan.objects.filter(is_active=True).order_by('subscription_type')
 
 
 class SubscriptionViewSet(viewsets.ModelViewSet):

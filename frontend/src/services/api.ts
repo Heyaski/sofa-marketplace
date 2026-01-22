@@ -250,7 +250,7 @@ export const downloadService = {
 // Сервис для работы с подписками
 export const subscriptionService = {
 	// Получить все планы подписок
-	getPlans: async (): Promise<ApiResponse<Plan>> => {
+	getPlans: async (): Promise<ApiResponse<Plan> | Plan[]> => {
 		const response = await apiClient.get('/api/subscriptions/plans/')
 		return response.data
 	},

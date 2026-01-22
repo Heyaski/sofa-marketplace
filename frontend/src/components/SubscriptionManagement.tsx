@@ -1,7 +1,7 @@
 'use client'
 
 import { authService, subscriptionService } from '@/services/api'
-import { User } from '@/types'
+import { User, Plan } from '@/types'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import PaymentModal from './PaymentModal'
@@ -16,33 +16,19 @@ interface SubscriptionPlan {
 	isCurrent?: boolean
 }
 
-const subscriptionPlans: SubscriptionPlan[] = [
-	{
-		id: 'trial',
-		name: 'Пробная',
-		price: 'БЕСПЛАТНО',
-		features: 'Пробное скачивание 3-х моделей',
-		image: '/img/test_subscriptions.svg',
-	},
-	{
-		id: 'basic',
-		name: 'Базовая',
-		price: '1 000 руб/мес',
-		features: '10 скачиваний в месяц',
-		image: '/img/base_subscriptions.svg',
-	},
-	{
-		id: 'premium',
-		name: 'Премиум',
-		price: '8 000 руб/мес',
-		features: 'Безлимитное скачивание моделей',
-		image: '/img/premium_subscriptions.svg',
-	},
-]
+// Пробная подписка не хранится в базе, добавляем её вручную
+const trialPlan: SubscriptionPlan = {
+	id: 'trial',
+	name: 'Пробная',
+	price: 'БЕСПЛАТНО',
+	features: 'Пробное скачивание 3-х моделей',
+	image: '/img/test_subscriptions.svg',
+}
 
 export default function SubscriptionManagement() {
 	const [user, setUser] = useState<User | null>(null)
 	const [loading, setLoading] = useState(true)
+	const [plans, setPlans] = useState<SubscriptionPlan[]>([])
 	const [selectedPlan, setSelectedPlan] = useState<string>('trial')
 	const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
 	const [selectedPlanForPayment, setSelectedPlanForPayment] = useState<{
@@ -51,24 +37,71 @@ export default function SubscriptionManagement() {
 		price: string
 	} | null>(null)
 
-	// Загружаем данные пользователя при монтировании компонента
+	// Загружаем данные пользователя и планы подписок при монтировании компонента
 	useEffect(() => {
-		const fetchUser = async () => {
+		const fetchData = async () => {
 			try {
-				const userData = await authService.getCurrentUser()
+				// Загружаем пользователя и планы параллельно
+				const [userData, plansResponse] = await Promise.all([
+					authService.getCurrentUser(),
+					subscriptionService.getPlans(),
+				])
+
 				setUser(userData)
 				// Устанавливаем текущую подписку из данных пользователя
 				if (userData.profile?.subscription_type) {
 					setSelectedPlan(userData.profile.subscription_type)
 				}
+
+				// Преобразуем планы из API в формат для компонента
+				const plansList: SubscriptionPlan[] = [trialPlan]
+
+				// Маппинг изображений для планов
+				const planImages: Record<string, string> = {
+					basic: '/img/base_subscriptions.svg',
+					premium: '/img/premium_subscriptions.svg',
+				}
+
+				// Маппинг описаний для планов
+				const planFeatures: Record<string, string> = {
+					basic: '10 скачиваний в месяц',
+					premium: 'Безлимитное скачивание моделей',
+				}
+
+				// Добавляем планы из API
+				const apiPlans = plansResponse.results || plansResponse
+				if (Array.isArray(apiPlans)) {
+					apiPlans.forEach((plan: Plan) => {
+						const priceValue = typeof plan.price === 'string' 
+							? parseFloat(plan.price) 
+							: plan.price
+						const formattedPrice = priceValue.toLocaleString('ru-RU', {
+							style: 'currency',
+							currency: 'RUB',
+							minimumFractionDigits: 0,
+						}) + '/мес'
+
+						plansList.push({
+							id: plan.subscription_type,
+							name: plan.name,
+							price: formattedPrice,
+							features: plan.description || planFeatures[plan.subscription_type] || '',
+							image: planImages[plan.subscription_type] || '/img/base_subscriptions.svg',
+						})
+					})
+				}
+
+				setPlans(plansList)
 			} catch (error) {
-				console.error('Ошибка при загрузке пользователя:', error)
+				console.error('Ошибка при загрузке данных:', error)
+				// В случае ошибки используем дефолтные планы
+				setPlans([trialPlan])
 			} finally {
 				setLoading(false)
 			}
 		}
 
-		fetchUser()
+		fetchData()
 	}, [])
 
 	// Проверяем статус платежа после возврата с ЮКассы
@@ -124,7 +157,7 @@ export default function SubscriptionManagement() {
 	const currentSubscription = user?.profile?.subscription_type || 'trial'
 
 	const handleSelectPlan = (planId: string) => {
-		const plan = subscriptionPlans.find(p => p.id === planId)
+		const plan = plans.find(p => p.id === planId)
 		// Проверяем, что план существует и не является текущим
 		if (plan && planId !== currentSubscription) {
 			setSelectedPlanForPayment({
@@ -166,7 +199,7 @@ export default function SubscriptionManagement() {
 			) : (
 				<div className='bg-white rounded-xl overflow-hidden'>
 					<div className='grid grid-cols-1 md:grid-cols-3 divide-x divide-gray-300'>
-						{subscriptionPlans.map(plan => {
+						{plans.map(plan => {
 							const isCurrent = plan.id === currentSubscription
 							return (
 								<div key={plan.id} className='p-6 text-center flex flex-col'>

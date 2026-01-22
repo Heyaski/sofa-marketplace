@@ -4,6 +4,7 @@ from yookassa import Configuration, Payment
 from django.conf import settings
 from django.utils.timezone import now
 from apps.users.models import UserProfile
+from apps.subscriptions.models import Plan
 
 # Настройка логгера для платежей
 logger = logging.getLogger('yookassa')
@@ -40,24 +41,20 @@ class YooKassaService:
             logger.error("YOOKASSA_ACCOUNT_ID и YOOKASSA_SECRET_KEY не настроены")
             raise ValueError("YOOKASSA_ACCOUNT_ID и YOOKASSA_SECRET_KEY должны быть настроены в settings.py")
         
-        # Определяем цену подписки
-        prices = {
-            'basic': '1000.00',
-            'premium': '8000.00',
-        }
+        # Получаем план подписки из базы данных
+        try:
+            plan = Plan.objects.get(subscription_type=subscription_type, is_active=True)
+        except Plan.DoesNotExist:
+            logger.error(f"План подписки с типом '{subscription_type}' не найден или неактивен")
+            raise ValueError(f"План подписки с типом '{subscription_type}' не найден. Проверьте настройки в админ-панели.")
         
-        if subscription_type not in prices:
-            logger.error(f"Неверный тип подписки: {subscription_type}")
-            raise ValueError(f"Неверный тип подписки: {subscription_type}")
+        # Получаем цену и длительность из плана
+        # Форматируем цену как строку с двумя знаками после запятой
+        amount = f"{plan.price:.2f}"
+        duration_days = plan.duration_days
+        description = plan.description or f"{plan.name} - {duration_days} дней"
         
-        amount = prices[subscription_type]
-        logger.info(f"Сумма платежа: {amount} RUB")
-        
-        # Описание подписки
-        descriptions = {
-            'basic': 'Базовая подписка - 10 скачиваний в месяц',
-            'premium': 'Премиум подписка - безлимитное скачивание',
-        }
+        logger.info(f"План: {plan.name}, Сумма платежа: {amount} RUB, Длительность: {duration_days} дней")
         
         # Получаем email пользователя для чека
         customer_email = user.email if user.email else None
@@ -68,7 +65,7 @@ class YooKassaService:
         receipt_data = {
             "items": [
                 {
-                    "description": descriptions[subscription_type],
+                    "description": description,
                     "quantity": "1.00",
                     "amount": {
                         "value": amount,
@@ -98,11 +95,11 @@ class YooKassaService:
                 "return_url": return_url
             },
             "capture": True,
-            "description": descriptions[subscription_type],
+            "description": description,
             "metadata": {
                 "user_id": str(user.id),
                 "subscription_type": subscription_type,
-                "subscription_duration_days": "30"
+                "subscription_duration_days": str(duration_days)
             },
             "receipt": receipt_data
         }

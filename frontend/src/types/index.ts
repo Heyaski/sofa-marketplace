@@ -116,9 +116,11 @@ export interface Order {
 export interface Plan {
 	id: number
 	name: string
-	price: number
+	subscription_type: 'basic' | 'premium'
+	price: string | number
+	duration_days: number
 	description: string
-	features: string[]
+	is_active: boolean
 }
 
 export interface Subscription {

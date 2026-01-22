@@ -2,8 +2,10 @@
 
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import PaymentModal from './PaymentModal'
+import { subscriptionService } from '@/services/api'
+import { Plan } from '@/types'
 
 interface UpgradeSubscriptionModalProps {
 	isOpen: boolean
@@ -12,32 +14,24 @@ interface UpgradeSubscriptionModalProps {
 	message?: string
 }
 
-const subscriptionPlans = [
-	{
-		id: 'trial',
-		name: 'Пробная',
-		price: 'БЕСПЛАТНО',
-		features: 'Пробное скачивание 3-х моделей',
-		image: '/img/test_subscriptions.svg',
-		downloadLimit: 3,
-	},
-	{
-		id: 'basic',
-		name: 'Базовая',
-		price: '1 000 руб/мес',
-		features: '10 скачиваний в месяц',
-		image: '/img/base_subscriptions.svg',
-		downloadLimit: 10,
-	},
-	{
-		id: 'premium',
-		name: 'Премиум',
-		price: '8 000 руб/мес',
-		features: 'Безлимитное скачивание моделей',
-		image: '/img/premium_subscriptions.svg',
-		downloadLimit: null,
-	},
-]
+interface SubscriptionPlan {
+	id: string
+	name: string
+	price: string
+	features: string
+	image: string
+	downloadLimit: number | null
+}
+
+// Пробная подписка не хранится в базе, добавляем её вручную
+const trialPlan: SubscriptionPlan = {
+	id: 'trial',
+	name: 'Пробная',
+	price: 'БЕСПЛАТНО',
+	features: 'Пробное скачивание 3-х моделей',
+	image: '/img/test_subscriptions.svg',
+	downloadLimit: 3,
+}
 
 export default function UpgradeSubscriptionModal({
 	isOpen,
@@ -45,6 +39,8 @@ export default function UpgradeSubscriptionModal({
 	currentSubscription,
 	message,
 }: UpgradeSubscriptionModalProps) {
+	const [plans, setPlans] = useState<SubscriptionPlan[]>([])
+	const [loading, setLoading] = useState(true)
 	const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
 	const [selectedPlanForPayment, setSelectedPlanForPayment] = useState<{
 		id: string
@@ -52,10 +48,70 @@ export default function UpgradeSubscriptionModal({
 		price: string
 	} | null>(null)
 
+	// Загружаем планы подписок при открытии модального окна
+	useEffect(() => {
+		if (isOpen) {
+			const fetchPlans = async () => {
+				try {
+					const plansResponse = await subscriptionService.getPlans()
+
+					// Преобразуем планы из API в формат для компонента
+					const plansList: SubscriptionPlan[] = [trialPlan]
+
+					// Маппинг изображений для планов
+					const planImages: Record<string, string> = {
+						basic: '/img/base_subscriptions.svg',
+						premium: '/img/premium_subscriptions.svg',
+					}
+
+					// Маппинг лимитов скачиваний
+					const planLimits: Record<string, number | null> = {
+						basic: 10,
+						premium: null,
+					}
+
+					// Добавляем планы из API
+					const apiPlans = plansResponse.results || plansResponse
+					if (Array.isArray(apiPlans)) {
+						apiPlans.forEach((plan: Plan) => {
+							const priceValue = typeof plan.price === 'string' 
+								? parseFloat(plan.price) 
+								: plan.price
+							const formattedPrice = priceValue.toLocaleString('ru-RU', {
+								style: 'currency',
+								currency: 'RUB',
+								minimumFractionDigits: 0,
+							}) + '/мес'
+
+							plansList.push({
+								id: plan.subscription_type,
+								name: plan.name,
+								price: formattedPrice,
+								features: plan.description || '',
+								image: planImages[plan.subscription_type] || '/img/base_subscriptions.svg',
+								downloadLimit: planLimits[plan.subscription_type] || null,
+							})
+						})
+					}
+
+					setPlans(plansList)
+				} catch (error) {
+					console.error('Ошибка при загрузке планов:', error)
+					// В случае ошибки используем дефолтные планы
+					setPlans([trialPlan])
+				} finally {
+					setLoading(false)
+				}
+			}
+
+			fetchPlans()
+		}
+	}, [isOpen])
+
 	if (!isOpen) return null
 
 	const handleSelectPlan = (planId: string) => {
-		const plan = subscriptionPlans.find(p => p.id === planId)
+		const plan = plans.find(p => p.id === planId)
 		if (plan && plan.id !== currentSubscription) {
 			// Открываем модальное окно оплаты
 			setSelectedPlanForPayment({
@@ -107,8 +163,13 @@ export default function UpgradeSubscriptionModal({
 				</p>
 
 				{/* Subscription Plans */}
-				<div className='grid grid-cols-1 md:grid-cols-3 gap-4 mb-6'>
-					{subscriptionPlans.map(plan => {
+				{loading ? (
+					<div className='flex items-center justify-center h-64 mb-6'>
+						<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-main1'></div>
+					</div>
+				) : (
+					<div className='grid grid-cols-1 md:grid-cols-3 gap-4 mb-6'>
+						{plans.map(plan => {
 						const isCurrent = plan.id === currentSubscription
 						const isUpgrade =
 							(currentSubscription === 'trial' && plan.id === 'basic') ||
@@ -176,7 +237,8 @@ export default function UpgradeSubscriptionModal({
 							</div>
 						)
 					})}
-				</div>
+					</div>
+				)}
 
 				{/* Footer */}
 				<div className='flex justify-end'>

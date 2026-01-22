@@ -5,16 +5,35 @@ from django.utils.timezone import now
 
 
 class Plan(models.Model):
+    SUBSCRIPTION_TYPE_CHOICES = [
+        ('basic', 'Базовая'),
+        ('premium', 'Премиум'),
+    ]
+    
     name = models.CharField(max_length=100, verbose_name="Название")
-    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Цена")
+    subscription_type = models.CharField(
+        max_length=10,
+        choices=SUBSCRIPTION_TYPE_CHOICES,
+        unique=True,
+        verbose_name="Тип подписки",
+        help_text="Используется для связи с системой подписок (basic, premium)"
+    )
+    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Цена (руб.)")
     duration_days = models.PositiveIntegerField(default=30, verbose_name="Длительность (дней)")
+    description = models.TextField(
+        max_length=500,
+        verbose_name="Описание",
+        help_text="Описание подписки для чека (например: 'Базовая подписка - 10 скачиваний в месяц')"
+    )
+    is_active = models.BooleanField(default=True, verbose_name="Активен", help_text="Отключенные планы не будут доступны для покупки")
 
     class Meta:
         verbose_name = "План подписки"
         verbose_name_plural = "Планы подписок"
+        ordering = ['subscription_type']
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.subscription_type}) - {self.price} руб."
 
 
 class Subscription(models.Model):
