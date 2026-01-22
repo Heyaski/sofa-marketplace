@@ -76,7 +76,8 @@ class YooKassaService:
                     },
                     "vat_code": 1,  # НДС 20%
                     "payment_subject": "service",  # Признак предмета расчета: услуга
-                    "payment_method": "full_payment"  # Признак способа расчета: полный расчет
+                    "payment_method": "full_payment",  # Признак способа расчета: полный расчет
+                    "payment_mode": "full_payment"  # Признак способа расчета (для онлайн-кассы)
                 }
             ]
         }
