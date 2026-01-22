@@ -4,7 +4,7 @@
 """
 from storages.backends.s3boto3 import S3Boto3Storage
 from django.conf import settings
-from urllib.parse import urljoin, quote
+from urllib.parse import quote
 
 
 class BegetS3Storage(S3Boto3Storage):
@@ -18,17 +18,24 @@ class BegetS3Storage(S3Boto3Storage):
         Переопределяем метод url() для правильного формирования path-style URL
         с именем бакета в пути
         """
-        # Если custom domain установлен, используем стандартное поведение
-        if self.custom_domain:
-            return super().url(name)
-        
-        # Для path-style addressing нужно явно включить bucket name в URL
-        # Формат: https://endpoint/bucket-name/path/to/file
-        
-        # Получаем endpoint URL и bucket name из настроек
+        # Получаем настройки напрямую из settings
         endpoint_url = getattr(settings, 'AWS_S3_ENDPOINT_URL', '')
         bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', '')
+        custom_domain_setting = getattr(settings, 'AWS_S3_CUSTOM_DOMAIN', None)
         
+        # Проверяем, является ли endpoint региональным
+        is_regional = False
+        if endpoint_url:
+            endpoint_domain = endpoint_url.replace('https://', '').replace('http://', '').strip('/')
+            is_regional = '.ru' in endpoint_domain or '.storage.beget.cloud' in endpoint_domain
+        
+        # Если custom domain установлен явно И endpoint не региональный, используем стандартное поведение
+        if custom_domain_setting and not is_regional:
+            return super().url(name)
+        
+        # Для региональных endpoints или если custom domain не установлен,
+        # используем path-style addressing с именем бакета
+        # Формат: https://endpoint/bucket-name/path/to/file
         if endpoint_url and bucket_name:
             # Нормализуем имя файла (убираем начальный слэш, если есть)
             normalized_name = name.lstrip('/')
@@ -37,8 +44,11 @@ class BegetS3Storage(S3Boto3Storage):
             endpoint_domain = endpoint_url.replace('https://', '').replace('http://', '').strip('/')
             
             # Формируем правильный path-style URL
-            # Кодируем путь для правильной обработки специальных символов
-            encoded_path = '/'.join(quote(part, safe='') for part in normalized_name.split('/'))
+            # Кодируем каждый сегмент пути отдельно для правильной обработки специальных символов
+            path_parts = normalized_name.split('/')
+            encoded_parts = [quote(part, safe='') for part in path_parts]
+            encoded_path = '/'.join(encoded_parts)
+            
             full_url = f"https://{endpoint_domain}/{bucket_name}/{encoded_path}"
             return full_url
         
