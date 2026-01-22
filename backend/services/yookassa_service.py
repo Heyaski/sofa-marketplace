@@ -74,7 +74,9 @@ class YooKassaService:
                         "value": amount,
                         "currency": "RUB"
                     },
-                    "vat_code": 1  # НДС 20%
+                    "vat_code": 1,  # НДС 20%
+                    "payment_subject": "service",  # Признак предмета расчета: услуга
+                    "payment_method": "full_payment"  # Признак способа расчета: полный расчет
                 }
             ]
         }
