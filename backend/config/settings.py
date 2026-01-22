@@ -223,8 +223,9 @@ if USE_S3_STORAGE:
         
         # Используем S3 для медиа-файлов (3D модели, изображения)
         # В Django 5.2+ используется STORAGES вместо DEFAULT_FILE_STORAGE
+        # Используем кастомный storage для правильной поддержки path-style URLs
         STORAGES["default"] = {
-            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+            "BACKEND": "storage.BegetS3Storage",
         }
         
         # Настройка стиля адресации URL
