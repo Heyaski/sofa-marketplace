@@ -22,6 +22,8 @@ class Plan(models.Model):
     duration_days = models.PositiveIntegerField(default=30, verbose_name="Длительность (дней)")
     description = models.TextField(
         max_length=500,
+        blank=True,
+        default='',
         verbose_name="Описание",
         help_text="Описание подписки для чека (например: 'Базовая подписка - 10 скачиваний в месяц')"
     )
