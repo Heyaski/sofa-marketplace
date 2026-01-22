@@ -144,8 +144,13 @@ nslookup 604ac302c572-joyful-valeriy.s3.beget.com
 
 ```bash
 AWS_S3_ENDPOINT_URL=https://s3.ru1.storage.beget.cloud
-AWS_S3_CUSTOM_DOMAIN=604ac302c572-joyful-valeriy.s3.ru1.storage.beget.cloud
+# Для региональных endpoints custom domain НЕ формируется автоматически
+# Используется path-style addressing: https://s3.ru1.storage.beget.cloud/bucket-name/path/to/file
+# Если в панели Beget указан публичный URL бакета, укажите его явно:
+# AWS_S3_CUSTOM_DOMAIN=your-bucket-name.s3.beget.com
 ```
+
+**Важно:** Для региональных endpoints система автоматически использует path-style addressing, если custom domain не указан явно. Это нормально и должно работать.
 
 ## 🚨 Если проблема сохраняется
 
@@ -155,13 +160,18 @@ AWS_S3_CUSTOM_DOMAIN=604ac302c572-joyful-valeriy.s3.ru1.storage.beget.cloud
 2. Проверьте, что включена публичная политика доступа
 3. Убедитесь, что публичный URL бакета указан правильно
 
-### Вариант 2: Используйте другой endpoint
+### Вариант 2: Ошибка "Could not connect to the endpoint URL"
 
-Если `s3.beget.com` не работает, попробуйте:
+Если вы видите ошибку:
+```
+Could not connect to the endpoint URL: "https://bucket-name.s3.beget.com/..."
+```
 
-1. Проверьте в панели Beget, какой endpoint указан в "Реквизитах доступа"
-2. Используйте точный endpoint из панели
-3. Если указан региональный endpoint (например, `s3.ru1.storage.beget.cloud`), используйте его
+Это означает, что система пытается использовать custom domain, который не работает. Решения:
+
+1. **Для региональных endpoints:** Не указывайте `AWS_S3_CUSTOM_DOMAIN`, система автоматически использует path-style
+2. **Проверьте публичный URL в панели Beget:** Убедитесь, что вы используете правильный публичный URL бакета
+3. **Используйте path-style явно:** Удалите `AWS_S3_CUSTOM_DOMAIN` из `.env` для региональных endpoints
 
 ### Вариант 3: Временное решение - используйте локальное хранилище
 
@@ -177,15 +187,16 @@ USE_S3_STORAGE=0
 ## 📝 Резюме
 
 **Основные причины ошибки:**
-1. ❌ Использование path-style URL (`s3.beget.com/bucket/...`) вместо virtual hosted style
-2. ❌ Неправильный endpoint URL
-3. ❌ Custom domain не настроен
+1. ❌ Неправильный формат URL для региональных endpoints
+2. ❌ Попытка использовать custom domain, который не работает
+3. ❌ Неправильный endpoint URL
 
 **Решение:**
-1. ✅ Используйте virtual hosted style: `bucket-name.s3.beget.com`
-2. ✅ Укажите правильный endpoint URL из панели Beget
-3. ✅ Укажите custom domain или позвольте системе создать его автоматически
-4. ✅ Убедитесь, что `S3_FILE_ACCESS_MODE=public` для публичного доступа
+1. ✅ **Для стандартных endpoints:** Используйте virtual hosted style: `bucket-name.s3.beget.com`
+2. ✅ **Для региональных endpoints (ru1, ru2):** Система автоматически использует path-style: `https://s3.ru1.storage.beget.cloud/bucket-name/...`
+3. ✅ Укажите правильный endpoint URL из панели Beget
+4. ✅ **Для региональных endpoints:** НЕ указывайте `AWS_S3_CUSTOM_DOMAIN`, если он не работает
+5. ✅ Убедитесь, что `S3_FILE_ACCESS_MODE=public` для публичного доступа
 
 ---
 

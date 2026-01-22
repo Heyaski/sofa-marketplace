@@ -196,14 +196,23 @@ if USE_S3_STORAGE:
                 print(f"   Используется endpoint URL для правильной генерации подписанных URL")
         else:
             # Для публичного доступа используем custom domain если указан
-            # Если не указан, автоматически формируем из bucket name (virtual hosted style)
+            # Если не указан, проверяем тип endpoint
+            endpoint_domain = AWS_S3_ENDPOINT_URL.replace('https://', '').replace('http://', '').strip('/')
+            is_regional_endpoint = '.ru' in endpoint_domain or '.storage.beget.cloud' in endpoint_domain
+            
             if custom_domain_raw:
+                # Пользователь явно указал custom domain - используем его
                 AWS_S3_CUSTOM_DOMAIN = custom_domain_raw
+            elif is_regional_endpoint:
+                # Для региональных endpoints НЕ формируем custom domain автоматически
+                # Используем path-style addressing с endpoint URL
+                AWS_S3_CUSTOM_DOMAIN = None
+                print(f"ℹ️ Обнаружен региональный endpoint: {endpoint_domain}")
+                print(f"   Для региональных endpoints используется path-style addressing")
+                print(f"   Если нужен custom domain, укажите его явно в AWS_S3_CUSTOM_DOMAIN")
+                print(f"   (из панели Beget -> Реквизиты доступа -> Публичный URL бакета)")
             else:
-                # Автоматически формируем публичный URL в формате virtual hosted style
-                # Формат: bucket-name.s3.beget.com
-                # Извлекаем домен из endpoint URL (например, s3.beget.com -> s3.beget.com)
-                endpoint_domain = AWS_S3_ENDPOINT_URL.replace('https://', '').replace('http://', '').strip('/')
+                # Для стандартных endpoints автоматически формируем custom domain
                 AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.{endpoint_domain}"
                 print(f"ℹ️ Custom domain не указан, используется автоматически сформированный: {AWS_S3_CUSTOM_DOMAIN}")
         
@@ -225,10 +234,16 @@ if USE_S3_STORAGE:
             # Это необходимо для правильной генерации подписанных URL
             AWS_S3_ADDRESSING_STYLE = 'path'
         else:
-            # Для публичного доступа используем virtual-hosted-style
-            # Virtual-hosted-style формат: https://bucket.endpoint/path/to/file
-            # Это работает только с custom domain и является стандартным для публичного доступа
-            AWS_S3_ADDRESSING_STYLE = 'virtual'
+            # Для публичного доступа
+            if AWS_S3_CUSTOM_DOMAIN:
+                # Если custom domain установлен, используем virtual-hosted-style
+                # Virtual-hosted-style формат: https://bucket.endpoint/path/to/file
+                AWS_S3_ADDRESSING_STYLE = 'virtual'
+            else:
+                # Если custom domain не установлен (например, для региональных endpoints),
+                # используем path-style
+                # Path-style формат: https://endpoint/bucket/path/to/file
+                AWS_S3_ADDRESSING_STYLE = 'path'
         
         # Для S3 хранилища MEDIA_URL не используется напрямую,
         # так как S3Boto3Storage сам генерирует полные URL через AWS_S3_CUSTOM_DOMAIN
