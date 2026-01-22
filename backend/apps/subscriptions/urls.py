@@ -4,8 +4,8 @@ from .views import PlanViewSet, SubscriptionViewSet
 from .webhook_views import yookassa_webhook
 
 router = DefaultRouter()
-router.register(r"plans", PlanViewSet)
-router.register(r"subscriptions", SubscriptionViewSet)
+router.register(r"plans", PlanViewSet, basename='plan')
+router.register(r"subscriptions", SubscriptionViewSet, basename='subscription')
 
 urlpatterns = [
     path("", include(router.urls)),
