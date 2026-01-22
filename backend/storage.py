@@ -4,7 +4,6 @@
 """
 from storages.backends.s3boto3 import S3Boto3Storage
 from django.conf import settings
-from urllib.parse import quote
 
 
 class BegetS3Storage(S3Boto3Storage):
@@ -44,12 +43,10 @@ class BegetS3Storage(S3Boto3Storage):
             endpoint_domain = endpoint_url.replace('https://', '').replace('http://', '').strip('/')
             
             # Формируем правильный path-style URL
-            # Кодируем каждый сегмент пути отдельно для правильной обработки специальных символов
-            path_parts = normalized_name.split('/')
-            encoded_parts = [quote(part, safe='') for part in path_parts]
-            encoded_path = '/'.join(encoded_parts)
-            
-            full_url = f"https://{endpoint_domain}/{bucket_name}/{encoded_path}"
+            # НЕ кодируем URL здесь - boto3 и Django REST Framework сделают это автоматически при необходимости
+            # Кодирование здесь приводит к двойному кодированию (особенно кириллицы)
+            # Используем URL как есть, браузер и HTTP-клиенты правильно обработают специальные символы
+            full_url = f"https://{endpoint_domain}/{bucket_name}/{normalized_name}"
             return full_url
         
         # Fallback на стандартное поведение
