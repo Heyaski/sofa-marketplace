@@ -15,6 +15,8 @@ class Plan(models.Model):
         max_length=10,
         choices=SUBSCRIPTION_TYPE_CHOICES,
         unique=True,
+        blank=True,
+        null=True,
         verbose_name="Тип подписки",
         help_text="Используется для связи с системой подписок (basic, premium)"
     )
@@ -35,7 +37,8 @@ class Plan(models.Model):
         ordering = ['subscription_type']
 
     def __str__(self):
-        return f"{self.name} ({self.subscription_type}) - {self.price} руб."
+        subscription_type_str = self.subscription_type or 'не указан'
+        return f"{self.name} ({subscription_type_str}) - {self.price} руб."
 
 
 class Subscription(models.Model):

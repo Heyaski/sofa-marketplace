@@ -17,8 +17,8 @@ class PlanViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     
     def get_queryset(self):
-        # Возвращаем только активные планы, отсортированные по типу
-        return Plan.objects.filter(is_active=True).order_by('subscription_type')
+        # Возвращаем только активные планы с заполненным subscription_type, отсортированные по типу
+        return Plan.objects.filter(is_active=True, subscription_type__isnull=False).order_by('subscription_type')
 
 
 class SubscriptionViewSet(viewsets.ModelViewSet):
