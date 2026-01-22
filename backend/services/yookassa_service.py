@@ -152,16 +152,39 @@ class YooKassaService:
             error_details = str(e)
             error_type = type(e).__name__
             
-            # Проверяем различные атрибуты, которые могут содержать детали ошибки
+            # Для HTTPError от requests нужно извлечь детали из response
             if hasattr(e, 'response') and e.response:
                 try:
-                    if hasattr(e.response, 'json'):
+                    # Пытаемся получить JSON ответ
+                    try:
                         error_json = e.response.json()
-                        error_details = f"{error_details}. Детали: {error_json}"
-                    elif hasattr(e.response, 'text'):
-                        error_details = f"{error_details}. Ответ: {e.response.text}"
-                except:
-                    pass
+                        if isinstance(error_json, dict):
+                            # Извлекаем детали из JSON ответа ЮКассы
+                            if 'type' in error_json:
+                                error_details = f"{error_details}. Тип ошибки: {error_json.get('type')}"
+                            if 'description' in error_json:
+                                error_details = f"{error_details}. Описание: {error_json.get('description')}"
+                            if 'parameter' in error_json:
+                                error_details = f"{error_details}. Параметр: {error_json.get('parameter')}"
+                            if 'retry_after' in error_json:
+                                error_details = f"{error_details}. Повторить через: {error_json.get('retry_after')}"
+                            # Если есть другие поля, добавляем их
+                            full_details = {k: v for k, v in error_json.items() if k not in ['type', 'description', 'parameter', 'retry_after']}
+                            if full_details:
+                                error_details = f"{error_details}. Дополнительно: {full_details}"
+                        else:
+                            error_details = f"{error_details}. JSON ответ: {error_json}"
+                    except (ValueError, AttributeError):
+                        # Если не JSON, пытаемся получить текст
+                        if hasattr(e.response, 'text') and e.response.text:
+                            error_details = f"{error_details}. Текст ответа: {e.response.text}"
+                    
+                    # Логируем статус код и заголовки
+                    if hasattr(e.response, 'status_code'):
+                        error_details = f"HTTP {e.response.status_code}: {error_details}"
+                    
+                except Exception as parse_error:
+                    logger.warning(f"Не удалось распарсить ответ об ошибке: {parse_error}")
             
             # Проверяем атрибуты исключения
             if hasattr(e, 'code'):
@@ -171,8 +194,10 @@ class YooKassaService:
             if hasattr(e, 'message'):
                 error_details = f"{error_details}. Сообщение: {e.message}"
             
-            # Логируем полную информацию об ошибке
-            logger.error(f"Ошибка при создании платежа (тип: {error_type}): {error_details}", exc_info=True)
+            # Логируем полную информацию об ошибке, включая payment_data для отладки
+            logger.error(f"Ошибка при создании платежа (тип: {error_type}): {error_details}")
+            logger.error(f"Данные запроса, которые вызвали ошибку: {payment_data}")
+            logger.error(f"Полный traceback:", exc_info=True)
             
             # Формируем понятное сообщение для пользователя
             if "400" in error_details or "Bad Request" in error_details:
