@@ -83,13 +83,21 @@ class UserProfileAdmin(admin.ModelAdmin):
     )
     
     def is_subscription_active_display(self, obj):
-        """Отображает статус активности подписки"""
-        if obj.is_subscription_active():
+        """Отображает статус активности подписки (с автоматическим обновлением)"""
+        # Проверяем и обновляем статус перед отображением
+        is_active = obj.is_subscription_active()
+        if is_active:
             return "✅ Активна"
         else:
-            return "❌ Неактивна"
+            return "❌ Неактивна (переключено на пробную)"
     is_subscription_active_display.short_description = 'Статус подписки'
     is_subscription_active_display.boolean = False
+    
+    def save_model(self, request, obj, form, change):
+        """Переопределяем сохранение, чтобы проверить статус подписки"""
+        # Проверяем статус перед сохранением
+        obj.check_and_update_subscription_status()
+        super().save_model(request, obj, form, change)
 
 
 # Русификация стандартных моделей Django

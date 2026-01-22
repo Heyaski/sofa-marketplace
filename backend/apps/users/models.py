@@ -77,27 +77,40 @@ class UserProfile(models.Model):
     
     def can_download(self, current_downloads_count):
         """Проверяет, может ли пользователь скачать еще модели"""
-        # Проверяем, не истекла ли подписка
-        if self.subscription_type != 'trial' and self.subscription_end_date:
-            if now() > self.subscription_end_date:
-                # Подписка истекла, возвращаем к пробной
-                self.subscription_type = 'trial'
-                self.subscription_end_date = None
-                self.auto_renewal = False
-                self.save()
+        # Проверяем и обновляем статус подписки, если нужно
+        self.check_and_update_subscription_status()
         
         limit = self.get_download_limit()
         if limit is None:  # Премиум - без ограничений
             return True
         return current_downloads_count < limit
     
-    def is_subscription_active(self):
-        """Проверяет, активна ли подписка"""
+    def check_and_update_subscription_status(self):
+        """
+        Проверяет статус подписки и автоматически переключает на пробную, если подписка истекла
+        """
+        # Если уже пробная подписка, ничего не делаем
         if self.subscription_type == 'trial':
-            return True  # Пробная подписка всегда активна
-        if self.subscription_end_date:
-            return now() <= self.subscription_end_date
-        return False
+            return True
+        
+        # Проверяем, не истекла ли подписка
+        if self.subscription_end_date and now() > self.subscription_end_date:
+            # Подписка истекла, возвращаем к пробной
+            self.subscription_type = 'trial'
+            self.subscription_start_date = None
+            self.subscription_end_date = None
+            self.auto_renewal = False
+            self.yookassa_payment_id = None
+            self.save()
+            return False
+        
+        return True
+    
+    def is_subscription_active(self):
+        """Проверяет, активна ли подписка (с автоматическим обновлением статуса)"""
+        # Сначала проверяем и обновляем статус, если нужно
+        is_active = self.check_and_update_subscription_status()
+        return is_active
     
     def activate_subscription(self, subscription_type, duration_days=30):
         """Активирует подписку на указанное количество дней"""

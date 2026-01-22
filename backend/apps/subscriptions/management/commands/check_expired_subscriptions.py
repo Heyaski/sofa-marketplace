@@ -40,13 +40,9 @@ class Command(BaseCommand):
                         )
                     )
             
-            # Возвращаем к пробной подписке
+            # Используем метод модели для автоматического переключения на пробную
             old_type = profile.subscription_type
-            profile.subscription_type = 'trial'
-            profile.subscription_end_date = None
-            profile.auto_renewal = False
-            profile.yookassa_payment_id = None
-            profile.save()
+            profile.check_and_update_subscription_status()
             
             count += 1
             self.stdout.write(
