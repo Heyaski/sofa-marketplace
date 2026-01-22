@@ -1,8 +1,12 @@
 import uuid
+import logging
 from yookassa import Configuration, Payment
 from django.conf import settings
 from django.utils.timezone import now
 from apps.users.models import UserProfile
+
+# Настройка логгера для платежей
+logger = logging.getLogger('yookassa')
 
 
 class YooKassaService:
@@ -30,7 +34,10 @@ class YooKassaService:
         Returns:
             dict: Данные платежа с confirmation_url
         """
+        logger.info(f"Создание платежа для пользователя {user.id} ({user.username}), тип подписки: {subscription_type}")
+        
         if not self.account_id or not self.secret_key:
+            logger.error("YOOKASSA_ACCOUNT_ID и YOOKASSA_SECRET_KEY не настроены")
             raise ValueError("YOOKASSA_ACCOUNT_ID и YOOKASSA_SECRET_KEY должны быть настроены в settings.py")
         
         # Определяем цену подписки
@@ -40,9 +47,11 @@ class YooKassaService:
         }
         
         if subscription_type not in prices:
+            logger.error(f"Неверный тип подписки: {subscription_type}")
             raise ValueError(f"Неверный тип подписки: {subscription_type}")
         
         amount = prices[subscription_type]
+        logger.info(f"Сумма платежа: {amount} RUB")
         
         # Описание подписки
         descriptions = {
@@ -50,8 +59,7 @@ class YooKassaService:
             'premium': 'Премиум подписка - безлимитное скачивание',
         }
         
-        # Создаем платеж
-        payment = Payment.create({
+        payment_data = {
             "amount": {
                 "value": amount,
                 "currency": "RUB"
@@ -67,15 +75,27 @@ class YooKassaService:
                 "subscription_type": subscription_type,
                 "subscription_duration_days": "30"
             }
-        }, uuid.uuid4())
-        
-        return {
-            "payment_id": payment.id,
-            "status": payment.status,
-            "confirmation_url": payment.confirmation.confirmation_url,
-            "amount": payment.amount.value,
-            "currency": payment.amount.currency,
         }
+        
+        logger.info(f"Отправка запроса в ЮКассу: {payment_data}")
+        
+        try:
+            # Создаем платеж
+            payment = Payment.create(payment_data, uuid.uuid4())
+            
+            logger.info(f"Платеж создан успешно. ID: {payment.id}, статус: {payment.status}")
+            logger.info(f"URL для оплаты: {payment.confirmation.confirmation_url}")
+            
+            return {
+                "payment_id": payment.id,
+                "status": payment.status,
+                "confirmation_url": payment.confirmation.confirmation_url,
+                "amount": payment.amount.value,
+                "currency": payment.amount.currency,
+            }
+        except Exception as e:
+            logger.error(f"Ошибка при создании платежа: {str(e)}", exc_info=True)
+            raise
     
     def get_payment_status(self, payment_id):
         """
@@ -87,19 +107,28 @@ class YooKassaService:
         Returns:
             dict: Статус платежа
         """
+        logger.info(f"Проверка статуса платежа: {payment_id}")
+        
         if not self.account_id or not self.secret_key:
+            logger.error("YOOKASSA_ACCOUNT_ID и YOOKASSA_SECRET_KEY не настроены")
             raise ValueError("YOOKASSA_ACCOUNT_ID и YOOKASSA_SECRET_KEY должны быть настроены в settings.py")
         
-        payment = Payment.find_one(payment_id)
-        
-        return {
-            "payment_id": payment.id,
-            "status": payment.status,
-            "paid": payment.paid,
-            "amount": payment.amount.value,
-            "currency": payment.amount.currency,
-            "metadata": payment.metadata if hasattr(payment, 'metadata') else {},
-        }
+        try:
+            payment = Payment.find_one(payment_id)
+            
+            logger.info(f"Статус платежа {payment_id}: {payment.status}, оплачен: {payment.paid}")
+            
+            return {
+                "payment_id": payment.id,
+                "status": payment.status,
+                "paid": payment.paid,
+                "amount": payment.amount.value,
+                "currency": payment.amount.currency,
+                "metadata": payment.metadata if hasattr(payment, 'metadata') else {},
+            }
+        except Exception as e:
+            logger.error(f"Ошибка при получении статуса платежа {payment_id}: {str(e)}", exc_info=True)
+            raise
     
     def process_successful_payment(self, payment_id):
         """
@@ -111,9 +140,12 @@ class YooKassaService:
         Returns:
             UserProfile: Обновленный профиль пользователя
         """
+        logger.info(f"Обработка успешного платежа: {payment_id}")
+        
         payment_info = self.get_payment_status(payment_id)
         
         if payment_info["status"] != "succeeded" or not payment_info["paid"]:
+            logger.warning(f"Платеж {payment_id} не был успешно оплачен. Статус: {payment_info['status']}, оплачен: {payment_info['paid']}")
             raise ValueError(f"Платеж {payment_id} не был успешно оплачен")
         
         metadata = payment_info.get("metadata", {})
@@ -121,13 +153,18 @@ class YooKassaService:
         subscription_type = metadata.get("subscription_type")
         duration_days = int(metadata.get("subscription_duration_days", 30))
         
+        logger.info(f"Метаданные платежа: user_id={user_id}, subscription_type={subscription_type}, duration_days={duration_days}")
+        
         if not user_id or not subscription_type:
+            logger.error(f"В метаданных платежа отсутствует user_id или subscription_type. Метаданные: {metadata}")
             raise ValueError("В метаданных платежа отсутствует user_id или subscription_type")
         
         from django.contrib.auth.models import User
         try:
             user = User.objects.get(id=int(user_id))
+            logger.info(f"Найден пользователь: {user.username} (ID: {user.id})")
         except User.DoesNotExist:
+            logger.error(f"Пользователь с ID {user_id} не найден")
             raise ValueError(f"Пользователь с ID {user_id} не найден")
         
         # Получаем или создаем профиль
@@ -136,11 +173,15 @@ class YooKassaService:
             defaults={'subscription_type': 'trial'}
         )
         
+        logger.info(f"Профиль пользователя {'создан' if created else 'найден'}. Текущая подписка: {profile.subscription_type}")
+        
         # Активируем подписку
         profile.activate_subscription(subscription_type, duration_days)
         profile.yookassa_payment_id = payment_id
         profile.auto_renewal = True  # Включаем автопродление по умолчанию
         profile.save()
+        
+        logger.info(f"Подписка активирована: тип={profile.subscription_type}, окончание={profile.subscription_end_date}")
         
         return profile
 

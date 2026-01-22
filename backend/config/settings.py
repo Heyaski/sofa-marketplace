@@ -196,7 +196,16 @@ if USE_S3_STORAGE:
                 print(f"   Используется endpoint URL для правильной генерации подписанных URL")
         else:
             # Для публичного доступа используем custom domain если указан
-            AWS_S3_CUSTOM_DOMAIN = custom_domain_raw if custom_domain_raw else None
+            # Если не указан, автоматически формируем из bucket name (virtual hosted style)
+            if custom_domain_raw:
+                AWS_S3_CUSTOM_DOMAIN = custom_domain_raw
+            else:
+                # Автоматически формируем публичный URL в формате virtual hosted style
+                # Формат: bucket-name.s3.beget.com
+                # Извлекаем домен из endpoint URL (например, s3.beget.com -> s3.beget.com)
+                endpoint_domain = AWS_S3_ENDPOINT_URL.replace('https://', '').replace('http://', '').strip('/')
+                AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.{endpoint_domain}"
+                print(f"ℹ️ Custom domain не указан, используется автоматически сформированный: {AWS_S3_CUSTOM_DOMAIN}")
         
         # Настройки для работы с файлами
         AWS_S3_OBJECT_PARAMETERS = {
@@ -209,12 +218,17 @@ if USE_S3_STORAGE:
             "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
         }
         
-        # Для подписанных URL используем path-style addressing вместо virtual-hosted-style
-        # чтобы избежать проблем с дублированием пути в URL
+        # Настройка стиля адресации URL
         if S3_FILE_ACCESS_MODE == 'signed':
-            # Используем path-style URL формат: https://endpoint/bucket/path/to/file
-            # вместо virtual-hosted-style: https://bucket.endpoint/path/to/file
+            # Для подписанных URL используем path-style addressing
+            # Path-style формат: https://endpoint/bucket/path/to/file
+            # Это необходимо для правильной генерации подписанных URL
             AWS_S3_ADDRESSING_STYLE = 'path'
+        else:
+            # Для публичного доступа используем virtual-hosted-style
+            # Virtual-hosted-style формат: https://bucket.endpoint/path/to/file
+            # Это работает только с custom domain и является стандартным для публичного доступа
+            AWS_S3_ADDRESSING_STYLE = 'virtual'
         
         # Для S3 хранилища MEDIA_URL не используется напрямую,
         # так как S3Boto3Storage сам генерирует полные URL через AWS_S3_CUSTOM_DOMAIN
