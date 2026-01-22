@@ -25,7 +25,8 @@ has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is pres
 
 - **Allowed Origins (Разрешенные источники)**:
 
-  - Укажите `https://vizhub.art` (ваш домен, БЕЗ слеша в конце!)
+  - Укажите `https://vizhub.pro` (ваш домен, БЕЗ слеша в конце!)
+  - ⚠️ **Важно:** Убедитесь, что указан правильный домен (не `vizhub.art`, а `vizhub.pro`)
   - Или `*` для всех доменов (менее безопасно, но работает для тестирования)
   - ⚠️ **Важно:** `https://vizhub.art` и `https://www.vizhub.art` считаются разными доменами - добавьте оба, если используете оба варианта
 

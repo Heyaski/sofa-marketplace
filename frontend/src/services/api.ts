@@ -251,19 +251,19 @@ export const downloadService = {
 export const subscriptionService = {
 	// Получить все планы подписок
 	getPlans: async (): Promise<ApiResponse<Plan>> => {
-		const response = await apiClient.get('/subscriptions/plans/')
+		const response = await apiClient.get('/api/subscriptions/plans/')
 		return response.data
 	},
 
 	// Получить подписки пользователя
 	getSubscriptions: async (): Promise<ApiResponse<Subscription>> => {
-		const response = await apiClient.get('/subscriptions/')
+		const response = await apiClient.get('/api/subscriptions/')
 		return response.data
 	},
 
 	// Создать подписку
 	createSubscription: async (planId: number): Promise<Subscription> => {
-		const response = await apiClient.post('/subscriptions/', { plan: planId })
+		const response = await apiClient.post('/api/subscriptions/', { plan: planId })
 		return response.data
 	},
 
@@ -277,7 +277,7 @@ export const subscriptionService = {
 		amount: string
 		currency: string
 	}> => {
-		const response = await apiClient.post('/subscriptions/create_payment/', {
+		const response = await apiClient.post('/api/subscriptions/create_payment/', {
 			subscription_type: subscriptionType,
 			return_url: returnUrl,
 		})
@@ -292,7 +292,7 @@ export const subscriptionService = {
 		subscription_type?: string
 		subscription_end_date?: string
 	}> => {
-		const response = await apiClient.post('/subscriptions/check_payment_status/', {
+		const response = await apiClient.post('/api/subscriptions/check_payment_status/', {
 			payment_id: paymentId,
 		})
 		return response.data
