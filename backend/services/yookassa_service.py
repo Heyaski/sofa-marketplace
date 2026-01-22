@@ -375,6 +375,9 @@ class YooKassaService:
         profile.activate_subscription(subscription_type, duration_days)
         profile.yookassa_payment_id = payment_id
         profile.auto_renewal = True  # Включаем автопродление по умолчанию
+        # Убеждаемся, что subscription_start_date установлена
+        if not profile.subscription_start_date:
+            profile.subscription_start_date = now()
         profile.save()
         
         logger.info(f"Подписка активирована: тип={profile.subscription_type}, окончание={profile.subscription_end_date}")

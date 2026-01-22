@@ -23,11 +23,20 @@ class UserProfile(models.Model):
         verbose_name='Тип подписки'
     )
     
+    # Дата начала подписки
+    subscription_start_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Дата начала подписки',
+        help_text='Дата начала активной подписки'
+    )
+    
     # Дата окончания подписки
     subscription_end_date = models.DateTimeField(
         null=True,
         blank=True,
-        verbose_name='Дата окончания подписки'
+        verbose_name='Дата окончания подписки',
+        help_text='Дата окончания активной подписки'
     )
     
     # Автопродление подписки
@@ -93,6 +102,7 @@ class UserProfile(models.Model):
     def activate_subscription(self, subscription_type, duration_days=30):
         """Активирует подписку на указанное количество дней"""
         self.subscription_type = subscription_type
+        self.subscription_start_date = now()
         self.subscription_end_date = now() + timedelta(days=duration_days)
         self.save()
     
