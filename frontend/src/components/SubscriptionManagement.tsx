@@ -69,8 +69,15 @@ export default function SubscriptionManagement() {
 				}
 
 				// Добавляем планы из API
-				const apiPlans = plansResponse.results || plansResponse
-				if (Array.isArray(apiPlans)) {
+				// Проверяем, является ли ответ ApiResponse или массивом
+				let apiPlans: Plan[] = []
+				if (Array.isArray(plansResponse)) {
+					apiPlans = plansResponse
+				} else if (plansResponse && typeof plansResponse === 'object' && 'results' in plansResponse) {
+					apiPlans = plansResponse.results
+				}
+				
+				if (apiPlans.length > 0) {
 					apiPlans.forEach((plan: Plan) => {
 						const priceValue = typeof plan.price === 'string' 
 							? parseFloat(plan.price) 
