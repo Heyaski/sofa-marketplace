@@ -119,39 +119,60 @@ export default function SubscriptionManagement() {
 			const paymentSuccess = urlParams.get('payment_success')
 			const pendingPaymentId = localStorage.getItem('pending_payment_id')
 
-			if (paymentSuccess === 'true' && pendingPaymentId) {
+			if (paymentSuccess === 'true') {
 				try {
-					// Проверяем статус платежа
-					const paymentStatus = await subscriptionService.checkPaymentStatus(
-						pendingPaymentId
-					)
+					// Обновляем данные пользователя в любом случае (webhook мог уже обработать платеж)
+					const userData = await authService.getCurrentUser()
+					setUser(userData)
+					if (userData.profile?.subscription_type) {
+						setSelectedPlan(userData.profile.subscription_type)
+					}
 
-					if (paymentStatus.paid && paymentStatus.subscription_activated) {
-						// Обновляем данные пользователя
-						const userData = await authService.getCurrentUser()
-						setUser(userData)
-						if (userData.profile?.subscription_type) {
-							setSelectedPlan(userData.profile.subscription_type)
+					// Если есть pendingPaymentId, проверяем статус
+					if (pendingPaymentId) {
+						try {
+							const paymentStatus = await subscriptionService.checkPaymentStatus(
+								pendingPaymentId
+							)
+
+							if (paymentStatus.paid && paymentStatus.subscription_activated) {
+								// Обновляем данные еще раз после проверки
+								const updatedUserData = await authService.getCurrentUser()
+								setUser(updatedUserData)
+								if (updatedUserData.profile?.subscription_type) {
+									setSelectedPlan(updatedUserData.profile.subscription_type)
+								}
+								alert('Подписка успешно активирована!')
+							} else if (paymentStatus.paid && !paymentStatus.subscription_activated) {
+								alert(
+									'Платеж успешен, но произошла ошибка при активации подписки. Обратитесь в поддержку.'
+								)
+							} else {
+								alert('Платеж еще не обработан. Подписка будет активирована автоматически через webhook.')
+							}
+						} catch (error: any) {
+							console.error('Ошибка при проверке статуса платежа:', error)
+							// Если проверка не удалась, но данные пользователя обновились, значит webhook уже сработал
+							if (userData.profile?.subscription_type && userData.profile.subscription_type !== 'trial') {
+								alert('Подписка успешно активирована!')
+							} else {
+								alert(
+									'Платеж обрабатывается. Подписка будет активирована автоматически.'
+								)
+							}
 						}
-
+						
 						// Очищаем localStorage
 						localStorage.removeItem('pending_payment_id')
 						localStorage.removeItem('pending_payment_plan')
-
-						// Показываем сообщение об успехе
-						alert('Подписка успешно активирована!')
-					} else if (paymentStatus.paid && !paymentStatus.subscription_activated) {
-						alert(
-							'Платеж успешен, но произошла ошибка при активации подписки. Обратитесь в поддержку.'
-						)
 					} else {
-						alert('Платеж еще не обработан. Подписка будет активирована автоматически.')
+						// Нет pendingPaymentId, но есть payment_success - значит webhook уже обработал
+						if (userData.profile?.subscription_type && userData.profile.subscription_type !== 'trial') {
+							alert('Подписка успешно активирована!')
+						}
 					}
 				} catch (error: any) {
-					console.error('Ошибка при проверке статуса платежа:', error)
-					alert(
-						'Ошибка при проверке статуса платежа. Если платеж был успешным, подписка будет активирована автоматически.'
-					)
+					console.error('Ошибка при обновлении данных пользователя:', error)
 				}
 			}
 		}

@@ -53,6 +53,20 @@ export default function ProfilePage() {
 		setSelectedChat(chat)
 	}
 
+	// Обработка возврата с оплаты
+	useEffect(() => {
+		const urlParams = new URLSearchParams(window.location.search)
+		const paymentSuccess = urlParams.get('payment_success')
+		const tab = urlParams.get('tab')
+		
+		if (paymentSuccess === 'true' && tab === 'subscription') {
+			// Переключаемся на таб подписки
+			setActiveTab('subscription')
+			// Очищаем параметры из URL
+			window.history.replaceState({}, '', '/profile')
+		}
+	}, [])
+
 	useEffect(() => {
 		const fetchUser = async () => {
 			try {

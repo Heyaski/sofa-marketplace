@@ -132,7 +132,7 @@ export default function PaymentModal({
 			}
 
 			// Создаем платеж через ЮКассу
-			const returnUrl = `${window.location.origin}/profile/subscription?payment_success=true&planId=${planId}`
+			const returnUrl = `${window.location.origin}/profile?payment_success=true&planId=${planId}&tab=subscription`
 			const paymentData = await subscriptionService.createSubscriptionPayment(
 				planId,
 				returnUrl
