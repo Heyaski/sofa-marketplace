@@ -84,14 +84,41 @@ class YooKassaService:
             payment = Payment.create(payment_data, uuid.uuid4())
             
             logger.info(f"Платеж создан успешно. ID: {payment.id}, статус: {payment.status}")
-            logger.info(f"URL для оплаты: {payment.confirmation.confirmation_url}")
+            
+            # Безопасное получение confirmation_url
+            confirmation_url = None
+            if hasattr(payment, 'confirmation') and payment.confirmation:
+                if hasattr(payment.confirmation, 'confirmation_url'):
+                    confirmation_url = payment.confirmation.confirmation_url
+                elif isinstance(payment.confirmation, dict):
+                    confirmation_url = payment.confirmation.get('confirmation_url')
+            
+            if not confirmation_url:
+                logger.error(f"confirmation_url не найден в ответе от ЮКассы. Payment object: {payment}")
+                raise ValueError("Не удалось получить URL для оплаты от ЮКассы")
+            
+            logger.info(f"URL для оплаты: {confirmation_url}")
+            
+            # Безопасное получение amount
+            amount_value = None
+            currency_value = "RUB"
+            if hasattr(payment, 'amount') and payment.amount:
+                if hasattr(payment.amount, 'value'):
+                    amount_value = payment.amount.value
+                elif isinstance(payment.amount, dict):
+                    amount_value = payment.amount.get('value')
+                    currency_value = payment.amount.get('currency', 'RUB')
+            
+            if amount_value is None:
+                logger.error(f"amount не найден в ответе от ЮКассы. Payment object: {payment}")
+                raise ValueError("Не удалось получить сумму платежа от ЮКассы")
             
             return {
                 "payment_id": payment.id,
                 "status": payment.status,
-                "confirmation_url": payment.confirmation.confirmation_url,
-                "amount": payment.amount.value,
-                "currency": payment.amount.currency,
+                "confirmation_url": confirmation_url,
+                "amount": str(amount_value),
+                "currency": currency_value,
             }
         except Exception as e:
             logger.error(f"Ошибка при создании платежа: {str(e)}", exc_info=True)

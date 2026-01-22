@@ -2,9 +2,13 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.conf import settings
+import logging
+import traceback
 from .models import Plan, Subscription
 from .serializers import PlanSerializer, SubscriptionSerializer
 from services.yookassa_service import YooKassaService
+
+logger = logging.getLogger(__name__)
 
 
 class PlanViewSet(viewsets.ModelViewSet):
@@ -30,31 +34,45 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         """
         Создает платеж для подписки через ЮКассу
         """
-        subscription_type = request.data.get('subscription_type')
-        
-        if subscription_type not in ['basic', 'premium']:
-            return Response(
-                {"error": "Неверный тип подписки. Доступны: basic, premium"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Получаем URL для возврата после оплаты
-        return_url = request.data.get('return_url')
-        if not return_url:
-            # Если не указан, используем URL из настроек или дефолтный
-            return_url = getattr(
-                settings,
-                'YOOKASSA_RETURN_URL',
-                f"{request.scheme}://{request.get_host()}/profile/subscription?payment_success=true"
-            )
-        
         try:
+            logger.info(f"Создание платежа. Пользователь: {request.user.username}, данные: {request.data}")
+            
+            subscription_type = request.data.get('subscription_type')
+            
+            if not subscription_type:
+                logger.warning(f"subscription_type не указан в запросе. Данные: {request.data}")
+                return Response(
+                    {"error": "subscription_type обязателен"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if subscription_type not in ['basic', 'premium']:
+                logger.warning(f"Неверный тип подписки: {subscription_type}")
+                return Response(
+                    {"error": f"Неверный тип подписки: {subscription_type}. Доступны: basic, premium"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Получаем URL для возврата после оплаты
+            return_url = request.data.get('return_url')
+            if not return_url:
+                # Если не указан, используем URL из настроек или дефолтный
+                return_url = getattr(
+                    settings,
+                    'YOOKASSA_RETURN_URL',
+                    f"{request.scheme}://{request.get_host()}/profile/subscription?payment_success=true"
+                )
+            
+            logger.info(f"Создание платежа для типа подписки: {subscription_type}, return_url: {return_url}")
+            
             yookassa_service = YooKassaService()
             payment_data = yookassa_service.create_subscription_payment(
                 user=request.user,
                 subscription_type=subscription_type,
                 return_url=return_url
             )
+            
+            logger.info(f"Платеж успешно создан: {payment_data.get('payment_id')}")
             
             return Response({
                 "payment_id": payment_data["payment_id"],
@@ -64,11 +82,14 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_200_OK)
             
         except ValueError as e:
+            logger.error(f"ValueError при создании платежа: {str(e)}")
             return Response(
                 {"error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
         except Exception as e:
+            error_traceback = traceback.format_exc()
+            logger.error(f"Ошибка при создании платежа: {str(e)}\n{error_traceback}")
             return Response(
                 {"error": f"Ошибка при создании платежа: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
