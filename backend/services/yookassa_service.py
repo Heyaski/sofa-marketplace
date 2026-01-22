@@ -59,6 +59,32 @@ class YooKassaService:
             'premium': 'Премиум подписка - безлимитное скачивание',
         }
         
+        # Получаем email пользователя для чека
+        customer_email = user.email if user.email else None
+        if not customer_email:
+            logger.warning(f"У пользователя {user.id} ({user.username}) не указан email. Чек будет создан без данных покупателя.")
+        
+        # Формируем структуру чека
+        receipt_data = {
+            "items": [
+                {
+                    "description": descriptions[subscription_type],
+                    "quantity": "1.00",
+                    "amount": {
+                        "value": amount,
+                        "currency": "RUB"
+                    },
+                    "vat_code": 1  # НДС 20%
+                }
+            ]
+        }
+        
+        # Добавляем данные покупателя, если email указан
+        if customer_email:
+            receipt_data["customer"] = {
+                "email": customer_email
+            }
+        
         payment_data = {
             "amount": {
                 "value": amount,
@@ -74,7 +100,8 @@ class YooKassaService:
                 "user_id": str(user.id),
                 "subscription_type": subscription_type,
                 "subscription_duration_days": "30"
-            }
+            },
+            "receipt": receipt_data
         }
         
         logger.info(f"Отправка запроса в ЮКассу: {payment_data}")
