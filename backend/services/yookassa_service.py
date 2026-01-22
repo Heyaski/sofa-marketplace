@@ -102,7 +102,21 @@ class YooKassaService:
                 raise ValueError(error_msg)
             
             logger.info(f"Отправка запроса в ЮКассу: {payment_data}")
-            logger.info(f"Configuration: account_id={Configuration.account_id[:10]}..., test_mode={self.test_mode}")
+            
+            # Детальное логирование Configuration (без секретного ключа)
+            config_info = {
+                'account_id': Configuration.account_id[:10] + '...' if Configuration.account_id else 'NOT SET',
+                'secret_key_set': 'YES' if Configuration.secret_key else 'NO',
+                'secret_key_length': len(Configuration.secret_key) if Configuration.secret_key else 0,
+                'test_mode': self.test_mode
+            }
+            logger.info(f"Configuration ЮКассы: {config_info}")
+            
+            # Проверяем, что Configuration правильно настроена
+            if not Configuration.account_id:
+                raise ValueError("Configuration.account_id не установлен. Проверьте YOOKASSA_ACCOUNT_ID")
+            if not Configuration.secret_key:
+                raise ValueError("Configuration.secret_key не установлен. Проверьте YOOKASSA_SECRET_KEY")
             
             # Создаем платеж
             idempotence_key = uuid.uuid4()
@@ -155,36 +169,77 @@ class YooKassaService:
             # Для HTTPError от requests нужно извлечь детали из response
             if hasattr(e, 'response') and e.response:
                 try:
-                    # Пытаемся получить JSON ответ
-                    try:
-                        error_json = e.response.json()
-                        if isinstance(error_json, dict):
-                            # Извлекаем детали из JSON ответа ЮКассы
-                            if 'type' in error_json:
-                                error_details = f"{error_details}. Тип ошибки: {error_json.get('type')}"
-                            if 'description' in error_json:
-                                error_details = f"{error_details}. Описание: {error_json.get('description')}"
-                            if 'parameter' in error_json:
-                                error_details = f"{error_details}. Параметр: {error_json.get('parameter')}"
-                            if 'retry_after' in error_json:
-                                error_details = f"{error_details}. Повторить через: {error_json.get('retry_after')}"
-                            # Если есть другие поля, добавляем их
-                            full_details = {k: v for k, v in error_json.items() if k not in ['type', 'description', 'parameter', 'retry_after']}
-                            if full_details:
-                                error_details = f"{error_details}. Дополнительно: {full_details}"
-                        else:
-                            error_details = f"{error_details}. JSON ответ: {error_json}"
-                    except (ValueError, AttributeError):
-                        # Если не JSON, пытаемся получить текст
-                        if hasattr(e.response, 'text') and e.response.text:
-                            error_details = f"{error_details}. Текст ответа: {e.response.text}"
+                    # Логируем статус код
+                    status_code = getattr(e.response, 'status_code', None)
+                    if status_code:
+                        error_details = f"HTTP {status_code}: {error_details}"
                     
-                    # Логируем статус код и заголовки
-                    if hasattr(e.response, 'status_code'):
-                        error_details = f"HTTP {e.response.status_code}: {error_details}"
+                    # Пытаемся получить содержимое ответа разными способами
+                    response_content = None
+                    response_text = None
+                    
+                    # Способ 1: response.content (байты)
+                    if hasattr(e.response, 'content'):
+                        try:
+                            response_content = e.response.content
+                            if response_content:
+                                # Пытаемся декодировать как UTF-8
+                                try:
+                                    response_text = response_content.decode('utf-8')
+                                    logger.error(f"Содержимое ответа (content): {response_text}")
+                                except UnicodeDecodeError:
+                                    logger.error(f"Содержимое ответа (content, raw): {response_content}")
+                        except Exception as content_error:
+                            logger.warning(f"Не удалось получить content: {content_error}")
+                    
+                    # Способ 2: response.text
+                    if not response_text and hasattr(e.response, 'text'):
+                        try:
+                            response_text = e.response.text
+                            if response_text:
+                                logger.error(f"Содержимое ответа (text): {response_text}")
+                        except Exception as text_error:
+                            logger.warning(f"Не удалось получить text: {text_error}")
+                    
+                    # Пытаемся распарсить как JSON
+                    if response_text:
+                        try:
+                            import json
+                            error_json = json.loads(response_text)
+                            if isinstance(error_json, dict):
+                                # Извлекаем детали из JSON ответа ЮКассы
+                                yookassa_error_details = []
+                                if 'type' in error_json:
+                                    yookassa_error_details.append(f"Тип: {error_json.get('type')}")
+                                if 'description' in error_json:
+                                    yookassa_error_details.append(f"Описание: {error_json.get('description')}")
+                                if 'parameter' in error_json:
+                                    yookassa_error_details.append(f"Параметр: {error_json.get('parameter')}")
+                                if 'retry_after' in error_json:
+                                    yookassa_error_details.append(f"Повторить через: {error_json.get('retry_after')}")
+                                
+                                # Добавляем все остальные поля
+                                other_fields = {k: v for k, v in error_json.items() 
+                                              if k not in ['type', 'description', 'parameter', 'retry_after']}
+                                if other_fields:
+                                    yookassa_error_details.append(f"Дополнительно: {other_fields}")
+                                
+                                if yookassa_error_details:
+                                    error_details = f"{error_details}. Детали от ЮКассы: {'; '.join(yookassa_error_details)}"
+                                else:
+                                    error_details = f"{error_details}. Полный ответ: {error_json}"
+                            else:
+                                error_details = f"{error_details}. JSON ответ: {error_json}"
+                        except (ValueError, json.JSONDecodeError):
+                            # Если не JSON, используем текст как есть
+                            error_details = f"{error_details}. Текст ответа: {response_text}"
+                    
+                    # Логируем заголовки ответа для отладки
+                    if hasattr(e.response, 'headers'):
+                        logger.error(f"Заголовки ответа: {dict(e.response.headers)}")
                     
                 except Exception as parse_error:
-                    logger.warning(f"Не удалось распарсить ответ об ошибке: {parse_error}")
+                    logger.warning(f"Не удалось распарсить ответ об ошибке: {parse_error}", exc_info=True)
             
             # Проверяем атрибуты исключения
             if hasattr(e, 'code'):
