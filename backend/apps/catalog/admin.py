@@ -65,17 +65,28 @@ class FileExtensionFilter(admin.SimpleListFilter):
     parameter_name = 'file_extension'
 
     def lookups(self, request, model_admin):
-        """Получаем все уникальные расширения файлов"""
-        extensions = set()
+        """Получаем все возможные расширения файлов (изображения и 3D модели)"""
+        # Все поддерживаемые расширения изображений
+        image_extensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.svg']
+        
+        # Все поддерживаемые расширения 3D моделей
+        model_extensions = ['.glb', '.gltf', '.fbx', '.obj', '.usdz', '.rfa', '.dae', '.3ds', '.ar-glb']
+        
+        # Начинаем с поддерживаемых расширений
+        all_extensions = set(image_extensions + model_extensions)
+        
+        # Добавляем расширения из существующих файлов в базе данных
         for asset in FileAsset.objects.exclude(file='').exclude(file__isnull=True):
             if asset.file and hasattr(asset.file, 'name'):
                 ext = os.path.splitext(asset.file.name)[1].lower()
                 if ext:
-                    extensions.add(ext)
+                    all_extensions.add(ext)
         
         # Сортируем расширения
-        sorted_extensions = sorted(extensions)
-        return [(ext, ext.upper() if ext.startswith('.') else f'.{ext.upper()}') for ext in sorted_extensions]
+        sorted_extensions = sorted(all_extensions)
+        
+        # Формируем список для отображения
+        return [(ext, ext.upper()) for ext in sorted_extensions]
 
     def queryset(self, request, queryset):
         """Фильтруем по выбранному расширению"""
