@@ -92,16 +92,39 @@ class ProductViewSet(viewsets.ModelViewSet):
             except (ValueError, TypeError):
                 pass
         
+        # Фильтрация по габаритам (обрабатываем вручную)
+        width_gte = self.request.query_params.get('width__gte', None)
+        width_lte = self.request.query_params.get('width__lte', None)
+        if width_gte:
+            try:
+                queryset = queryset.filter(width__gte=float(width_gte))
+            except (ValueError, TypeError):
+                pass
+        if width_lte:
+            try:
+                queryset = queryset.filter(width__lte=float(width_lte))
+            except (ValueError, TypeError):
+                pass
+        
+        depth_gte = self.request.query_params.get('depth__gte', None)
+        depth_lte = self.request.query_params.get('depth__lte', None)
+        if depth_gte:
+            try:
+                queryset = queryset.filter(depth__gte=float(depth_gte))
+            except (ValueError, TypeError):
+                pass
+        if depth_lte:
+            try:
+                queryset = queryset.filter(depth__lte=float(depth_lte))
+            except (ValueError, TypeError):
+                pass
+        
         return queryset
 
     # Фильтрация
+    # material, style, color, brand обрабатываются вручную в get_queryset для поддержки множественного выбора
+    # price, width, depth тоже обрабатываются вручную для корректной работы с DecimalField
     filterset_fields = {
-        "material": ["exact"],
-        "style": ["exact"],
-        "color": ["exact"],
-        "price": ["gte", "lte"],
-        "width": ["gte", "lte"],
-        "depth": ["gte", "lte"],
         "is_active": ["exact"],
         "is_trending": ["exact"],
     }

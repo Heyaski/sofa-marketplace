@@ -32,25 +32,29 @@ export default function PriceFilter({
 
 	const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		const newMin = Math.min(Math.max(val, minPrice), localMax - 1)
+		// Ограничиваем минимальное значение, но не больше максимального
+		const newMin = Math.min(Math.max(val, minPrice), localMax)
 		setLocalMin(newMin)
 	}
 
 	const handleMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		const newMax = Math.max(Math.min(val, maxPrice), localMin + 1)
+		// Ограничиваем максимальное значение, но не меньше минимального
+		const newMax = Math.max(Math.min(val, maxPrice), localMin)
 		setLocalMax(newMax)
 	}
 	
 	const handleRangeMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		const newMin = Math.min(Math.max(val, minPrice), localMax - 1)
+		// Ограничиваем минимальное значение, но не меньше максимального
+		const newMin = Math.min(Math.max(val, minPrice), localMax)
 		setLocalMin(newMin)
 	}
 
 	const handleRangeMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		const newMax = Math.max(Math.min(val, maxPrice), localMin + 1)
+		// Ограничиваем максимальное значение, но не меньше минимального
+		const newMax = Math.max(Math.min(val, maxPrice), localMin)
 		setLocalMax(newMax)
 	}
 

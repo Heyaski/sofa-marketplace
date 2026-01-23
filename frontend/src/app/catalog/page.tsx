@@ -22,9 +22,6 @@ export default function CatalogPage() {
 	const [visibleCategoriesCount, setVisibleCategoriesCount] = useState(10)
 	const [openFilter, setOpenFilter] = useState<string | null>(null)
 
-	// Получаем все продукты для вычисления диапазонов фильтров
-	const { products: allProducts } = useProducts({})
-	
 	// ✅ API хуки с пагинацией
 	const {
 		products,
@@ -34,6 +31,13 @@ export default function CatalogPage() {
 		hasMore,
 		loadMore,
 	} = useProducts(filters)
+	
+	// Получаем все продукты без фильтров для вычисления диапазонов фильтров
+	const { products: allProductsForRanges } = useProducts(undefined)
+	
+	// Получаем все продукты без фильтров для вычисления диапазонов
+	const { products: allProducts } = useProducts(undefined)
+	
 	const {
 		categories,
 		loading: categoriesLoading,
@@ -43,7 +47,7 @@ export default function CatalogPage() {
 
 	// Вычисляем диапазоны и уникальные значения из всех продуктов
 	const filterRanges = useMemo(() => {
-		if (!allProducts || allProducts.length === 0) {
+		if (!allProductsForRanges || allProductsForRanges.length === 0) {
 			return {
 				price: { min: 0, max: 100000 },
 				width: { min: 0, max: 500 },
@@ -55,13 +59,13 @@ export default function CatalogPage() {
 			}
 		}
 
-		const prices = allProducts.map(p => typeof p.price === 'number' ? p.price : parseFloat(String(p.price)) || 0).filter(p => p > 0)
-		const widths = allProducts.map(p => p.width).filter((w): w is number => w !== null && w !== undefined && w > 0)
-		const depths = allProducts.map(p => p.depth).filter((d): d is number => d !== null && d !== undefined && d > 0)
+		const prices = allProductsForRanges.map(p => typeof p.price === 'number' ? p.price : parseFloat(String(p.price)) || 0).filter(p => p > 0)
+		const widths = allProductsForRanges.map(p => p.width).filter((w): w is number => w !== null && w !== undefined && w > 0)
+		const depths = allProductsForRanges.map(p => p.depth).filter((d): d is number => d !== null && d !== undefined && d > 0)
 		
 		// Разделяем множественные значения (например, "черный, красный" -> ["черный", "красный"])
 		const allMaterials: string[] = []
-		allProducts.forEach(p => {
+		allProductsForRanges.forEach(p => {
 			if (p.material && p.material.trim()) {
 				// Разделяем по запятой и убираем пробелы
 				const materials = p.material.split(',').map(m => m.trim()).filter(m => m.length > 0)
@@ -71,7 +75,7 @@ export default function CatalogPage() {
 		const materials = Array.from(new Set(allMaterials)).sort()
 
 		const allStyles: string[] = []
-		allProducts.forEach(p => {
+		allProductsForRanges.forEach(p => {
 			if (p.style && p.style.trim()) {
 				const styles = p.style.split(',').map(s => s.trim()).filter(s => s.length > 0)
 				allStyles.push(...styles)
@@ -80,7 +84,7 @@ export default function CatalogPage() {
 		const styles = Array.from(new Set(allStyles)).sort()
 
 		const allColors: string[] = []
-		allProducts.forEach(p => {
+		allProductsForRanges.forEach(p => {
 			if (p.color && p.color.trim()) {
 				const colors = p.color.split(',').map(c => c.trim()).filter(c => c.length > 0)
 				allColors.push(...colors)
@@ -89,7 +93,7 @@ export default function CatalogPage() {
 		const colors = Array.from(new Set(allColors)).sort()
 
 		const allBrands: string[] = []
-		allProducts.forEach(p => {
+		allProductsForRanges.forEach(p => {
 			if (p.brand && p.brand.trim()) {
 				const brands = p.brand.split(',').map(b => b.trim()).filter(b => b.length > 0)
 				allBrands.push(...brands)
@@ -115,7 +119,7 @@ export default function CatalogPage() {
 			colors: colors.sort(),
 			brands: brands.sort(),
 		}
-	}, [allProducts])
+	}, [allProductsForRanges])
 
 	const handleAddToCart = (productId: number, format: string) => {
 		setSelectedProduct({ id: productId, format })

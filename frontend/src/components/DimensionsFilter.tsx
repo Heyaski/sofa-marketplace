@@ -42,49 +42,57 @@ export default function DimensionsFilter({
 
 	const handleWidthMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		const newMin = Math.min(Math.max(val, minWidth), localWidthMax - 1)
+		// Ограничиваем минимальное значение, но не больше максимального
+		const newMin = Math.min(Math.max(val, minWidth), localWidthMax)
 		setLocalWidthMin(newMin)
 	}
 
 	const handleWidthMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		const newMax = Math.max(Math.min(val, maxWidth), localWidthMin + 1)
+		// Ограничиваем максимальное значение, но не меньше минимального
+		const newMax = Math.max(Math.min(val, maxWidth), localWidthMin)
 		setLocalWidthMax(newMax)
 	}
 
 	const handleDepthMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		const newMin = Math.min(Math.max(val, minDepth), localDepthMax - 1)
+		// Ограничиваем минимальное значение, но не больше максимального
+		const newMin = Math.min(Math.max(val, minDepth), localDepthMax)
 		setLocalDepthMin(newMin)
 	}
 
 	const handleDepthMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		const newMax = Math.max(Math.min(val, maxDepth), localDepthMin + 1)
+		// Ограничиваем максимальное значение, но не меньше минимального
+		const newMax = Math.max(Math.min(val, maxDepth), localDepthMin)
 		setLocalDepthMax(newMax)
 	}
 
 	const handleWidthRangeMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		const newMin = Math.min(Math.max(val, minWidth), localWidthMax - 1)
+		// Ограничиваем минимальное значение, но не больше максимального
+		const newMin = Math.min(Math.max(val, minWidth), localWidthMax)
 		setLocalWidthMin(newMin)
 	}
 
 	const handleWidthRangeMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		const newMax = Math.max(Math.min(val, maxWidth), localWidthMin + 1)
+		// Ограничиваем максимальное значение, но не меньше минимального
+		const newMax = Math.max(Math.min(val, maxWidth), localWidthMin)
 		setLocalWidthMax(newMax)
 	}
 
 	const handleDepthRangeMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		const newMin = Math.min(Math.max(val, minDepth), localDepthMax - 1)
+		// Ограничиваем минимальное значение, но не больше максимального
+		const newMin = Math.min(Math.max(val, minDepth), localDepthMax)
 		setLocalDepthMin(newMin)
 	}
 
 	const handleDepthRangeMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		const newMax = Math.max(Math.min(val, maxDepth), localDepthMin + 1)
+		// Ограничиваем максимальное значение, но не меньше минимального
+		const newMax = Math.max(Math.min(val, maxDepth), localDepthMin)
 		setLocalDepthMax(newMax)
 	}
 
