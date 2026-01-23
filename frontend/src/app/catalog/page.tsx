@@ -52,7 +52,6 @@ export default function CatalogPage() {
 				styles: [] as string[],
 				colors: [] as string[],
 				brands: [] as string[],
-				countries: [] as string[],
 			}
 		}
 
@@ -64,7 +63,6 @@ export default function CatalogPage() {
 		const styles = Array.from(new Set(allProducts.map(p => p.style).filter((s): s is string => !!s && s.trim() !== '')))
 		const colors = Array.from(new Set(allProducts.map(p => p.color).filter((c): c is string => !!c && c.trim() !== '')))
 		const brands = Array.from(new Set(allProducts.map(p => p.brand).filter((b): b is string => !!b && b.trim() !== '')))
-		const countries = Array.from(new Set(allProducts.map(p => p.country).filter((c): c is string => !!c && c.trim() !== '')))
 
 		return {
 			price: {
@@ -83,7 +81,6 @@ export default function CatalogPage() {
 			styles: styles.sort(),
 			colors: colors.sort(),
 			brands: brands.sort(),
-			countries: countries.sort(),
 		}
 	}, [allProducts])
 
@@ -137,6 +134,9 @@ export default function CatalogPage() {
 			const { price_min, price_max, ...rest } = filters
 			setFilters(rest)
 		}
+	}
+
+	const handlePriceApply = () => {
 		setOpenFilter(null)
 	}
 
@@ -144,10 +144,13 @@ export default function CatalogPage() {
 		// Для габаритов нужно добавить фильтры width_min, width_max, depth_min, depth_max
 		// Но в ProductFilters их нет, поэтому пока оставляем как есть
 		// Можно добавить в будущем или использовать другой подход
+	}
+
+	const handleDimensionsApply = () => {
 		setOpenFilter(null)
 	}
 
-	const handleMultiSelectChange = (field: 'material' | 'style' | 'color' | 'brand' | 'country') => {
+	const handleMultiSelectChange = (field: 'material' | 'style' | 'color' | 'brand') => {
 		return (values: string[] | undefined) => {
 			if (values && values.length > 0) {
 				// Для множественного выбора используем первый элемент (можно расширить API)
@@ -357,19 +360,6 @@ export default function CatalogPage() {
 									</button>
 								)}
 
-								{/* Кнопка фильтра страны */}
-								{filterRanges.countries.length > 0 && (
-									<button
-										onClick={() => setOpenFilter(openFilter === 'country' ? null : 'country')}
-										className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-											filters.country
-												? 'bg-main1 text-white'
-												: 'bg-gray-bg text-black hover:bg-gray2'
-										}`}
-									>
-										Страна {filters.country && `(${filters.country})`}
-									</button>
-								)}
 							</div>
 
 							<div className='flex items-center'>
@@ -390,84 +380,76 @@ export default function CatalogPage() {
 						</div>
 
 						{/* Модальные окна фильтров */}
-						{openFilter === 'price' && (
-							<div className='mb-4'>
-								<PriceFilter
-									minPrice={filterRanges.price.min}
-									maxPrice={filterRanges.price.max}
-									value={currentPriceFilter}
-									onChange={handlePriceChange}
+						{openFilter && (
+							<>
+								{/* Overlay */}
+								<div
+									className='fixed inset-0 bg-black bg-opacity-50 z-40'
+									onClick={() => setOpenFilter(null)}
 								/>
-							</div>
+								{/* Filter Modal */}
+								<div className='fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md px-4 max-h-[90vh] overflow-y-auto'>
+									{openFilter === 'price' && (
+										<PriceFilter
+											minPrice={filterRanges.price.min}
+											maxPrice={filterRanges.price.max}
+											value={currentPriceFilter}
+											onChange={handlePriceChange}
+											onApply={handlePriceApply}
+										/>
+									)}
+
+									{openFilter === 'dimensions' && (
+										<DimensionsFilter
+											minWidth={filterRanges.width.min}
+											maxWidth={filterRanges.width.max}
+											minDepth={filterRanges.depth.min}
+											maxDepth={filterRanges.depth.max}
+											value={undefined}
+											onChange={handleDimensionsChange}
+											onApply={handleDimensionsApply}
+										/>
+									)}
+
+									{openFilter === 'material' && filterRanges.materials.length > 0 && (
+										<MultiSelectFilter
+											title='Материал'
+											options={filterRanges.materials}
+											selectedValues={filters.material ? [filters.material] : undefined}
+											onChange={handleMultiSelectChange('material')}
+										/>
+									)}
+
+									{openFilter === 'style' && filterRanges.styles.length > 0 && (
+										<MultiSelectFilter
+											title='Стиль'
+											options={filterRanges.styles}
+											selectedValues={filters.style ? [filters.style] : undefined}
+											onChange={handleMultiSelectChange('style')}
+										/>
+									)}
+
+									{openFilter === 'color' && filterRanges.colors.length > 0 && (
+										<MultiSelectFilter
+											title='Цвет'
+											options={filterRanges.colors}
+											selectedValues={filters.color ? [filters.color] : undefined}
+											onChange={handleMultiSelectChange('color')}
+										/>
+									)}
+
+									{openFilter === 'brand' && filterRanges.brands.length > 0 && (
+										<MultiSelectFilter
+											title='Бренд'
+											options={filterRanges.brands}
+											selectedValues={filters.brand ? [filters.brand] : undefined}
+											onChange={handleMultiSelectChange('brand')}
+										/>
+									)}
+								</div>
+							</>
 						)}
 
-						{openFilter === 'dimensions' && (
-							<div className='mb-4'>
-								<DimensionsFilter
-									minWidth={filterRanges.width.min}
-									maxWidth={filterRanges.width.max}
-									minDepth={filterRanges.depth.min}
-									maxDepth={filterRanges.depth.max}
-									value={undefined}
-									onChange={handleDimensionsChange}
-								/>
-							</div>
-						)}
-
-						{openFilter === 'material' && filterRanges.materials.length > 0 && (
-							<div className='mb-4'>
-								<MultiSelectFilter
-									title='Материал'
-									options={filterRanges.materials}
-									selectedValues={filters.material ? [filters.material] : undefined}
-									onChange={handleMultiSelectChange('material')}
-								/>
-							</div>
-						)}
-
-						{openFilter === 'style' && filterRanges.styles.length > 0 && (
-							<div className='mb-4'>
-								<MultiSelectFilter
-									title='Стиль'
-									options={filterRanges.styles}
-									selectedValues={filters.style ? [filters.style] : undefined}
-									onChange={handleMultiSelectChange('style')}
-								/>
-							</div>
-						)}
-
-						{openFilter === 'color' && filterRanges.colors.length > 0 && (
-							<div className='mb-4'>
-								<MultiSelectFilter
-									title='Цвет'
-									options={filterRanges.colors}
-									selectedValues={filters.color ? [filters.color] : undefined}
-									onChange={handleMultiSelectChange('color')}
-								/>
-							</div>
-						)}
-
-						{openFilter === 'brand' && filterRanges.brands.length > 0 && (
-							<div className='mb-4'>
-								<MultiSelectFilter
-									title='Бренд'
-									options={filterRanges.brands}
-									selectedValues={filters.brand ? [filters.brand] : undefined}
-									onChange={handleMultiSelectChange('brand')}
-								/>
-							</div>
-						)}
-
-						{openFilter === 'country' && filterRanges.countries.length > 0 && (
-							<div className='mb-4'>
-								<MultiSelectFilter
-									title='Страна'
-									options={filterRanges.countries}
-									selectedValues={filters.country ? [filters.country] : undefined}
-									onChange={handleMultiSelectChange('country')}
-								/>
-							</div>
-						)}
 					</div>
 
 					<div className='border-t border-gray2 mb-8'></div>

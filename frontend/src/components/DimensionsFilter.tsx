@@ -9,6 +9,7 @@ interface DimensionsFilterProps {
 	maxDepth: number
 	value: { width: { min: number; max: number }; depth: { min: number; max: number } } | undefined
 	onChange: (value: { width: { min: number; max: number }; depth: { min: number; max: number } } | undefined) => void
+	onApply?: () => void
 }
 
 export default function DimensionsFilter({
@@ -18,6 +19,7 @@ export default function DimensionsFilter({
 	maxDepth,
 	value,
 	onChange,
+	onApply,
 }: DimensionsFilterProps) {
 	const [localWidthMin, setLocalWidthMin] = useState(value?.width.min ?? minWidth)
 	const [localWidthMax, setLocalWidthMax] = useState(value?.width.max ?? maxWidth)
@@ -82,24 +84,42 @@ export default function DimensionsFilter({
 		onChange(undefined)
 	}
 
+	const handleApply = () => {
+		onChange({
+			width: { min: localWidthMin, max: localWidthMax },
+			depth: { min: localDepthMin, max: localDepthMax },
+		})
+		if (onApply) {
+			onApply()
+		}
+	}
+
 	const isDefault =
-		value?.width.min === minWidth &&
-		value?.width.max === maxWidth &&
-		value?.depth.min === minDepth &&
-		value?.depth.max === maxDepth
+		localWidthMin === minWidth &&
+		localWidthMax === maxWidth &&
+		localDepthMin === minDepth &&
+		localDepthMax === maxDepth
 
 	return (
-		<div className='bg-white rounded-xl p-6 shadow-card border border-gray2'>
+		<div className='bg-white rounded-xl p-6 shadow-card border border-gray2' onClick={(e) => e.stopPropagation()}>
 			<div className='flex items-center justify-between mb-4'>
 				<h3 className='text-lg font-bold text-black'>Габариты</h3>
-				{!isDefault && (
+				<div className='flex items-center gap-3'>
+					{!isDefault && (
+						<button
+							onClick={handleReset}
+							className='text-sm text-gray hover:text-black font-medium'
+						>
+							Сбросить
+						</button>
+					)}
 					<button
-						onClick={handleReset}
-						className='text-sm text-main1 hover:text-main2 font-medium'
+						onClick={handleApply}
+						className='px-4 py-2 bg-main1 text-white rounded-lg text-sm font-medium hover:bg-main2 transition-colors'
 					>
-						Сбросить
+						Применить
 					</button>
-				)}
+				</div>
 			</div>
 
 			<div className='space-y-6'>

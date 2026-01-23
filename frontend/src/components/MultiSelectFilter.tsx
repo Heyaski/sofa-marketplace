@@ -31,13 +31,13 @@ export default function MultiSelectFilter({
 	const hasSelection = selectedValues && selectedValues.length > 0
 
 	return (
-		<div className='bg-white rounded-xl p-6 shadow-card border border-gray2'>
+		<div className='bg-white rounded-xl p-6 shadow-card border border-gray2' onClick={(e) => e.stopPropagation()}>
 			<div className='flex items-center justify-between mb-4'>
 				<h3 className='text-lg font-bold text-black'>{title}</h3>
 				{hasSelection && (
 					<button
 						onClick={handleReset}
-						className='text-sm text-main1 hover:text-main2 font-medium'
+						className='text-sm text-gray hover:text-black font-medium'
 					>
 						Сбросить
 					</button>

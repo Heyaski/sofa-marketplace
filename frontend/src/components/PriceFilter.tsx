@@ -7,6 +7,7 @@ interface PriceFilterProps {
 	maxPrice: number
 	value: { min: number; max: number } | undefined
 	onChange: (value: { min: number; max: number } | undefined) => void
+	onApply?: () => void
 }
 
 export default function PriceFilter({
@@ -14,6 +15,7 @@ export default function PriceFilter({
 	maxPrice,
 	value,
 	onChange,
+	onApply,
 }: PriceFilterProps) {
 	const [localMin, setLocalMin] = useState(value?.min ?? minPrice)
 	const [localMax, setLocalMax] = useState(value?.max ?? maxPrice)
@@ -46,18 +48,33 @@ export default function PriceFilter({
 		onChange(undefined)
 	}
 
+	const handleApply = () => {
+		onChange({ min: localMin, max: localMax })
+		if (onApply) {
+			onApply()
+		}
+	}
+
 	return (
-		<div className='bg-white rounded-xl p-6 shadow-card border border-gray2'>
+		<div className='bg-white rounded-xl p-6 shadow-card border border-gray2' onClick={(e) => e.stopPropagation()}>
 			<div className='flex items-center justify-between mb-4'>
 				<h3 className='text-lg font-bold text-black'>Цена</h3>
-				{(value?.min !== minPrice || value?.max !== maxPrice) && (
+				<div className='flex items-center gap-3'>
+					{(localMin !== minPrice || localMax !== maxPrice) && (
+						<button
+							onClick={handleReset}
+							className='text-sm text-gray hover:text-black font-medium'
+						>
+							Сбросить
+						</button>
+					)}
 					<button
-						onClick={handleReset}
-						className='text-sm text-main1 hover:text-main2 font-medium'
+						onClick={handleApply}
+						className='px-4 py-2 bg-main1 text-white rounded-lg text-sm font-medium hover:bg-main2 transition-colors'
 					>
-						Сбросить
+						Применить
 					</button>
-				)}
+				</div>
 			</div>
 
 			<div className='space-y-4'>
