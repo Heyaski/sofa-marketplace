@@ -28,6 +28,10 @@ export const useProducts = (filters?: ProductFilters, loadMore?: boolean) => {
 				setLoading(true)
 			}
 			setError(null)
+			// Отладочный вывод фильтров
+			if (filters && Object.keys(filters).length > 0) {
+				console.log('Применяемые фильтры:', filters)
+			}
 			const response = await productService.getProducts(filters, page, 20)
 			
 			// Обрабатываем пагинированный ответ

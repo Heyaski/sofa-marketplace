@@ -9,7 +9,6 @@ interface DimensionsFilterProps {
 	maxDepth: number
 	value: { width: { min: number; max: number }; depth: { min: number; max: number } } | undefined
 	onChange: (value: { width: { min: number; max: number }; depth: { min: number; max: number } } | undefined) => void
-	onApply?: () => void
 }
 
 export default function DimensionsFilter({
@@ -19,7 +18,6 @@ export default function DimensionsFilter({
 	maxDepth,
 	value,
 	onChange,
-	onApply,
 }: DimensionsFilterProps) {
 	const [localWidthMin, setLocalWidthMin] = useState(value?.width.min ?? minWidth)
 	const [localWidthMax, setLocalWidthMax] = useState(value?.width.max ?? maxWidth)
@@ -41,39 +39,51 @@ export default function DimensionsFilter({
 	}, [value, minWidth, maxWidth, minDepth, maxDepth])
 
 	const handleWidthMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const newMin = Math.min(Number(e.target.value), localWidthMax - 1)
+		const val = Number(e.target.value)
+		const newMin = Math.min(Math.max(val, minWidth), localWidthMax - 1)
 		setLocalWidthMin(newMin)
-		onChange({
-			width: { min: newMin, max: localWidthMax },
-			depth: { min: localDepthMin, max: localDepthMax },
-		})
 	}
 
 	const handleWidthMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const newMax = Math.max(Number(e.target.value), localWidthMin + 1)
+		const val = Number(e.target.value)
+		const newMax = Math.max(Math.min(val, maxWidth), localWidthMin + 1)
 		setLocalWidthMax(newMax)
-		onChange({
-			width: { min: localWidthMin, max: newMax },
-			depth: { min: localDepthMin, max: localDepthMax },
-		})
 	}
 
 	const handleDepthMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const newMin = Math.min(Number(e.target.value), localDepthMax - 1)
+		const val = Number(e.target.value)
+		const newMin = Math.min(Math.max(val, minDepth), localDepthMax - 1)
 		setLocalDepthMin(newMin)
-		onChange({
-			width: { min: localWidthMin, max: localWidthMax },
-			depth: { min: newMin, max: localDepthMax },
-		})
 	}
 
 	const handleDepthMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const newMax = Math.max(Number(e.target.value), localDepthMin + 1)
+		const val = Number(e.target.value)
+		const newMax = Math.max(Math.min(val, maxDepth), localDepthMin + 1)
 		setLocalDepthMax(newMax)
-		onChange({
-			width: { min: localWidthMin, max: localWidthMax },
-			depth: { min: localDepthMin, max: newMax },
-		})
+	}
+
+	const handleWidthRangeMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const val = Number(e.target.value)
+		const newMin = Math.min(Math.max(val, minWidth), localWidthMax - 1)
+		setLocalWidthMin(newMin)
+	}
+
+	const handleWidthRangeMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const val = Number(e.target.value)
+		const newMax = Math.max(Math.min(val, maxWidth), localWidthMin + 1)
+		setLocalWidthMax(newMax)
+	}
+
+	const handleDepthRangeMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const val = Number(e.target.value)
+		const newMin = Math.min(Math.max(val, minDepth), localDepthMax - 1)
+		setLocalDepthMin(newMin)
+	}
+
+	const handleDepthRangeMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const val = Number(e.target.value)
+		const newMax = Math.max(Math.min(val, maxDepth), localDepthMin + 1)
+		setLocalDepthMax(newMax)
 	}
 
 	const handleReset = () => {
@@ -85,12 +95,14 @@ export default function DimensionsFilter({
 	}
 
 	const handleApply = () => {
-		onChange({
-			width: { min: localWidthMin, max: localWidthMax },
-			depth: { min: localDepthMin, max: localDepthMax },
-		})
-		if (onApply) {
-			onApply()
+		if (localWidthMin !== minWidth || localWidthMax !== maxWidth || 
+		    localDepthMin !== minDepth || localDepthMax !== maxDepth) {
+			onChange({
+				width: { min: localWidthMin, max: localWidthMax },
+				depth: { min: localDepthMin, max: localDepthMax },
+			})
+		} else {
+			onChange(undefined)
 		}
 	}
 
@@ -101,21 +113,21 @@ export default function DimensionsFilter({
 		localDepthMax === maxDepth
 
 	return (
-		<div className='bg-white rounded-xl p-6 shadow-card border border-gray2' onClick={(e) => e.stopPropagation()}>
+		<div className='bg-white rounded-lg shadow-lg border border-gray2 p-4' onClick={(e) => e.stopPropagation()}>
 			<div className='flex items-center justify-between mb-4'>
-				<h3 className='text-lg font-bold text-black'>Габариты</h3>
+				<h3 className='text-sm font-bold text-black'>Габариты</h3>
 				<div className='flex items-center gap-3'>
 					{!isDefault && (
 						<button
 							onClick={handleReset}
-							className='text-sm text-gray hover:text-black font-medium'
+							className='text-xs text-gray hover:text-black font-medium'
 						>
 							Сбросить
 						</button>
 					)}
 					<button
 						onClick={handleApply}
-						className='px-4 py-2 bg-main1 text-white rounded-lg text-sm font-medium hover:bg-main2 transition-colors'
+						className='px-3 py-1.5 bg-main1 text-white rounded-lg text-xs font-medium hover:bg-main2 transition-colors'
 					>
 						Применить
 					</button>
@@ -127,29 +139,37 @@ export default function DimensionsFilter({
 				<div>
 					<h4 className='text-sm font-medium text-black mb-3'>Ширина (см)</h4>
 					<div className='space-y-3'>
-						<div className='relative'>
+						<div className='relative h-2'>
+							{/* Фон ползунка */}
+							<div className='absolute w-full h-2 bg-gray2 rounded-lg'></div>
+							{/* Выбранный диапазон */}
+							<div 
+								className='absolute h-2 bg-main1 rounded-lg'
+								style={{
+									left: `${((localWidthMin - minWidth) / (maxWidth - minWidth)) * 100}%`,
+									width: `${((localWidthMax - localWidthMin) / (maxWidth - minWidth)) * 100}%`,
+								}}
+							></div>
+							{/* Минимальный ползунок */}
 							<input
 								type='range'
 								min={minWidth}
 								max={maxWidth}
 								value={localWidthMin}
-								onChange={handleWidthMinChange}
-								className='absolute w-full h-2 bg-gray2 rounded-lg appearance-none cursor-pointer z-10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-main1 [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-main1 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer'
+								onChange={handleWidthRangeMinChange}
+								className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer z-10'
 								style={{
-									background: `linear-gradient(to right, 
-										#1976D2 0%, 
-										#1976D2 ${((localWidthMin - minWidth) / (maxWidth - minWidth)) * 100}%, 
-										#D6D5D4 ${((localWidthMin - minWidth) / (maxWidth - minWidth)) * 100}%, 
-										#D6D5D4 100%)`,
+									pointerEvents: localWidthMin === localWidthMax ? 'none' : 'auto',
 								}}
 							/>
+							{/* Максимальный ползунок */}
 							<input
 								type='range'
 								min={minWidth}
 								max={maxWidth}
 								value={localWidthMax}
-								onChange={handleWidthMaxChange}
-								className='absolute w-full h-2 bg-transparent rounded-lg appearance-none cursor-pointer z-20 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-main1 [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-main1 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer'
+								onChange={handleWidthRangeMaxChange}
+								className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer z-20'
 							/>
 						</div>
 						<div className='flex items-center justify-between gap-4'>
@@ -182,29 +202,37 @@ export default function DimensionsFilter({
 				<div>
 					<h4 className='text-sm font-medium text-black mb-3'>Глубина (см)</h4>
 					<div className='space-y-3'>
-						<div className='relative'>
+						<div className='relative h-2'>
+							{/* Фон ползунка */}
+							<div className='absolute w-full h-2 bg-gray2 rounded-lg'></div>
+							{/* Выбранный диапазон */}
+							<div 
+								className='absolute h-2 bg-main1 rounded-lg'
+								style={{
+									left: `${((localDepthMin - minDepth) / (maxDepth - minDepth)) * 100}%`,
+									width: `${((localDepthMax - localDepthMin) / (maxDepth - minDepth)) * 100}%`,
+								}}
+							></div>
+							{/* Минимальный ползунок */}
 							<input
 								type='range'
 								min={minDepth}
 								max={maxDepth}
 								value={localDepthMin}
-								onChange={handleDepthMinChange}
-								className='absolute w-full h-2 bg-gray2 rounded-lg appearance-none cursor-pointer z-10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-main1 [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-main1 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer'
+								onChange={handleDepthRangeMinChange}
+								className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer z-10'
 								style={{
-									background: `linear-gradient(to right, 
-										#1976D2 0%, 
-										#1976D2 ${((localDepthMin - minDepth) / (maxDepth - minDepth)) * 100}%, 
-										#D6D5D4 ${((localDepthMin - minDepth) / (maxDepth - minDepth)) * 100}%, 
-										#D6D5D4 100%)`,
+									pointerEvents: localDepthMin === localDepthMax ? 'none' : 'auto',
 								}}
 							/>
+							{/* Максимальный ползунок */}
 							<input
 								type='range'
 								min={minDepth}
 								max={maxDepth}
 								value={localDepthMax}
-								onChange={handleDepthMaxChange}
-								className='absolute w-full h-2 bg-transparent rounded-lg appearance-none cursor-pointer z-20 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-main1 [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-main1 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer'
+								onChange={handleDepthRangeMaxChange}
+								className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer z-20'
 							/>
 						</div>
 						<div className='flex items-center justify-between gap-4'>

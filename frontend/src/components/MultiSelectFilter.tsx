@@ -56,7 +56,7 @@ export default function MultiSelectFilter({
 				</div>
 			)}
 
-			<div className='py-2 max-h-64 overflow-y-auto'>
+			<div className='py-2 max-h-64 overflow-y-auto scrollbar-hide'>
 				{options.map(option => (
 					<label
 						key={option}

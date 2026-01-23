@@ -59,10 +59,43 @@ export default function CatalogPage() {
 		const widths = allProducts.map(p => p.width).filter((w): w is number => w !== null && w !== undefined && w > 0)
 		const depths = allProducts.map(p => p.depth).filter((d): d is number => d !== null && d !== undefined && d > 0)
 		
-		const materials = Array.from(new Set(allProducts.map(p => p.material).filter((m): m is string => !!m && m.trim() !== '')))
-		const styles = Array.from(new Set(allProducts.map(p => p.style).filter((s): s is string => !!s && s.trim() !== '')))
-		const colors = Array.from(new Set(allProducts.map(p => p.color).filter((c): c is string => !!c && c.trim() !== '')))
-		const brands = Array.from(new Set(allProducts.map(p => p.brand).filter((b): b is string => !!b && b.trim() !== '')))
+		// Разделяем множественные значения (например, "черный, красный" -> ["черный", "красный"])
+		const allMaterials: string[] = []
+		allProducts.forEach(p => {
+			if (p.material && p.material.trim()) {
+				// Разделяем по запятой и убираем пробелы
+				const materials = p.material.split(',').map(m => m.trim()).filter(m => m.length > 0)
+				allMaterials.push(...materials)
+			}
+		})
+		const materials = Array.from(new Set(allMaterials)).sort()
+
+		const allStyles: string[] = []
+		allProducts.forEach(p => {
+			if (p.style && p.style.trim()) {
+				const styles = p.style.split(',').map(s => s.trim()).filter(s => s.length > 0)
+				allStyles.push(...styles)
+			}
+		})
+		const styles = Array.from(new Set(allStyles)).sort()
+
+		const allColors: string[] = []
+		allProducts.forEach(p => {
+			if (p.color && p.color.trim()) {
+				const colors = p.color.split(',').map(c => c.trim()).filter(c => c.length > 0)
+				allColors.push(...colors)
+			}
+		})
+		const colors = Array.from(new Set(allColors)).sort()
+
+		const allBrands: string[] = []
+		allProducts.forEach(p => {
+			if (p.brand && p.brand.trim()) {
+				const brands = p.brand.split(',').map(b => b.trim()).filter(b => b.length > 0)
+				allBrands.push(...brands)
+			}
+		})
+		const brands = Array.from(new Set(allBrands)).sort()
 
 		return {
 			price: {
@@ -128,10 +161,6 @@ export default function CatalogPage() {
 	}
 
 	const handlePriceChange = (value: { min: number; max: number } | undefined) => {
-		// Не применяем сразу, только при нажатии "Применить"
-	}
-
-	const handlePriceApply = (value: { min: number; max: number } | undefined) => {
 		if (value) {
 			setFilters({ ...filters, price_min: value.min, price_max: value.max })
 		} else {
@@ -142,12 +171,7 @@ export default function CatalogPage() {
 	}
 
 	const handleDimensionsChange = (value: { width: { min: number; max: number }; depth: { min: number; max: number } } | undefined) => {
-		// Для габаритов нужно добавить фильтры width_min, width_max, depth_min, depth_max
-		// Но в ProductFilters их нет, поэтому пока оставляем как есть
-		// Можно добавить в будущем или использовать другой подход
-	}
-
-	const handleDimensionsApply = () => {
+		// Пока габариты не поддерживаются в API, но сохраняем логику для будущего
 		setOpenFilter(null)
 	}
 
@@ -160,7 +184,8 @@ export default function CatalogPage() {
 				const { [field]: _, ...rest } = filters
 				setFilters(rest)
 			}
-			// Не закрываем сразу, чтобы можно было выбрать несколько значений
+			// Закрываем список после выбора
+			setOpenFilter(null)
 		}
 	}
 
@@ -297,15 +322,43 @@ export default function CatalogPage() {
 									>
 										Цена
 									</button>
+									{openFilter === 'price' && (
+										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 min-w-[300px]'>
+											<PriceFilter
+												minPrice={filterRanges.price.min}
+												maxPrice={filterRanges.price.max}
+												value={currentPriceFilter}
+												onChange={handlePriceChange}
+											/>
+										</div>
+									)}
 								</div>
 
 								{/* Кнопка фильтра габаритов */}
-								<button
-									onClick={() => setOpenFilter(openFilter === 'dimensions' ? null : 'dimensions')}
-									className='px-4 py-2 rounded-lg bg-gray-bg text-black text-sm font-medium hover:bg-gray2 transition-colors'
-								>
-									Габариты
-								</button>
+								<div className='relative'>
+									<button
+										onClick={() => setOpenFilter(openFilter === 'dimensions' ? null : 'dimensions')}
+										className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+											false // TODO: добавить проверку активного фильтра габаритов
+												? 'bg-main1 text-white'
+												: 'bg-gray-bg text-black hover:bg-gray2'
+										}`}
+									>
+										Габариты
+									</button>
+									{openFilter === 'dimensions' && (
+										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 min-w-[300px]'>
+											<DimensionsFilter
+												minWidth={filterRanges.width.min}
+												maxWidth={filterRanges.width.max}
+												minDepth={filterRanges.depth.min}
+												maxDepth={filterRanges.depth.max}
+												value={undefined}
+												onChange={handleDimensionsChange}
+											/>
+										</div>
+									)}
+								</div>
 
 								{/* Кнопка фильтра материала */}
 								{filterRanges.materials.length > 0 && (
@@ -320,16 +373,16 @@ export default function CatalogPage() {
 										>
 											Материал
 										</button>
-										{openFilter === 'material' && (
-											<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 min-w-[200px] max-h-64 overflow-y-auto'>
-												<MultiSelectFilter
-													title=''
-													options={filterRanges.materials}
-													selectedValues={filters.material ? [filters.material] : undefined}
-													onChange={handleMultiSelectChange('material')}
-												/>
-											</div>
-										)}
+									{openFilter === 'material' && (
+										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 min-w-[200px]'>
+											<MultiSelectFilter
+												title=''
+												options={filterRanges.materials}
+												selectedValues={filters.material ? [filters.material] : undefined}
+												onChange={handleMultiSelectChange('material')}
+											/>
+										</div>
+									)}
 									</div>
 								)}
 
@@ -346,16 +399,16 @@ export default function CatalogPage() {
 										>
 											Стиль
 										</button>
-										{openFilter === 'style' && (
-											<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 min-w-[200px] max-h-64 overflow-y-auto'>
-												<MultiSelectFilter
-													title=''
-													options={filterRanges.styles}
-													selectedValues={filters.style ? [filters.style] : undefined}
-													onChange={handleMultiSelectChange('style')}
-												/>
-											</div>
-										)}
+									{openFilter === 'style' && (
+										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 min-w-[200px]'>
+											<MultiSelectFilter
+												title=''
+												options={filterRanges.styles}
+												selectedValues={filters.style ? [filters.style] : undefined}
+												onChange={handleMultiSelectChange('style')}
+											/>
+										</div>
+									)}
 									</div>
 								)}
 
@@ -372,16 +425,16 @@ export default function CatalogPage() {
 										>
 											Цвет
 										</button>
-										{openFilter === 'color' && (
-											<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 min-w-[200px] max-h-64 overflow-y-auto'>
-												<MultiSelectFilter
-													title=''
-													options={filterRanges.colors}
-													selectedValues={filters.color ? [filters.color] : undefined}
-													onChange={handleMultiSelectChange('color')}
-												/>
-											</div>
-										)}
+									{openFilter === 'color' && (
+										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 min-w-[200px]'>
+											<MultiSelectFilter
+												title=''
+												options={filterRanges.colors}
+												selectedValues={filters.color ? [filters.color] : undefined}
+												onChange={handleMultiSelectChange('color')}
+											/>
+										</div>
+									)}
 									</div>
 								)}
 
@@ -398,16 +451,16 @@ export default function CatalogPage() {
 										>
 											Бренд
 										</button>
-										{openFilter === 'brand' && (
-											<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 min-w-[200px] max-h-64 overflow-y-auto'>
-												<MultiSelectFilter
-													title=''
-													options={filterRanges.brands}
-													selectedValues={filters.brand ? [filters.brand] : undefined}
-													onChange={handleMultiSelectChange('brand')}
-												/>
-											</div>
-										)}
+									{openFilter === 'brand' && (
+										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 min-w-[200px]'>
+											<MultiSelectFilter
+												title=''
+												options={filterRanges.brands}
+												selectedValues={filters.brand ? [filters.brand] : undefined}
+												onChange={handleMultiSelectChange('brand')}
+											/>
+										</div>
+									)}
 									</div>
 								)}
 
@@ -430,43 +483,8 @@ export default function CatalogPage() {
 							</div>
 						</div>
 
-						{/* Модальные окна для диапазонных фильтров */}
-						{openFilter && (openFilter === 'price' || openFilter === 'dimensions') && (
-							<>
-								{/* Overlay */}
-								<div
-									className='fixed inset-0 bg-black bg-opacity-50 z-40'
-									onClick={() => setOpenFilter(null)}
-								/>
-								{/* Filter Modal */}
-								<div className='fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md px-4 max-h-[90vh] overflow-y-auto'>
-									{openFilter === 'price' && (
-										<PriceFilter
-											minPrice={filterRanges.price.min}
-											maxPrice={filterRanges.price.max}
-											value={currentPriceFilter}
-											onChange={handlePriceChange}
-											onApply={handlePriceApply}
-										/>
-									)}
-
-									{openFilter === 'dimensions' && (
-										<DimensionsFilter
-											minWidth={filterRanges.width.min}
-											maxWidth={filterRanges.width.max}
-											minDepth={filterRanges.depth.min}
-											maxDepth={filterRanges.depth.max}
-											value={undefined}
-											onChange={handleDimensionsChange}
-											onApply={handleDimensionsApply}
-										/>
-									)}
-								</div>
-							</>
-						)}
-
 						{/* Overlay для выпадающих списков */}
-						{openFilter && ['material', 'style', 'color', 'brand'].includes(openFilter) && (
+						{openFilter && (
 							<div
 								className='fixed inset-0 z-30'
 								onClick={() => setOpenFilter(null)}

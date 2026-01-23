@@ -7,7 +7,6 @@ interface PriceFilterProps {
 	maxPrice: number
 	value: { min: number; max: number } | undefined
 	onChange: (value: { min: number; max: number } | undefined) => void
-	onApply?: (value: { min: number; max: number } | undefined) => void
 }
 
 export default function PriceFilter({
@@ -15,7 +14,6 @@ export default function PriceFilter({
 	maxPrice,
 	value,
 	onChange,
-	onApply,
 }: PriceFilterProps) {
 	const [localMin, setLocalMin] = useState(value?.min ?? minPrice)
 	const [localMax, setLocalMax] = useState(value?.max ?? maxPrice)
@@ -57,33 +55,33 @@ export default function PriceFilter({
 	const handleReset = () => {
 		setLocalMin(minPrice)
 		setLocalMax(maxPrice)
-		if (onApply) {
-			onApply(undefined)
-		}
+		onChange(undefined)
 	}
 
 	const handleApply = () => {
-		if (onApply) {
-			onApply({ min: localMin, max: localMax })
+		if (localMin !== minPrice || localMax !== maxPrice) {
+			onChange({ min: localMin, max: localMax })
+		} else {
+			onChange(undefined)
 		}
 	}
 
 	return (
-		<div className='bg-white rounded-xl p-6 shadow-card border border-gray2' onClick={(e) => e.stopPropagation()}>
+		<div className='bg-white rounded-lg shadow-lg border border-gray2 p-4' onClick={(e) => e.stopPropagation()}>
 			<div className='flex items-center justify-between mb-4'>
-				<h3 className='text-lg font-bold text-black'>Цена</h3>
+				<h3 className='text-sm font-bold text-black'>Цена</h3>
 				<div className='flex items-center gap-3'>
 					{(localMin !== minPrice || localMax !== maxPrice) && (
 						<button
 							onClick={handleReset}
-							className='text-sm text-gray hover:text-black font-medium'
+							className='text-xs text-gray hover:text-black font-medium'
 						>
 							Сбросить
 						</button>
 					)}
 					<button
 						onClick={handleApply}
-						className='px-4 py-2 bg-main1 text-white rounded-lg text-sm font-medium hover:bg-main2 transition-colors'
+						className='px-3 py-1.5 bg-main1 text-white rounded-lg text-xs font-medium hover:bg-main2 transition-colors'
 					>
 						Применить
 					</button>

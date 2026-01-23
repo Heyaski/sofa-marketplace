@@ -32,7 +32,14 @@ export const productService = {
 		if (filters) {
 			Object.entries(filters).forEach(([key, value]) => {
 				if (value !== undefined && value !== null && value !== '') {
-					params.append(key, value.toString())
+					// Преобразуем price_min и price_max в price__gte и price__lte для DjangoFilterBackend
+					if (key === 'price_min') {
+						params.append('price__gte', value.toString())
+					} else if (key === 'price_max') {
+						params.append('price__lte', value.toString())
+					} else {
+						params.append(key, value.toString())
+					}
 				}
 			})
 		}
