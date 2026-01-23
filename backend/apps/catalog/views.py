@@ -29,10 +29,13 @@ class ProductViewSet(viewsets.ModelViewSet):
         return context
 
     def get_queryset(self):
-        """Переопределяем queryset для поддержки фильтрации по категориям с учетом подкатегорий"""
+        """
+        Переопределяем queryset для поддержки фильтрации по категориям с учетом подкатегорий
+        и множественного выбора для material, style, color, brand
+        """
         queryset = super().get_queryset()
         
-        # Получаем параметр фильтрации по категории
+        # Фильтрация по категории
         category_id = self.request.query_params.get('category', None)
         
         if category_id:
@@ -60,6 +63,20 @@ class ProductViewSet(viewsets.ModelViewSet):
             except (ValueError, TypeError):
                 # Если category_id невалидный, игнорируем фильтр
                 pass
+        
+        # Фильтрация по множественным значениям (material, style, color, brand)
+        # Если значение содержит запятую, ищем товары, где поле содержит любое из значений
+        for field in ['material', 'style', 'color', 'brand']:
+            value = self.request.query_params.get(field, None)
+            if value:
+                # Разделяем значения по запятой
+                values = [v.strip() for v in value.split(',') if v.strip()]
+                if values:
+                    # Создаем Q объекты для каждого значения (поиск через contains или exact)
+                    q_objects = models.Q()
+                    for val in values:
+                        q_objects |= models.Q(**{f'{field}__icontains': val})
+                    queryset = queryset.filter(q_objects)
         
         return queryset
 

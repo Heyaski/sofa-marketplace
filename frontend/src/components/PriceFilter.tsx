@@ -7,6 +7,7 @@ interface PriceFilterProps {
 	maxPrice: number
 	value: { min: number; max: number } | undefined
 	onChange: (value: { min: number; max: number } | undefined) => void
+	onApply?: () => void
 }
 
 export default function PriceFilter({
@@ -14,6 +15,7 @@ export default function PriceFilter({
 	maxPrice,
 	value,
 	onChange,
+	onApply,
 }: PriceFilterProps) {
 	const [localMin, setLocalMin] = useState(value?.min ?? minPrice)
 	const [localMax, setLocalMax] = useState(value?.max ?? maxPrice)
@@ -63,6 +65,10 @@ export default function PriceFilter({
 			onChange({ min: localMin, max: localMax })
 		} else {
 			onChange(undefined)
+		}
+		// Закрываем фильтр после применения
+		if (onApply) {
+			onApply()
 		}
 	}
 

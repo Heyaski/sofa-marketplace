@@ -169,23 +169,34 @@ export default function CatalogPage() {
 		}
 		setOpenFilter(null)
 	}
+	
+	const handlePriceApply = () => {
+		// Фильтр уже применен в handlePriceChange, просто закрываем
+		setOpenFilter(null)
+	}
 
 	const handleDimensionsChange = (value: { width: { min: number; max: number }; depth: { min: number; max: number } } | undefined) => {
 		// Пока габариты не поддерживаются в API, но сохраняем логику для будущего
+		// TODO: добавить поддержку width_min, width_max, depth_min, depth_max в API
+		setOpenFilter(null)
+	}
+	
+	const handleDimensionsApply = () => {
+		// Фильтр габаритов пока не применяется, просто закрываем
 		setOpenFilter(null)
 	}
 
 	const handleMultiSelectChange = (field: 'material' | 'style' | 'color' | 'brand') => {
 		return (values: string[] | undefined) => {
 			if (values && values.length > 0) {
-				// Для множественного выбора используем первый элемент (можно расширить API)
-				setFilters({ ...filters, [field]: values[0] })
+				// Для множественного выбора поддерживаем несколько значений через запятую
+				// API будет искать товары, где поле содержит любое из выбранных значений
+				setFilters({ ...filters, [field]: values.join(',') })
 			} else {
 				const { [field]: _, ...rest } = filters
 				setFilters(rest)
 			}
-			// Закрываем список после выбора
-			setOpenFilter(null)
+			// Не закрываем список сразу, чтобы можно было выбрать несколько значений
 		}
 	}
 
@@ -329,6 +340,7 @@ export default function CatalogPage() {
 												maxPrice={filterRanges.price.max}
 												value={currentPriceFilter}
 												onChange={handlePriceChange}
+												onApply={handlePriceApply}
 											/>
 										</div>
 									)}
@@ -355,6 +367,7 @@ export default function CatalogPage() {
 												maxDepth={filterRanges.depth.max}
 												value={undefined}
 												onChange={handleDimensionsChange}
+												onApply={handleDimensionsApply}
 											/>
 										</div>
 									)}

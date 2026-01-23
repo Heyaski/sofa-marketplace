@@ -64,40 +64,41 @@ export default function ProductCard({
 				{product.title}
 			</div>
 
-			{/* Цена */}
-			<div className='flex items-center gap-2 mb-4'>
-				<div className='text-lg font-bold text-black'>
+			{/* Цена, форматы и кнопка в одну линию */}
+			<div className='flex items-center justify-between gap-2 mb-4 flex-wrap'>
+				{/* Цена */}
+				<div className='text-lg font-bold text-black flex-shrink-0'>
 					{formatPrice(Number(product.price))} {config.CURRENCY_SYMBOL}
 				</div>
-			</div>
 
-			{/* Форматы файлов */}
-			<div className='flex flex-wrap gap-2 mb-4'>
-				{config.SUPPORTED_FORMATS.map(format => (
-					<label
-						key={format}
-						className='flex items-center cursor-pointer border border-gray2 rounded-lg px-2 py-1 flex-shrink-0 bg-white hover:bg-gray-50'
-					>
-						<input
-							type='checkbox'
-							checked={selectedFormat === format}
-							onChange={() => setSelectedFormat(format)}
-							className='w-4 h-4 rounded-lg border border-gray-300 text-main1 focus:ring-main1 focus:ring-2 mr-2'
-						/>
-						<span className='text-xs text-black whitespace-nowrap'>
-							{format}
-						</span>
-					</label>
-				))}
-			</div>
+				{/* Форматы файлов */}
+				<div className='flex flex-wrap gap-2 flex-1 justify-center'>
+					{config.SUPPORTED_FORMATS.map(format => (
+						<label
+							key={format}
+							className='flex items-center cursor-pointer border border-gray2 rounded-lg px-2 py-1 flex-shrink-0 bg-white hover:bg-gray-50'
+						>
+							<input
+								type='checkbox'
+								checked={selectedFormat === format}
+								onChange={() => setSelectedFormat(format)}
+								className='w-4 h-4 rounded-lg border border-gray-300 text-main1 focus:ring-main1 focus:ring-2 mr-2'
+							/>
+							<span className='text-xs text-black whitespace-nowrap'>
+								{format}
+							</span>
+						</label>
+					))}
+				</div>
 
-			{/* Кнопка добавления */}
-			<button
-				onClick={() => onAddToCart(product.id, selectedFormat)}
-				className='w-full btn-primary py-3'
-			>
-				В корзину
-			</button>
+				{/* Кнопка добавления */}
+				<button
+					onClick={() => onAddToCart(product.id, selectedFormat)}
+					className='btn-primary py-2 px-4 flex-shrink-0'
+				>
+					В корзину
+				</button>
+			</div>
 		</div>
 	)
 }

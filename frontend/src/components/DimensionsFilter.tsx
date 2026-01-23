@@ -9,6 +9,7 @@ interface DimensionsFilterProps {
 	maxDepth: number
 	value: { width: { min: number; max: number }; depth: { min: number; max: number } } | undefined
 	onChange: (value: { width: { min: number; max: number }; depth: { min: number; max: number } } | undefined) => void
+	onApply?: () => void
 }
 
 export default function DimensionsFilter({
@@ -18,6 +19,7 @@ export default function DimensionsFilter({
 	maxDepth,
 	value,
 	onChange,
+	onApply,
 }: DimensionsFilterProps) {
 	const [localWidthMin, setLocalWidthMin] = useState(value?.width.min ?? minWidth)
 	const [localWidthMax, setLocalWidthMax] = useState(value?.width.max ?? maxWidth)
@@ -103,6 +105,10 @@ export default function DimensionsFilter({
 			})
 		} else {
 			onChange(undefined)
+		}
+		// Закрываем фильтр после применения
+		if (onApply) {
+			onApply()
 		}
 	}
 

@@ -21,6 +21,7 @@ export default function MultiSelectFilter({
 		const newValues = selectedValues?.includes(value)
 			? selectedValues.filter(v => v !== value)
 			: [...(selectedValues || []), value]
+		// Применяем фильтр сразу при изменении
 		onChange(newValues.length > 0 ? newValues : undefined)
 	}
 
