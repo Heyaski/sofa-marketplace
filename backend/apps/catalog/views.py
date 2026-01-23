@@ -78,6 +78,20 @@ class ProductViewSet(viewsets.ModelViewSet):
                         q_objects |= models.Q(**{f'{field}__icontains': val})
                     queryset = queryset.filter(q_objects)
         
+        # Фильтрация по цене (обрабатываем вручную, так как DjangoFilterBackend может не работать с DecimalField)
+        price_gte = self.request.query_params.get('price__gte', None)
+        price_lte = self.request.query_params.get('price__lte', None)
+        if price_gte:
+            try:
+                queryset = queryset.filter(price__gte=float(price_gte))
+            except (ValueError, TypeError):
+                pass
+        if price_lte:
+            try:
+                queryset = queryset.filter(price__lte=float(price_lte))
+            except (ValueError, TypeError):
+                pass
+        
         return queryset
 
     # Фильтрация
@@ -86,6 +100,8 @@ class ProductViewSet(viewsets.ModelViewSet):
         "style": ["exact"],
         "color": ["exact"],
         "price": ["gte", "lte"],
+        "width": ["gte", "lte"],
+        "depth": ["gte", "lte"],
         "is_active": ["exact"],
         "is_trending": ["exact"],
     }

@@ -15,8 +15,6 @@ export default function MultiSelectFilter({
 	selectedValues = [],
 	onChange,
 }: MultiSelectFilterProps) {
-	const [isOpen, setIsOpen] = useState(false)
-
 	const handleToggle = (value: string) => {
 		const newValues = selectedValues?.includes(value)
 			? selectedValues.filter(v => v !== value)

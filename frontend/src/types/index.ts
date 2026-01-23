@@ -181,6 +181,10 @@ export interface ProductFilters {
 	availability?: 'in_stock' | 'on_order' | 'out_of_stock'
 	price_min?: number
 	price_max?: number
+	width_min?: number
+	width_max?: number
+	depth_min?: number
+	depth_max?: number
 	is_active?: boolean
 	is_trending?: boolean
 	search?: string

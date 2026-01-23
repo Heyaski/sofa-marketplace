@@ -37,6 +37,14 @@ export const productService = {
 						params.append('price__gte', value.toString())
 					} else if (key === 'price_max') {
 						params.append('price__lte', value.toString())
+					} else if (key === 'width_min') {
+						params.append('width__gte', value.toString())
+					} else if (key === 'width_max') {
+						params.append('width__lte', value.toString())
+					} else if (key === 'depth_min') {
+						params.append('depth__gte', value.toString())
+					} else if (key === 'depth_max') {
+						params.append('depth__lte', value.toString())
 					} else {
 						params.append(key, value.toString())
 					}

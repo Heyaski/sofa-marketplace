@@ -176,13 +176,22 @@ export default function CatalogPage() {
 	}
 
 	const handleDimensionsChange = (value: { width: { min: number; max: number }; depth: { min: number; max: number } } | undefined) => {
-		// Пока габариты не поддерживаются в API, но сохраняем логику для будущего
-		// TODO: добавить поддержку width_min, width_max, depth_min, depth_max в API
-		setOpenFilter(null)
+		if (value) {
+			setFilters({ 
+				...filters, 
+				width_min: value.width.min, 
+				width_max: value.width.max,
+				depth_min: value.depth.min,
+				depth_max: value.depth.max
+			})
+		} else {
+			const { width_min, width_max, depth_min, depth_max, ...rest } = filters
+			setFilters(rest)
+		}
 	}
 	
 	const handleDimensionsApply = () => {
-		// Фильтр габаритов пока не применяется, просто закрываем
+		// Фильтр уже применен в handleDimensionsChange, просто закрываем
 		setOpenFilter(null)
 	}
 
@@ -351,7 +360,8 @@ export default function CatalogPage() {
 									<button
 										onClick={() => setOpenFilter(openFilter === 'dimensions' ? null : 'dimensions')}
 										className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-											false // TODO: добавить проверку активного фильтра габаритов
+											(filters.width_min !== undefined || filters.width_max !== undefined || 
+											 filters.depth_min !== undefined || filters.depth_max !== undefined)
 												? 'bg-main1 text-white'
 												: 'bg-gray-bg text-black hover:bg-gray2'
 										}`}
@@ -365,7 +375,21 @@ export default function CatalogPage() {
 												maxWidth={filterRanges.width.max}
 												minDepth={filterRanges.depth.min}
 												maxDepth={filterRanges.depth.max}
-												value={undefined}
+												value={
+													(filters.width_min !== undefined || filters.width_max !== undefined ||
+													 filters.depth_min !== undefined || filters.depth_max !== undefined)
+														? {
+																width: {
+																	min: filters.width_min ?? filterRanges.width.min,
+																	max: filters.width_max ?? filterRanges.width.max,
+																},
+																depth: {
+																	min: filters.depth_min ?? filterRanges.depth.min,
+																	max: filters.depth_max ?? filterRanges.depth.max,
+																},
+															}
+														: undefined
+												}
 												onChange={handleDimensionsChange}
 												onApply={handleDimensionsApply}
 											/>
@@ -417,7 +441,7 @@ export default function CatalogPage() {
 											<MultiSelectFilter
 												title=''
 												options={filterRanges.styles}
-												selectedValues={filters.style ? [filters.style] : undefined}
+												selectedValues={filters.style ? filters.style.split(',').map(v => v.trim()) : undefined}
 												onChange={handleMultiSelectChange('style')}
 											/>
 										</div>
@@ -443,7 +467,7 @@ export default function CatalogPage() {
 											<MultiSelectFilter
 												title=''
 												options={filterRanges.colors}
-												selectedValues={filters.color ? [filters.color] : undefined}
+												selectedValues={filters.color ? filters.color.split(',').map(v => v.trim()) : undefined}
 												onChange={handleMultiSelectChange('color')}
 											/>
 										</div>
@@ -469,7 +493,7 @@ export default function CatalogPage() {
 											<MultiSelectFilter
 												title=''
 												options={filterRanges.brands}
-												selectedValues={filters.brand ? [filters.brand] : undefined}
+												selectedValues={filters.brand ? filters.brand.split(',').map(v => v.trim()) : undefined}
 												onChange={handleMultiSelectChange('brand')}
 											/>
 										</div>

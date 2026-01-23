@@ -147,13 +147,14 @@ export default function DimensionsFilter({
 					<div className='space-y-3'>
 						<div className='relative h-2'>
 							{/* Фон ползунка */}
-							<div className='absolute w-full h-2 bg-gray2 rounded-lg'></div>
+							<div className='absolute w-full h-2 bg-gray2 rounded-lg' style={{ zIndex: 0 }}></div>
 							{/* Выбранный диапазон */}
 							<div 
 								className='absolute h-2 bg-main1 rounded-lg'
 								style={{
 									left: `${((localWidthMin - minWidth) / (maxWidth - minWidth)) * 100}%`,
 									width: `${((localWidthMax - localWidthMin) / (maxWidth - minWidth)) * 100}%`,
+									zIndex: 5,
 								}}
 							></div>
 							{/* Минимальный ползунок */}
@@ -163,10 +164,8 @@ export default function DimensionsFilter({
 								max={maxWidth}
 								value={localWidthMin}
 								onChange={handleWidthRangeMinChange}
-								className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer z-10'
-								style={{
-									pointerEvents: localWidthMin === localWidthMax ? 'none' : 'auto',
-								}}
+								className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer'
+								style={{ zIndex: 10 }}
 							/>
 							{/* Максимальный ползунок */}
 							<input
@@ -175,7 +174,8 @@ export default function DimensionsFilter({
 								max={maxWidth}
 								value={localWidthMax}
 								onChange={handleWidthRangeMaxChange}
-								className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer z-20'
+								className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer'
+								style={{ zIndex: 20 }}
 							/>
 						</div>
 						<div className='flex items-center justify-between gap-4'>
@@ -210,13 +210,14 @@ export default function DimensionsFilter({
 					<div className='space-y-3'>
 						<div className='relative h-2'>
 							{/* Фон ползунка */}
-							<div className='absolute w-full h-2 bg-gray2 rounded-lg'></div>
+							<div className='absolute w-full h-2 bg-gray2 rounded-lg' style={{ zIndex: 0 }}></div>
 							{/* Выбранный диапазон */}
 							<div 
 								className='absolute h-2 bg-main1 rounded-lg'
 								style={{
 									left: `${((localDepthMin - minDepth) / (maxDepth - minDepth)) * 100}%`,
 									width: `${((localDepthMax - localDepthMin) / (maxDepth - minDepth)) * 100}%`,
+									zIndex: 5,
 								}}
 							></div>
 							{/* Минимальный ползунок */}
@@ -226,10 +227,8 @@ export default function DimensionsFilter({
 								max={maxDepth}
 								value={localDepthMin}
 								onChange={handleDepthRangeMinChange}
-								className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer z-10'
-								style={{
-									pointerEvents: localDepthMin === localDepthMax ? 'none' : 'auto',
-								}}
+								className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer'
+								style={{ zIndex: 10 }}
 							/>
 							{/* Максимальный ползунок */}
 							<input
@@ -238,7 +237,8 @@ export default function DimensionsFilter({
 								max={maxDepth}
 								value={localDepthMax}
 								onChange={handleDepthRangeMaxChange}
-								className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer z-20'
+								className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer'
+								style={{ zIndex: 20 }}
 							/>
 						</div>
 						<div className='flex items-center justify-between gap-4'>

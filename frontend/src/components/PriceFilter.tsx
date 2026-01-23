@@ -98,13 +98,14 @@ export default function PriceFilter({
 				{/* Ползунки */}
 				<div className='relative h-2'>
 					{/* Фон ползунка */}
-					<div className='absolute w-full h-2 bg-gray2 rounded-lg'></div>
+					<div className='absolute w-full h-2 bg-gray2 rounded-lg' style={{ zIndex: 0 }}></div>
 					{/* Выбранный диапазон */}
 					<div 
 						className='absolute h-2 bg-main1 rounded-lg'
 						style={{
 							left: `${((localMin - minPrice) / (maxPrice - minPrice)) * 100}%`,
 							width: `${((localMax - localMin) / (maxPrice - minPrice)) * 100}%`,
+							zIndex: 5,
 						}}
 					></div>
 					{/* Минимальный ползунок */}
@@ -114,10 +115,8 @@ export default function PriceFilter({
 						max={maxPrice}
 						value={localMin}
 						onChange={handleRangeMinChange}
-						className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer z-10'
-						style={{
-							pointerEvents: localMin === localMax ? 'none' : 'auto',
-						}}
+						className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer'
+						style={{ zIndex: 10 }}
 					/>
 					{/* Максимальный ползунок */}
 					<input
@@ -126,7 +125,8 @@ export default function PriceFilter({
 						max={maxPrice}
 						value={localMax}
 						onChange={handleRangeMaxChange}
-						className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer z-20'
+						className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer'
+						style={{ zIndex: 20 }}
 					/>
 				</div>
 

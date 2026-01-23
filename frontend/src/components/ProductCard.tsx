@@ -64,15 +64,15 @@ export default function ProductCard({
 				{product.title}
 			</div>
 
-			{/* Цена, форматы и кнопка в одну линию */}
-			<div className='flex items-center justify-between gap-2 mb-4 flex-wrap'>
+			{/* Цена, форматы и кнопка на одном уровне */}
+			<div className='flex items-center gap-4 mb-4 flex-wrap'>
 				{/* Цена */}
 				<div className='text-lg font-bold text-black flex-shrink-0'>
 					{formatPrice(Number(product.price))} {config.CURRENCY_SYMBOL}
 				</div>
 
 				{/* Форматы файлов */}
-				<div className='flex flex-wrap gap-2 flex-1 justify-center'>
+				<div className='flex flex-wrap gap-2 flex-1'>
 					{config.SUPPORTED_FORMATS.map(format => (
 						<label
 							key={format}
