@@ -802,11 +802,59 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                 
                 # Находим индексы колонок
                 col_indices = {}
-                for field, possible_names in column_mapping.items():
+                # Сначала обрабатываем RGB столбцы отдельно, чтобы избежать конфликтов
+                rgb_fields = ['rgb_r', 'rgb_g', 'rgb_b']
+                for field in rgb_fields:
+                    possible_names = column_mapping[field]
+                    target_letter = field[-1]  # 'r', 'g' или 'b'
+                    
                     for idx, header in enumerate(headers):
+                        # Пропускаем уже найденные столбцы
+                        if idx in col_indices.values():
+                            continue
+                            
                         header_lower = header.lower().strip()
+                        header_original = headers_original[idx] if idx < len(headers_original) else header
+                        
                         for name in possible_names:
                             name_lower = name.lower().strip()
+                            
+                            # Точное совпадение (приоритет) - например, 'rgb_r' == 'rgb_r'
+                            if header_lower == name_lower:
+                                col_indices[field] = idx
+                                break
+                            # Совпадение с учетом замены символов - например, 'rgb-r' == 'rgb_r'
+                            elif (header_lower.replace('_', '').replace('-', '').replace(' ', '') == 
+                                  name_lower.replace('_', '').replace('-', '').replace(' ', '')):
+                                col_indices[field] = idx
+                                break
+                            # Для коротких имен (r, g, b) - проверяем, что заголовок содержит 'rgb' и нужную букву
+                            elif len(name_lower) == 1 and name_lower in ['r', 'g', 'b']:
+                                # Проверяем, что имя совпадает с целевой буквой поля
+                                if name_lower == target_letter and 'rgb' in header_lower:
+                                    # Проверяем, что буква находится после 'rgb' (например, 'rgb_r', 'rgb-r', 'rgb r')
+                                    rgb_pos = header_lower.find('rgb')
+                                    if rgb_pos >= 0:
+                                        # Ищем букву после 'rgb' и разделителя
+                                        after_rgb = header_lower[rgb_pos + 3:].strip('_- ')
+                                        # Проверяем, что после 'rgb' идет именно нужная буква (r, g или b)
+                                        if after_rgb.startswith(target_letter):
+                                            col_indices[field] = idx
+                                            break
+                        if field in col_indices:
+                            break
+                
+                # Теперь обрабатываем остальные поля
+                for field, possible_names in column_mapping.items():
+                    if field in rgb_fields:
+                        continue  # Уже обработали
+                    
+                    for idx, header in enumerate(headers):
+                        header_lower = header.lower().strip()
+                        
+                        for name in possible_names:
+                            name_lower = name.lower().strip()
+                            
                             # Точное совпадение (приоритет)
                             if header_lower == name_lower:
                                 col_indices[field] = idx
@@ -817,17 +865,9 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                                 col_indices[field] = idx
                                 break
                             # Частичное совпадение (если имя содержится в заголовке)
-                            # Для коротких имен (r, g, b) проверяем, что это именно RGB столбцы
-                            elif name_lower in header_lower:
-                                if len(name_lower) >= 3:
-                                    # Для длинных имен - обычная проверка
-                                    col_indices[field] = idx
-                                    break
-                                elif len(name_lower) == 1 and name_lower in ['r', 'g', 'b']:
-                                    # Для r, g, b - проверяем, что заголовок содержит rgb
-                                    if 'rgb' in header_lower:
-                                        col_indices[field] = idx
-                                        break
+                            elif name_lower in header_lower and len(name_lower) >= 3:
+                                col_indices[field] = idx
+                                break
                         if field in col_indices:
                             break
                 
