@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.http import HttpResponse
+from django.db.models import Q
 from .models import Category, Product, ProductImage, FileAsset
 import openpyxl
 from decimal import Decimal
@@ -58,10 +59,78 @@ class ProductImageInline(admin.TabularInline):
     preview.short_description = "Предпросмотр"
 
 
+class FileExtensionFilter(admin.SimpleListFilter):
+    """Фильтр по расширению файла"""
+    title = 'Расширение файла'
+    parameter_name = 'file_extension'
+
+    def lookups(self, request, model_admin):
+        """Получаем все уникальные расширения файлов"""
+        extensions = set()
+        for asset in FileAsset.objects.exclude(file='').exclude(file__isnull=True):
+            if asset.file and hasattr(asset.file, 'name'):
+                ext = os.path.splitext(asset.file.name)[1].lower()
+                if ext:
+                    extensions.add(ext)
+        
+        # Сортируем расширения
+        sorted_extensions = sorted(extensions)
+        return [(ext, ext.upper() if ext.startswith('.') else f'.{ext.upper()}') for ext in sorted_extensions]
+
+    def queryset(self, request, queryset):
+        """Фильтруем по выбранному расширению"""
+        if self.value():
+            return queryset.filter(file__iendswith=self.value())
+        return queryset
+
+
+class CategoryFilter(admin.SimpleListFilter):
+    """Фильтр по категории товаров (показывает файлы, привязанные к товарам выбранной категории)"""
+    title = 'Категория товара'
+    parameter_name = 'product_category'
+
+    def lookups(self, request, model_admin):
+        """Получаем все категории, у которых есть товары с привязанными файлами"""
+        # Находим категории, у которых есть товары с непустыми полями image_asset_ids или model_3d_asset_ids
+        categories = Category.objects.filter(
+            Q(product__image_asset_ids__isnull=False) & ~Q(product__image_asset_ids='')
+        ).distinct() | Category.objects.filter(
+            Q(product__model_3d_asset_ids__isnull=False) & ~Q(product__model_3d_asset_ids='')
+        ).distinct()
+        
+        return [(cat.id, cat.name) for cat in categories.order_by('name')]
+
+    def queryset(self, request, queryset):
+        """Фильтруем файлы, привязанные к товарам выбранной категории"""
+        if self.value():
+            category_id = self.value()
+            # Получаем все asset_id из товаров выбранной категории
+            products = Product.objects.filter(category_id=category_id)
+            
+            asset_ids = set()
+            for product in products:
+                # Добавляем ID изображений
+                if product.image_asset_ids and product.image_asset_ids.strip():
+                    ids = [id.strip() for id in product.image_asset_ids.split(',') if id.strip()]
+                    asset_ids.update(ids)
+                
+                # Добавляем ID 3D моделей
+                if product.model_3d_asset_ids and product.model_3d_asset_ids.strip():
+                    ids = [id.strip() for id in product.model_3d_asset_ids.split(',') if id.strip()]
+                    asset_ids.update(ids)
+            
+            if asset_ids:
+                return queryset.filter(asset_id__in=asset_ids)
+            else:
+                # Если нет привязанных файлов, возвращаем пустой queryset
+                return queryset.none()
+        return queryset
+
+
 @admin.register(FileAsset)
 class FileAssetAdmin(admin.ModelAdmin):
     list_display = ("asset_id", "file_type", "file", "description", "created_at", "preview")
-    list_filter = ("file_type", "created_at")
+    list_filter = ("file_type", FileExtensionFilter, CategoryFilter, "created_at")
     search_fields = ("asset_id", "description")
     ordering = ("-created_at",)
     
