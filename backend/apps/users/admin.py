@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User, Group
 from .models import UserProfile
+from apps.admin_utils import ExportExcelMixin
 
 
 class UserProfileInline(admin.StackedInline):
@@ -33,7 +34,7 @@ admin.site.unregister(User)
 admin.site.register(User, UserAdmin)
 
 @admin.register(UserProfile)
-class UserProfileAdmin(admin.ModelAdmin):
+class UserProfileAdmin(ExportExcelMixin, admin.ModelAdmin):
     list_display = (
         'user', 
         'subscription_type', 
@@ -54,6 +55,7 @@ class UserProfileAdmin(admin.ModelAdmin):
     )
     readonly_fields = ('created_at', 'updated_at')
     date_hierarchy = 'subscription_start_date'
+    actions = ["export_selected_to_excel"]
     
     fieldsets = (
         ('Пользователь', {
@@ -103,8 +105,8 @@ class UserProfileAdmin(admin.ModelAdmin):
 # Русификация стандартных моделей Django
 admin.site.unregister(Group)
 @admin.register(Group)
-class GroupAdmin(admin.ModelAdmin):
-    pass
+class GroupAdmin(ExportExcelMixin, admin.ModelAdmin):
+    actions = ["export_selected_to_excel"]
 
 # Добавляем русские названия для стандартных моделей
 User._meta.verbose_name = "Пользователь"

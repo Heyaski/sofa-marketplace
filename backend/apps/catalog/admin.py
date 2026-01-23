@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.utils.html import format_html
+from django.utils.html import format_html, strip_tags
 from django.shortcuts import render, redirect
 from django.urls import path
 from django.contrib import messages
@@ -16,13 +16,16 @@ import zipfile
 import tempfile
 import shutil
 from urllib.parse import quote
+from datetime import datetime
+from apps.admin_utils import ExportExcelMixin
 
 
 @admin.register(Category)
-class CategoryAdmin(admin.ModelAdmin):
+class CategoryAdmin(ExportExcelMixin, admin.ModelAdmin):
     list_display = ("id", "name", "slug", "parent", "preview_image")
     search_fields = ("name",)
     prepopulated_fields = {"slug": ("name",)}
+    actions = ["export_selected_to_excel"]
     
     class Meta:
         verbose_name = "Категория"
@@ -139,11 +142,12 @@ class CategoryFilter(admin.SimpleListFilter):
 
 
 @admin.register(FileAsset)
-class FileAssetAdmin(admin.ModelAdmin):
+class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
     list_display = ("asset_id", "file_type", "file", "description", "created_at", "preview")
     list_filter = ("file_type", FileExtensionFilter, CategoryFilter, "created_at")
     search_fields = ("asset_id", "description")
     ordering = ("-created_at",)
+    actions = ["export_selected_to_excel"]
     
     class Meta:
         verbose_name = "Файловый ресурс"
@@ -653,7 +657,7 @@ class FileAssetAdmin(admin.ModelAdmin):
 
 
 @admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
+class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
     list_display = (
         "id",
         "article",
@@ -670,6 +674,7 @@ class ProductAdmin(admin.ModelAdmin):
     search_fields = ("title", "article", "description", "brand")
     list_editable = ("price", "is_active")
     inlines = [ProductImageInline]
+    actions = ["export_selected_to_excel"]
     
     def has_3d_model(self, obj):
         """Проверяет наличие 3D модели"""

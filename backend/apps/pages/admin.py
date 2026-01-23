@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django import forms
 from .models import StaticPage
+from apps.admin_utils import ExportExcelMixin
 
 
 class StaticPageAdminForm(forms.ModelForm):
@@ -24,13 +25,14 @@ class StaticPageAdminForm(forms.ModelForm):
 
 
 @admin.register(StaticPage)
-class StaticPageAdmin(admin.ModelAdmin):
+class StaticPageAdmin(ExportExcelMixin, admin.ModelAdmin):
     form = StaticPageAdminForm
     list_display = ('page_type', 'title', 'is_active', 'updated_at', 'preview_content')
     list_filter = ('page_type', 'is_active', 'created_at', 'updated_at')
     search_fields = ('title', 'content')
     list_editable = ('is_active',)
     readonly_fields = ('created_at', 'updated_at', 'slug')
+    actions = ["export_selected_to_excel"]
     
     fieldsets = (
         ('Основная информация', {
