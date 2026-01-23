@@ -1027,15 +1027,30 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                         
                         # Обрабатываем RGB цвет
                         color_rgb = ''
-                        rgb_r_val = get_cell_value(row, 'rgb_r', '')
-                        rgb_g_val = get_cell_value(row, 'rgb_g', '')
-                        rgb_b_val = get_cell_value(row, 'rgb_b', '')
+                        
+                        # Получаем значения напрямую из индексов столбцов для отладки
+                        rgb_r_idx = col_indices.get('rgb_r', -1)
+                        rgb_g_idx = col_indices.get('rgb_g', -1)
+                        rgb_b_idx = col_indices.get('rgb_b', -1)
+                        
+                        # Читаем значения напрямую из строки по индексам
+                        rgb_r_val = ''
+                        rgb_g_val = ''
+                        rgb_b_val = ''
+                        
+                        if rgb_r_idx >= 0 and rgb_r_idx < len(row):
+                            rgb_r_val = str(row[rgb_r_idx]).strip() if row[rgb_r_idx] is not None else ''
+                        if rgb_g_idx >= 0 and rgb_g_idx < len(row):
+                            rgb_g_val = str(row[rgb_g_idx]).strip() if row[rgb_g_idx] is not None else ''
+                        if rgb_b_idx >= 0 and rgb_b_idx < len(row):
+                            rgb_b_val = str(row[rgb_b_idx]).strip() if row[rgb_b_idx] is not None else ''
                         
                         # Отладочная информация для первой строки
                         if row_num == 2:
-                            debug_rgb = f"RGB значения: R='{rgb_r_val}', G='{rgb_g_val}', B='{rgb_b_val}'"
-                            if not rgb_r_val or not rgb_g_val or not rgb_b_val:
-                                errors.append(f"Строка {row_num}: {debug_rgb} (некоторые значения пустые)")
+                            debug_rgb = f"RGB индексы: R={rgb_r_idx} (заголовок: '{headers_original[rgb_r_idx] if rgb_r_idx >= 0 and rgb_r_idx < len(headers_original) else 'N/A'}'), G={rgb_g_idx} (заголовок: '{headers_original[rgb_g_idx] if rgb_g_idx >= 0 and rgb_g_idx < len(headers_original) else 'N/A'}'), B={rgb_b_idx} (заголовок: '{headers_original[rgb_b_idx] if rgb_b_idx >= 0 and rgb_b_idx < len(headers_original) else 'N/A'}')"
+                            errors.append(f"Строка {row_num}: {debug_rgb}")
+                            debug_rgb = f"RGB значения: R='{rgb_r_val}' (тип: {type(row[rgb_r_idx]).__name__ if rgb_r_idx >= 0 and rgb_r_idx < len(row) and row[rgb_r_idx] is not None else 'None'}), G='{rgb_g_val}' (тип: {type(row[rgb_g_idx]).__name__ if rgb_g_idx >= 0 and rgb_g_idx < len(row) and row[rgb_g_idx] is not None else 'None'}), B='{rgb_b_val}' (тип: {type(row[rgb_b_idx]).__name__ if rgb_b_idx >= 0 and rgb_b_idx < len(row) and row[rgb_b_idx] is not None else 'None'})"
+                            errors.append(f"Строка {row_num}: {debug_rgb}")
                         
                         # Обрабатываем значения (могут быть числами или строками)
                         def parse_rgb_value(val):
