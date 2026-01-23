@@ -1,40 +1,16 @@
 'use client'
 
 import CartModal from '@/components/CartModal'
+import DimensionsFilter from '@/components/DimensionsFilter'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
+import MultiSelectFilter from '@/components/MultiSelectFilter'
+import PriceFilter from '@/components/PriceFilter'
 import ProductCard from '@/components/ProductCard'
 import { useBaskets, useCategories, useProducts } from '@/hooks/useApi'
-import { ProductFilters } from '@/types'
+import { Category, ProductFilters } from '@/types'
 import Image from 'next/image'
-import { useState } from 'react'
-
-// 💡 Типы для категорий и продуктов (чтобы не было ошибок типов)
-interface Category {
-	id: number
-	name: string
-	slug: string
-	image?: string | null
-	parent?: number | null
-	parent_category?: {
-		id: number
-		name: string
-		slug: string
-	} | null
-}
-
-interface Product {
-	id: number
-	title: string
-	price: string
-	description: string
-	image?: string | null
-	category: Category
-	material?: string
-	style?: string
-	color?: string
-	is_active?: boolean
-}
+import { useMemo, useState } from 'react'
 
 export default function CatalogPage() {
 	const [isCartModalOpen, setIsCartModalOpen] = useState(false)
@@ -43,8 +19,12 @@ export default function CatalogPage() {
 		format: string
 	} | null>(null)
 	const [filters, setFilters] = useState<ProductFilters>({})
-	const [visibleCategoriesCount, setVisibleCategoriesCount] = useState(10) // Показываем первые 10 категорий
+	const [visibleCategoriesCount, setVisibleCategoriesCount] = useState(10)
+	const [openFilter, setOpenFilter] = useState<string | null>(null)
 
+	// Получаем все продукты для вычисления диапазонов фильтров
+	const { products: allProducts } = useProducts({})
+	
 	// ✅ API хуки с пагинацией
 	const {
 		products,
@@ -60,6 +40,52 @@ export default function CatalogPage() {
 		error: categoriesError,
 	} = useCategories()
 	const { createBasket, addToBasket } = useBaskets()
+
+	// Вычисляем диапазоны и уникальные значения из всех продуктов
+	const filterRanges = useMemo(() => {
+		if (!allProducts || allProducts.length === 0) {
+			return {
+				price: { min: 0, max: 100000 },
+				width: { min: 0, max: 500 },
+				depth: { min: 0, max: 500 },
+				materials: [] as string[],
+				styles: [] as string[],
+				colors: [] as string[],
+				brands: [] as string[],
+				countries: [] as string[],
+			}
+		}
+
+		const prices = allProducts.map(p => typeof p.price === 'number' ? p.price : parseFloat(String(p.price)) || 0).filter(p => p > 0)
+		const widths = allProducts.map(p => p.width).filter((w): w is number => w !== null && w !== undefined && w > 0)
+		const depths = allProducts.map(p => p.depth).filter((d): d is number => d !== null && d !== undefined && d > 0)
+		
+		const materials = Array.from(new Set(allProducts.map(p => p.material).filter((m): m is string => !!m && m.trim() !== '')))
+		const styles = Array.from(new Set(allProducts.map(p => p.style).filter((s): s is string => !!s && s.trim() !== '')))
+		const colors = Array.from(new Set(allProducts.map(p => p.color).filter((c): c is string => !!c && c.trim() !== '')))
+		const brands = Array.from(new Set(allProducts.map(p => p.brand).filter((b): b is string => !!b && b.trim() !== '')))
+		const countries = Array.from(new Set(allProducts.map(p => p.country).filter((c): c is string => !!c && c.trim() !== '')))
+
+		return {
+			price: {
+				min: prices.length > 0 ? Math.floor(Math.min(...prices)) : 0,
+				max: prices.length > 0 ? Math.ceil(Math.max(...prices)) : 100000,
+			},
+			width: {
+				min: widths.length > 0 ? Math.floor(Math.min(...widths)) : 0,
+				max: widths.length > 0 ? Math.ceil(Math.max(...widths)) : 500,
+			},
+			depth: {
+				min: depths.length > 0 ? Math.floor(Math.min(...depths)) : 0,
+				max: depths.length > 0 ? Math.ceil(Math.max(...depths)) : 500,
+			},
+			materials: materials.sort(),
+			styles: styles.sort(),
+			colors: colors.sort(),
+			brands: brands.sort(),
+			countries: countries.sort(),
+		}
+	}, [allProducts])
 
 	const handleAddToCart = (productId: number, format: string) => {
 		setSelectedProduct({ id: productId, format })
@@ -101,11 +127,45 @@ export default function CatalogPage() {
 	}
 
 	const handleShowMoreCategories = () => {
-		setVisibleCategoriesCount(prev => prev + 10) // Показываем еще 10 категорий
+		setVisibleCategoriesCount(prev => prev + 10)
+	}
+
+	const handlePriceChange = (value: { min: number; max: number } | undefined) => {
+		if (value) {
+			setFilters({ ...filters, price_min: value.min, price_max: value.max })
+		} else {
+			const { price_min, price_max, ...rest } = filters
+			setFilters(rest)
+		}
+		setOpenFilter(null)
+	}
+
+	const handleDimensionsChange = (value: { width: { min: number; max: number }; depth: { min: number; max: number } } | undefined) => {
+		// Для габаритов нужно добавить фильтры width_min, width_max, depth_min, depth_max
+		// Но в ProductFilters их нет, поэтому пока оставляем как есть
+		// Можно добавить в будущем или использовать другой подход
+		setOpenFilter(null)
+	}
+
+	const handleMultiSelectChange = (field: 'material' | 'style' | 'color' | 'brand' | 'country') => {
+		return (values: string[] | undefined) => {
+			if (values && values.length > 0) {
+				// Для множественного выбора используем первый элемент (можно расширить API)
+				setFilters({ ...filters, [field]: values[0] })
+			} else {
+				const { [field]: _, ...rest } = filters
+				setFilters(rest)
+			}
+			setOpenFilter(null)
+		}
 	}
 
 	const visibleCategories = categories?.slice(0, visibleCategoriesCount) || []
 	const hasMoreCategories = categories && categories.length > visibleCategoriesCount
+
+	const currentPriceFilter = filters.price_min !== undefined && filters.price_max !== undefined
+		? { min: filters.price_min, max: filters.price_max }
+		: undefined
 
 	return (
 		<div className='min-h-screen bg-gray-bg'>
@@ -216,54 +276,198 @@ export default function CatalogPage() {
 					<h1 className='text-3xl font-bold text-black mb-8'>Каталог</h1>
 
 					{/* ⚙️ Фильтры */}
-					<div className='flex items-center justify-between mb-4'>
-						<div className='flex items-center gap-3'>
-							<span className='text-black font-medium'>Фильтр</span>
+					<div className='mb-6'>
+						<div className='flex items-center justify-between mb-4'>
+							<div className='flex items-center gap-3 flex-wrap'>
+								<span className='text-black font-medium'>Фильтр:</span>
 
-							<select className='w-32 px-3 py-2 rounded-lg bg-gray-bg text-black text-sm focus:outline-none focus:ring-2 focus:ring-main1'>
-								<option>Цена</option>
-							</select>
+								{/* Кнопка фильтра цены */}
+								<button
+									onClick={() => setOpenFilter(openFilter === 'price' ? null : 'price')}
+									className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+										currentPriceFilter
+											? 'bg-main1 text-white'
+											: 'bg-gray-bg text-black hover:bg-gray2'
+									}`}
+								>
+									Цена {currentPriceFilter && `(${currentPriceFilter.min} - ${currentPriceFilter.max} ₽)`}
+								</button>
 
-							<select
-								className='w-32 px-3 py-2 rounded-lg bg-gray-bg text-black text-sm focus:outline-none focus:ring-2 focus:ring-main1'
-								onChange={e =>
-									setFilters({ ...filters, style: e.target.value || undefined })
-								}
-								value={filters.style || ''}
-							>
-								<option value=''>Стиль</option>
-								<option value='Современный'>Современный</option>
-								<option value='Классический'>Классический</option>
-								<option value='Минимализм'>Минимализм</option>
-							</select>
+								{/* Кнопка фильтра габаритов */}
+								<button
+									onClick={() => setOpenFilter(openFilter === 'dimensions' ? null : 'dimensions')}
+									className='px-4 py-2 rounded-lg bg-gray-bg text-black text-sm font-medium hover:bg-gray2 transition-colors'
+								>
+									Габариты
+								</button>
 
-							<select
-								className='w-32 px-3 py-2 rounded-lg bg-gray-bg text-black text-sm focus:outline-none focus:ring-2 focus:ring-main1'
-								onChange={e =>
-									setFilters({ ...filters, color: e.target.value || undefined })
-								}
-								value={filters.color || ''}
-							>
-								<option value=''>Цвет</option>
-								<option value='Белый'>Белый</option>
-								<option value='Черный'>Черный</option>
-								<option value='Коричневый'>Коричневый</option>
-								<option value='Серый'>Серый</option>
-							</select>
+								{/* Кнопка фильтра материала */}
+								{filterRanges.materials.length > 0 && (
+									<button
+										onClick={() => setOpenFilter(openFilter === 'material' ? null : 'material')}
+										className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+											filters.material
+												? 'bg-main1 text-white'
+												: 'bg-gray-bg text-black hover:bg-gray2'
+										}`}
+									>
+										Материал {filters.material && `(${filters.material})`}
+									</button>
+								)}
 
-							<select className='w-32 px-3 py-2 rounded-lg bg-gray-bg text-black text-sm focus:outline-none focus:ring-2 focus:ring-main1'>
-								<option>Габариты</option>
-							</select>
+								{/* Кнопка фильтра стиля */}
+								{filterRanges.styles.length > 0 && (
+									<button
+										onClick={() => setOpenFilter(openFilter === 'style' ? null : 'style')}
+										className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+											filters.style
+												? 'bg-main1 text-white'
+												: 'bg-gray-bg text-black hover:bg-gray2'
+										}`}
+									>
+										Стиль {filters.style && `(${filters.style})`}
+									</button>
+								)}
+
+								{/* Кнопка фильтра цвета */}
+								{filterRanges.colors.length > 0 && (
+									<button
+										onClick={() => setOpenFilter(openFilter === 'color' ? null : 'color')}
+										className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+											filters.color
+												? 'bg-main1 text-white'
+												: 'bg-gray-bg text-black hover:bg-gray2'
+										}`}
+									>
+										Цвет {filters.color && `(${filters.color})`}
+									</button>
+								)}
+
+								{/* Кнопка фильтра бренда */}
+								{filterRanges.brands.length > 0 && (
+									<button
+										onClick={() => setOpenFilter(openFilter === 'brand' ? null : 'brand')}
+										className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+											filters.brand
+												? 'bg-main1 text-white'
+												: 'bg-gray-bg text-black hover:bg-gray2'
+										}`}
+									>
+										Бренд {filters.brand && `(${filters.brand})`}
+									</button>
+								)}
+
+								{/* Кнопка фильтра страны */}
+								{filterRanges.countries.length > 0 && (
+									<button
+										onClick={() => setOpenFilter(openFilter === 'country' ? null : 'country')}
+										className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+											filters.country
+												? 'bg-main1 text-white'
+												: 'bg-gray-bg text-black hover:bg-gray2'
+										}`}
+									>
+										Страна {filters.country && `(${filters.country})`}
+									</button>
+								)}
+							</div>
+
+							<div className='flex items-center'>
+								<span className='text-black font-medium mr-2 text-sm'>
+									Сортировка:
+								</span>
+								<select 
+									className='w-40 px-3 py-2 rounded-lg bg-gray-bg text-black text-sm focus:outline-none focus:ring-2 focus:ring-main1'
+									onChange={e => setFilters({ ...filters, ordering: e.target.value || undefined })}
+									value={filters.ordering || ''}
+								>
+									<option value=''>По умолчанию</option>
+									<option value='price'>По возрастанию цены</option>
+									<option value='-price'>По убыванию цены</option>
+									<option value='title'>По названию</option>
+								</select>
+							</div>
 						</div>
 
-						<div className='flex items-center'>
-							<span className='text-black font-medium mr-2 text-sm'>
-								Сортировка:
-							</span>
-							<select className='w-40 px-3 py-2 rounded-lg bg-gray-bg text-black text-sm focus:outline-none focus:ring-2 focus:ring-main1'>
-								<option>возрастанию цены</option>
-							</select>
-						</div>
+						{/* Модальные окна фильтров */}
+						{openFilter === 'price' && (
+							<div className='mb-4'>
+								<PriceFilter
+									minPrice={filterRanges.price.min}
+									maxPrice={filterRanges.price.max}
+									value={currentPriceFilter}
+									onChange={handlePriceChange}
+								/>
+							</div>
+						)}
+
+						{openFilter === 'dimensions' && (
+							<div className='mb-4'>
+								<DimensionsFilter
+									minWidth={filterRanges.width.min}
+									maxWidth={filterRanges.width.max}
+									minDepth={filterRanges.depth.min}
+									maxDepth={filterRanges.depth.max}
+									value={undefined}
+									onChange={handleDimensionsChange}
+								/>
+							</div>
+						)}
+
+						{openFilter === 'material' && filterRanges.materials.length > 0 && (
+							<div className='mb-4'>
+								<MultiSelectFilter
+									title='Материал'
+									options={filterRanges.materials}
+									selectedValues={filters.material ? [filters.material] : undefined}
+									onChange={handleMultiSelectChange('material')}
+								/>
+							</div>
+						)}
+
+						{openFilter === 'style' && filterRanges.styles.length > 0 && (
+							<div className='mb-4'>
+								<MultiSelectFilter
+									title='Стиль'
+									options={filterRanges.styles}
+									selectedValues={filters.style ? [filters.style] : undefined}
+									onChange={handleMultiSelectChange('style')}
+								/>
+							</div>
+						)}
+
+						{openFilter === 'color' && filterRanges.colors.length > 0 && (
+							<div className='mb-4'>
+								<MultiSelectFilter
+									title='Цвет'
+									options={filterRanges.colors}
+									selectedValues={filters.color ? [filters.color] : undefined}
+									onChange={handleMultiSelectChange('color')}
+								/>
+							</div>
+						)}
+
+						{openFilter === 'brand' && filterRanges.brands.length > 0 && (
+							<div className='mb-4'>
+								<MultiSelectFilter
+									title='Бренд'
+									options={filterRanges.brands}
+									selectedValues={filters.brand ? [filters.brand] : undefined}
+									onChange={handleMultiSelectChange('brand')}
+								/>
+							</div>
+						)}
+
+						{openFilter === 'country' && filterRanges.countries.length > 0 && (
+							<div className='mb-4'>
+								<MultiSelectFilter
+									title='Страна'
+									options={filterRanges.countries}
+									selectedValues={filters.country ? [filters.country] : undefined}
+									onChange={handleMultiSelectChange('country')}
+								/>
+							</div>
+						)}
 					</div>
 
 					<div className='border-t border-gray2 mb-8'></div>
