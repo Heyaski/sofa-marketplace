@@ -8,9 +8,10 @@ import MultiSelectFilter from '@/components/MultiSelectFilter'
 import PriceFilter from '@/components/PriceFilter'
 import ProductCard from '@/components/ProductCard'
 import { useBaskets, useCategories, useProducts } from '@/hooks/useApi'
-import { Category, ProductFilters } from '@/types'
+import { productService } from '@/services/api'
+import { Category, Product, ProductFilters } from '@/types'
 import Image from 'next/image'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 export default function CatalogPage() {
 	const [isCartModalOpen, setIsCartModalOpen] = useState(false)
@@ -32,11 +33,25 @@ export default function CatalogPage() {
 		loadMore,
 	} = useProducts(filters)
 	
-	// Получаем все продукты без фильтров для вычисления диапазонов фильтров
-	const { products: allProductsForRanges } = useProducts(undefined)
-	
 	// Получаем все продукты без фильтров для вычисления диапазонов
-	const { products: allProducts } = useProducts(undefined)
+	const [allProductsForRanges, setAllProductsForRanges] = useState<Product[]>([])
+	
+	useEffect(() => {
+		const fetchAllProducts = async () => {
+			try {
+				// Загружаем все товары с большим page_size для вычисления диапазонов
+				const response = await productService.getProducts(undefined, 1, 1000)
+				if (response && Array.isArray(response.results)) {
+					setAllProductsForRanges(response.results)
+				} else if (Array.isArray(response)) {
+					setAllProductsForRanges(response)
+				}
+			} catch (err) {
+				console.error('Ошибка загрузки всех товаров для диапазонов:', err)
+			}
+		}
+		fetchAllProducts()
+	}, [])
 	
 	const {
 		categories,

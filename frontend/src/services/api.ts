@@ -57,6 +57,9 @@ export const productService = {
 		}
 		if (pageSize) {
 			params.append('page_size', pageSize.toString())
+		} else if (!page) {
+			// Если не указан page и pageSize, загружаем все товары для вычисления диапазонов
+			params.append('page_size', '1000')
 		}
 
 		const response = await apiClient.get(`/api/products/?${params.toString()}`)

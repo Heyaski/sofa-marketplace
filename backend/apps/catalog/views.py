@@ -11,7 +11,7 @@ class ProductPagination(PageNumberPagination):
     """Пагинация для товаров"""
     page_size = 20
     page_size_query_param = 'page_size'
-    max_page_size = 100
+    max_page_size = 1000  # Увеличиваем максимальный размер страницы для загрузки всех товаров
 
 
 class ProductViewSet(viewsets.ModelViewSet):
@@ -33,7 +33,8 @@ class ProductViewSet(viewsets.ModelViewSet):
         Переопределяем queryset для поддержки фильтрации по категориям с учетом подкатегорий
         и множественного выбора для material, style, color, brand
         """
-        queryset = super().get_queryset()
+        # Получаем базовый queryset (уже отфильтрованный по is_active=True)
+        queryset = Product.objects.filter(is_active=True)
         
         # Фильтрация по категории
         category_id = self.request.query_params.get('category', None)
