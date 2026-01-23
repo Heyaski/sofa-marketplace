@@ -779,9 +779,9 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                     'country': ['страна', 'country', 'стран'],
                     'brand': ['бренд', 'brand'],
                     'color': ['цвет', 'color'],
-                    'rgb_r': ['rgb_r', 'rgb r', 'r'],
-                    'rgb_g': ['rgb_g', 'rgb g', 'g'],
-                    'rgb_b': ['rgb_b', 'rgb b', 'b'],
+                    'rgb_r': ['rgb_r', 'rgb r', 'r', 'rgb-r', 'rgb_r', 'rgbr'],
+                    'rgb_g': ['rgb_g', 'rgb g', 'g', 'rgb-g', 'rgb_g', 'rgbg'],
+                    'rgb_b': ['rgb_b', 'rgb b', 'b', 'rgb-b', 'rgb_b', 'rgbb'],
                     'article': ['артикул', 'article', 'sku', 'код'],
                     'price': ['цена', 'price'],
                     'category': ['категория', 'category', 'катег'],
@@ -802,13 +802,35 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                 col_indices = {}
                 for field, possible_names in column_mapping.items():
                     for idx, header in enumerate(headers):
-                        if any(name in header for name in possible_names):
-                            col_indices[field] = idx
+                        # Сначала проверяем точное совпадение (без учета регистра)
+                        header_lower = header.lower().strip()
+                        for name in possible_names:
+                            name_lower = name.lower().strip()
+                            # Точное совпадение или совпадение с учетом пробелов/подчеркиваний
+                            if (header_lower == name_lower or 
+                                header_lower.replace('_', ' ').replace('-', ' ') == name_lower.replace('_', ' ').replace('-', ' ') or
+                                name_lower in header_lower):
+                                col_indices[field] = idx
+                                break
+                        if field in col_indices:
                             break
                 
                 # Если колонка ID не найдена по заголовку, используем первую колонку (индекс 0) как ID
                 if 'id' not in col_indices:
                     col_indices['id'] = 0
+                
+                # Отладочная информация: проверяем, найдены ли RGB столбцы
+                rgb_columns_found = []
+                for rgb_field in ['rgb_r', 'rgb_g', 'rgb_b']:
+                    if rgb_field in col_indices:
+                        rgb_columns_found.append(f"{rgb_field} (индекс {col_indices[rgb_field]})")
+                    else:
+                        rgb_columns_found.append(f"{rgb_field} (НЕ НАЙДЕН)")
+                
+                # Если RGB столбцы не найдены, добавляем информацию в сообщения
+                if 'rgb_r' not in col_indices or 'rgb_g' not in col_indices or 'rgb_b' not in col_indices:
+                    debug_info = f"RGB столбцы: {', '.join(rgb_columns_found)}. Найденные заголовки: {', '.join(headers[:20])}"
+                    messages.info(request, f"Отладка: {debug_info}")
                 
                 created_count = 0
                 updated_count = 0
@@ -821,8 +843,12 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                     if field not in col_indices:
                         return default
                     idx = col_indices[field]
-                    if idx < len(row) and row[idx] is not None:
-                        return str(row[idx]).strip()
+                    if idx < len(row):
+                        value = row[idx]
+                        if value is None:
+                            return default
+                        # Преобразуем в строку, убираем пробелы
+                        return str(value).strip()
                     return default
                 
                 def get_decimal_value(row, field, default=None):
@@ -974,22 +1000,38 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                         
                         # Обрабатываем RGB цвет
                         color_rgb = ''
-                        rgb_r = get_cell_value(row, 'rgb_r', '').strip()
-                        rgb_g = get_cell_value(row, 'rgb_g', '').strip()
-                        rgb_b = get_cell_value(row, 'rgb_b', '').strip()
+                        rgb_r_val = get_cell_value(row, 'rgb_r', '')
+                        rgb_g_val = get_cell_value(row, 'rgb_g', '')
+                        rgb_b_val = get_cell_value(row, 'rgb_b', '')
+                        
+                        # Обрабатываем значения (могут быть числами или строками)
+                        def parse_rgb_value(val):
+                            """Преобразовать значение RGB в число"""
+                            if val is None:
+                                return None
+                            # Преобразуем в строку и убираем пробелы
+                            val_str = str(val).strip()
+                            if not val_str:
+                                return None
+                            try:
+                                # Пробуем преобразовать в int (если это float, округлим)
+                                val_float = float(val_str)
+                                return int(round(val_float))
+                            except (ValueError, TypeError):
+                                return None
+                        
+                        r = parse_rgb_value(rgb_r_val)
+                        g = parse_rgb_value(rgb_g_val)
+                        b = parse_rgb_value(rgb_b_val)
                         
                         # Проверяем, что все три значения заполнены и являются валидными числами
-                        if rgb_r and rgb_g and rgb_b:
-                            try:
-                                r = int(rgb_r)
-                                g = int(rgb_g)
-                                b = int(rgb_b)
-                                # Проверяем, что значения в диапазоне 0-255
-                                if 0 <= r <= 255 and 0 <= g <= 255 and 0 <= b <= 255:
-                                    color_rgb = f'{r},{g},{b}'
-                            except ValueError:
-                                # Если не удалось преобразовать в число, пропускаем
-                                pass
+                        if r is not None and g is not None and b is not None:
+                            # Проверяем, что значения в диапазоне 0-255
+                            if 0 <= r <= 255 and 0 <= g <= 255 and 0 <= b <= 255:
+                                color_rgb = f'{r},{g},{b}'
+                            else:
+                                # Если значения вне диапазона, добавляем в ошибки
+                                errors.append(f"Строка {row_num}: RGB значения вне диапазона 0-255 (R={r}, G={g}, B={b})")
                         
                         # Данные для создания/обновления
                         product_data = {
