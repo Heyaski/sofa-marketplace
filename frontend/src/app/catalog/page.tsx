@@ -128,15 +128,16 @@ export default function CatalogPage() {
 	}
 
 	const handlePriceChange = (value: { min: number; max: number } | undefined) => {
+		// Не применяем сразу, только при нажатии "Применить"
+	}
+
+	const handlePriceApply = (value: { min: number; max: number } | undefined) => {
 		if (value) {
 			setFilters({ ...filters, price_min: value.min, price_max: value.max })
 		} else {
 			const { price_min, price_max, ...rest } = filters
 			setFilters(rest)
 		}
-	}
-
-	const handlePriceApply = () => {
 		setOpenFilter(null)
 	}
 
@@ -159,7 +160,7 @@ export default function CatalogPage() {
 				const { [field]: _, ...rest } = filters
 				setFilters(rest)
 			}
-			setOpenFilter(null)
+			// Не закрываем сразу, чтобы можно было выбрать несколько значений
 		}
 	}
 
@@ -285,16 +286,18 @@ export default function CatalogPage() {
 								<span className='text-black font-medium'>Фильтр:</span>
 
 								{/* Кнопка фильтра цены */}
-								<button
-									onClick={() => setOpenFilter(openFilter === 'price' ? null : 'price')}
-									className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-										currentPriceFilter
-											? 'bg-main1 text-white'
-											: 'bg-gray-bg text-black hover:bg-gray2'
-									}`}
-								>
-									Цена {currentPriceFilter && `(${currentPriceFilter.min} - ${currentPriceFilter.max} ₽)`}
-								</button>
+								<div className='relative'>
+									<button
+										onClick={() => setOpenFilter(openFilter === 'price' ? null : 'price')}
+										className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+											currentPriceFilter
+												? 'bg-main1 text-white'
+												: 'bg-gray-bg text-black hover:bg-gray2'
+										}`}
+									>
+										Цена
+									</button>
+								</div>
 
 								{/* Кнопка фильтра габаритов */}
 								<button
@@ -306,58 +309,106 @@ export default function CatalogPage() {
 
 								{/* Кнопка фильтра материала */}
 								{filterRanges.materials.length > 0 && (
-									<button
-										onClick={() => setOpenFilter(openFilter === 'material' ? null : 'material')}
-										className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-											filters.material
-												? 'bg-main1 text-white'
-												: 'bg-gray-bg text-black hover:bg-gray2'
-										}`}
-									>
-										Материал {filters.material && `(${filters.material})`}
-									</button>
+									<div className='relative'>
+										<button
+											onClick={() => setOpenFilter(openFilter === 'material' ? null : 'material')}
+											className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+												filters.material
+													? 'bg-main1 text-white'
+													: 'bg-gray-bg text-black hover:bg-gray2'
+											}`}
+										>
+											Материал
+										</button>
+										{openFilter === 'material' && (
+											<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 min-w-[200px] max-h-64 overflow-y-auto'>
+												<MultiSelectFilter
+													title=''
+													options={filterRanges.materials}
+													selectedValues={filters.material ? [filters.material] : undefined}
+													onChange={handleMultiSelectChange('material')}
+												/>
+											</div>
+										)}
+									</div>
 								)}
 
 								{/* Кнопка фильтра стиля */}
 								{filterRanges.styles.length > 0 && (
-									<button
-										onClick={() => setOpenFilter(openFilter === 'style' ? null : 'style')}
-										className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-											filters.style
-												? 'bg-main1 text-white'
-												: 'bg-gray-bg text-black hover:bg-gray2'
-										}`}
-									>
-										Стиль {filters.style && `(${filters.style})`}
-									</button>
+									<div className='relative'>
+										<button
+											onClick={() => setOpenFilter(openFilter === 'style' ? null : 'style')}
+											className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+												filters.style
+													? 'bg-main1 text-white'
+													: 'bg-gray-bg text-black hover:bg-gray2'
+											}`}
+										>
+											Стиль
+										</button>
+										{openFilter === 'style' && (
+											<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 min-w-[200px] max-h-64 overflow-y-auto'>
+												<MultiSelectFilter
+													title=''
+													options={filterRanges.styles}
+													selectedValues={filters.style ? [filters.style] : undefined}
+													onChange={handleMultiSelectChange('style')}
+												/>
+											</div>
+										)}
+									</div>
 								)}
 
 								{/* Кнопка фильтра цвета */}
 								{filterRanges.colors.length > 0 && (
-									<button
-										onClick={() => setOpenFilter(openFilter === 'color' ? null : 'color')}
-										className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-											filters.color
-												? 'bg-main1 text-white'
-												: 'bg-gray-bg text-black hover:bg-gray2'
-										}`}
-									>
-										Цвет {filters.color && `(${filters.color})`}
-									</button>
+									<div className='relative'>
+										<button
+											onClick={() => setOpenFilter(openFilter === 'color' ? null : 'color')}
+											className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+												filters.color
+													? 'bg-main1 text-white'
+													: 'bg-gray-bg text-black hover:bg-gray2'
+											}`}
+										>
+											Цвет
+										</button>
+										{openFilter === 'color' && (
+											<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 min-w-[200px] max-h-64 overflow-y-auto'>
+												<MultiSelectFilter
+													title=''
+													options={filterRanges.colors}
+													selectedValues={filters.color ? [filters.color] : undefined}
+													onChange={handleMultiSelectChange('color')}
+												/>
+											</div>
+										)}
+									</div>
 								)}
 
 								{/* Кнопка фильтра бренда */}
 								{filterRanges.brands.length > 0 && (
-									<button
-										onClick={() => setOpenFilter(openFilter === 'brand' ? null : 'brand')}
-										className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-											filters.brand
-												? 'bg-main1 text-white'
-												: 'bg-gray-bg text-black hover:bg-gray2'
-										}`}
-									>
-										Бренд {filters.brand && `(${filters.brand})`}
-									</button>
+									<div className='relative'>
+										<button
+											onClick={() => setOpenFilter(openFilter === 'brand' ? null : 'brand')}
+											className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+												filters.brand
+													? 'bg-main1 text-white'
+													: 'bg-gray-bg text-black hover:bg-gray2'
+											}`}
+										>
+											Бренд
+										</button>
+										{openFilter === 'brand' && (
+											<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 min-w-[200px] max-h-64 overflow-y-auto'>
+												<MultiSelectFilter
+													title=''
+													options={filterRanges.brands}
+													selectedValues={filters.brand ? [filters.brand] : undefined}
+													onChange={handleMultiSelectChange('brand')}
+												/>
+											</div>
+										)}
+									</div>
 								)}
 
 							</div>
@@ -379,8 +430,8 @@ export default function CatalogPage() {
 							</div>
 						</div>
 
-						{/* Модальные окна фильтров */}
-						{openFilter && (
+						{/* Модальные окна для диапазонных фильтров */}
+						{openFilter && (openFilter === 'price' || openFilter === 'dimensions') && (
 							<>
 								{/* Overlay */}
 								<div
@@ -410,44 +461,16 @@ export default function CatalogPage() {
 											onApply={handleDimensionsApply}
 										/>
 									)}
-
-									{openFilter === 'material' && filterRanges.materials.length > 0 && (
-										<MultiSelectFilter
-											title='Материал'
-											options={filterRanges.materials}
-											selectedValues={filters.material ? [filters.material] : undefined}
-											onChange={handleMultiSelectChange('material')}
-										/>
-									)}
-
-									{openFilter === 'style' && filterRanges.styles.length > 0 && (
-										<MultiSelectFilter
-											title='Стиль'
-											options={filterRanges.styles}
-											selectedValues={filters.style ? [filters.style] : undefined}
-											onChange={handleMultiSelectChange('style')}
-										/>
-									)}
-
-									{openFilter === 'color' && filterRanges.colors.length > 0 && (
-										<MultiSelectFilter
-											title='Цвет'
-											options={filterRanges.colors}
-											selectedValues={filters.color ? [filters.color] : undefined}
-											onChange={handleMultiSelectChange('color')}
-										/>
-									)}
-
-									{openFilter === 'brand' && filterRanges.brands.length > 0 && (
-										<MultiSelectFilter
-											title='Бренд'
-											options={filterRanges.brands}
-											selectedValues={filters.brand ? [filters.brand] : undefined}
-											onChange={handleMultiSelectChange('brand')}
-										/>
-									)}
 								</div>
 							</>
+						)}
+
+						{/* Overlay для выпадающих списков */}
+						{openFilter && ['material', 'style', 'color', 'brand'].includes(openFilter) && (
+							<div
+								className='fixed inset-0 z-30'
+								onClick={() => setOpenFilter(null)}
+							/>
 						)}
 
 					</div>

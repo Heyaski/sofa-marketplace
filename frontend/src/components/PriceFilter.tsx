@@ -7,7 +7,7 @@ interface PriceFilterProps {
 	maxPrice: number
 	value: { min: number; max: number } | undefined
 	onChange: (value: { min: number; max: number } | undefined) => void
-	onApply?: () => void
+	onApply?: (value: { min: number; max: number } | undefined) => void
 }
 
 export default function PriceFilter({
@@ -31,27 +31,40 @@ export default function PriceFilter({
 	}, [value, minPrice, maxPrice])
 
 	const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const newMin = Math.min(Number(e.target.value), localMax - 1)
+		const val = Number(e.target.value)
+		const newMin = Math.min(Math.max(val, minPrice), localMax - 1)
 		setLocalMin(newMin)
-		onChange({ min: newMin, max: localMax })
 	}
 
 	const handleMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const newMax = Math.max(Number(e.target.value), localMin + 1)
+		const val = Number(e.target.value)
+		const newMax = Math.max(Math.min(val, maxPrice), localMin + 1)
 		setLocalMax(newMax)
-		onChange({ min: localMin, max: newMax })
+	}
+	
+	const handleRangeMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const val = Number(e.target.value)
+		const newMin = Math.min(Math.max(val, minPrice), localMax - 1)
+		setLocalMin(newMin)
+	}
+
+	const handleRangeMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const val = Number(e.target.value)
+		const newMax = Math.max(Math.min(val, maxPrice), localMin + 1)
+		setLocalMax(newMax)
 	}
 
 	const handleReset = () => {
 		setLocalMin(minPrice)
 		setLocalMax(maxPrice)
-		onChange(undefined)
+		if (onApply) {
+			onApply(undefined)
+		}
 	}
 
 	const handleApply = () => {
-		onChange({ min: localMin, max: localMax })
 		if (onApply) {
-			onApply()
+			onApply({ min: localMin, max: localMax })
 		}
 	}
 
@@ -79,29 +92,37 @@ export default function PriceFilter({
 
 			<div className='space-y-4'>
 				{/* Ползунки */}
-				<div className='relative'>
+				<div className='relative h-2'>
+					{/* Фон ползунка */}
+					<div className='absolute w-full h-2 bg-gray2 rounded-lg'></div>
+					{/* Выбранный диапазон */}
+					<div 
+						className='absolute h-2 bg-main1 rounded-lg'
+						style={{
+							left: `${((localMin - minPrice) / (maxPrice - minPrice)) * 100}%`,
+							width: `${((localMax - localMin) / (maxPrice - minPrice)) * 100}%`,
+						}}
+					></div>
+					{/* Минимальный ползунок */}
 					<input
 						type='range'
 						min={minPrice}
 						max={maxPrice}
 						value={localMin}
-						onChange={handleMinChange}
-						className='absolute w-full h-2 bg-gray2 rounded-lg appearance-none cursor-pointer z-10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-main1 [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-main1 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer'
+						onChange={handleRangeMinChange}
+						className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer z-10'
 						style={{
-							background: `linear-gradient(to right, 
-								#1976D2 0%, 
-								#1976D2 ${((localMin - minPrice) / (maxPrice - minPrice)) * 100}%, 
-								#D6D5D4 ${((localMin - minPrice) / (maxPrice - minPrice)) * 100}%, 
-								#D6D5D4 100%)`,
+							pointerEvents: localMin === localMax ? 'none' : 'auto',
 						}}
 					/>
+					{/* Максимальный ползунок */}
 					<input
 						type='range'
 						min={minPrice}
 						max={maxPrice}
 						value={localMax}
-						onChange={handleMaxChange}
-						className='absolute w-full h-2 bg-transparent rounded-lg appearance-none cursor-pointer z-20 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-main1 [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-main1 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer'
+						onChange={handleRangeMaxChange}
+						className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer z-20'
 					/>
 				</div>
 
