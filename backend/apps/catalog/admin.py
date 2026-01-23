@@ -765,6 +765,8 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                 
                 # Читаем заголовки из первой строки для определения колонок
                 headers = [str(cell.value).strip().lower() if cell.value else '' for cell in ws[1]]
+                # Сохраняем оригинальные заголовки для отладки
+                headers_original = [str(cell.value).strip() if cell.value else '' for cell in ws[1]]
                 
                 # Маппинг колонок (поддержка разных названий)
                 column_mapping = {
@@ -779,9 +781,9 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                     'country': ['страна', 'country', 'стран'],
                     'brand': ['бренд', 'brand'],
                     'color': ['цвет', 'color'],
-                    'rgb_r': ['rgb_r', 'rgb r', 'r', 'rgb-r', 'rgb_r', 'rgbr'],
-                    'rgb_g': ['rgb_g', 'rgb g', 'g', 'rgb-g', 'rgb_g', 'rgbg'],
-                    'rgb_b': ['rgb_b', 'rgb b', 'b', 'rgb-b', 'rgb_b', 'rgbb'],
+                    'rgb_r': ['rgb_r', 'rgb-r', 'rgb r', 'rgbr', 'r'],  # 'r' в конце, чтобы не конфликтовать с другими столбцами
+                    'rgb_g': ['rgb_g', 'rgb-g', 'rgb g', 'rgbg', 'g'],  # 'g' в конце
+                    'rgb_b': ['rgb_b', 'rgb-b', 'rgb b', 'rgbb', 'b'],  # 'b' в конце
                     'article': ['артикул', 'article', 'sku', 'код'],
                     'price': ['цена', 'price'],
                     'category': ['категория', 'category', 'катег'],
@@ -802,16 +804,30 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                 col_indices = {}
                 for field, possible_names in column_mapping.items():
                     for idx, header in enumerate(headers):
-                        # Сначала проверяем точное совпадение (без учета регистра)
                         header_lower = header.lower().strip()
                         for name in possible_names:
                             name_lower = name.lower().strip()
-                            # Точное совпадение или совпадение с учетом пробелов/подчеркиваний
-                            if (header_lower == name_lower or 
-                                header_lower.replace('_', ' ').replace('-', ' ') == name_lower.replace('_', ' ').replace('-', ' ') or
-                                name_lower in header_lower):
+                            # Точное совпадение (приоритет)
+                            if header_lower == name_lower:
                                 col_indices[field] = idx
                                 break
+                            # Совпадение с учетом замены символов
+                            elif (header_lower.replace('_', '').replace('-', '').replace(' ', '') == 
+                                  name_lower.replace('_', '').replace('-', '').replace(' ', '')):
+                                col_indices[field] = idx
+                                break
+                            # Частичное совпадение (если имя содержится в заголовке)
+                            # Для коротких имен (r, g, b) проверяем, что это именно RGB столбцы
+                            elif name_lower in header_lower:
+                                if len(name_lower) >= 3:
+                                    # Для длинных имен - обычная проверка
+                                    col_indices[field] = idx
+                                    break
+                                elif len(name_lower) == 1 and name_lower in ['r', 'g', 'b']:
+                                    # Для r, g, b - проверяем, что заголовок содержит rgb
+                                    if 'rgb' in header_lower:
+                                        col_indices[field] = idx
+                                        break
                         if field in col_indices:
                             break
                 
@@ -823,14 +839,25 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                 rgb_columns_found = []
                 for rgb_field in ['rgb_r', 'rgb_g', 'rgb_b']:
                     if rgb_field in col_indices:
-                        rgb_columns_found.append(f"{rgb_field} (индекс {col_indices[rgb_field]})")
+                        idx = col_indices[rgb_field]
+                        original_header = headers_original[idx] if idx < len(headers_original) else 'N/A'
+                        rgb_columns_found.append(f"{rgb_field} (индекс {idx}, заголовок: '{original_header}')")
                     else:
                         rgb_columns_found.append(f"{rgb_field} (НЕ НАЙДЕН)")
                 
                 # Если RGB столбцы не найдены, добавляем информацию в сообщения
                 if 'rgb_r' not in col_indices or 'rgb_g' not in col_indices or 'rgb_b' not in col_indices:
-                    debug_info = f"RGB столбцы: {', '.join(rgb_columns_found)}. Найденные заголовки: {', '.join(headers[:20])}"
-                    messages.info(request, f"Отладка: {debug_info}")
+                    # Ищем похожие заголовки
+                    similar_headers = []
+                    for idx, orig_header in enumerate(headers_original):
+                        orig_lower = orig_header.lower() if orig_header else ''
+                        if 'rgb' in orig_lower or orig_lower in ['r', 'g', 'b']:
+                            similar_headers.append(f"'{orig_header}' (индекс {idx})")
+                    
+                    debug_info = f"RGB столбцы: {', '.join(rgb_columns_found)}"
+                    if similar_headers:
+                        debug_info += f". Похожие заголовки: {', '.join(similar_headers)}"
+                    messages.warning(request, f"Отладка RGB: {debug_info}")
                 
                 created_count = 0
                 updated_count = 0
@@ -1004,14 +1031,20 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                         rgb_g_val = get_cell_value(row, 'rgb_g', '')
                         rgb_b_val = get_cell_value(row, 'rgb_b', '')
                         
+                        # Отладочная информация для первой строки
+                        if row_num == 2:
+                            debug_rgb = f"RGB значения: R='{rgb_r_val}', G='{rgb_g_val}', B='{rgb_b_val}'"
+                            if not rgb_r_val or not rgb_g_val or not rgb_b_val:
+                                errors.append(f"Строка {row_num}: {debug_rgb} (некоторые значения пустые)")
+                        
                         # Обрабатываем значения (могут быть числами или строками)
                         def parse_rgb_value(val):
                             """Преобразовать значение RGB в число"""
-                            if val is None:
+                            if val is None or val == '':
                                 return None
                             # Преобразуем в строку и убираем пробелы
                             val_str = str(val).strip()
-                            if not val_str:
+                            if not val_str or val_str.lower() in ['none', 'null', 'nan']:
                                 return None
                             try:
                                 # Пробуем преобразовать в int (если это float, округлим)
@@ -1029,9 +1062,15 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                             # Проверяем, что значения в диапазоне 0-255
                             if 0 <= r <= 255 and 0 <= g <= 255 and 0 <= b <= 255:
                                 color_rgb = f'{r},{g},{b}'
+                                # Отладочная информация для первой строки
+                                if row_num == 2:
+                                    errors.append(f"Строка {row_num}: RGB успешно обработан: {color_rgb}")
                             else:
                                 # Если значения вне диапазона, добавляем в ошибки
                                 errors.append(f"Строка {row_num}: RGB значения вне диапазона 0-255 (R={r}, G={g}, B={b})")
+                        elif row_num == 2:
+                            # Отладочная информация только для первой строки
+                            errors.append(f"Строка {row_num}: RGB не обработан (R={r}, G={g}, B={b}, исходные: R='{rgb_r_val}', G='{rgb_g_val}', B='{rgb_b_val}')")
                         
                         # Данные для создания/обновления
                         product_data = {
