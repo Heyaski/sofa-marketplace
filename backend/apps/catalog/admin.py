@@ -688,7 +688,7 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
             'fields': ('title', 'article', 'category', 'subcategory', 'description', 'price', 'availability')
         }),
         ('Характеристики', {
-            'fields': ('material', 'style', 'color', 'brand', 'country')
+            'fields': ('material', 'style', 'color', 'color_rgb', 'brand', 'country')
         }),
         ('Размеры', {
             'fields': (('width', 'height', 'depth'), 'weight'),
@@ -779,6 +779,9 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                     'country': ['страна', 'country', 'стран'],
                     'brand': ['бренд', 'brand'],
                     'color': ['цвет', 'color'],
+                    'rgb_r': ['rgb_r', 'rgb r', 'r'],
+                    'rgb_g': ['rgb_g', 'rgb g', 'g'],
+                    'rgb_b': ['rgb_b', 'rgb b', 'b'],
                     'article': ['артикул', 'article', 'sku', 'код'],
                     'price': ['цена', 'price'],
                     'category': ['категория', 'category', 'катег'],
@@ -969,6 +972,25 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                                 # Автоматически используем ID из первой колонки для 3D моделей
                                 model_3d_asset_ids = product_id
                         
+                        # Обрабатываем RGB цвет
+                        color_rgb = ''
+                        rgb_r = get_cell_value(row, 'rgb_r', '').strip()
+                        rgb_g = get_cell_value(row, 'rgb_g', '').strip()
+                        rgb_b = get_cell_value(row, 'rgb_b', '').strip()
+                        
+                        # Проверяем, что все три значения заполнены и являются валидными числами
+                        if rgb_r and rgb_g and rgb_b:
+                            try:
+                                r = int(rgb_r)
+                                g = int(rgb_g)
+                                b = int(rgb_b)
+                                # Проверяем, что значения в диапазоне 0-255
+                                if 0 <= r <= 255 and 0 <= g <= 255 and 0 <= b <= 255:
+                                    color_rgb = f'{r},{g},{b}'
+                            except ValueError:
+                                # Если не удалось преобразовать в число, пропускаем
+                                pass
+                        
                         # Данные для создания/обновления
                         product_data = {
                             'category': category,
@@ -982,6 +1004,7 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                             'country': get_cell_value(row, 'country'),
                             'brand': get_cell_value(row, 'brand'),
                             'color': get_cell_value(row, 'color'),
+                            'color_rgb': color_rgb,
                             'article': get_cell_value(row, 'article'),
                             'subcategory': get_cell_value(row, 'subcategory'),
                             'description': get_cell_value(row, 'description'),

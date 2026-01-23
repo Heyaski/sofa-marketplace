@@ -59,6 +59,7 @@ class Product(models.Model):
     material = models.CharField(max_length=120, blank=True, verbose_name="Материал")
     style = models.CharField(max_length=120, blank=True, verbose_name="Стиль")
     color = models.CharField(max_length=60, blank=True, verbose_name="Цвет")
+    color_rgb = models.CharField(max_length=50, blank=True, verbose_name="Цвет RGB", help_text="RGB цвет в формате R,G,B (например: 255,128,64)")
     brand = models.CharField(max_length=120, blank=True, verbose_name="Бренд")
     country = models.CharField(max_length=120, blank=True, verbose_name="Страна")
     
