@@ -8,25 +8,25 @@ interface HeroSectionProps {
 
 export default function HeroSection({ onOpenAuth }: HeroSectionProps) {
 	return (
-		<section className='bg-white py-16 lg:py-24'>
+		<section className='bg-white py-8 sm:py-12 lg:py-24'>
 			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-				<div className='grid lg:grid-cols-[1fr_1.2fr] gap-16 items-center'>
+				<div className='grid lg:grid-cols-[1fr_1.2fr] gap-8 lg:gap-16 items-center'>
 					{/* Left content */}
-					<div className='space-y-8 max-w-lg'>
-						<h1 className='text-4xl lg:text-5xl font-bold text-black leading-tight'>
+					<div className='space-y-4 sm:space-y-6 lg:space-y-8 max-w-lg'>
+						<h1 className='text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-black leading-tight'>
 							Реалистичная мебель в 3D — для интерьеров, которые хочется трогать
 						</h1>
 
-						<p className='text-lg text-black leading-relaxed'>
+						<p className='text-base sm:text-lg text-black leading-relaxed'>
 							Готовые модели реальной мебели для быстрого и эффектного
 							проектирования интерьеров. Точность, стиль и готовность к рендеру
 							— сразу после загрузки.
 						</p>
 
-						<div className='pt-4'>
+						<div className='pt-2 sm:pt-4'>
 							<button
 								onClick={onOpenAuth}
-								className='bg-main1 text-white px-8 py-4 rounded-lg text-lg font-medium hover:bg-main2 transition-colors'
+								className='bg-main1 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-medium hover:bg-main2 transition-colors w-full sm:w-auto'
 							>
 								Зарегистрироваться бесплатно
 							</button>
@@ -34,13 +34,13 @@ export default function HeroSection({ onOpenAuth }: HeroSectionProps) {
 					</div>
 
 					{/* Right image - 3D Sofa */}
-					<div className='relative'>
+					<div className='relative order-first lg:order-last'>
 						<Image
 							src='/img/hero-image.jpg'
 							alt='3D модель современного дивана с разрезом'
 							width={1200}
 							height={900}
-							className='w-full h-auto object-cover scale-125'
+							className='w-full h-auto object-cover lg:scale-125'
 							priority
 						/>
 					</div>

@@ -140,8 +140,8 @@ export default function UpgradeSubscriptionModal({
 	}
 
 	return (
-		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4'>
-			<div className='bg-white rounded-3xl max-w-4xl w-full p-8 relative max-h-[90vh] overflow-y-auto'>
+		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4'>
+			<div className='bg-white rounded-t-3xl sm:rounded-3xl max-w-4xl w-full p-4 sm:p-6 lg:p-8 relative max-h-[90vh] overflow-y-auto'>
 				{/* Header */}
 				<div className='flex justify-end items-center mb-6'>
 					<button
@@ -153,7 +153,7 @@ export default function UpgradeSubscriptionModal({
 				</div>
 
 				{/* Title */}
-				<h2 className='text-2xl font-bold text-black mb-4 text-left'>
+				<h2 className='text-xl sm:text-2xl font-bold text-black mb-3 sm:mb-4 text-left'>
 					Достигнут лимит скачиваний
 				</h2>
 
@@ -175,7 +175,7 @@ export default function UpgradeSubscriptionModal({
 						<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-main1'></div>
 					</div>
 				) : (
-					<div className='grid grid-cols-1 md:grid-cols-3 gap-4 mb-6'>
+					<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6'>
 						{plans.map(plan => {
 						const isCurrent = plan.id === currentSubscription
 						const isUpgrade =

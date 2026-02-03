@@ -232,14 +232,14 @@ export default function ProfilePage() {
 		<div className='min-h-screen bg-gray-bg'>
 			<Header />
 
-			<main className='max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
-				<div className='grid grid-cols-1 lg:grid-cols-11 gap-6'>
+			<main className='max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8'>
+				<div className='grid grid-cols-1 lg:grid-cols-11 gap-4 sm:gap-6'>
 					{/* Левая колонка - Навигация */}
 					<div className='lg:col-span-3'>
-						<div className='bg-white rounded-xl p-6 shadow-card'>
-							<div className='space-y-2'>
+						<div className='bg-white rounded-xl p-4 sm:p-6 shadow-card'>
+							<div className='grid grid-cols-2 lg:grid-cols-1 gap-2 lg:space-y-2'>
 								<div
-									className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer ${
+									className={`flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-lg cursor-pointer ${
 										activeTab === 'profile'
 											? 'bg-main1 text-white'
 											: 'text-gray hover:bg-gray-bg'
@@ -249,17 +249,17 @@ export default function ProfilePage() {
 									<Image
 										src='/img/profile_left.svg'
 										alt='Profile'
-										width={24}
-										height={24}
-										className='w-6 h-6'
+										width={20}
+										height={20}
+										className='w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0'
 									/>
-									<span className='font-medium whitespace-nowrap text-sm'>
+									<span className='font-medium whitespace-nowrap text-xs sm:text-sm'>
 										Профиль
 									</span>
 								</div>
 
 								<div
-									className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer overflow-hidden ${
+									className={`flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-lg cursor-pointer overflow-hidden ${
 										activeTab === 'subscription'
 											? 'bg-main1 text-white'
 											: 'text-gray hover:bg-gray-bg'
@@ -269,17 +269,17 @@ export default function ProfilePage() {
 									<Image
 										src='/img/fi-rr-diamond.svg'
 										alt='Subscription'
-										width={24}
-										height={24}
-										className='w-6 h-6 flex-shrink-0'
+										width={20}
+										height={20}
+										className='w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0'
 									/>
-									<span className='text-sm whitespace-nowrap'>
+									<span className='text-xs sm:text-sm whitespace-nowrap'>
 										Управление подпиской
 									</span>
 								</div>
 
 								<div
-									className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer ${
+									className={`flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-lg cursor-pointer ${
 										activeTab === 'downloads'
 											? 'bg-main1 text-white'
 											: 'text-gray hover:bg-gray-bg'
@@ -289,17 +289,17 @@ export default function ProfilePage() {
 									<Image
 										src='/img/fi-rr-folder.svg'
 										alt='Downloads'
-										width={24}
-										height={24}
-										className='w-6 h-6'
+										width={20}
+										height={20}
+										className='w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0'
 									/>
-									<span className='whitespace-nowrap text-sm'>
+									<span className='whitespace-nowrap text-xs sm:text-sm'>
 										История загрузок
 									</span>
 								</div>
 
 								<div
-									className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer overflow-hidden ${
+									className={`flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-lg cursor-pointer overflow-hidden ${
 										activeTab === 'cart'
 											? 'bg-main1 text-white'
 											: 'text-gray hover:bg-gray-bg'
@@ -309,17 +309,17 @@ export default function ProfilePage() {
 									<Image
 										src='/img/Buy.svg'
 										alt='Cart'
-										width={24}
-										height={24}
-										className='w-6 h-6 flex-shrink-0'
+										width={20}
+										height={20}
+										className='w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0'
 									/>
-									<span className='text-sm whitespace-nowrap'>
+									<span className='text-xs sm:text-sm whitespace-nowrap'>
 										Корзина / проекты
 									</span>
 								</div>
 
 								<div
-									className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer ${
+									className={`flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-lg cursor-pointer ${
 										activeTab === 'chats'
 											? 'bg-main1 text-white'
 											: 'text-gray hover:bg-gray-bg'
@@ -329,11 +329,11 @@ export default function ProfilePage() {
 									<Image
 										src='/img/fi-rr-comment.svg'
 										alt='Chats'
-										width={24}
-										height={24}
-										className='w-6 h-6'
+										width={20}
+										height={20}
+										className='w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0'
 									/>
-									<span className='whitespace-nowrap text-sm'>Чаты</span>
+									<span className='whitespace-nowrap text-xs sm:text-sm'>Чаты</span>
 								</div>
 
 								{/* Logout Button */}
@@ -344,15 +344,15 @@ export default function ProfilePage() {
 					{/* Правая колонка - Контент */}
 					<div className='lg:col-span-8'>
 						{activeTab === 'profile' && (
-							<div className='bg-white rounded-xl p-8 shadow-card min-h-[600px]'>
-								<div className='flex items-start justify-between mb-8'>
-									<h1 className='text-3xl font-bold text-black'>Профиль</h1>
+							<div className='bg-white rounded-xl p-4 sm:p-6 lg:p-8 shadow-card min-h-[400px] sm:min-h-[600px]'>
+								<div className='flex items-start justify-between mb-4 sm:mb-6 lg:mb-8'>
+									<h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-black'>Профиль</h1>
 								</div>
 
-								<div className='flex items-start gap-8'>
+								<div className='flex flex-col sm:flex-row items-start gap-4 sm:gap-6 lg:gap-8'>
 									{/* Левая часть - Форма */}
-									<div className='flex-1'>
-										<div className='space-y-10'>
+									<div className='flex-1 w-full'>
+										<div className='space-y-6 sm:space-y-8 lg:space-y-10'>
 											{/* Email */}
 											<div>
 												<label className='block text-sm font-medium text-gray mb-2'>
@@ -386,10 +386,10 @@ export default function ProfilePage() {
 
 											{/* Payment Method */}
 											<div>
-												<h3 className='text-lg font-semibold text-black mb-4'>
+												<h3 className='text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4'>
 													Способ оплаты:
 												</h3>
-												<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+												<div className='grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4'>
 													<div>
 														<label className='block text-sm font-medium text-gray mb-2'>
 															Номер карты
@@ -492,7 +492,7 @@ export default function ProfilePage() {
 
 											{/* Settings */}
 											<div>
-												<h3 className='text-lg font-semibold text-black mb-4'>
+												<h3 className='text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4'>
 													Настройки
 												</h3>
 												<div className='space-y-3'>
@@ -542,11 +542,11 @@ export default function ProfilePage() {
 											</div>
 
 											{/* Action Buttons */}
-											<div className='pt-4 flex space-x-3'>
+											<div className='pt-2 sm:pt-4 flex flex-col sm:flex-row gap-2 sm:gap-3 sm:space-x-3'>
 												{editing && (
 													<button
 														onClick={handleCancel}
-														className='px-4 py-2 border border-main1 text-main1 rounded-lg hover:bg-main1 hover:text-white transition-colors text-sm'
+														className='px-4 py-2 border border-main1 text-main1 rounded-lg hover:bg-main1 hover:text-white transition-colors text-sm w-full sm:w-auto'
 													>
 														Отменить
 													</button>
@@ -559,7 +559,7 @@ export default function ProfilePage() {
 															setEditing(true)
 														}
 													}}
-													className='btn-primary px-4 py-2 text-sm'
+													className='btn-primary px-4 py-2 text-sm w-full sm:w-auto'
 												>
 													{editing
 														? 'Сохранить изменения'
@@ -570,8 +570,8 @@ export default function ProfilePage() {
 									</div>
 
 									{/* Правая часть - Аватар */}
-									<div className='flex-shrink-0'>
-										<div className='w-40 h-40 bg-gray-bg rounded-full flex items-center justify-center relative overflow-hidden'>
+									<div className='flex-shrink-0 mx-auto sm:mx-0'>
+										<div className='w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 bg-gray-bg rounded-full flex items-center justify-center relative overflow-hidden'>
 											<Image
 												src='/img/profile_default.svg'
 												alt='Profile Avatar'
@@ -588,19 +588,19 @@ export default function ProfilePage() {
 						{activeTab === 'subscription' && <SubscriptionManagement />}
 
 						{activeTab === 'downloads' && (
-							<div className='bg-white rounded-xl p-8 shadow-card min-h-[600px]'>
+							<div className='bg-white rounded-xl p-4 sm:p-6 lg:p-8 shadow-card min-h-[400px] sm:min-h-[600px]'>
 								<DownloadsList />
 							</div>
 						)}
 
 						{activeTab === 'cart' && (
-							<div className='bg-white rounded-xl p-8 shadow-card min-h-[600px]'>
+							<div className='bg-white rounded-xl p-4 sm:p-6 lg:p-8 shadow-card min-h-[400px] sm:min-h-[600px]'>
 								<BasketsList baskets={baskets} onRefresh={refetchBaskets} />
 							</div>
 						)}
 
 						{activeTab === 'chats' && (
-							<div className='bg-white rounded-xl shadow-card min-h-[600px] flex'>
+							<div className='bg-white rounded-xl shadow-card min-h-[400px] sm:min-h-[600px] flex flex-col'>
 								{selectedChat ? (
 									<div className='flex-1 flex flex-col'>
 										<ChatDetail
@@ -610,8 +610,8 @@ export default function ProfilePage() {
 										/>
 									</div>
 								) : (
-									<div className='flex-1 p-8'>
-										<h1 className='text-3xl font-bold text-black mb-8'>Чаты</h1>
+									<div className='flex-1 p-4 sm:p-6 lg:p-8'>
+										<h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-black mb-4 sm:mb-6 lg:mb-8'>Чаты</h1>
 										<ChatsList
 											onSelectChat={handleSelectChat}
 											selectedChatId={undefined}

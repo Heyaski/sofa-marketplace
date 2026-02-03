@@ -45,14 +45,14 @@ export default function CartModal({
 	}
 
 	return (
-		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4'>
-			<div className='bg-white rounded-3xl max-w-2xl w-full p-8'>
+		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4'>
+			<div className='bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6 lg:p-8'>
 				{/* Header */}
-				<div className='flex justify-between items-center mb-6'>
+				<div className='flex justify-between items-center mb-4 sm:mb-6'>
 					{isCreatingNew ? (
 						<button
 							onClick={handleBack}
-							className='text-black hover:text-black transition-colors flex items-center'
+							className='text-black hover:text-black transition-colors flex items-center text-sm sm:text-base'
 						>
 							← Назад
 						</button>
@@ -61,14 +61,14 @@ export default function CartModal({
 					)}
 					<button
 						onClick={onClose}
-						className='text-black hover:text-gray transition-colors text-4xl font-light'
+						className='text-black hover:text-gray transition-colors text-3xl sm:text-4xl font-light'
 					>
 						×
 					</button>
 				</div>
 
 				{/* Title */}
-				<h2 className='text-xl font-bold text-black mb-6 text-left'>
+				<h2 className='text-lg sm:text-xl font-bold text-black mb-4 sm:mb-6 text-left'>
 					{isCreatingNew
 						? 'Создание новой корзины'
 						: 'Выберите в какую корзину добавить товар'}
@@ -113,17 +113,17 @@ export default function CartModal({
 						)}
 
 						{/* Bottom */}
-						<div className='flex justify-between items-center'>
+						<div className='flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 sm:gap-0'>
 							<button
 								onClick={() => setIsCreatingNew(true)}
-								className='flex items-center space-x-2 text-black transition-colors'
+								className='flex items-center justify-center sm:justify-start space-x-2 text-black transition-colors text-sm sm:text-base py-2 sm:py-0'
 							>
-								<span className='text-2xl'>+</span>
+								<span className='text-xl sm:text-2xl'>+</span>
 								<span>Создать новую корзину</span>
 							</button>
 							<button
 								onClick={handleSubmit}
-								className='bg-main1 text-white px-16 py-3 rounded-xl font-medium hover:bg-main2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+								className='bg-main1 text-white px-8 sm:px-16 py-2.5 sm:py-3 rounded-xl font-medium hover:bg-main2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base w-full sm:w-auto'
 								disabled={selectedCart === null}
 							>
 								Добавить
@@ -147,7 +147,7 @@ export default function CartModal({
 						<div className='flex justify-center'>
 							<button
 								onClick={handleSubmit}
-								className='bg-main1 text-white px-16 py-3 rounded-xl font-medium hover:bg-main2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+								className='bg-main1 text-white px-8 sm:px-16 py-2.5 sm:py-3 rounded-xl font-medium hover:bg-main2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base w-full sm:w-auto'
 								disabled={!newCartName.trim()}
 							>
 								Создать

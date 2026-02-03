@@ -144,10 +144,10 @@ export default function ProductPage({ params }: ProductPageProps) {
 		<div className='min-h-screen bg-gray-bg'>
 			<Header />
 
-			<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
+			<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8'>
 				{/* Хлебные крошки */}
-				<div className='mb-8'>
-					<nav className='text-sm text-gray'>
+				<div className='mb-4 sm:mb-6 lg:mb-8'>
+					<nav className='text-xs sm:text-sm text-gray'>
 						<span
 							className='cursor-pointer hover:text-black'
 							onClick={() => router.push('/')}
@@ -166,8 +166,8 @@ export default function ProductPage({ params }: ProductPageProps) {
 					</nav>
 				</div>
 
-				<div className='bg-white rounded-xl p-8 shadow-card'>
-					<div className='grid lg:grid-cols-2 gap-12'>
+				<div className='bg-white rounded-xl p-4 sm:p-6 lg:p-8 shadow-card'>
+					<div className='grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12'>
 						{/* Изображения товара */}
 						<div className='space-y-4'>
 							{/* Главное изображение */}
@@ -226,15 +226,15 @@ export default function ProductPage({ params }: ProductPageProps) {
 						</div>
 
 						{/* Информация о товаре */}
-						<div className='space-y-6'>
-							<h1 className='text-3xl font-bold text-black'>{product.title}</h1>
+						<div className='space-y-4 sm:space-y-6'>
+							<h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-black'>{product.title}</h1>
 
 							{/* Цена */}
 							<div className='space-y-2'>
-								<div className='text-3xl font-bold text-black'>
+								<div className='text-2xl sm:text-3xl font-bold text-black'>
 									{formatPrice(Number(product.price))} {config.CURRENCY_SYMBOL}
 								</div>
-								<div className='text-lg text-gray line-through'>
+								<div className='text-base sm:text-lg text-gray line-through'>
 									{formatPrice(Number(product.price))} {config.CURRENCY_SYMBOL}
 								</div>
 							</div>
@@ -356,15 +356,15 @@ export default function ProductPage({ params }: ProductPageProps) {
 							</div>
 
 							{/* Кнопка Яндекс */}
-							<button className='w-full border-2 border-red-500 bg-white text-black py-3 px-4 rounded-lg hover:bg-red-50 transition-colors'>
+							<button className='w-full border-2 border-red-500 bg-white text-black py-2.5 sm:py-3 px-4 rounded-lg hover:bg-red-50 transition-colors text-sm sm:text-base'>
 								Открыть товар в Яндекс
 							</button>
 
 							{/* Все кнопки в одну линию */}
-							<div className='grid grid-cols-3 gap-4'>
+							<div className='grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4'>
 								<button
 									onClick={handleAddToCart}
-									className='bg-main1 text-white py-3 rounded-lg hover:bg-main1/90 transition-colors font-medium whitespace-nowrap text-sm'
+									className='bg-main1 text-white py-2.5 sm:py-3 rounded-lg hover:bg-main1/90 transition-colors font-medium text-sm sm:text-base'
 								>
 									Добавить в корзину
 								</button>
@@ -375,7 +375,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 										!Array.isArray(product.asset_3d_models) ||
 										product.asset_3d_models.length === 0
 									}
-									className='border-2 border-main1 bg-white text-black py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors whitespace-nowrap text-sm disabled:opacity-50 disabled:cursor-not-allowed'
+									className='border-2 border-main1 bg-white text-black py-2.5 sm:py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed'
 									title={
 										!product?.asset_3d_models ||
 										product.asset_3d_models.length === 0
@@ -385,7 +385,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 								>
 									Открыть 3D Viewer
 								</button>
-								<button className='border-2 border-main1 bg-white text-black py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors whitespace-nowrap text-sm'>
+								<button className='border-2 border-main1 bg-white text-black py-2.5 sm:py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors text-sm sm:text-base'>
 									Примерка GLB
 								</button>
 							</div>

@@ -25,9 +25,9 @@ export default function Footer() {
 	}, [])
 	return (
 		<footer className='bg-main1 text-white'>
-			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12'>
+			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12'>
 				{/* Top section - all in one line */}
-				<div className='flex flex-col lg:flex-row justify-between items-center gap-6 mb-8'>
+				<div className='flex flex-col lg:flex-row justify-between items-center gap-4 sm:gap-6 mb-6 sm:mb-8'>
 					{/* Logo and company name with white background */}
 					<div className='bg-white rounded-lg p-3 flex items-center space-x-3'>
 						<Image
@@ -60,7 +60,7 @@ export default function Footer() {
 					{!loading && !user && (
 						<button
 							onClick={() => (window.location.href = '/')}
-							className='bg-white text-main1 px-6 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors'
+							className='bg-white text-main1 px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors text-sm sm:text-base w-full sm:w-auto'
 						>
 							Войти / Зарегистрироваться
 						</button>
@@ -68,8 +68,8 @@ export default function Footer() {
 				</div>
 
 				{/* Divider */}
-				<div className='border-t border-main2 pt-8'>
-					<div className='flex flex-col sm:flex-row justify-between items-center gap-4'>
+				<div className='border-t border-main2 pt-6 sm:pt-8'>
+					<div className='flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4'>
 						{/* Rights and Cookies - Left */}
 						<div className='flex flex-col sm:flex-row gap-2 sm:gap-4 text-sm text-gray-200'>
 							<span>2025 © Все права защищены</span>

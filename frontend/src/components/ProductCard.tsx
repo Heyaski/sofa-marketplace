@@ -29,10 +29,10 @@ export default function ProductCard({
 	}
 
 	return (
-		<div className='product-card bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition-all duration-200'>
+		<div className='product-card bg-white rounded-xl shadow-sm p-3 sm:p-4 hover:shadow-md transition-all duration-200'>
 			{/* Изображение товара */}
 			<div
-				className='aspect-square rounded-lg mb-4 overflow-hidden bg-gray-50 flex items-center justify-center cursor-pointer'
+				className='aspect-square rounded-lg mb-3 sm:mb-4 overflow-hidden bg-gray-50 flex items-center justify-center cursor-pointer'
 				onClick={handleCardClick}
 			>
 				{product.image && typeof product.image === 'string' ? (
@@ -57,48 +57,45 @@ export default function ProductCard({
 
 			{/* Название товара */}
 			<div
-				className='text-sm font-semibold text-black mb-2 cursor-pointer hover:text-main1 transition-colors line-clamp-2'
+				className='text-sm font-semibold text-black mb-2 sm:mb-3 cursor-pointer hover:text-main1 transition-colors line-clamp-2 min-h-[2.5rem]'
 				onClick={handleCardClick}
 				title={product.title}
 			>
 				{product.title}
 			</div>
 
-			{/* Цена, форматы и кнопка на одном уровне */}
-			<div className='flex items-center gap-4 mb-4 flex-wrap'>
-				{/* Цена */}
-				<div className='text-lg font-bold text-black flex-shrink-0'>
-					{formatPrice(Number(product.price))} {config.CURRENCY_SYMBOL}
-				</div>
-
-				{/* Форматы файлов */}
-				<div className='flex flex-wrap gap-2 flex-1'>
-					{config.SUPPORTED_FORMATS.map(format => (
-						<label
-							key={format}
-							className='flex items-center cursor-pointer border border-gray2 rounded-lg px-2 py-1 flex-shrink-0 bg-white hover:bg-gray-50'
-						>
-							<input
-								type='checkbox'
-								checked={selectedFormat === format}
-								onChange={() => setSelectedFormat(format)}
-								className='w-4 h-4 rounded-lg border border-gray-300 text-main1 focus:ring-main1 focus:ring-2 mr-2'
-							/>
-							<span className='text-xs text-black whitespace-nowrap'>
-								{format}
-							</span>
-						</label>
-					))}
-				</div>
-
-				{/* Кнопка добавления */}
-				<button
-					onClick={() => onAddToCart(product.id, selectedFormat)}
-					className='btn-primary py-2 px-4 flex-shrink-0'
-				>
-					В корзину
-				</button>
+			{/* Цена */}
+			<div className='text-base sm:text-lg font-bold text-black mb-2 sm:mb-3'>
+				{formatPrice(Number(product.price))} {config.CURRENCY_SYMBOL}
 			</div>
+
+			{/* Форматы файлов */}
+			<div className='flex flex-wrap gap-1.5 sm:gap-2 mb-3 sm:mb-4'>
+				{config.SUPPORTED_FORMATS.map(format => (
+					<label
+						key={format}
+						className='flex items-center cursor-pointer border border-gray2 rounded-lg px-2 py-1 sm:px-2.5 sm:py-1.5 flex-shrink-0 bg-white hover:bg-gray-50 text-xs sm:text-sm'
+					>
+						<input
+							type='checkbox'
+							checked={selectedFormat === format}
+							onChange={() => setSelectedFormat(format)}
+							className='w-3 h-3 sm:w-4 sm:h-4 rounded-lg border border-gray-300 text-main1 focus:ring-main1 focus:ring-2 mr-1.5 sm:mr-2'
+						/>
+						<span className='text-xs text-black whitespace-nowrap'>
+							{format}
+						</span>
+					</label>
+				))}
+			</div>
+
+			{/* Кнопка добавления */}
+			<button
+				onClick={() => onAddToCart(product.id, selectedFormat)}
+				className='btn-primary py-2 sm:py-2.5 px-4 w-full sm:w-auto text-sm sm:text-base'
+			>
+				В корзину
+			</button>
 		</div>
 	)
 }

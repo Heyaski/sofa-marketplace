@@ -59,18 +59,18 @@ export default function SendToChatModal({
 	if (!isOpen) return null
 
 	return (
-		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4'>
-			<div className='bg-white rounded-3xl max-w-md w-full p-8'>
-				<div className='flex justify-end items-center mb-6'>
+		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4'>
+			<div className='bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-4 sm:p-6 lg:p-8 sm:max-h-[90vh] overflow-y-auto'>
+				<div className='flex justify-end items-center mb-4 sm:mb-6'>
 					<button
 						onClick={onClose}
-						className='text-black hover:text-gray transition-colors text-4xl font-light'
+						className='text-black hover:text-gray transition-colors text-3xl sm:text-4xl font-light'
 					>
 						×
 					</button>
 				</div>
 
-				<h2 className='text-xl font-bold text-black mb-6 text-left'>
+				<h2 className='text-lg sm:text-xl font-bold text-black mb-4 sm:mb-6 text-left'>
 					Выберите чат для отправки
 				</h2>
 

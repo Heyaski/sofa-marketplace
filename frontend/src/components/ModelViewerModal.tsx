@@ -257,12 +257,12 @@ export default function ModelViewerModal({
 	}
 
 	return (
-		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4'>
-			<div className='bg-white rounded-3xl max-w-6xl w-full max-h-[90vh] flex flex-col'>
+		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4'>
+			<div className='bg-white rounded-t-3xl sm:rounded-3xl max-w-6xl w-full max-h-[90vh] sm:max-h-[90vh] flex flex-col'>
 				{/* Header */}
-				<div className='flex justify-between items-center p-6 border-b border-gray-200'>
-					<div>
-						<h2 className='text-xl font-bold text-black'>
+				<div className='flex justify-between items-center p-4 sm:p-6 border-b border-gray-200'>
+					<div className='flex-1 min-w-0 pr-2'>
+						<h2 className='text-lg sm:text-xl font-bold text-black truncate'>
 							{productTitle ? `3D Просмотр: ${productTitle}` : '3D Просмотр'}
 						</h2>
 						{selectedModel.description && (
@@ -273,7 +273,7 @@ export default function ModelViewerModal({
 					</div>
 					<button
 						onClick={onClose}
-						className='text-black hover:text-gray transition-colors text-4xl font-light'
+						className='text-black hover:text-gray transition-colors text-3xl sm:text-4xl font-light flex-shrink-0'
 					>
 						×
 					</button>

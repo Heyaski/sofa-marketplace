@@ -239,10 +239,10 @@ export default function CatalogPage() {
 		<div className='min-h-screen bg-gray-bg'>
 			<Header />
 
-			<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
+			<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8'>
 				{/* 🧭 Хлебные крошки */}
-				<div className='mb-6'>
-					<nav className='text-sm text-gray'>
+				<div className='mb-4 sm:mb-6'>
+					<nav className='text-xs sm:text-sm text-gray'>
 						<span>Главная</span>
 						<span className='mx-2'>•</span>
 						<span className='text-black font-medium'>Каталог</span>
@@ -250,11 +250,11 @@ export default function CatalogPage() {
 				</div>
 
 				{/* 📦 Двухколоночный layout: категории слева, товары справа */}
-				<div className='flex flex-col lg:flex-row gap-6'>
+				<div className='flex flex-col lg:flex-row gap-4 sm:gap-6'>
 					{/* 🏷️ Левая колонка: Категории */}
 					<aside className='w-full lg:w-64 flex-shrink-0'>
-						<div className='bg-white rounded-xl p-6 sticky top-4'>
-							<h2 className='text-lg font-bold text-black mb-4'>Категории</h2>
+						<div className='bg-white rounded-xl p-4 sm:p-6 lg:sticky lg:top-4'>
+							<h2 className='text-base sm:text-lg font-bold text-black mb-3 sm:mb-4'>Категории</h2>
 							
 							{categoriesLoading ? (
 								<div className='text-center py-4 text-sm text-gray-500'>
@@ -340,20 +340,20 @@ export default function CatalogPage() {
 					</aside>
 
 					{/* 📦 Правая колонка: Каталог товаров */}
-					<div className='flex-1 bg-white rounded-xl p-8'>
-					<h1 className='text-3xl font-bold text-black mb-8'>Каталог</h1>
+					<div className='flex-1 bg-white rounded-xl p-4 sm:p-6 lg:p-8'>
+					<h1 className='text-2xl sm:text-3xl font-bold text-black mb-4 sm:mb-6 lg:mb-8'>Каталог</h1>
 
 					{/* ⚙️ Фильтры */}
-					<div className='mb-6'>
-						<div className='flex items-center justify-between mb-4'>
-							<div className='flex items-center gap-3 flex-wrap'>
-								<span className='text-black font-medium'>Фильтр:</span>
+					<div className='mb-4 sm:mb-6'>
+						<div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4'>
+							<div className='flex items-center gap-2 sm:gap-3 flex-wrap'>
+								<span className='text-black font-medium text-sm sm:text-base'>Фильтр:</span>
 
 								{/* Кнопка фильтра цены */}
 								<div className='relative'>
 									<button
 										onClick={() => setOpenFilter(openFilter === 'price' ? null : 'price')}
-										className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+										className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
 											currentPriceFilter
 												? 'bg-main1 text-white'
 												: 'bg-gray-bg text-black hover:bg-gray2'
@@ -362,7 +362,7 @@ export default function CatalogPage() {
 										Цена
 									</button>
 									{openFilter === 'price' && (
-										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 min-w-[300px]'>
+										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[300px] max-w-sm'>
 											<PriceFilter
 												minPrice={filterRanges.price.min}
 												maxPrice={filterRanges.price.max}
@@ -378,7 +378,7 @@ export default function CatalogPage() {
 								<div className='relative'>
 									<button
 										onClick={() => setOpenFilter(openFilter === 'dimensions' ? null : 'dimensions')}
-										className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+										className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
 											(filters.width_min !== undefined || filters.width_max !== undefined || 
 											 filters.depth_min !== undefined || filters.depth_max !== undefined)
 												? 'bg-main1 text-white'
@@ -388,7 +388,7 @@ export default function CatalogPage() {
 										Габариты
 									</button>
 									{openFilter === 'dimensions' && (
-										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 min-w-[300px]'>
+										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[300px] max-w-sm'>
 											<DimensionsFilter
 												minWidth={filterRanges.width.min}
 												maxWidth={filterRanges.width.max}
@@ -421,7 +421,7 @@ export default function CatalogPage() {
 									<div className='relative'>
 										<button
 											onClick={() => setOpenFilter(openFilter === 'material' ? null : 'material')}
-											className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+											className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
 												filters.material
 													? 'bg-main1 text-white'
 													: 'bg-gray-bg text-black hover:bg-gray2'
@@ -430,7 +430,7 @@ export default function CatalogPage() {
 											Материал
 										</button>
 									{openFilter === 'material' && (
-										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 min-w-[200px]'>
+										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[200px] max-w-xs'>
 											<MultiSelectFilter
 												title=''
 												options={filterRanges.materials}
@@ -447,7 +447,7 @@ export default function CatalogPage() {
 									<div className='relative'>
 										<button
 											onClick={() => setOpenFilter(openFilter === 'style' ? null : 'style')}
-											className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+											className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
 												filters.style
 													? 'bg-main1 text-white'
 													: 'bg-gray-bg text-black hover:bg-gray2'
@@ -456,7 +456,7 @@ export default function CatalogPage() {
 											Стиль
 										</button>
 									{openFilter === 'style' && (
-										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 min-w-[200px]'>
+										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[200px] max-w-xs'>
 											<MultiSelectFilter
 												title=''
 												options={filterRanges.styles}
@@ -473,7 +473,7 @@ export default function CatalogPage() {
 									<div className='relative'>
 										<button
 											onClick={() => setOpenFilter(openFilter === 'color' ? null : 'color')}
-											className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+											className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
 												filters.color
 													? 'bg-main1 text-white'
 													: 'bg-gray-bg text-black hover:bg-gray2'
@@ -482,7 +482,7 @@ export default function CatalogPage() {
 											Цвет
 										</button>
 									{openFilter === 'color' && (
-										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 min-w-[200px]'>
+										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[200px] max-w-xs'>
 											<MultiSelectFilter
 												title=''
 												options={filterRanges.colors}
@@ -499,7 +499,7 @@ export default function CatalogPage() {
 									<div className='relative'>
 										<button
 											onClick={() => setOpenFilter(openFilter === 'brand' ? null : 'brand')}
-											className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+											className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
 												filters.brand
 													? 'bg-main1 text-white'
 													: 'bg-gray-bg text-black hover:bg-gray2'
@@ -508,7 +508,7 @@ export default function CatalogPage() {
 											Бренд
 										</button>
 									{openFilter === 'brand' && (
-										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 min-w-[200px]'>
+										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[200px] max-w-xs'>
 											<MultiSelectFilter
 												title=''
 												options={filterRanges.brands}
@@ -522,12 +522,12 @@ export default function CatalogPage() {
 
 							</div>
 
-							<div className='flex items-center'>
-								<span className='text-black font-medium mr-2 text-sm'>
+							<div className='flex items-center flex-shrink-0'>
+								<span className='text-black font-medium mr-2 text-xs sm:text-sm whitespace-nowrap'>
 									Сортировка:
 								</span>
 								<select 
-									className='w-40 px-3 py-2 rounded-lg bg-gray-bg text-black text-sm focus:outline-none focus:ring-2 focus:ring-main1'
+									className='w-full sm:w-40 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-gray-bg text-black text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-main1'
 									onChange={e => setFilters({ ...filters, ordering: e.target.value || undefined })}
 									value={filters.ordering || ''}
 								>
@@ -549,22 +549,22 @@ export default function CatalogPage() {
 
 					</div>
 
-					<div className='border-t border-gray2 mb-8'></div>
+					<div className='border-t border-gray2 mb-4 sm:mb-6 lg:mb-8'></div>
 
 					{/* 🛋️ Сетка товаров */}
 					{productsLoading ? (
-						<div className='text-center py-8'>Загрузка продуктов...</div>
+						<div className='text-center py-8 text-sm sm:text-base'>Загрузка продуктов...</div>
 					) : productsError ? (
-						<div className='text-center py-8 text-red-500'>
+						<div className='text-center py-8 text-red-500 text-sm sm:text-base'>
 							Ошибка загрузки продуктов: {productsError}
 						</div>
 					) : !products || products.length === 0 ? (
-						<div className='text-center py-8 text-gray-500'>
+						<div className='text-center py-8 text-gray-500 text-sm sm:text-base'>
 							Продукты не найдены
 						</div>
 					) : (
 						<>
-							<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'>
+							<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6'>
 								{products.map(product => (
 									<ProductCard
 										key={product.id}
@@ -574,11 +574,11 @@ export default function CatalogPage() {
 								))}
 							</div>
 							{hasMore && (
-								<div className='mt-8 flex justify-center'>
+								<div className='mt-6 sm:mt-8 flex justify-center'>
 									<button
 										onClick={loadMore}
 										disabled={loadingMore}
-										className='bg-main1 text-white px-8 py-3 rounded-lg hover:bg-main2 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed'
+										className='bg-main1 text-white px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg hover:bg-main2 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base w-full sm:w-auto'
 									>
 										{loadingMore ? 'Загрузка...' : 'Загрузить еще'}
 									</button>

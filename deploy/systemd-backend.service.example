@@ -4,14 +4,14 @@
 
 [Unit]
 Description=Sofa Marketplace Django Backend
-After=network.target postgresql.service
+After=network.target
 
 [Service]
-Type=notify
+Type=simple
 User=deploy
 Group=deploy
 WorkingDirectory=/home/deploy/sofa-marketplace/backend
-Environment="PATH=/home/deploy/sofa-marketplace/backend/venv/bin"
+Environment="PATH=/home/deploy/sofa-marketplace/backend/venv/bin:/usr/local/bin:/usr/bin:/bin"
 ExecStart=/home/deploy/sofa-marketplace/backend/venv/bin/gunicorn \
     --config gunicorn_config.py \
     config.wsgi:application

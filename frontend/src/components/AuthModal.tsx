@@ -164,8 +164,8 @@ export default function AuthModal({
 				onClick={onClose}
 			></div>
 
-			<div className='flex min-h-full items-center justify-center p-4'>
-				<div className='relative bg-white rounded-xl shadow-xl max-w-md w-full'>
+			<div className='flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4'>
+				<div className='relative bg-white rounded-t-xl sm:rounded-xl shadow-xl max-w-md w-full sm:max-h-[90vh] overflow-y-auto'>
 					<button
 						onClick={onClose}
 						className='absolute top-4 right-4 text-gray hover:text-black transition-colors z-10'
@@ -173,7 +173,7 @@ export default function AuthModal({
 						<XMarkIcon className='w-6 h-6' />
 					</button>
 
-					<div className='p-8'>
+					<div className='p-4 sm:p-6 lg:p-8'>
 						{/* Табы для переключения между входом и регистрацией */}
 						<div className='flex mb-6 bg-gray-bg rounded-lg p-1'>
 							<button

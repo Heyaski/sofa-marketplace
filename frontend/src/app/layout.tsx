@@ -8,6 +8,11 @@ export const metadata: Metadata = {
 	title: 'VizHub.pro - Маркетплейс 3D моделей мебели',
 	description:
 		'Реалистичная мебель в 3D для интерьеров, которые хочется трогать',
+	viewport: {
+		width: 'device-width',
+		initialScale: 1,
+		maximumScale: 5,
+	},
 }
 
 export default function RootLayout({
