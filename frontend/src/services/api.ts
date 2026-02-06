@@ -362,6 +362,14 @@ export const authService = {
 		const response = await apiClient.get(`/api/users/search${params}`)
 		return response.data
 	},
+
+	// Смена пароля
+	changePassword: async (oldPassword: string, newPassword: string): Promise<void> => {
+		await apiClient.put('/api/users/me/change-password/', {
+			old_password: oldPassword,
+			new_password: newPassword,
+		})
+	},
 }
 
 // Сервис для работы с чатами

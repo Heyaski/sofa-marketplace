@@ -1,12 +1,59 @@
 'use client'
 
 import Image from 'next/image'
+import { useEffect, useState } from 'react'
+import { authService } from '../services/api'
 
 interface HeroSectionProps {
 	onOpenAuth?: () => void
 }
 
 export default function HeroSection({ onOpenAuth }: HeroSectionProps) {
+	const [isAuthenticated, setIsAuthenticated] = useState(false)
+	const [loading, setLoading] = useState(true)
+
+	useEffect(() => {
+		const checkAuth = async () => {
+			try {
+				const token = localStorage.getItem('access_token')
+				if (token) {
+					const user = await authService.getCurrentUser()
+					setIsAuthenticated(!!user)
+				} else {
+					setIsAuthenticated(false)
+				}
+			} catch (error) {
+				setIsAuthenticated(false)
+			} finally {
+				setLoading(false)
+			}
+		}
+
+		checkAuth()
+
+		// Слушаем изменения в localStorage для обновления состояния
+		const handleStorageChange = () => {
+			checkAuth()
+		}
+
+		// Слушаем кастомное событие обновления авторизации (отправляется из Header после успешной авторизации)
+		const handleAuthUpdate = () => {
+			checkAuth()
+		}
+
+		window.addEventListener('storage', handleStorageChange)
+		window.addEventListener('auth-updated', handleAuthUpdate)
+		
+		// Также проверяем при фокусе окна (на случай авторизации в другой вкладке)
+		window.addEventListener('focus', checkAuth)
+
+		return () => {
+			window.removeEventListener('storage', handleStorageChange)
+			window.removeEventListener('auth-updated', handleAuthUpdate)
+			window.removeEventListener('focus', checkAuth)
+		}
+	}, [])
+
 	return (
 		<section className='bg-white py-8 sm:py-12 lg:py-24'>
 			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
@@ -23,14 +70,16 @@ export default function HeroSection({ onOpenAuth }: HeroSectionProps) {
 							— сразу после загрузки.
 						</p>
 
-						<div className='pt-2 sm:pt-4'>
-							<button
-								onClick={onOpenAuth}
-								className='bg-main1 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-medium hover:bg-main2 transition-colors w-full sm:w-auto'
-							>
-								Зарегистрироваться бесплатно
-							</button>
-						</div>
+						{!loading && !isAuthenticated && (
+							<div className='pt-2 sm:pt-4'>
+								<button
+									onClick={onOpenAuth}
+									className='bg-main1 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-medium hover:bg-main2 transition-colors w-full sm:w-auto'
+								>
+									Зарегистрироваться бесплатно
+								</button>
+							</div>
+						)}
 					</div>
 
 					{/* Right image - 3D Sofa */}

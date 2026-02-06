@@ -49,6 +49,16 @@ export default function ProfilePage() {
 		},
 	})
 
+	// Состояние для смены пароля
+	const [passwordData, setPasswordData] = useState({
+		oldPassword: '',
+		newPassword: '',
+		confirmPassword: '',
+	})
+	const [passwordError, setPasswordError] = useState<string | null>(null)
+	const [passwordSuccess, setPasswordSuccess] = useState(false)
+	const [changingPassword, setChangingPassword] = useState(false)
+
 	const handleSelectChat = (chat: Chat) => {
 		setSelectedChat(chat)
 	}
@@ -185,6 +195,52 @@ export default function ProfilePage() {
 			})
 		}
 		setEditing(false)
+	}
+
+	const handleChangePassword = async () => {
+		setPasswordError(null)
+		setPasswordSuccess(false)
+
+		// Валидация
+		if (!passwordData.oldPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+			setPasswordError('Заполните все поля')
+			return
+		}
+
+		if (passwordData.newPassword.length < 8) {
+			setPasswordError('Новый пароль должен содержать минимум 8 символов')
+			return
+		}
+
+		if (passwordData.newPassword !== passwordData.confirmPassword) {
+			setPasswordError('Пароли не совпадают')
+			return
+		}
+
+		setChangingPassword(true)
+
+		try {
+			await authService.changePassword(passwordData.oldPassword, passwordData.newPassword)
+			setPasswordSuccess(true)
+			setPasswordData({
+				oldPassword: '',
+				newPassword: '',
+				confirmPassword: '',
+			})
+			// Скрываем сообщение об успехе через 3 секунды
+			setTimeout(() => {
+				setPasswordSuccess(false)
+			}, 3000)
+		} catch (error: any) {
+			console.error('Ошибка при смене пароля:', error)
+			const errorMessage =
+				error.response?.data?.detail ||
+				error.response?.data?.message ||
+				'Ошибка при смене пароля'
+			setPasswordError(errorMessage)
+		} finally {
+			setChangingPassword(false)
+		}
 	}
 
 	const handleLogout = async () => {
@@ -370,18 +426,87 @@ export default function ProfilePage() {
 												/>
 											</div>
 
-											{/* Password */}
-											<div>
-												<label className='block text-sm font-medium text-gray mb-2'>
-													Пароль
-												</label>
-												<input
-													type='password'
-													value='••••••••'
-													disabled={!editing}
-													className='w-full px-3 py-2 rounded-lg bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent disabled:bg-gray-100'
-													placeholder='Введите пароль'
-												/>
+											{/* Password Change Section */}
+											<div className='border-t border-gray2 pt-6 mt-6'>
+												<h3 className='text-base sm:text-lg font-semibold text-black mb-4'>
+													Смена пароля
+												</h3>
+												
+												{passwordSuccess && (
+													<div className='mb-4 p-3 bg-green-50 border border-green-200 rounded-lg'>
+														<p className='text-green-600 text-sm'>Пароль успешно изменён</p>
+													</div>
+												)}
+
+												{passwordError && (
+													<div className='mb-4 p-3 bg-red-50 border border-red-200 rounded-lg'>
+														<p className='text-red-600 text-sm'>{passwordError}</p>
+													</div>
+												)}
+
+												<div className='space-y-4'>
+													<div>
+														<label className='block text-sm font-medium text-gray mb-2'>
+															Текущий пароль
+														</label>
+														<input
+															type='password'
+															value={passwordData.oldPassword}
+															onChange={e =>
+																setPasswordData({
+																	...passwordData,
+																	oldPassword: e.target.value,
+																})
+															}
+															className='w-full px-3 py-2 rounded-lg bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent'
+															placeholder='Введите текущий пароль'
+														/>
+													</div>
+
+													<div>
+														<label className='block text-sm font-medium text-gray mb-2'>
+															Новый пароль
+														</label>
+														<input
+															type='password'
+															value={passwordData.newPassword}
+															onChange={e =>
+																setPasswordData({
+																	...passwordData,
+																	newPassword: e.target.value,
+																})
+															}
+															className='w-full px-3 py-2 rounded-lg bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent'
+															placeholder='Введите новый пароль (минимум 8 символов)'
+														/>
+													</div>
+
+													<div>
+														<label className='block text-sm font-medium text-gray mb-2'>
+															Подтвердите новый пароль
+														</label>
+														<input
+															type='password'
+															value={passwordData.confirmPassword}
+															onChange={e =>
+																setPasswordData({
+																	...passwordData,
+																	confirmPassword: e.target.value,
+																})
+															}
+															className='w-full px-3 py-2 rounded-lg bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent'
+															placeholder='Подтвердите новый пароль'
+														/>
+													</div>
+
+													<button
+														onClick={handleChangePassword}
+														disabled={changingPassword}
+														className='bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium'
+													>
+														{changingPassword ? 'Изменение...' : 'Изменить пароль'}
+													</button>
+												</div>
 											</div>
 
 											{/* Payment Method */}

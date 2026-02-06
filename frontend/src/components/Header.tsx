@@ -63,6 +63,8 @@ export default function Header() {
 		try {
 			const userData = await authService.getCurrentUser()
 			setUser(userData)
+			// Отправляем событие для обновления состояния в других компонентах
+			window.dispatchEvent(new Event('auth-updated'))
 			// Если находимся на главной странице, перенаправляем в каталог
 			if (pathname === '/') {
 				router.push('/catalog')
