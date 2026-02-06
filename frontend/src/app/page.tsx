@@ -4,16 +4,17 @@ import AuthModal from '@/components/AuthModal'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import HeroSection from '@/components/HeroSection'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 export default function Home() {
+	const router = useRouter()
 	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
 
 	const handleAuthSuccess = () => {
-		// После успешной авторизации просто закрываем модальное окно
+		// После успешной авторизации закрываем модальное окно и перенаправляем в каталог
 		setIsAuthModalOpen(false)
-		// Перезагружаем страницу, чтобы обновить Header с новой информацией о пользователе
-		window.location.reload()
+		router.push('/catalog')
 	}
 
 	return (

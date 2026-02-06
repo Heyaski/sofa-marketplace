@@ -2,12 +2,15 @@
 
 import { MagnifyingGlassIcon, UserIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { authService } from '../services/api'
 import { User } from '../types'
 import AuthModal from './AuthModal'
 
 export default function Header() {
+	const router = useRouter()
+	const pathname = usePathname()
 	const [user, setUser] = useState<User | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
@@ -60,6 +63,10 @@ export default function Header() {
 		try {
 			const userData = await authService.getCurrentUser()
 			setUser(userData)
+			// Если находимся на главной странице, перенаправляем в каталог
+			if (pathname === '/') {
+				router.push('/catalog')
+			}
 		} catch (error) {
 			setUser(null)
 		}
@@ -86,6 +93,21 @@ export default function Header() {
 
 					{/* Mobile actions */}
 					<div className='flex items-center space-x-2'>
+						{/* Catalog button */}
+						<a
+							href='/catalog'
+							className='bg-main1 text-white px-3 py-1.5 rounded-lg flex items-center space-x-1.5 hover:bg-main2 transition-colors flex-shrink-0'
+						>
+							<Image
+								src='/img/menu-burger.svg'
+								alt='Menu'
+								width={14}
+								height={14}
+								className='w-3.5 h-3.5'
+							/>
+							<span className='text-xs font-medium'>Каталог</span>
+						</a>
+
 						{/* Search icon button */}
 						<button
 							onClick={() => {
