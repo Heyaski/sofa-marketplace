@@ -250,6 +250,12 @@ export default function ProductPage({ params }: ProductPageProps) {
 							{/* Характеристики */}
 							<div className='space-y-3'>
 								<div className='space-y-2 text-sm'>
+									{product.article && (
+										<div className='flex justify-between'>
+											<span className='text-gray'>Артикул:</span>
+											<span className='text-black'>{product.article}</span>
+										</div>
+									)}
 									{product.category && (
 										<div className='flex justify-between'>
 											<span className='text-gray'>Категория:</span>

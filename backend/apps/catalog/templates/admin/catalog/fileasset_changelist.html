@@ -1,6 +1,23 @@
 {% extends "admin/change_list.html" %}
 {% load static %}
 
+{% block extrahead %}
+{{ block.super }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var toggle = document.getElementById('action-toggle');
+    if (toggle) {
+        toggle.addEventListener('change', function() {
+            var checkboxes = document.querySelectorAll('#changelist-form input.action-select');
+            checkboxes.forEach(function(cb) {
+                cb.checked = toggle.checked;
+            });
+        });
+    }
+});
+</script>
+{% endblock %}
+
 {% block object-tools-items %}
     {{ block.super }}
     <li>

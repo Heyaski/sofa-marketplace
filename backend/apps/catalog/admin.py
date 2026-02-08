@@ -1127,6 +1127,9 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                             # Отладочная информация только для первой строки
                             errors.append(f"Строка {row_num}: RGB не обработан (R={r}, G={g}, B={b}, исходные: R='{rgb_r_val}', G='{rgb_g_val}', B='{rgb_b_val}')")
                         
+                        # Артикул — из первого столбца (ID), fallback — столбец «Артикул»
+                        article = get_cell_value(row, 'id') or get_cell_value(row, 'article')
+                        
                         # Данные для создания/обновления
                         product_data = {
                             'category': category,
@@ -1141,7 +1144,7 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                             'brand': get_cell_value(row, 'brand'),
                             'color': get_cell_value(row, 'color'),
                             'color_rgb': color_rgb,
-                            'article': get_cell_value(row, 'article'),
+                            'article': article,
                             'subcategory': get_cell_value(row, 'subcategory'),
                             'description': get_cell_value(row, 'description'),
                             'photo_url': get_cell_value(row, 'photo_url'),
@@ -1156,7 +1159,6 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                         }
                         
                         # Создаем или обновляем по артикулу (если есть) или по названию
-                        article = get_cell_value(row, 'article')
                         if article:
                             product, created = Product.objects.update_or_create(
                                 article=article,

@@ -37,12 +37,19 @@ export default function ProductCard({
 
 			{/* Название товара */}
 			<div
-				className='text-sm font-semibold text-black mb-2 sm:mb-3 cursor-pointer hover:text-main1 transition-colors line-clamp-2 min-h-[2.5rem]'
+				className='text-sm font-semibold text-black mb-1 sm:mb-2 cursor-pointer hover:text-main1 transition-colors line-clamp-2 min-h-[2.5rem]'
 				onClick={handleCardClick}
 				title={product.title}
 			>
 				{product.title}
 			</div>
+
+			{/* Артикул */}
+			{product.article && (
+				<div className='text-xs text-gray mb-2'>
+					Артикул: {product.article}
+				</div>
+			)}
 
 			{/* Цена */}
 			<div className='text-base sm:text-lg font-bold text-black mb-2 sm:mb-3'>
