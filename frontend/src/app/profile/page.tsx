@@ -1,6 +1,7 @@
 'use client'
 
 import BasketsList from '@/components/BasketsList'
+import BottomNav from '@/components/BottomNav'
 import ChatDetail from '@/components/ChatDetail'
 import ChatsList from '@/components/ChatsList'
 import DownloadsList from '@/components/DownloadsList'
@@ -17,6 +18,7 @@ import {
 	formatCardNumber,
 	validateCardData,
 } from '@/utils/cardValidation'
+import { ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -269,9 +271,9 @@ export default function ProfilePage() {
 		return (
 			<div className='min-h-screen bg-gray-bg'>
 				<Header />
-				<main className='max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
-					<div className='bg-white rounded-xl p-8 shadow-card text-center'>
-						<h2 className='text-2xl font-bold text-black mb-4'>
+				<main className='max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 lg:pb-8'>
+					<div className='bg-white rounded-xl p-4 sm:p-6 md:p-8 shadow-card text-center'>
+						<h2 className='text-xl sm:text-2xl font-bold text-black mb-4'>
 							Вы не авторизованы
 						</h2>
 						<p className='text-gray mb-6'>
@@ -280,6 +282,7 @@ export default function ProfilePage() {
 					</div>
 				</main>
 				<Footer />
+				<BottomNav />
 			</div>
 		)
 	}
@@ -288,7 +291,7 @@ export default function ProfilePage() {
 		<div className='min-h-screen bg-gray-bg'>
 			<Header />
 
-			<main className='max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8'>
+			<main className='max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pb-20 lg:pb-8'>
 				<div className='grid grid-cols-1 lg:grid-cols-11 gap-4 sm:gap-6'>
 					{/* Левая колонка - Навигация */}
 					<div className='lg:col-span-3'>
@@ -392,7 +395,13 @@ export default function ProfilePage() {
 									<span className='whitespace-nowrap text-xs sm:text-sm'>Чаты</span>
 								</div>
 
-								{/* Logout Button */}
+								<button
+									onClick={handleLogout}
+									className='flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-lg cursor-pointer text-red-600 hover:bg-red-50 w-full lg:w-auto'
+								>
+									<ArrowRightOnRectangleIcon className='w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0' />
+									<span className='whitespace-nowrap text-xs sm:text-sm'>Выйти</span>
+								</button>
 							</div>
 						</div>
 					</div>
@@ -750,6 +759,7 @@ export default function ProfilePage() {
 			</main>
 
 			<Footer />
+			<BottomNav />
 		</div>
 	)
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import AuthModal from '@/components/AuthModal'
+import BottomNav from '@/components/BottomNav'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import HeroSection from '@/components/HeroSection'
@@ -20,10 +21,11 @@ export default function Home() {
 	return (
 		<div className='min-h-screen bg-gray-bg'>
 			<Header />
-			<main>
+			<main className='pb-20 lg:pb-0'>
 				<HeroSection onOpenAuth={() => setIsAuthModalOpen(true)} />
 			</main>
 			<Footer />
+			<BottomNav />
 
 			<AuthModal
 				isOpen={isAuthModalOpen}

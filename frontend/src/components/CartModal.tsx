@@ -46,7 +46,7 @@ export default function CartModal({
 
 	return (
 		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4'>
-			<div className='bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6 lg:p-8'>
+			<div className='bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6 lg:p-8 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-6 lg:pb-8'>
 				{/* Header */}
 				<div className='flex justify-between items-center mb-4 sm:mb-6'>
 					{isCreatingNew ? (

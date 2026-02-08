@@ -60,7 +60,7 @@ export default function Header() {
 		<header className='bg-white sticky top-0 z-40 shadow-sm'>
 			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
 				{/* Mobile layout */}
-				<div className='flex lg:hidden items-center justify-between h-14 py-2'>
+				<div className='flex lg:hidden items-center justify-between min-h-[56px] py-2 gap-2'>
 					{/* Logo */}
 					<a
 						href='/'
@@ -93,43 +93,46 @@ export default function Header() {
 							<span className='text-xs font-medium'>Каталог</span>
 						</a>
 
-						{/* Search icon button */}
+						{/* Search icon button - min 44px touch target */}
 						<button
 							onClick={() => {
-								// TODO: Open mobile search modal
 								const searchInput = document.querySelector('.mobile-search-input') as HTMLInputElement
 								if (searchInput) {
 									searchInput.focus()
 								}
 							}}
-							className='w-9 h-9 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
+							className='min-w-[44px] min-h-[44px] w-11 h-11 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
+							aria-label='Поиск'
 						>
 							<MagnifyingGlassIcon className='w-5 h-5 text-gray' />
 						</button>
 
-						{/* Cart, Profile, Logout */}
+						{/* Cart, Profile, Logout - min 44px touch targets */}
 						{loading ? (
-							<div className='animate-pulse bg-gray-bg rounded-lg w-9 h-9'></div>
+							<div className='animate-pulse bg-gray-bg rounded-lg min-w-[44px] min-h-[44px]'></div>
 						) : user ? (
-							<div className='flex items-center space-x-2'>
+							<div className='flex items-center space-x-1 sm:space-x-2'>
 								<a
 									href='/profile?tab=cart'
-									className='w-9 h-9 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
+									className='min-w-[44px] min-h-[44px] w-11 h-11 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
 									title='Корзина'
+									aria-label='Корзина'
 								>
 									<ShoppingCartIcon className='w-5 h-5 text-gray' />
 								</a>
 								<a
 									href='/profile'
-									className='w-9 h-9 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
+									className='min-w-[44px] min-h-[44px] w-11 h-11 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
 									title='Профиль'
+									aria-label='Профиль'
 								>
 									<UserIcon className='w-5 h-5 text-gray' />
 								</a>
 								<button
 									onClick={handleLogout}
-									className='w-9 h-9 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-red-50 transition-colors'
+									className='min-w-[44px] min-h-[44px] w-11 h-11 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-red-50 transition-colors'
 									title='Выйти'
+									aria-label='Выйти'
 								>
 									<ArrowRightOnRectangleIcon className='w-5 h-5 text-gray' />
 								</button>

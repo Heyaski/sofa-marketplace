@@ -165,7 +165,7 @@ export default function AuthModal({
 			></div>
 
 			<div className='flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4'>
-				<div className='relative bg-white rounded-t-xl sm:rounded-xl shadow-xl max-w-md w-full sm:max-h-[90vh] overflow-y-auto'>
+				<div className='relative bg-white rounded-t-xl sm:rounded-xl shadow-xl max-w-md w-full sm:max-h-[90vh] overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-0'>
 					<button
 						onClick={onClose}
 						className='absolute top-4 right-4 text-gray hover:text-black transition-colors z-10'

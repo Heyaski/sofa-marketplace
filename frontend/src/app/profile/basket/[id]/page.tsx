@@ -1,6 +1,7 @@
 'use client'
 
 import AddProductsModal from '@/components/AddProductsModal'
+import BottomNav from '@/components/BottomNav'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import UpgradeSubscriptionModal from '@/components/UpgradeSubscriptionModal'
@@ -306,12 +307,13 @@ export default function BasketDetailPage() {
 		return (
 			<div className='min-h-screen bg-gray-bg'>
 				<Header />
-				<main className='max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
-					<div className='bg-white rounded-xl p-8 shadow-card text-center'>
+				<main className='max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 lg:pb-8'>
+					<div className='bg-white rounded-xl p-4 sm:p-6 md:p-8 shadow-card text-center'>
 						<p className='text-gray'>Корзина не найдена</p>
 					</div>
 				</main>
 				<Footer />
+				<BottomNav />
 			</div>
 		)
 	}
@@ -320,11 +322,11 @@ export default function BasketDetailPage() {
 		<div className='min-h-screen bg-gray-bg'>
 			<Header />
 
-			<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
-				<div className='bg-white rounded-xl p-8 shadow-card'>
+			<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 lg:pb-8'>
+				<div className='bg-white rounded-xl p-4 sm:p-6 md:p-8 shadow-card'>
 					{/* Top section */}
-					<div className='flex items-center justify-between mb-8'>
-						<div className='flex items-center gap-4'>
+					<div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8'>
+						<div className='flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4'>
 							<button
 								onClick={() => router.push('/profile?tab=cart')}
 								className='flex items-center gap-2 text-gray hover:text-black transition-colors'
@@ -634,6 +636,7 @@ export default function BasketDetailPage() {
 			</main>
 
 			<Footer />
+			<BottomNav />
 
 			{/* Modal for adding products */}
 			<AddProductsModal

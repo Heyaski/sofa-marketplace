@@ -25,9 +25,9 @@ export default function Footer() {
 	}, [])
 	return (
 		<footer className='bg-main1 text-white'>
-			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12'>
-				{/* Top section - all in one line */}
-				<div className='flex flex-col lg:flex-row justify-between items-center gap-4 sm:gap-6 mb-6 sm:mb-8'>
+			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12'>
+				{/* Top section */}
+				<div className='flex flex-col lg:flex-row justify-between items-center gap-4 sm:gap-6 mb-6 sm:mb-8 text-center lg:text-left'>
 					{/* Logo and company name with white background */}
 					<div className='bg-white rounded-lg p-3 flex items-center space-x-3'>
 						<Image
@@ -76,12 +76,12 @@ export default function Footer() {
 							<span>Настройка файлов cookie</span>
 						</div>
 
-						{/* Social Media Icons - Right */}
-						<div className='flex space-x-4'>
-							{/* Instagram */}
+						{/* Social Media Icons */}
+						<div className='flex flex-wrap justify-center lg:justify-end gap-3 sm:gap-4'>
 							<a
 								href='#'
-								className='w-10 h-10 rounded-full flex items-center justify-center hover:scale-110 transition-transform'
+								className='w-10 h-10 sm:w-10 sm:h-10 rounded-full flex items-center justify-center hover:scale-110 transition-transform min-w-[44px] min-h-[44px]'
+								aria-label='Instagram'
 							>
 								<Image
 									src='/img/inst.svg'
@@ -91,10 +91,10 @@ export default function Footer() {
 									className='w-full h-full'
 								/>
 							</a>
-							{/* WhatsApp */}
 							<a
 								href='#'
-								className='w-10 h-10 rounded-full flex items-center justify-center hover:scale-110 transition-transform'
+								className='w-10 h-10 sm:w-10 sm:h-10 rounded-full flex items-center justify-center hover:scale-110 transition-transform min-w-[44px] min-h-[44px]'
+								aria-label='WhatsApp'
 							>
 								<Image
 									src='/img/whatsapp.svg'
@@ -104,10 +104,10 @@ export default function Footer() {
 									className='w-full h-full'
 								/>
 							</a>
-							{/* YouTube */}
 							<a
 								href='#'
-								className='w-10 h-10 rounded-full flex items-center justify-center hover:scale-110 transition-transform'
+								className='w-10 h-10 sm:w-10 sm:h-10 rounded-full flex items-center justify-center hover:scale-110 transition-transform min-w-[44px] min-h-[44px]'
+								aria-label='YouTube'
 							>
 								<Image
 									src='/img/youtube.svg'
@@ -117,10 +117,10 @@ export default function Footer() {
 									className='w-full h-full'
 								/>
 							</a>
-							{/* Telegram */}
 							<a
 								href='#'
-								className='w-10 h-10 rounded-full flex items-center justify-center hover:scale-110 transition-transform'
+								className='w-10 h-10 sm:w-10 sm:h-10 rounded-full flex items-center justify-center hover:scale-110 transition-transform min-w-[44px] min-h-[44px]'
+								aria-label='Telegram'
 							>
 								<Image
 									src='/img/telegram.svg'

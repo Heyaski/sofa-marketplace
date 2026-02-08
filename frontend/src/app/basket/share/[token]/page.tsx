@@ -1,5 +1,6 @@
 'use client'
 
+import BottomNav from '@/components/BottomNav'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import { basketService } from '@/services/api'
@@ -61,12 +62,13 @@ export default function BasketSharePage({ params }: BasketSharePageProps) {
 		return (
 			<div className='min-h-screen bg-gray-bg'>
 				<Header />
-				<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
+				<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 lg:pb-8'>
 					<div className='flex items-center justify-center h-64'>
 						<div className='animate-spin rounded-full h-12 w-12 border-b-2 border-main1'></div>
 					</div>
 				</main>
 				<Footer />
+				<BottomNav />
 			</div>
 		)
 	}
@@ -75,19 +77,20 @@ export default function BasketSharePage({ params }: BasketSharePageProps) {
 		return (
 			<div className='min-h-screen bg-gray-bg'>
 				<Header />
-				<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
-					<div className='bg-white rounded-xl p-8 shadow-card text-center'>
-						<h1 className='text-2xl font-bold text-black mb-4'>Ошибка</h1>
+				<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 lg:pb-8'>
+					<div className='bg-white rounded-xl p-4 sm:p-6 md:p-8 shadow-card text-center'>
+						<h1 className='text-xl sm:text-2xl font-bold text-black mb-4'>Ошибка</h1>
 						<p className='text-gray mb-6'>{error || 'Корзина не найдена'}</p>
 						<button
 							onClick={() => router.push('/')}
-							className='bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main2 transition-colors'
+							className='bg-main1 text-white px-6 py-3 rounded-lg hover:bg-main2 transition-colors min-h-[44px]'
 						>
 							Вернуться на главную
 						</button>
 					</div>
 				</main>
 				<Footer />
+				<BottomNav />
 			</div>
 		)
 	}
@@ -101,7 +104,7 @@ export default function BasketSharePage({ params }: BasketSharePageProps) {
 		<div className='min-h-screen bg-gray-bg'>
 			<Header />
 
-			<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
+			<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 lg:pb-8'>
 				{/* Хлебные крошки */}
 				<div className='mb-6'>
 					<nav className='text-sm text-gray'>
@@ -111,9 +114,9 @@ export default function BasketSharePage({ params }: BasketSharePageProps) {
 					</nav>
 				</div>
 
-				<div className='bg-white rounded-xl p-8 shadow-card'>
-					<div className='flex items-center justify-between mb-6'>
-						<h1 className='text-3xl font-bold text-black'>{basket.name}</h1>
+				<div className='bg-white rounded-xl p-4 sm:p-6 md:p-8 shadow-card'>
+					<div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6'>
+						<h1 className='text-xl sm:text-2xl md:text-3xl font-bold text-black'>{basket.name}</h1>
 						{!isAuthenticated && (
 							<button
 								onClick={() => setIsAuthModalOpen(true)}
@@ -147,10 +150,10 @@ export default function BasketSharePage({ params }: BasketSharePageProps) {
 								{basket.items.map((item) => (
 									<div
 										key={item.id}
-										className='flex items-center gap-4 p-4 border border-gray2 rounded-lg hover:bg-gray-bg transition-colors'
+										className='flex flex-col sm:flex-row sm:items-center gap-4 p-4 border border-gray2 rounded-lg hover:bg-gray-bg transition-colors'
 									>
 										{/* Изображение товара */}
-										<div className='w-24 h-24 bg-gray-bg rounded-lg overflow-hidden flex-shrink-0'>
+										<div className='w-20 h-20 sm:w-24 sm:h-24 bg-gray-bg rounded-lg overflow-hidden flex-shrink-0'>
 											{item.product.image ? (
 												<Image
 													src={item.product.image}
@@ -192,7 +195,7 @@ export default function BasketSharePage({ params }: BasketSharePageProps) {
 										</div>
 
 										{/* Цена */}
-										<div className='text-right'>
+										<div className='text-left sm:text-right'>
 											<p className='text-xl font-bold text-black'>
 												{(
 													parseFloat(item.product.price.toString()) * item.quantity
@@ -241,6 +244,7 @@ export default function BasketSharePage({ params }: BasketSharePageProps) {
 			</main>
 
 			<Footer />
+			<BottomNav />
 
 			{/* Модальное окно авторизации */}
 			<AuthModal
