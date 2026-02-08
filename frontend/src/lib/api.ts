@@ -51,15 +51,14 @@ apiClient.interceptors.response.use(
 			error.response?.data,
 			error.config?.url
 		)
-		if (error.response?.status === 401) {
-			// Проверяем, что это не запрос на логин или регистрацию
+		if (error.response?.status === 401 || error.response?.status === 403) {
+			// 401/403 на auth-эндпоинтах = невалидный/истёкший токен
 			const isAuthRequest =
 				error.config?.url?.includes('/auth/login/') ||
 				error.config?.url?.includes('/users/register/') ||
 				error.config?.url?.includes('/users/logout/')
 
 			if (!isAuthRequest) {
-				// Токен истек, очищаем токены
 				localStorage.removeItem('access_token')
 				localStorage.removeItem('refresh_token')
 			}

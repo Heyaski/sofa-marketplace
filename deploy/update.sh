@@ -25,6 +25,7 @@ cd "$PROJECT_DIR/backend"
 source venv/bin/activate
 pip install -r requirements.txt
 python manage.py migrate
+python manage.py import_existing_pages 2>/dev/null || true
 python manage.py collectstatic --noinput
 
 # Перезапуск Backend
