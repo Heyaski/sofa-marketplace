@@ -58,63 +58,59 @@ export default function Header() {
 	}
 	return (
 		<header className='bg-white sticky top-0 z-40 shadow-sm'>
-			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-				{/* Mobile layout */}
-				<div className='flex lg:hidden items-center justify-between min-h-[56px] py-2 gap-2'>
-					{/* Logo */}
+			<div className='max-w-7xl mx-auto px-3 sm:px-6 lg:px-8'>
+				{/* Mobile layout — компактно, всё влезает в строку */}
+				<div className='flex lg:hidden items-center justify-between min-h-[48px] py-1.5 gap-1 min-w-0'>
+					{/* Logo — без текста на узких экранах, с текстом VIZHUB на широких */}
 					<a
 						href='/'
-						className='flex items-center space-x-2 hover:opacity-80 transition-opacity'
+						className='flex items-center flex-shrink-0 hover:opacity-80 transition-opacity'
 					>
 						<Image
 							src='/img/logo.svg'
-							alt='VizHub.pro Logo'
+							alt='VizHub.pro'
 							width={24}
 							height={24}
 							className='w-6 h-6'
 						/>
-						<span className='text-base font-semibold text-black'>VIZHUB.PRO</span>
+						<span className='text-sm font-semibold text-black ml-1.5 truncate max-w-[80px]'>VIZHUB</span>
 					</a>
 
-					{/* Mobile actions */}
-					<div className='flex items-center space-x-2'>
-						{/* Catalog button */}
-						<a
-							href='/catalog'
-							className='bg-main1 text-white px-3 py-1.5 rounded-lg flex items-center space-x-1.5 hover:bg-main2 transition-colors flex-shrink-0'
-						>
-							<Image
-								src='/img/menu-burger.svg'
-								alt='Menu'
-								width={14}
-								height={14}
-								className='w-3.5 h-3.5'
-							/>
-							<span className='text-xs font-medium'>Каталог</span>
-						</a>
+					{/* Catalog — только иконка на мобильных */}
+					<a
+						href='/catalog'
+						className='flex-shrink-0 w-9 h-9 bg-main1 text-white rounded-lg flex items-center justify-center hover:bg-main2 transition-colors'
+						title='Каталог'
+						aria-label='Каталог'
+					>
+						<Image
+							src='/img/menu-burger.svg'
+							alt=''
+							width={16}
+							height={16}
+							className='w-4 h-4'
+						/>
+					</a>
 
-						{/* Search icon button - min 44px touch target */}
+					{/* Иконки справа — компактно */}
+					<div className='flex items-center flex-shrink-0 gap-0.5'>
 						<button
 							onClick={() => {
 								const searchInput = document.querySelector('.mobile-search-input') as HTMLInputElement
-								if (searchInput) {
-									searchInput.focus()
-								}
+								if (searchInput) searchInput.focus()
 							}}
-							className='min-w-[44px] min-h-[44px] w-11 h-11 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
+							className='w-9 h-9 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
 							aria-label='Поиск'
 						>
 							<MagnifyingGlassIcon className='w-5 h-5 text-gray' />
 						</button>
-
-						{/* Cart, Profile, Logout - min 44px touch targets */}
 						{loading ? (
-							<div className='animate-pulse bg-gray-bg rounded-lg min-w-[44px] min-h-[44px]'></div>
+							<div className='animate-pulse bg-gray-bg rounded-lg w-9 h-9' />
 						) : user ? (
-							<div className='flex items-center space-x-1 sm:space-x-2'>
+							<>
 								<a
 									href='/profile?tab=cart'
-									className='min-w-[44px] min-h-[44px] w-11 h-11 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
+									className='w-9 h-9 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
 									title='Корзина'
 									aria-label='Корзина'
 								>
@@ -122,7 +118,7 @@ export default function Header() {
 								</a>
 								<a
 									href='/profile'
-									className='min-w-[44px] min-h-[44px] w-11 h-11 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
+									className='w-9 h-9 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
 									title='Профиль'
 									aria-label='Профиль'
 								>
@@ -130,17 +126,17 @@ export default function Header() {
 								</a>
 								<button
 									onClick={handleLogout}
-									className='min-w-[44px] min-h-[44px] w-11 h-11 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-red-50 transition-colors'
+									className='w-9 h-9 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-red-50 transition-colors'
 									title='Выйти'
 									aria-label='Выйти'
 								>
 									<ArrowRightOnRectangleIcon className='w-5 h-5 text-gray' />
 								</button>
-							</div>
+							</>
 						) : (
 							<button
 								onClick={() => setIsAuthModalOpen(true)}
-								className='text-main1 hover:text-main2 font-medium text-xs px-2'
+								className='text-main1 hover:text-main2 font-medium text-xs px-2 py-2'
 							>
 								Войти
 							</button>
