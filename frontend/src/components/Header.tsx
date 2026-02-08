@@ -76,20 +76,20 @@ export default function Header() {
 						<span className='text-sm font-semibold text-black ml-1.5 truncate max-w-[80px]'>VIZHUB</span>
 					</a>
 
-					{/* Catalog — только иконка на мобильных */}
+					{/* Catalog — иконка + текст «Каталог» */}
 					<a
 						href='/catalog'
-						className='flex-shrink-0 w-9 h-9 bg-main1 text-white rounded-lg flex items-center justify-center hover:bg-main2 transition-colors'
-						title='Каталог'
+						className='flex-shrink-0 bg-main1 text-white px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 hover:bg-main2 transition-colors'
 						aria-label='Каталог'
 					>
 						<Image
 							src='/img/menu-burger.svg'
 							alt=''
-							width={16}
-							height={16}
-							className='w-4 h-4'
+							width={14}
+							height={14}
+							className='w-3.5 h-3.5'
 						/>
+						<span className='text-xs font-medium whitespace-nowrap'>Каталог</span>
 					</a>
 
 					{/* Иконки справа — компактно */}

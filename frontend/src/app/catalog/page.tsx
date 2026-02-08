@@ -364,7 +364,7 @@ export default function CatalogPage() {
 										Цена
 									</button>
 									{openFilter === 'price' && (
-										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[300px] max-w-sm'>
+										<div className='absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] max-w-[340px] overflow-hidden sm:left-0 sm:translate-x-0 sm:w-auto sm:min-w-[300px] sm:max-w-sm'>
 											<PriceFilter
 												minPrice={filterRanges.price.min}
 												maxPrice={filterRanges.price.max}
@@ -390,7 +390,7 @@ export default function CatalogPage() {
 										Габариты
 									</button>
 									{openFilter === 'dimensions' && (
-										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[300px] max-w-sm'>
+										<div className='absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] max-w-[340px] overflow-hidden sm:left-0 sm:translate-x-0 sm:w-auto sm:min-w-[300px] sm:max-w-sm'>
 											<DimensionsFilter
 												minWidth={filterRanges.width.min}
 												maxWidth={filterRanges.width.max}
@@ -430,7 +430,7 @@ export default function CatalogPage() {
 											Вид мебели
 										</button>
 										{openFilter === 'furniture_type' && (
-											<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[260px] max-w-sm'>
+											<div className='absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] max-w-[340px] overflow-hidden sm:left-0 sm:translate-x-0 sm:w-auto sm:min-w-[260px] sm:max-w-sm'>
 												<MultiSelectFilter
 													title='Вид мебели'
 													options={filterRanges.styles}
@@ -453,7 +453,7 @@ export default function CatalogPage() {
 										Цвет RGB
 									</button>
 									{openFilter === 'color_rgb' && (
-										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[300px] max-w-sm'>
+										<div className='absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] max-w-[340px] overflow-hidden sm:left-0 sm:translate-x-0 sm:w-auto sm:min-w-[300px] sm:max-w-sm'>
 											<RGBColorFilter
 												value={filters.color_rgb}
 												onChange={v => {
@@ -479,7 +479,7 @@ export default function CatalogPage() {
 											Материал
 										</button>
 									{openFilter === 'material' && (
-										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[200px] max-w-xs'>
+										<div className='absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] max-w-[340px] overflow-hidden sm:left-0 sm:translate-x-0 sm:w-auto sm:min-w-[200px] sm:max-w-xs'>
 											<MultiSelectFilter
 												title=''
 												options={filterRanges.materials}
@@ -505,7 +505,7 @@ export default function CatalogPage() {
 											Стиль
 										</button>
 									{openFilter === 'style' && (
-										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[200px] max-w-xs'>
+										<div className='absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] max-w-[340px] overflow-hidden sm:left-0 sm:translate-x-0 sm:w-auto sm:min-w-[200px] sm:max-w-xs'>
 											<MultiSelectFilter
 												title=''
 												options={filterRanges.styles}
@@ -531,7 +531,7 @@ export default function CatalogPage() {
 											Цвет
 										</button>
 									{openFilter === 'color' && (
-										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[200px] max-w-xs'>
+										<div className='absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] max-w-[340px] overflow-hidden sm:left-0 sm:translate-x-0 sm:w-auto sm:min-w-[200px] sm:max-w-xs'>
 											<MultiSelectFilter
 												title=''
 												options={filterRanges.colors}
@@ -557,7 +557,7 @@ export default function CatalogPage() {
 											Бренд
 										</button>
 									{openFilter === 'brand' && (
-										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[200px] max-w-xs'>
+										<div className='absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] max-w-[340px] overflow-hidden sm:left-0 sm:translate-x-0 sm:w-auto sm:min-w-[200px] sm:max-w-xs'>
 											<MultiSelectFilter
 												title=''
 												options={filterRanges.brands}

@@ -127,7 +127,7 @@ export default function DimensionsFilter({
 		localDepthMax === maxDepth
 
 	return (
-		<div className='bg-white rounded-lg shadow-lg border border-gray2 p-4' onClick={(e) => e.stopPropagation()}>
+		<div className='bg-white rounded-lg shadow-lg border border-gray2 p-3 sm:p-4 min-w-0' onClick={(e) => e.stopPropagation()}>
 			<div className='flex items-center justify-between mb-4'>
 				<h3 className='text-sm font-bold text-black'>Габариты</h3>
 				<div className='flex items-center gap-3'>
@@ -186,8 +186,8 @@ export default function DimensionsFilter({
 								style={{ zIndex: 20 }}
 							/>
 						</div>
-						<div className='flex items-center justify-between gap-4'>
-							<div className='flex-1'>
+						<div className='flex items-center justify-between gap-2 sm:gap-4'>
+							<div className='flex-1 min-w-0'>
 								<input
 									type='number'
 									min={minWidth}
@@ -197,8 +197,8 @@ export default function DimensionsFilter({
 									className='w-full px-3 py-2 rounded-lg border border-gray2 bg-white text-black text-sm focus:outline-none focus:ring-2 focus:ring-main1'
 								/>
 							</div>
-							<span className='text-gray'>—</span>
-							<div className='flex-1'>
+							<span className='text-gray flex-shrink-0'>—</span>
+							<div className='flex-1 min-w-0'>
 								<input
 									type='number'
 									min={minWidth}
@@ -249,8 +249,8 @@ export default function DimensionsFilter({
 								style={{ zIndex: 20 }}
 							/>
 						</div>
-						<div className='flex items-center justify-between gap-4'>
-							<div className='flex-1'>
+						<div className='flex items-center justify-between gap-2 sm:gap-4'>
+							<div className='flex-1 min-w-0'>
 								<input
 									type='number'
 									min={minDepth}
@@ -260,8 +260,8 @@ export default function DimensionsFilter({
 									className='w-full px-3 py-2 rounded-lg border border-gray2 bg-white text-black text-sm focus:outline-none focus:ring-2 focus:ring-main1'
 								/>
 							</div>
-							<span className='text-gray'>—</span>
-							<div className='flex-1'>
+							<span className='text-gray flex-shrink-0'>—</span>
+							<div className='flex-1 min-w-0'>
 								<input
 									type='number'
 									min={minDepth}

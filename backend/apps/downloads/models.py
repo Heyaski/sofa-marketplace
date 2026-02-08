@@ -3,7 +3,7 @@ from django.db import models
 
 class Download(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Пользователь")
-    product = models.ForeignKey("catalog.Product", on_delete=models.PROTECT, verbose_name="Товар")
+    product = models.ForeignKey("catalog.Product", on_delete=models.CASCADE, verbose_name="Товар")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата загрузки")
 
     # Подготовка под реальные файлы
