@@ -1,10 +1,10 @@
 'use client'
 
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { config } from '../config'
 import { Product } from '../types'
+import ProductModelViewer from './ProductModelViewer'
 
 interface ProductCardProps {
 	product: Product
@@ -30,29 +30,9 @@ export default function ProductCard({
 
 	return (
 		<div className='product-card bg-white rounded-xl shadow-sm p-3 sm:p-4 hover:shadow-md transition-all duration-200'>
-			{/* Изображение товара */}
-			<div
-				className='aspect-square rounded-lg mb-3 sm:mb-4 overflow-hidden bg-gray-50 flex items-center justify-center cursor-pointer'
-				onClick={handleCardClick}
-			>
-				{product.image && typeof product.image === 'string' ? (
-					<Image
-						src={product.image}
-						alt={product.title || 'Товар'}
-						width={300}
-						height={300}
-						className='w-full h-full object-contain'
-						unoptimized
-					/>
-				) : (
-					<Image
-						src='/img/sofa-card.svg'
-						alt='Заглушка'
-						width={300}
-						height={300}
-						className='w-full h-full object-contain opacity-70'
-					/>
-				)}
+			{/* 3D модель или изображение товара — можно крутить в каталоге */}
+			<div className='rounded-lg mb-3 sm:mb-4 overflow-hidden' onClick={handleCardClick}>
+				<ProductModelViewer product={product} variant='card' />
 			</div>
 
 			{/* Название товара */}

@@ -65,6 +65,11 @@ class ProductViewSet(viewsets.ModelViewSet):
                 # Если category_id невалидный, игнорируем фильтр
                 pass
         
+        # Фильтрация по color_rgb (формат "r,g,b")
+        color_rgb = self.request.query_params.get('color_rgb', None)
+        if color_rgb and color_rgb.strip():
+            queryset = queryset.filter(color_rgb__icontains=color_rgb.strip())
+
         # Фильтрация по множественным значениям (material, style, color, brand)
         # Если значение содержит запятую, ищем товары, где поле содержит любое из значений
         for field in ['material', 'style', 'color', 'brand']:

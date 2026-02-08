@@ -1,11 +1,13 @@
 'use client'
 
+import BottomNav from '@/components/BottomNav'
 import CartModal from '@/components/CartModal'
 import DimensionsFilter from '@/components/DimensionsFilter'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import MultiSelectFilter from '@/components/MultiSelectFilter'
 import PriceFilter from '@/components/PriceFilter'
+import RGBColorFilter from '@/components/RGBColorFilter'
 import ProductCard from '@/components/ProductCard'
 import { useBaskets, useCategories, useProducts } from '@/hooks/useApi'
 import { productService } from '@/services/api'
@@ -236,7 +238,7 @@ export default function CatalogPage() {
 		: undefined
 
 	return (
-		<div className='min-h-screen bg-gray-bg'>
+		<div className='min-h-screen bg-gray-bg pb-20 lg:pb-0'>
 			<Header />
 
 			<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8'>
@@ -416,6 +418,53 @@ export default function CatalogPage() {
 									)}
 								</div>
 
+								{/* Кнопка "Вид мебели" (стили) - чекбоксы как на hh.ru */}
+								{filterRanges.styles.length > 0 && (
+									<div className='relative'>
+										<button
+											onClick={() => setOpenFilter(openFilter === 'furniture_type' ? null : 'furniture_type')}
+											className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+												filters.style ? 'bg-main1 text-white' : 'bg-gray-bg text-black hover:bg-gray2'
+											}`}
+										>
+											Вид мебели
+										</button>
+										{openFilter === 'furniture_type' && (
+											<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[260px] max-w-sm'>
+												<MultiSelectFilter
+													title='Вид мебели'
+													options={filterRanges.styles}
+													selectedValues={filters.style ? filters.style.split(',').map(v => v.trim()) : undefined}
+													onChange={handleMultiSelectChange('style')}
+												/>
+											</div>
+										)}
+									</div>
+								)}
+
+								{/* Кнопка фильтра RGB */}
+								<div className='relative'>
+									<button
+										onClick={() => setOpenFilter(openFilter === 'color_rgb' ? null : 'color_rgb')}
+										className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+											filters.color_rgb ? 'bg-main1 text-white' : 'bg-gray-bg text-black hover:bg-gray2'
+										}`}
+									>
+										Цвет RGB
+									</button>
+									{openFilter === 'color_rgb' && (
+										<div className='absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-50 w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[300px] max-w-sm'>
+											<RGBColorFilter
+												value={filters.color_rgb}
+												onChange={v => {
+													setFilters(v ? { ...filters, color_rgb: v } : (() => { const { color_rgb: _, ...r } = filters; return r })())
+												}}
+												onApply={() => setOpenFilter(null)}
+											/>
+										</div>
+									)}
+								</div>
+
 								{/* Кнопка фильтра материала */}
 								{filterRanges.materials.length > 0 && (
 									<div className='relative'>
@@ -564,7 +613,7 @@ export default function CatalogPage() {
 						</div>
 					) : (
 						<>
-							<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6'>
+							<div className='grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6'>
 								{products.map(product => (
 									<ProductCard
 										key={product.id}
@@ -591,6 +640,7 @@ export default function CatalogPage() {
 			</main>
 
 			<Footer />
+			<BottomNav />
 
 			<CartModal
 				isOpen={isCartModalOpen}

@@ -1,10 +1,11 @@
 'use client'
 
 import AuthModal from '@/components/AuthModal'
+import BottomNav from '@/components/BottomNav'
 import CartModal from '@/components/CartModal'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
-import ModelViewerModal from '@/components/ModelViewerModal'
+import ProductModelViewer from '@/components/ProductModelViewer'
 import { config } from '@/config'
 import { useBaskets, useProduct } from '@/hooks/useApi'
 import Image from 'next/image'
@@ -27,7 +28,6 @@ export default function ProductPage({ params }: ProductPageProps) {
 	const [mainImage, setMainImage] = useState<string | null>(null)
 	const [isAuthenticated, setIsAuthenticated] = useState(false)
 	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
-	const [is3DViewerOpen, setIs3DViewerOpen] = useState(false)
 
 	const { product, loading, error } = useProduct(productId)
 	const { createBasket, addToBasket } = useBaskets()
@@ -144,7 +144,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 		<div className='min-h-screen bg-gray-bg'>
 			<Header />
 
-			<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8'>
+			<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pb-20 lg:pb-8'>
 				{/* Хлебные крошки */}
 				<div className='mb-4 sm:mb-6 lg:mb-8'>
 					<nav className='text-xs sm:text-sm text-gray'>
@@ -168,36 +168,14 @@ export default function ProductPage({ params }: ProductPageProps) {
 
 				<div className='bg-white rounded-xl p-4 sm:p-6 lg:p-8 shadow-card'>
 					<div className='grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12'>
-						{/* Изображения товара */}
+						{/* 3D модель или изображения товара — можно крутить */}
 						<div className='space-y-4'>
-							{/* Главное изображение */}
-							<div className='aspect-square bg-gray-bg rounded-lg p-8'>
-								{mainImage ? (
-									<div className='w-full h-full rounded-lg overflow-hidden'>
-										<Image
-											src={mainImage}
-											alt={product.title}
-											width={600}
-											height={600}
-											className='w-full h-full object-contain'
-											unoptimized
-										/>
-									</div>
-								) : (
-									<div className='w-full h-full bg-gray-bg rounded-lg flex items-center justify-center'>
-										<Image
-											src='/img/sofa-card.svg'
-											alt='Нет изображения'
-											width={128}
-											height={128}
-											className='opacity-50'
-										/>
-									</div>
-								)}
+							<div className='bg-gray-bg rounded-lg overflow-hidden'>
+								<ProductModelViewer product={product} variant='page' selectedImageUrl={mainImage} />
 							</div>
 
-							{/* Миниатюры - горизонтальная прокрутка */}
-							{thumbnails.length > 0 && (
+							{/* Миниатюры — если несколько изображений */}
+							{thumbnails.length > 1 && (
 								<div className='overflow-x-auto pb-2'>
 									<div className='flex gap-2 min-w-max'>
 										{thumbnails.map((thumbnail, index) => (
@@ -360,30 +338,13 @@ export default function ProductPage({ params }: ProductPageProps) {
 								Открыть товар в Яндекс
 							</button>
 
-							{/* Все кнопки в одну линию */}
-							<div className='grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4'>
+							{/* Кнопки */}
+							<div className='grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4'>
 								<button
 									onClick={handleAddToCart}
 									className='bg-main1 text-white py-2.5 sm:py-3 rounded-lg hover:bg-main1/90 transition-colors font-medium text-sm sm:text-base'
 								>
 									Добавить в корзину
-								</button>
-								<button
-									onClick={() => setIs3DViewerOpen(true)}
-									disabled={
-										!product?.asset_3d_models ||
-										!Array.isArray(product.asset_3d_models) ||
-										product.asset_3d_models.length === 0
-									}
-									className='border-2 border-main1 bg-white text-black py-2.5 sm:py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed'
-									title={
-										!product?.asset_3d_models ||
-										product.asset_3d_models.length === 0
-											? 'У товара нет 3D моделей'
-											: `Открыть 3D просмотр (${product.asset_3d_models.length})`
-									}
-								>
-									Открыть 3D Viewer
 								</button>
 								<button className='border-2 border-main1 bg-white text-black py-2.5 sm:py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors text-sm sm:text-base'>
 									Примерка GLB
@@ -407,6 +368,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 			</main>
 
 			<Footer />
+			<BottomNav />
 
 			<CartModal
 				isOpen={isCartModalOpen}
@@ -422,13 +384,6 @@ export default function ProductPage({ params }: ProductPageProps) {
 					setIsAuthenticated(true)
 					setIsAuthModalOpen(false)
 				}}
-			/>
-
-			<ModelViewerModal
-				isOpen={is3DViewerOpen}
-				onClose={() => setIs3DViewerOpen(false)}
-				models={product?.asset_3d_models || []}
-				productTitle={product?.title}
 			/>
 		</div>
 	)

@@ -176,6 +176,7 @@ export interface ProductFilters {
 	material?: string
 	style?: string
 	color?: string
+	color_rgb?: string
 	brand?: string
 	country?: string
 	availability?: 'in_stock' | 'on_order' | 'out_of_stock'

@@ -1,6 +1,6 @@
 'use client'
 
-import { MagnifyingGlassIcon, UserIcon } from '@heroicons/react/24/outline'
+import { MagnifyingGlassIcon, UserIcon, ShoppingCartIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -14,7 +14,6 @@ export default function Header() {
 	const [user, setUser] = useState<User | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
-	const [showUserMenu, setShowUserMenu] = useState(false)
 
 	useEffect(() => {
 		const checkAuth = async () => {
@@ -31,29 +30,13 @@ export default function Header() {
 		checkAuth()
 	}, [])
 
-	// Закрытие меню при клике вне его
-	useEffect(() => {
-		const handleClickOutside = (event: MouseEvent) => {
-			if (
-				showUserMenu &&
-				!(event.target as Element).closest('.user-menu-container')
-			) {
-				setShowUserMenu(false)
-			}
-		}
-
-		document.addEventListener('mousedown', handleClickOutside)
-		return () => {
-			document.removeEventListener('mousedown', handleClickOutside)
-		}
-	}, [showUserMenu])
-
 	const handleLogout = async () => {
 		try {
 			await authService.logout()
 			localStorage.removeItem('access_token')
 			localStorage.removeItem('refresh_token')
 			setUser(null)
+			router.push('/')
 		} catch (error) {
 			console.error('Ошибка при выходе:', error)
 		}
@@ -124,34 +107,32 @@ export default function Header() {
 							<MagnifyingGlassIcon className='w-5 h-5 text-gray' />
 						</button>
 
-						{/* User menu */}
+						{/* Cart, Profile, Logout */}
 						{loading ? (
 							<div className='animate-pulse bg-gray-bg rounded-lg w-9 h-9'></div>
 						) : user ? (
-							<div className='relative user-menu-container'>
-								<button
-									onClick={() => setShowUserMenu(!showUserMenu)}
+							<div className='flex items-center space-x-2'>
+								<a
+									href='/profile?tab=cart'
 									className='w-9 h-9 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
+									title='Корзина'
+								>
+									<ShoppingCartIcon className='w-5 h-5 text-gray' />
+								</a>
+								<a
+									href='/profile'
+									className='w-9 h-9 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
+									title='Профиль'
 								>
 									<UserIcon className='w-5 h-5 text-gray' />
+								</a>
+								<button
+									onClick={handleLogout}
+									className='w-9 h-9 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-red-50 transition-colors'
+									title='Выйти'
+								>
+									<ArrowRightOnRectangleIcon className='w-5 h-5 text-gray' />
 								</button>
-								{showUserMenu && (
-									<div className='absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray2 py-2 z-50'>
-										<a
-											href='/profile'
-											className='block px-4 py-2 text-sm text-black hover:bg-gray-bg'
-											onClick={() => setShowUserMenu(false)}
-										>
-											Профиль
-										</a>
-										<button
-											onClick={handleLogout}
-											className='w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-bg'
-										>
-											Выйти
-										</button>
-									</div>
-								)}
 							</div>
 						) : (
 							<button
@@ -225,40 +206,36 @@ export default function Header() {
 						</div>
 					</div>
 
-					{/* Right side - User section */}
+					{/* Right side - Cart, Profile, Logout */}
 					<div className='flex items-center space-x-3'>
 						{loading ? (
 							<div className='animate-pulse bg-gray-bg rounded-lg w-10 h-10'></div>
 						) : user ? (
-							<div className='relative user-menu-container'>
-								<button
-									onClick={() => setShowUserMenu(!showUserMenu)}
-									className='w-10 h-10 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
+							<div className='flex items-center space-x-2'>
+								<a
+									href='/profile?tab=cart'
+									className='flex items-center space-x-2 px-3 py-2 bg-gray-bg rounded-lg hover:bg-gray2 transition-colors'
+									title='Корзина'
+								>
+									<ShoppingCartIcon className='w-5 h-5 text-gray' />
+									<span className='text-sm font-medium text-black'>Корзина</span>
+								</a>
+								<a
+									href='/profile'
+									className='flex items-center space-x-2 px-3 py-2 bg-gray-bg rounded-lg hover:bg-gray2 transition-colors'
+									title='Профиль'
 								>
 									<UserIcon className='w-5 h-5 text-gray' />
+									<span className='text-sm font-medium text-black'>Профиль</span>
+								</a>
+								<button
+									onClick={handleLogout}
+									className='flex items-center space-x-2 px-3 py-2 bg-gray-bg rounded-lg hover:bg-red-50 transition-colors'
+									title='Выйти'
+								>
+									<ArrowRightOnRectangleIcon className='w-5 h-5 text-gray' />
+									<span className='text-sm font-medium text-black'>Выйти</span>
 								</button>
-								<div className='absolute -top-1 -right-1 w-5 h-5 bg-main1 rounded-full flex items-center justify-center'>
-									<span className='text-xs text-white font-medium'>10</span>
-								</div>
-
-								{/* Dropdown menu */}
-								{showUserMenu && (
-									<div className='absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray2 py-2 z-50'>
-										<a
-											href='/profile'
-											className='block px-4 py-2 text-sm text-black hover:bg-gray-bg'
-											onClick={() => setShowUserMenu(false)}
-										>
-											Профиль
-										</a>
-										<button
-											onClick={handleLogout}
-											className='w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-bg'
-										>
-											Выйти
-										</button>
-									</div>
-								)}
 							</div>
 						) : (
 							<button
