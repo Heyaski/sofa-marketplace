@@ -20,6 +20,8 @@ const getBrightness = (rgb: string): number | null => {
 export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps) {
 	const [minVal, setMinVal] = useState(0)
 	const [maxVal, setMaxVal] = useState(255)
+	// Локальное значение, из которого с дебаунсом дергаем onChange
+	const [pendingValue, setPendingValue] = useState<string | undefined>(undefined)
 
 	// Синхронизация из внешнего значения
 	useEffect(() => {
@@ -51,19 +53,22 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
 	}, [value])
 
 	const updateRange = (nextMin: number, nextMax: number) => {
-		const clampedMin = Math.max(0, Math.min(255, nextMin))
-		const clampedMax = Math.max(0, Math.min(255, nextMax))
-		const finalMin = Math.min(clampedMin, clampedMax)
-		const finalMax = Math.max(clampedMin, clampedMax)
+		// Жёстко держим левый ползунок слева, правый — справа
+		const clampedMin = Math.max(0, Math.min(254, nextMin))
+		const clampedMax = Math.max(1, Math.min(255, nextMax))
+
+		// Не даём левому уйти правее правого и наоборот
+		const finalMin = Math.min(clampedMin, clampedMax - 1)
+		const finalMax = Math.max(clampedMax, finalMin + 1)
 
 		setMinVal(finalMin)
 		setMaxVal(finalMax)
 
 		// Если выбран весь диапазон — считаем, что фильтра нет
 		if (finalMin === 0 && finalMax === 255) {
-			onChange(undefined)
+			setPendingValue(undefined)
 		} else {
-			onChange(`${finalMin}-${finalMax}`)
+			setPendingValue(`${finalMin}-${finalMax}`)
 		}
 	}
 
@@ -77,6 +82,14 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
 		updateRange(minVal, next)
 	}
 
+	// Дебаунс, чтобы не дёргать каталог при каждом пикселе движения
+	useEffect(() => {
+		const id = window.setTimeout(() => {
+			onChange(pendingValue)
+		}, 250)
+		return () => window.clearTimeout(id)
+	}, [pendingValue, onChange])
+
 	const minPercent = (minVal / 255) * 100
 	const maxPercent = (maxVal / 255) * 100
 
@@ -89,7 +102,7 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
 				</span>
 			</div>
 
-			<div className='relative h-4'>
+			<div className='relative h-6'>
 				{/* Радужная полоса */}
 				<div
 					className='absolute inset-0 rounded-full'
@@ -115,7 +128,7 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
 					max={255}
 					value={minVal}
 					onChange={handleMinChange}
-					className='absolute inset-0 w-full appearance-none bg-transparent pointer-events-auto'
+					className='absolute left-0 right-0 top-0 bottom-0 w-full appearance-none bg-transparent pointer-events-auto'
 				/>
 				<input
 					type='range'
@@ -123,7 +136,8 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
 					max={255}
 					value={maxVal}
 					onChange={handleMaxChange}
-					className='absolute inset-0 w-full appearance-none bg-transparent pointer-events-auto'
+					className='absolute left-0 right-0 w-full appearance-none bg-transparent pointer-events-auto'
+					style={{ top: '6px', bottom: '0' }}
 				/>
 			</div>
 		</div>
