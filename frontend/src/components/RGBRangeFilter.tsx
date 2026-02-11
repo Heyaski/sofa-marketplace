@@ -108,7 +108,7 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
 				</span>
 			</div>
 
-			<div className='relative h-4'>
+			<div className='relative h-6'>
 				{/* Радужная полоса */}
 				<div
 					className='absolute inset-0 rounded-full'
@@ -127,14 +127,14 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
 					}}
 				/>
 
-				{/* Два range-инпута поверх */}
+				{/* Два range-инпута поверх (левый чуть выше, правый чуть ниже) */}
 				<input
 					type='range'
 					min={0}
 					max={255}
 					value={minVal}
 					onChange={handleMinChange}
-					className='absolute inset-0 w-full appearance-none bg-transparent pointer-events-auto'
+					className='absolute left-0 right-0 top-0 bottom-2 w-full appearance-none bg-transparent pointer-events-auto'
 					style={{ zIndex: 2 }}
 				/>
 				<input
@@ -143,7 +143,7 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
 					max={255}
 					value={maxVal}
 					onChange={handleMaxChange}
-					className='absolute inset-0 w-full appearance-none bg-transparent pointer-events-auto'
+					className='absolute left-0 right-0 top-2 bottom-0 w-full appearance-none bg-transparent pointer-events-auto'
 					style={{ zIndex: 3 }}
 				/>
 			</div>
