@@ -27,36 +27,35 @@ sudo systemctl restart sofa-backend
 
 ---
 
-## 2. CORS — картинки с api.vizhub.pro блокируются с www.vizhub.pro
+## 2. CORS — картинки и 3D модели с api.vizhub.pro блокируются с www.vizhub.pro
 
-Ошибка: `Access to fetch at 'https://api.vizhub.pro/media/...' has been blocked by CORS policy`
+Ошибка: `Access to fetch at 'https://api.vizhub.pro/media/...' has been blocked by CORS policy`  
+Или: `Access to fetch at 'https://api.vizhub.pro/media/assets/диван00087.glb' ... No 'Access-Control-Allow-Origin' header`
 
-**Решение:** в nginx для API в `location /media/` и `location /static/` должен быть правильный домен.
+**Причина:** Nginx раздаёт медиа напрямую, CORS нужно настроить в nginx, а не в Django.
 
-Проверь файл:
+**Решение:** в конфиге nginx в `location /media/` и `location /static/` добавь (или проверь наличие):
+
+```
+add_header 'Access-Control-Allow-Origin' 'https://www.vizhub.pro' always;
+add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range' always;
+```
+
+Если конфиг в `/etc/nginx/sites-available/sofa-api`:
+
 ```bash
 sudo nano /etc/nginx/sites-available/sofa-api
 ```
 
-В блоках `location /media/` и `location /static/` замени:
-
-```
-add_header 'Access-Control-Allow-Origin' 'https://yourdomain.com' always;
-```
-
-на:
-
-```
-add_header 'Access-Control-Allow-Origin' 'https://www.vizhub.pro' always;
-```
-
-Или для поддержки обоих доменов (vizhub.pro и www.vizhub.pro) используй:
+Для обоих доменов используй:
 
 ```
 add_header 'Access-Control-Allow-Origin' '*' always;
 ```
 
 Перезагрузи nginx:
+
 ```bash
 sudo nginx -t
 sudo systemctl reload nginx
@@ -64,8 +63,18 @@ sudo systemctl reload nginx
 
 ---
 
-## 3. Проверка
+## 3. Excel HYPERLINK — 404 для фото из file://
+
+Ошибка: `Failed to load resource: /=HYPERLINK("file:/E:/VizHub/...")`
+
+**Причина:** в Excel в столбце фото стоят формулы `=HYPERLINK("file:/путь", "имя")`. Локальные пути `file://` не работают в браузере.
+
+**Что сделано:**
+- При импорте Excel такие значения в `photo_url` теперь игнорируются.
+- Для уже загруженных товаров: в админке «Товары» → выбрать товары → действие «Очистить невалидные photo_url» → применить.
+
+## 4. Проверка
 
 После изменений:
 - Оплата подписки через ЮКассу должна работать
-- Изображения товаров должны загружаться с api.vizhub.pro
+- Изображения и 3D модели должны загружаться с api.vizhub.pro

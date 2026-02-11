@@ -7,7 +7,7 @@ import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import MultiSelectFilter from '@/components/MultiSelectFilter'
 import PriceFilter from '@/components/PriceFilter'
-import RGBColorFilter from '@/components/RGBColorFilter'
+import RGBRangeFilter from '@/components/RGBRangeFilter'
 import ProductCard from '@/components/ProductCard'
 import { useBaskets, useCategories, useProducts } from '@/hooks/useApi'
 import { productService } from '@/services/api'
@@ -442,29 +442,6 @@ export default function CatalogPage() {
 									</div>
 								)}
 
-								{/* Кнопка фильтра RGB */}
-								<div className='relative'>
-									<button
-										onClick={() => setOpenFilter(openFilter === 'color_rgb' ? null : 'color_rgb')}
-										className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
-											filters.color_rgb ? 'bg-main1 text-white' : 'bg-gray-bg text-black hover:bg-gray2'
-										}`}
-									>
-										Цвет RGB
-									</button>
-									{openFilter === 'color_rgb' && (
-										<div className='fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 sm:absolute sm:left-0 sm:top-full sm:translate-x-0 sm:translate-y-0 sm:mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-[100] w-[calc(100vw-2rem)] max-w-[340px] overflow-hidden sm:w-auto sm:min-w-[300px] sm:max-w-sm'>
-											<RGBColorFilter
-												value={filters.color_rgb}
-												onChange={v => {
-													setFilters(v ? { ...filters, color_rgb: v } : (() => { const { color_rgb: _, ...r } = filters; return r })())
-												}}
-												onApply={() => setOpenFilter(null)}
-											/>
-										</div>
-									)}
-								</div>
-
 								{/* Кнопка фильтра материала */}
 								{filterRanges.materials.length > 0 && (
 									<div className='relative'>
@@ -596,6 +573,21 @@ export default function CatalogPage() {
 							/>
 						)}
 
+					</div>
+
+					{/* Полоса RGB-диапазона под фильтрами */}
+					<div className='mb-4 sm:mb-6'>
+						<RGBRangeFilter
+							value={filters.color_rgb}
+							onChange={v => {
+								if (v) {
+									setFilters({ ...filters, color_rgb: v })
+								} else {
+									const { color_rgb: _removed, ...rest } = filters
+									setFilters(rest)
+								}
+							}}
+						/>
 					</div>
 
 					<div className='border-t border-gray2 mb-4 sm:mb-6 lg:mb-8'></div>

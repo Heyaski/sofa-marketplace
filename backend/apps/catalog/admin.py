@@ -674,8 +674,27 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
     search_fields = ("title", "article", "description", "brand")
     list_editable = ("price", "is_active")
     inlines = [ProductImageInline]
-    actions = ["export_selected_to_excel"]
-    
+    actions = ["export_selected_to_excel", "clear_invalid_photo_urls"]
+
+    @admin.action(description="Очистить невалидные photo_url (HYPERLINK, file://)")
+    def clear_invalid_photo_urls(self, request, queryset):
+        """Очищает photo_url с HYPERLINK формулами или локальными file:// путями"""
+        count = 0
+        for product in queryset:
+            if not product.photo_url:
+                continue
+            val = product.photo_url.strip()
+            invalid = (
+                val.upper().startswith('=HYPERLINK(')
+                or val.lower().startswith('file://')
+                or val.lower().startswith('file:/')
+            )
+            if invalid:
+                product.photo_url = ''
+                product.save(update_fields=['photo_url'])
+                count += 1
+        self.message_user(request, f"Очищено photo_url у {count} товаров.")
+
     def has_3d_model(self, obj):
         """Проверяет наличие 3D модели"""
         if obj.model_glb or obj.model_fbx or obj.model_usdz or obj.model_3d_asset_ids:
@@ -938,6 +957,22 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                     elif 'заказ' in val or 'order' in val:
                         return 'on_order'
                     return 'in_stock'
+
+                def sanitize_photo_url(val):
+                    """Убрать HYPERLINK формулы и локальные file:// пути — они не работают на вебе"""
+                    if not val or not isinstance(val, str):
+                        return ''
+                    val = val.strip()
+                    # HYPERLINK формула — Excel может вернуть формулу вместо значения
+                    if val.upper().startswith('=HYPERLINK('):
+                        return ''
+                    # Локальные пути file:// не работают с другого компьютера
+                    if val.lower().startswith('file://') or val.lower().startswith('file:/'):
+                        return ''
+                    # Только http/https допустимы как URL
+                    if val.lower().startswith('http://') or val.lower().startswith('https://'):
+                        return val
+                    return ''
                 
                 def find_files_by_article(article, files_dict, file_type='image'):
                     """Найти все файлы (изображения или 3D модели) для артикула в ZIP архиве"""
@@ -1147,7 +1182,7 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                             'article': article,
                             'subcategory': get_cell_value(row, 'subcategory'),
                             'description': get_cell_value(row, 'description'),
-                            'photo_url': get_cell_value(row, 'photo_url'),
+                            'photo_url': sanitize_photo_url(get_cell_value(row, 'photo_url')),
                             'image_asset_ids': image_asset_ids,
                             'model_3d_asset_ids': model_3d_asset_ids,
                             'model_fbx': get_cell_value(row, 'model_fbx'),

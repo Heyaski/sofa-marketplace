@@ -24,9 +24,9 @@ nano ~/sofa-marketplace/backend/.env
 
 ```
 # ЮКасса
-YOOKASSA_ACCOUNT_ID=твой_shop_id_из_кабинета
-YOOKASSA_SECRET_KEY=твой_секретный_ключ
-YOOKASSA_TEST_MODE=1
+YOOKASSA_ACCOUNT_ID=1220055
+YOOKASSA_SECRET_KEY=live_QIY1YqFB1smIajcfNL-c70HYKG555qtF3wjlScgiAu4
+YOOKASSA_TEST_MODE=0
 ```
 
 - **YOOKASSA_TEST_MODE=1** — тестовый режим (оплаты не списываются)

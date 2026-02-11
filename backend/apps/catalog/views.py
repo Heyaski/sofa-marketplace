@@ -65,10 +65,50 @@ class ProductViewSet(viewsets.ModelViewSet):
                 # Если category_id невалидный, игнорируем фильтр
                 pass
         
-        # Фильтрация по color_rgb (формат "r,g,b")
+        # Фильтрация по color_rgb
+        # Поддерживаются два формата:
+        # 1) "r,g,b"  — старый формат, поиск по подстроке
+        # 2) "min-max" — новый формат: диапазон яркости (0–255), где яркость = (r+g+b)/3
         color_rgb = self.request.query_params.get('color_rgb', None)
         if color_rgb and color_rgb.strip():
-            queryset = queryset.filter(color_rgb__icontains=color_rgb.strip())
+            value = color_rgb.strip()
+            if '-' in value:
+                try:
+                    # Новый формат "min-max"
+                    parts = value.split('-', 1)
+                    brightness_min = max(0, min(255, int(parts[0])))
+                    brightness_max = max(0, min(255, int(parts[1])))
+                    if brightness_min > brightness_max:
+                        brightness_min, brightness_max = brightness_max, brightness_min
+
+                    # Фильтруем по яркости в Python (объём товаров небольшой)
+                    filtered_ids = []
+                    for product in queryset:
+                        if not product.color_rgb:
+                            continue
+                        try:
+                            rgb_parts = [
+                                max(0, min(255, int(p.strip())))
+                                for p in product.color_rgb.split(',')
+                            ]
+                            if len(rgb_parts) != 3:
+                                continue
+                            brightness = round(sum(rgb_parts) / 3)
+                            if brightness_min <= brightness <= brightness_max:
+                                filtered_ids.append(product.id)
+                        except (ValueError, TypeError):
+                            continue
+
+                    if filtered_ids:
+                        queryset = queryset.filter(id__in=filtered_ids)
+                    else:
+                        queryset = queryset.none()
+                except (ValueError, TypeError):
+                    # При ошибке парсинга — игнорируем диапазон и не фильтруем
+                    pass
+            else:
+                # Старый формат "r,g,b" — оставляем как есть для обратной совместимости
+                queryset = queryset.filter(color_rgb__icontains=value)
 
         # Фильтрация по множественным значениям (material, style, color, brand)
         # Если значение содержит запятую, ищем товары, где поле содержит любое из значений
