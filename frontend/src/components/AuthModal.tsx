@@ -16,6 +16,7 @@ export default function AuthModal({
 	onSuccess,
 }: AuthModalProps) {
 	const [isLoginMode, setIsLoginMode] = useState(true)
+	const [isResetMode, setIsResetMode] = useState(false)
 	const [showPassword, setShowPassword] = useState(false)
 	const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
 	const [loading, setLoading] = useState(false)
@@ -31,6 +32,10 @@ export default function AuthModal({
 	const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('')
 	const [registerUsername, setRegisterUsername] = useState('')
 
+	// Восстановление пароля
+	const [resetEmail, setResetEmail] = useState('')
+	const [resetSuccess, setResetSuccess] = useState<string | null>(null)
+
 	if (!isOpen) return null
 
 	const resetForm = () => {
@@ -41,12 +46,27 @@ export default function AuthModal({
 		setRegisterPasswordConfirm('')
 		setRegisterUsername('')
 		setError(null)
+		setResetEmail('')
+		setResetSuccess(null)
 		setShowPassword(false)
 		setShowPasswordConfirm(false)
 	}
 
 	const handleModeSwitch = (mode: boolean) => {
 		setIsLoginMode(mode)
+		setIsResetMode(false)
+		resetForm()
+	}
+
+	const handleShowReset = () => {
+		setIsResetMode(true)
+		setError(null)
+		setResetSuccess(null)
+	}
+
+	const handleBackToLogin = () => {
+		setIsResetMode(false)
+		setIsLoginMode(true)
 		resetForm()
 	}
 
@@ -157,6 +177,33 @@ export default function AuthModal({
 		}
 	}
 
+	const handleResetPassword = async (e: React.FormEvent) => {
+		e.preventDefault()
+		setLoading(true)
+		setError(null)
+		setResetSuccess(null)
+
+		if (!resetEmail) {
+			setError('Укажите email, который вы использовали при регистрации')
+			setLoading(false)
+			return
+		}
+
+		try {
+			await authService.requestPasswordReset(resetEmail)
+			setResetSuccess(
+				'Если такой email есть в системе, ссылка для сброса пароля сформирована (пока без реальной отправки письма).'
+			)
+		} catch (err: any) {
+			console.error('Password reset request error:', err)
+			const errorMessage =
+				err.response?.data?.detail || 'Не удалось отправить запрос на сброс пароля'
+			setError(errorMessage)
+		} finally {
+			setLoading(false)
+		}
+	}
+
 	return (
 		<div className='fixed inset-0 z-50 overflow-y-auto'>
 			<div
@@ -174,43 +221,90 @@ export default function AuthModal({
 					</button>
 
 					<div className='p-4 sm:p-6 lg:p-8'>
-						{/* Табы для переключения между входом и регистрацией */}
-						<div className='flex mb-6 bg-gray-bg rounded-lg p-1'>
-							<button
-								type='button'
-								onClick={() => handleModeSwitch(true)}
-								className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
-									isLoginMode
-										? 'bg-white text-main1 shadow-sm'
-										: 'text-gray hover:text-black'
-								}`}
-							>
-								Вход
-							</button>
-							<button
-								type='button'
-								onClick={() => handleModeSwitch(false)}
-								className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
-									!isLoginMode
-										? 'bg-white text-main1 shadow-sm'
-										: 'text-gray hover:text-black'
-								}`}
-							>
-								Регистрация
-							</button>
-						</div>
+						{/* Табы для переключения между входом и регистрацией (в режиме сброса не показываем) */}
+						{!isResetMode && (
+							<>
+								<div className='flex mb-6 bg-gray-bg rounded-lg p-1'>
+									<button
+										type='button'
+										onClick={() => handleModeSwitch(true)}
+										className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+											isLoginMode
+												? 'bg-white text-main1 shadow-sm'
+												: 'text-gray hover:text-black'
+										}`}
+									>
+										Вход
+									</button>
+									<button
+										type='button'
+										onClick={() => handleModeSwitch(false)}
+										className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+											!isLoginMode
+												? 'bg-white text-main1 shadow-sm'
+												: 'text-gray hover:text-black'
+										}`}
+									>
+										Регистрация
+									</button>
+								</div>
 
-						<h2 className='text-2xl font-bold text-black mb-6 text-center'>
-							{isLoginMode ? 'Вход в аккаунт' : 'Создать аккаунт'}
-						</h2>
+								<h2 className='text-2xl font-bold text-black mb-6 text-center'>
+									{isLoginMode ? 'Вход в аккаунт' : 'Создать аккаунт'}
+								</h2>
+							</>
+						)}
+
+						{isResetMode && (
+							<h2 className='text-2xl font-bold text-black mb-6 text-center'>
+								Восстановление пароля
+							</h2>
+						)}
 
 						{error && (
 							<div className='mb-4 p-3 bg-red-50 border border-red-200 rounded-lg'>
 								<p className='text-red-600 text-sm'>{error}</p>
 							</div>
 						)}
+						{resetSuccess && (
+							<div className='mb-4 p-3 bg-green-50 border border-green-200 rounded-lg'>
+								<p className='text-green-700 text-sm'>{resetSuccess}</p>
+							</div>
+						)}
 
-						{isLoginMode ? (
+						{isResetMode ? (
+							// Форма сброса пароля
+							<form onSubmit={handleResetPassword} className='space-y-4'>
+								<div>
+									<input
+										type='email'
+										placeholder='E-mail, привязанный к аккаунту'
+										value={resetEmail}
+										onChange={e => setResetEmail(e.target.value)}
+										className='w-full px-4 py-3 bg-gray-bg border border-gray2 rounded-lg focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent'
+										required
+									/>
+								</div>
+								<p className='text-xs text-gray'>
+									Сейчас ссылка для сброса пароля выводится в логах сервера (почта
+									ещё не настроена).
+								</p>
+								<button
+									type='submit'
+									disabled={loading}
+									className='w-full bg-main1 text-white py-3 rounded-lg font-medium hover:bg-main2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+								>
+									{loading ? 'Отправляем...' : 'Отправить ссылку для сброса'}
+								</button>
+								<button
+									type='button'
+									onClick={handleBackToLogin}
+									className='w-full mt-2 text-sm text-main1 hover:text-main2'
+								>
+									Вернуться ко входу
+								</button>
+							</form>
+						) : isLoginMode ? (
 							// Форма входа
 							<form onSubmit={handleLogin} className='space-y-4'>
 								<div>
@@ -224,25 +318,34 @@ export default function AuthModal({
 									/>
 								</div>
 
-								<div className='relative'>
-									<input
-										type={showPassword ? 'text' : 'password'}
-										placeholder='Пароль'
-										value={loginPassword}
-										onChange={e => setLoginPassword(e.target.value)}
-										className='w-full px-4 py-3 bg-gray-bg border border-gray2 rounded-lg focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent pr-10'
-										required
-									/>
+								<div className='space-y-2'>
+									<div className='relative'>
+										<input
+											type={showPassword ? 'text' : 'password'}
+											placeholder='Пароль'
+											value={loginPassword}
+											onChange={e => setLoginPassword(e.target.value)}
+											className='w-full px-4 py-3 bg-gray-bg border border-gray2 rounded-lg focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent pr-10'
+											required
+										/>
+										<button
+											type='button'
+											onClick={() => setShowPassword(!showPassword)}
+											className='absolute right-3 top-1/2 -translate-y-1/2 text-gray hover:text-black'
+										>
+											{showPassword ? (
+												<EyeSlashIcon className='w-5 h-5' />
+											) : (
+												<EyeIcon className='w-5 h-5' />
+											)}
+										</button>
+									</div>
 									<button
 										type='button'
-										onClick={() => setShowPassword(!showPassword)}
-										className='absolute right-3 top-1/2 -translate-y-1/2 text-gray hover:text-black'
+										onClick={handleShowReset}
+										className='text-xs text-main1 hover:text-main2'
 									>
-										{showPassword ? (
-											<EyeSlashIcon className='w-5 h-5' />
-										) : (
-											<EyeIcon className='w-5 h-5' />
-										)}
+										Забыли пароль?
 									</button>
 								</div>
 

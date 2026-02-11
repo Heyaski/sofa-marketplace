@@ -370,6 +370,24 @@ export const authService = {
 			new_password: newPassword,
 		})
 	},
+
+	// Запрос на сброс пароля (по email)
+	requestPasswordReset: async (email: string): Promise<void> => {
+		await apiClient.post('/api/users/reset-password/', { email })
+	},
+
+	// Подтверждение сброса пароля по токену
+	confirmPasswordReset: async (
+		uid: string,
+		token: string,
+		newPassword: string
+	): Promise<void> => {
+		await apiClient.post('/api/users/reset-password-confirm/', {
+			uid,
+			token,
+			new_password: newPassword,
+		})
+	},
 }
 
 // Сервис для работы с чатами

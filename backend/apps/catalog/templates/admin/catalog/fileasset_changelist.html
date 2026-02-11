@@ -21,18 +21,62 @@ document.addEventListener('DOMContentLoaded', function() {
 {% block object-tools-items %}
     {{ block.super }}
     <li>
-        <a href="{% url 'admin:catalog_fileasset_download_template' %}" class="addlink" style="background: #17a2b8; padding: 10px 15px; border-radius: 4px; margin-right: 10px;">
-            📥 Скачать шаблон Excel
+        <a
+            href="{% url 'admin:catalog_fileasset_download_template' %}"
+            class="addlink"
+            style="
+                background: #17a2b8;
+                padding: 10px 15px;
+                border-radius: 4px;
+                margin-right: 10px;
+                color: #ffffff !important;
+                font-weight: 600;
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+            "
+        >
+            📥 <span>Скачать шаблон Excel</span>
         </a>
     </li>
     <li>
-        <a href="{% url 'admin:catalog_fileasset_import' %}" class="addlink" style="background: #28a745; padding: 10px 15px; border-radius: 4px; margin-right: 10px;">
-            📦 Массовый импорт (ZIP)
+        <a
+            href="{% url 'admin:catalog_fileasset_import' %}"
+            class="addlink"
+            style="
+                background: #28a745;
+                padding: 10px 15px;
+                border-radius: 4px;
+                margin-right: 10px;
+                color: #ffffff !important;
+                font-weight: 600;
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+            "
+        >
+            📦 <span>Массовый импорт (ZIP)</span>
         </a>
     </li>
     <li>
-        <a href="{% url 'admin:catalog_fileasset_sync' %}" class="addlink" style="background: #17a2b8; padding: 10px 15px; border-radius: 4px;">
-            🔄 Синхронизировать с товарами
+        <a
+            href="{% url 'admin:catalog_fileasset_sync' %}"
+            class="addlink"
+            style="
+                background: #17a2b8;
+                padding: 10px 15px;
+                border-radius: 4px;
+                color: #ffffff !important;
+                font-weight: 600;
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+            "
+        >
+            🔄 <span>Синхронизировать с товарами</span>
         </a>
     </li>
 {% endblock %}

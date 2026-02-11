@@ -4,8 +4,22 @@
 {% block object-tools-items %}
     {{ block.super }}
     <li>
-        <a href="{% url 'admin:catalog_product_import_excel' %}" class="addlink" style="background: #28a745; padding: 10px 15px; border-radius: 4px;">
-            📥 Импорт из Excel
+        <a
+            href="{% url 'admin:catalog_product_import_excel' %}"
+            class="addlink"
+            style="
+                background: #28a745;
+                padding: 10px 15px;
+                border-radius: 4px;
+                color: #ffffff !important;
+                font-weight: 600;
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+            "
+        >
+            📥 <span>Импорт из Excel</span>
         </a>
     </li>
 {% endblock %}
