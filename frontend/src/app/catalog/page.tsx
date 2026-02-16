@@ -14,9 +14,9 @@ import { productService } from '@/services/api'
 import { Category, Product, ProductFilters } from '@/types'
 import Image from 'next/image'
 import { useSearchParams } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 
-export default function CatalogPage() {
+function CatalogContent() {
 	const searchParams = useSearchParams()
 	const searchFromUrl = searchParams.get('search') || ''
 	const [isCartModalOpen, setIsCartModalOpen] = useState(false)
@@ -655,5 +655,17 @@ export default function CatalogPage() {
 				onCreateNewCart={handleCreateNewCart}
 			/>
 		</div>
+	)
+}
+
+export default function CatalogPage() {
+	return (
+		<Suspense fallback={
+			<div className='min-h-screen bg-gray-bg flex items-center justify-center'>
+				<div className='animate-spin rounded-full h-12 w-12 border-b-2 border-main1' />
+			</div>
+		}>
+			<CatalogContent />
+		</Suspense>
 	)
 }
