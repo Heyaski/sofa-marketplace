@@ -780,8 +780,13 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                     except Exception as e:
                         messages.warning(request, f"Ошибка при обработке ZIP архива: {str(e)}. Импорт товаров продолжится без изображений.")
                 
-                wb = openpyxl.load_workbook(excel_file)
+                wb = openpyxl.load_workbook(excel_file, data_only=True)
                 ws = wb.active
+                if len(wb.sheetnames) > 1:
+                    for name in wb.sheetnames:
+                        if 'товар' in name.lower() or 'product' in name.lower():
+                            ws = wb[name]
+                            break
                 
                 # Читаем заголовки из первой строки для определения колонок
                 headers = [str(cell.value).strip().lower() if cell.value else '' for cell in ws[1]]
@@ -923,7 +928,7 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                 empty_headers_count = sum(1 for h in headers if not h or not h.strip())
                 needs_fallback = (
                     'title' not in col_indices or 'price' not in col_indices or 
-                    empty_headers_count > len(headers) // 2
+                    empty_headers_count > max(1, len(headers) // 2)
                 )
                 if needs_fallback:
                     sample_rows = list(ws.iter_rows(min_row=2, max_row=min(7, ws.max_row or 2), values_only=True))
@@ -1029,6 +1034,20 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                                             break
                                 if 'category' in col_indices:
                                     break
+                    if 'title' not in col_indices:
+                        col_indices['title'] = 0
+                    if 'price' not in col_indices:
+                        col_indices['price'] = 20
+                    if 'article' not in col_indices:
+                        col_indices['article'] = 13
+                    if 'category' not in col_indices:
+                        col_indices['category'] = 15
+                    if 'subcategory' not in col_indices:
+                        col_indices['subcategory'] = 16
+                    if 'color' not in col_indices:
+                        col_indices['color'] = 12
+                    if 'material' not in col_indices:
+                        col_indices['material'] = 6
                     messages.info(request, f"Автоопределение колонок: title={col_indices.get('title')}, price={col_indices.get('price')}, article={col_indices.get('article')}, category={col_indices.get('category')}, subcategory={col_indices.get('subcategory')}")
                 
                 created_count = 0
@@ -1141,13 +1160,29 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                 for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
                     try:
                         title = get_cell_value(row, 'title')
-                        if not title or title.strip() == '':
-                            continue  # Пропускаем пустые строки
+                        if not title or str(title).strip() == '':
+                            if row and len(row) > 0 and row[0] is not None and str(row[0]).strip():
+                                title = str(row[0]).strip()
+                            if not title or not str(title).strip():
+                                continue
                         
-                        # Получаем цену
                         price = get_decimal_value(row, 'price', Decimal('0.00'))
                         if price is None or price <= 0:
-                            errors.append(f"Строка {row_num}: не указана цена или цена некорректна (цена: {price})")
+                            for idx in range(min(len(row), 30)):
+                                if idx < len(row) and row[idx] is not None:
+                                    try:
+                                        v = str(row[idx]).replace(' ', '').replace(',', '.')
+                                        p = Decimal(v)
+                                        if 100 <= p <= 50000000:
+                                            price = p
+                                            break
+                                        elif 1 <= p <= 50000:
+                                            price = p
+                                            break
+                                    except (ValueError, Exception):
+                                        pass
+                        if price is None or price <= 0:
+                            errors.append(f"Строка {row_num}: не указана цена (title={title[:30]})")
                             continue
                         
                         # Получаем категорию и подкатегорию
@@ -1223,12 +1258,6 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                         if rgb_b_idx >= 0 and rgb_b_idx < len(row):
                             rgb_b_val = str(row[rgb_b_idx]).strip() if row[rgb_b_idx] is not None else ''
                         
-                        # Отладочная информация для первой строки
-                        if row_num == 2:
-                            debug_rgb = f"RGB индексы: R={rgb_r_idx} (заголовок: '{headers_original[rgb_r_idx] if rgb_r_idx >= 0 and rgb_r_idx < len(headers_original) else 'N/A'}'), G={rgb_g_idx} (заголовок: '{headers_original[rgb_g_idx] if rgb_g_idx >= 0 and rgb_g_idx < len(headers_original) else 'N/A'}'), B={rgb_b_idx} (заголовок: '{headers_original[rgb_b_idx] if rgb_b_idx >= 0 and rgb_b_idx < len(headers_original) else 'N/A'}')"
-                            errors.append(f"Строка {row_num}: {debug_rgb}")
-                            debug_rgb = f"RGB значения: R='{rgb_r_val}' (тип: {type(row[rgb_r_idx]).__name__ if rgb_r_idx >= 0 and rgb_r_idx < len(row) and row[rgb_r_idx] is not None else 'None'}), G='{rgb_g_val}' (тип: {type(row[rgb_g_idx]).__name__ if rgb_g_idx >= 0 and rgb_g_idx < len(row) and row[rgb_g_idx] is not None else 'None'}), B='{rgb_b_val}' (тип: {type(row[rgb_b_idx]).__name__ if rgb_b_idx >= 0 and rgb_b_idx < len(row) and row[rgb_b_idx] is not None else 'None'})"
-                            errors.append(f"Строка {row_num}: {debug_rgb}")
                         
                         # Обрабатываем значения (могут быть числами или строками)
                         def parse_rgb_value(val):
