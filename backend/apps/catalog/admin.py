@@ -11,6 +11,7 @@ from .models import Category, Product, ProductImage, FileAsset
 import openpyxl
 from decimal import Decimal
 import os
+import re
 from pathlib import Path
 import zipfile
 import tempfile
@@ -917,6 +918,118 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                     if similar_headers:
                         debug_info += f". Похожие заголовки: {', '.join(similar_headers)}"
                     messages.warning(request, f"Отладка RGB: {debug_info}")
+                
+                # Автоопределение колонок для файлов без заголовков или с нестандартными заголовками
+                empty_headers_count = sum(1 for h in headers if not h or not h.strip())
+                needs_fallback = (
+                    'title' not in col_indices or 'price' not in col_indices or 
+                    empty_headers_count > len(headers) // 2
+                )
+                if needs_fallback:
+                    sample_rows = list(ws.iter_rows(min_row=2, max_row=min(7, ws.max_row or 2), values_only=True))
+                    max_col = min(35, (ws.max_column or 25) + 5)
+                    for col_idx in range(max_col):
+                        if col_idx in col_indices.values():
+                            continue
+                        for row in sample_rows:
+                            if col_idx >= len(row) or row[col_idx] is None:
+                                continue
+                            val = str(row[col_idx]).strip()
+                            if not val:
+                                continue
+                            val_lower = val.lower()
+                            if 'title' not in col_indices:
+                                if re.match(r'^[а-яa-zё]+\d+$', val, re.I) or len(val) >= 3:
+                                    col_indices['title'] = col_idx
+                                    break
+                            if 'article' not in col_indices and ('imr-' in val_lower or re.match(r'^[a-z]+-\d+', val, re.I)):
+                                col_indices['article'] = col_idx
+                                break
+                            if 'price' not in col_indices:
+                                try:
+                                    num_val = Decimal(val.replace(' ', '').replace(',', '.'))
+                                    if 100 <= num_val <= 50000000:
+                                        col_indices['price'] = col_idx
+                                        break
+                                    elif 1 <= num_val <= 50000:
+                                        col_indices['price'] = col_idx
+                                        break
+                                except (ValueError, Exception):
+                                    pass
+                            if 'category' not in col_indices and any(kw in val_lower for kw in ['мебель', 'мебл', 'диван', 'кресл', 'пуф', 'стол', 'chair', 'sofa']):
+                                col_indices['category'] = col_idx
+                                break
+                            if 'subcategory' not in col_indices and any(kw in val_lower for kw in ['пуфы', 'диваны', 'кресла', 'банкетки']):
+                                col_indices['subcategory'] = col_idx
+                                break
+                            if 'color' not in col_indices and any(kw in val_lower for kw in ['белый', 'черный', 'серый', 'коричнев', 'красн', 'синий', 'оранж', 'пурпур']):
+                                col_indices['color'] = col_idx
+                                break
+                            if 'material' not in col_indices and any(kw in val_lower for kw in ['дерево', 'ткань', 'кожа', 'массив', 'эко', 'россия', 'китай']):
+                                col_indices['material'] = col_idx
+                                break
+                        if needs_fallback and 'title' not in col_indices and col_idx == 0:
+                            col_indices['title'] = 0
+                        if needs_fallback and 'article' not in col_indices and 12 <= col_idx <= 14:
+                            for r in sample_rows:
+                                if col_idx < len(r) and r[col_idx] and 'imr-' in str(r[col_idx]).lower():
+                                    col_indices['article'] = col_idx
+                                    break
+                        if needs_fallback and 'price' not in col_indices and 19 <= col_idx <= 24:
+                            for r in sample_rows:
+                                if col_idx < len(r) and r[col_idx] is not None:
+                                    try:
+                                        n = Decimal(str(r[col_idx]).replace(' ', '').replace(',', '.'))
+                                        if n > 0:
+                                            col_indices['price'] = col_idx
+                                            break
+                                    except (ValueError, Exception):
+                                        pass
+                    if 'title' not in col_indices:
+                        col_indices['title'] = 0
+                    if 'subcategory' not in col_indices and 'category' in col_indices:
+                        cat_idx = col_indices['category']
+                        col_indices['subcategory'] = min(cat_idx + 1, 25)
+                    if 'category' not in col_indices and 'subcategory' in col_indices:
+                        col_indices['category'] = col_indices['subcategory']
+                    if 'price' not in col_indices and sample_rows:
+                        for try_col in [20, 19, 21, 22, 13, 14, 15]:
+                            for row in sample_rows:
+                                if try_col < len(row) and row[try_col] is not None:
+                                    try:
+                                        v = str(row[try_col]).replace(' ', '').replace(',', '.')
+                                        n = Decimal(v)
+                                        if n > 0 and n < 100000000:
+                                            col_indices['price'] = try_col
+                                            break
+                                    except (ValueError, Exception):
+                                        pass
+                                if 'price' in col_indices:
+                                    break
+                            if 'price' in col_indices:
+                                break
+                    if 'article' not in col_indices:
+                        for try_col in [13, 12, 14]:
+                            if sample_rows:
+                                for row in sample_rows:
+                                    if row and try_col < len(row) and row[try_col] and 'imr-' in str(row[try_col]).lower():
+                                        col_indices['article'] = try_col
+                                        break
+                                if 'article' in col_indices:
+                                    break
+                    if 'category' not in col_indices:
+                        for try_col in [15, 16, 17]:
+                            if sample_rows:
+                                for row in sample_rows:
+                                    if row and try_col < len(row) and row[try_col]:
+                                        v = str(row[try_col]).lower()
+                                        if any(k in v for k in ['мебель', 'пуф', 'диван', 'кресл', 'стол']):
+                                            col_indices['category'] = try_col
+                                            col_indices['subcategory'] = min(try_col + 1, 25)
+                                            break
+                                if 'category' in col_indices:
+                                    break
+                    messages.info(request, f"Автоопределение колонок: title={col_indices.get('title')}, price={col_indices.get('price')}, article={col_indices.get('article')}, category={col_indices.get('category')}, subcategory={col_indices.get('subcategory')}")
                 
                 created_count = 0
                 updated_count = 0
