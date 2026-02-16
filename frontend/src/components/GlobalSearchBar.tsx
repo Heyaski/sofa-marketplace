@@ -4,6 +4,29 @@ import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
+/** Сопоставление поисковых запросов с разделами сайта */
+const SEARCH_ROUTES: { keywords: string[]; path: string }[] = [
+	{ keywords: ['корзина', 'корзину', 'корзины', 'cart', 'basket', 'baskets', 'корзин'], path: '/profile?tab=cart' },
+	{ keywords: ['заказы', 'заказ', 'orders', 'order', 'мои заказы'], path: '/profile' },
+	{ keywords: ['подписка', 'подписку', 'subscription', 'subscriptions', 'тариф'], path: '/profile?tab=subscription' },
+	{ keywords: ['загрузки', 'загрузка', 'downloads', 'download', 'скачать'], path: '/profile?tab=downloads' },
+	{ keywords: ['чаты', 'чат', 'chats', 'chat', 'сообщения'], path: '/profile?tab=chats' },
+	{ keywords: ['профиль', 'кабинет', 'личный кабинет', 'profile', 'account', 'настройки'], path: '/profile' },
+	{ keywords: ['каталог', 'catalog', 'товары', 'products', 'мебель', 'диваны'], path: '/catalog' },
+	{ keywords: ['главная', 'main', 'home', 'начало'], path: '/' },
+]
+
+function resolveSearchQuery(query: string): string {
+	const q = query.trim().toLowerCase()
+	if (!q) return '/catalog'
+	for (const { keywords, path } of SEARCH_ROUTES) {
+		if (keywords.some(kw => q.includes(kw) || kw.includes(q))) {
+			return path
+		}
+	}
+	return `/catalog?search=${encodeURIComponent(query.trim())}`
+}
+
 interface GlobalSearchBarProps {
 	className?: string
 	inputClassName?: string
@@ -28,12 +51,8 @@ export default function GlobalSearchBar({
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault()
-		const trimmed = query.trim()
-		if (trimmed) {
-			router.push(`/catalog?search=${encodeURIComponent(trimmed)}`)
-		} else {
-			router.push('/catalog')
-		}
+		const target = resolveSearchQuery(query)
+		router.push(target)
 	}
 
 	return (

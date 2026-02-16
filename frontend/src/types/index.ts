@@ -49,6 +49,8 @@ export interface Product {
 	asset_images?: FileAsset[]
 	
 	// 3D модели
+	image_asset_ids?: string
+	model_3d_asset_ids?: string
 	asset_3d_models?: FileAsset[]
 	model_glb?: string
 	model_fbx?: string

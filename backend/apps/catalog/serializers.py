@@ -245,7 +245,7 @@ class ProductSerializer(serializers.ModelSerializer):
         return FileAssetSerializer(image_assets, many=True, context={'request': request}).data
     
     def get_asset_3d_models(self, obj):
-        """Получить все 3D модели (FileAsset + прямые URL)"""
+        """Получить все 3D модели (FileAsset + прямые URL) для отображения в каталоге и на странице товара."""
         request = self.context.get("request")
         models = []
         

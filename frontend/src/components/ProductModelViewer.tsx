@@ -44,34 +44,17 @@ export default function ProductModelViewer({
 }: ProductModelViewerProps) {
 	const modelUrl = getModelUrl(product)
 	const [scriptReady, setScriptReady] = useState(false)
-	const [isInView, setIsInView] = useState(variant === 'page') // На странице товара загружаем сразу
-	const containerRef = useRef<HTMLDivElement>(null)
 	const modelViewerRef = useRef<any>(null)
 
-	// Lazy: загружаем 3D только когда карточка в зоне видимости
+	// Загружаем model-viewer при наличии 3D модели — сразу, без ожидания
 	useEffect(() => {
-		if (variant === 'page' || !modelUrl) return
-		const el = containerRef.current
-		if (!el) return
-		const observer = new IntersectionObserver(
-			([entry]) => {
-				if (entry.isIntersecting) setIsInView(true)
-			},
-			{ rootMargin: '100px', threshold: 0.01 }
-		)
-		observer.observe(el)
-		return () => observer.disconnect()
-	}, [variant, modelUrl])
-
-	// Загружаем model-viewer только когда нужно (в зоне видимости или страница товара)
-	useEffect(() => {
-		if (!modelUrl || !isInView) return
+		if (!modelUrl) return
 		let cancelled = false
 		import('@google/model-viewer').then(() => {
 			if (!cancelled) setScriptReady(true)
 		}).catch(() => {})
 		return () => { cancelled = true }
-	}, [modelUrl, isInView])
+	}, [modelUrl])
 
 	const setupRef = useCallback((el: any) => {
 		modelViewerRef.current = el
@@ -85,7 +68,7 @@ export default function ProductModelViewer({
 
 	if (!has3D) {
 		return (
-			<div ref={containerRef} className={`${containerClass} cursor-pointer`} onClick={onClick}>
+			<div className={`${containerClass} cursor-pointer`} onClick={onClick}>
 				{fallbackImage ? (
 					<Image
 						src={fallbackImage}
@@ -110,7 +93,6 @@ export default function ProductModelViewer({
 
 	return (
 		<div
-			ref={containerRef}
 			className={`${containerClass} cursor-grab active:cursor-grabbing`}
 			onClick={(e) => e.stopPropagation()}
 		>
@@ -120,7 +102,7 @@ export default function ProductModelViewer({
 				alt={product.title || '3D модель'}
 				camera-controls
 				shadow-intensity='1'
-				loading={variant === 'card' ? 'lazy' : 'eager'}
+				loading='eager'
 				reveal='auto'
 				interaction-policy='allow-when-focused'
 				disable-zoom={variant === 'card'}

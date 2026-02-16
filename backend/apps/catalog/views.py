@@ -23,9 +23,10 @@ class ProductViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
 
     def get_serializer_context(self):
-        """Добавляем request в контекст для правильной генерации URL изображений"""
+        """Добавляем request и action в контекст для правильной генерации URL изображений"""
         context = super().get_serializer_context()
         context['request'] = self.request
+        context['view_action'] = self.action
         return context
 
     def get_queryset(self):
