@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 
 interface RGBRangeFilterProps {
 	value: string | undefined // формат "min-max" (0–255) или старый "r,g,b"
@@ -17,11 +17,15 @@ const getBrightness = (rgb: string): number | null => {
 	return Math.round((r + g + b) / 3)
 }
 
+const THUMB_SIZE = 18
+const TRACK_HEIGHT = 8
+
 export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps) {
 	const [minVal, setMinVal] = useState(0)
 	const [maxVal, setMaxVal] = useState(255)
-	// Локальное значение, из которого с дебаунсом дергаем onChange
+	const activeThumbRef = useRef<'min' | 'max' | null>(null)
 	const [pendingValue, setPendingValue] = useState<string | undefined>(undefined)
+	const trackRef = useRef<HTMLDivElement>(null)
 
 	// Синхронизация из внешнего значения
 	useEffect(() => {
@@ -30,8 +34,6 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
 			setMaxVal(255)
 			return
 		}
-
-		// Новый формат "min-max"
 		const rangeMatch = value.match(/^(\d{1,3})-(\d{1,3})$/)
 		if (rangeMatch) {
 			const nextMin = Math.max(0, Math.min(255, parseInt(rangeMatch[1], 10)))
@@ -40,8 +42,6 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
 			setMaxVal(Math.max(nextMin, nextMax))
 			return
 		}
-
-		// Старый формат "r,g,b" — превращаем в точечный диапазон по яркости
 		const brightness = getBrightness(value)
 		if (brightness !== null) {
 			setMinVal(brightness)
@@ -54,47 +54,57 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
 
 	const updateRange = (source: 'min' | 'max', rawValue: number) => {
 		if (source === 'min') {
-			// Левый ползунок: 0 .. (текущий правый - 1)
 			const clampedMin = Math.max(0, Math.min(maxVal - 1, rawValue))
 			const finalMin = Number.isNaN(clampedMin) ? minVal : clampedMin
 			setMinVal(finalMin)
-
-			if (finalMin === 0 && maxVal === 255) {
-				setPendingValue(undefined)
-			} else {
-				setPendingValue(`${finalMin}-${maxVal}`)
-			}
+			setPendingValue(finalMin === 0 && maxVal === 255 ? undefined : `${finalMin}-${maxVal}`)
 		} else {
-			// Правый ползунок: (текущий левый + 1) .. 255
 			const clampedMax = Math.max(minVal + 1, Math.min(255, rawValue))
 			const finalMax = Number.isNaN(clampedMax) ? maxVal : clampedMax
 			setMaxVal(finalMax)
-
-			if (minVal === 0 && finalMax === 255) {
-				setPendingValue(undefined)
-			} else {
-				setPendingValue(`${minVal}-${finalMax}`)
-			}
+			setPendingValue(minVal === 0 && finalMax === 255 ? undefined : `${minVal}-${finalMax}`)
 		}
 	}
 
-	const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const next = parseInt(e.target.value, 10)
-		updateRange('min', next)
-	}
-
-	const handleMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const next = parseInt(e.target.value, 10)
-		updateRange('max', next)
-	}
-
-	// Дебаунс, чтобы не дёргать каталог при каждом пикселе движения
 	useEffect(() => {
 		const id = window.setTimeout(() => {
 			onChange(pendingValue)
 		}, 250)
 		return () => window.clearTimeout(id)
 	}, [pendingValue, onChange])
+
+	const valueFromX = (clientX: number): number => {
+		const track = trackRef.current
+		if (!track) return 0
+		const rect = track.getBoundingClientRect()
+		const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+		return Math.round(x * 255)
+	}
+
+	const handlePointerDown = (e: React.PointerEvent) => {
+		const track = trackRef.current
+		if (!track) return
+		const rect = track.getBoundingClientRect()
+		const x = (e.clientX - rect.left) / rect.width
+		const minX = minVal / 255
+		const maxX = maxVal / 255
+		const mid = (minX + maxX) / 2
+		const thumb = x < mid ? 'min' : 'max'
+		activeThumbRef.current = thumb
+		updateRange(thumb, valueFromX(e.clientX))
+		;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+	}
+
+	const handlePointerMove = (e: React.PointerEvent) => {
+		const thumb = activeThumbRef.current
+		if (!thumb) return
+		updateRange(thumb, valueFromX(e.clientX))
+	}
+
+	const handlePointerUp = (e: React.PointerEvent) => {
+		activeThumbRef.current = null
+		;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
+	}
 
 	const minPercent = (minVal / 255) * 100
 	const maxPercent = (maxVal / 255) * 100
@@ -108,11 +118,23 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
 				</span>
 			</div>
 
-			<div className='relative h-6'>
+			<div
+				ref={trackRef}
+				className='relative select-none'
+				style={{ height: Math.max(THUMB_SIZE, TRACK_HEIGHT) }}
+				onPointerDown={handlePointerDown}
+				onPointerMove={handlePointerMove}
+				onPointerUp={handlePointerUp}
+				onPointerLeave={handlePointerUp}
+			>
 				{/* Радужная полоса */}
 				<div
-					className='absolute inset-0 rounded-full'
+					className='absolute rounded-full'
 					style={{
+						left: 0,
+						right: 0,
+						top: (THUMB_SIZE - TRACK_HEIGHT) / 2,
+						height: TRACK_HEIGHT,
 						background:
 							'linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #8b00ff)',
 					}}
@@ -120,34 +142,32 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
 
 				{/* Заливка выбранного диапазона */}
 				<div
-					className='absolute h-full rounded-full bg-white/40 pointer-events-none'
+					className='absolute rounded-full bg-white/40 pointer-events-none'
 					style={{
 						left: `${minPercent}%`,
 						width: `${Math.max(maxPercent - minPercent, 2)}%`,
+						top: (THUMB_SIZE - TRACK_HEIGHT) / 2,
+						height: TRACK_HEIGHT,
 					}}
 				/>
 
-				{/* Два range-инпута поверх — оба по центру по вертикали */}
-				<input
-					type='range'
-					min={0}
-					max={255}
-					value={minVal}
-					onChange={handleMinChange}
-					className='absolute left-0 right-0 top-0 bottom-0 w-full appearance-none bg-transparent pointer-events-auto'
-					style={{ zIndex: 2 }}
+				{/* Левый ползунок — по центру по вертикали */}
+				<div
+					className='absolute w-[18px] h-[18px] rounded-full bg-[#1976D2] border-[3px] border-white shadow-[0_2px_6px_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing pointer-events-none'
+					style={{
+						left: `calc(${minPercent}% - ${THUMB_SIZE / 2}px)`,
+						top: 0,
+					}}
 				/>
-				<input
-					type='range'
-					min={0}
-					max={255}
-					value={maxVal}
-					onChange={handleMaxChange}
-					className='absolute left-0 right-0 top-0 bottom-0 w-full appearance-none bg-transparent pointer-events-auto'
-					style={{ zIndex: 3 }}
+				{/* Правый ползунок — по центру по вертикали */}
+				<div
+					className='absolute w-[18px] h-[18px] rounded-full bg-[#1976D2] border-[3px] border-white shadow-[0_2px_6px_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing pointer-events-none'
+					style={{
+						left: `calc(${maxPercent}% - ${THUMB_SIZE / 2}px)`,
+						top: 0,
+					}}
 				/>
 			</div>
 		</div>
 	)
 }
-

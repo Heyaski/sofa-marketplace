@@ -44,17 +44,33 @@ export default function ProductModelViewer({
 }: ProductModelViewerProps) {
 	const modelUrl = getModelUrl(product)
 	const [scriptReady, setScriptReady] = useState(false)
+	const [inView, setInView] = useState(variant !== 'card')
+	const containerRef = useRef<HTMLDivElement>(null)
 	const modelViewerRef = useRef<any>(null)
 
-	// Загружаем model-viewer при наличии 3D модели — сразу, без ожидания
+	// Intersection Observer — загружаем 3D только когда карточка видна (экономия сети, быстрее первые)
 	useEffect(() => {
-		if (!modelUrl) return
+		if (variant !== 'card' || !containerRef.current) return
+		const el = containerRef.current
+		const io = new IntersectionObserver(
+			([entry]) => {
+				if (entry?.isIntersecting) setInView(true)
+			},
+			{ rootMargin: '150px', threshold: 0.01 }
+		)
+		io.observe(el)
+		return () => io.disconnect()
+	}, [variant])
+
+	// Загружаем model-viewer при наличии 3D — скрипт кэшируется, каталог предзагружает
+	useEffect(() => {
+		if (!modelUrl || !inView) return
 		let cancelled = false
 		import('@google/model-viewer').then(() => {
 			if (!cancelled) setScriptReady(true)
 		}).catch(() => {})
 		return () => { cancelled = true }
-	}, [modelUrl])
+	}, [modelUrl, inView])
 
 	const setupRef = useCallback((el: any) => {
 		modelViewerRef.current = el
@@ -62,13 +78,13 @@ export default function ProductModelViewer({
 
 	const defaultImage = product.image || product.asset_images?.[0]?.file_url || product.photo_url
 	const fallbackImage = selectedImageUrl ?? defaultImage
-	const has3D = !!modelUrl && isValidUrl(modelUrl) && scriptReady
+	const shouldShow3D = !!modelUrl && isValidUrl(modelUrl) && scriptReady && inView
 
 	const containerClass = `overflow-hidden bg-gray-50 flex items-center justify-center ${variant === 'card' ? 'aspect-square' : 'aspect-square sm:min-h-[400px]'} ${className}`
 
-	if (!has3D) {
+	if (!shouldShow3D) {
 		return (
-			<div className={`${containerClass} cursor-pointer`} onClick={onClick}>
+			<div ref={containerRef} className={`${containerClass} cursor-pointer`} onClick={onClick}>
 				{fallbackImage ? (
 					<Image
 						src={fallbackImage}
@@ -93,12 +109,14 @@ export default function ProductModelViewer({
 
 	return (
 		<div
+			ref={containerRef}
 			className={`${containerClass} cursor-grab active:cursor-grabbing`}
 			onClick={(e) => e.stopPropagation()}
 		>
 			<model-viewer
 				ref={setupRef}
 				src={modelUrl}
+				poster={fallbackImage || undefined}
 				alt={product.title || '3D модель'}
 				camera-controls
 				shadow-intensity='1'

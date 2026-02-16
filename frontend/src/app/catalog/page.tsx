@@ -49,6 +49,36 @@ function CatalogContent() {
 	// Получаем все продукты без фильтров для вычисления диапазонов
 	const [allProductsForRanges, setAllProductsForRanges] = useState<Product[]>([])
 	
+	// Предзагрузка model-viewer при открытии каталога — скрипт готов до рендера карточек
+	useEffect(() => {
+		import('@google/model-viewer').catch(() => {})
+	}, [])
+
+	// Prefetch URL 3D-моделей — браузер начинает загрузку до появления model-viewer
+	useEffect(() => {
+		if (!products || products.length === 0) return
+		const MODEL_FORMATS = ['glb', 'gltf', 'usdz']
+		const getModelUrl = (p: Product): string | null => {
+			if (p.model_glb) return p.model_glb
+			const first = p.asset_3d_models?.[0]
+			if (!first?.file_url) return null
+			const ext = first.file_url.toLowerCase().split('.').pop()?.split('?')[0] || ''
+			return MODEL_FORMATS.includes(ext) ? first.file_url : null
+		}
+		const urls = products.map(getModelUrl).filter((u): u is string => !!u && (u.startsWith('http') || u.startsWith('/')))
+		const links: HTMLLinkElement[] = []
+		urls.slice(0, 16).forEach(url => {
+			const link = document.createElement('link')
+			link.rel = 'preload'
+			link.as = 'fetch'
+			link.href = url
+			link.setAttribute('crossorigin', 'anonymous')
+			document.head.appendChild(link)
+			links.push(link)
+		})
+		return () => links.forEach(el => el.remove())
+	}, [products])
+
 	useEffect(() => {
 		const fetchAllProducts = async () => {
 			try {
