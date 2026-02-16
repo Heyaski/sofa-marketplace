@@ -8,7 +8,6 @@ import Header from '@/components/Header'
 import MultiSelectFilter from '@/components/MultiSelectFilter'
 import PriceFilter from '@/components/PriceFilter'
 import RGBRangeFilter from '@/components/RGBRangeFilter'
-import FurnitureTypeFilter from '@/components/FurnitureTypeFilter'
 import ProductCard from '@/components/ProductCard'
 import { useBaskets, useCategories, useProducts } from '@/hooks/useApi'
 import { productService } from '@/services/api'
@@ -220,11 +219,11 @@ function CatalogContent() {
 								</div>
 							) : visibleCategories.length > 0 ? (
 								<>
-									<div className='space-y-2'>
+									<div className='space-y-1'>
 										{/* Кнопка "Все категории" для сброса фильтра */}
 										<button
 											onClick={() => setFilters({ ...filters, category: undefined })}
-											className={`w-full text-left px-4 py-2 rounded-lg transition-all flex items-center space-x-2 ${
+											className={`w-full text-left px-4 py-2 rounded-lg transition-all flex items-center ${
 												!filters.category
 													? 'bg-main1 text-white'
 													: 'bg-gray-bg text-black hover:bg-gray2'
@@ -233,44 +232,55 @@ function CatalogContent() {
 											<span className='text-sm font-medium'>Все категории</span>
 										</button>
 
-										{/* Список категорий */}
-										{visibleCategories.map((category: Category) => (
-											<button
-												key={category.id}
-												onClick={() =>
-													setFilters({ ...filters, category: category.id })
-												}
-												className={`w-full text-left px-4 py-2 rounded-lg transition-all flex items-center space-x-2 ${
-													filters.category === category.id
-														? 'bg-main1 text-white'
-														: 'bg-gray-bg text-black hover:bg-gray2'
-												}`}
-											>
-												{/* 🖼️ Миниатюра категории */}
-												{category.image && typeof category.image === 'string' ? (
-													<Image
-														src={category.image}
-														alt={category.name || 'Категория'}
-														width={24}
-														height={24}
-														className='w-6 h-6 object-cover rounded-md shadow-sm'
-														unoptimized
+										{/* Список категорий с чекбоксами */}
+										{(() => {
+											const selectedIds =
+												typeof filters.category === 'string'
+													? filters.category.split(',').map((s: string) => parseInt(s.trim(), 10)).filter((n: number) => !isNaN(n))
+													: filters.category !== undefined
+														? [Number(filters.category)]
+														: []
+											return visibleCategories.map((category: Category) => {
+											const isChecked = selectedIds.includes(category.id)
+											return (
+												<label
+													key={category.id}
+													className='flex items-center gap-2 w-full px-4 py-2 rounded-lg cursor-pointer hover:bg-gray-bg transition-colors min-h-[44px]'
+												>
+													<input
+														type='checkbox'
+														checked={isChecked}
+														onChange={() => {
+															const next = isChecked
+																? selectedIds.filter((id: number) => id !== category.id)
+																: [...selectedIds, category.id]
+															handleFurnitureTypeChange(next)
+														}}
+														className='w-4 h-4 flex-shrink-0 text-main1 border-gray2 rounded focus:ring-2 focus:ring-main1 cursor-pointer accent-main1'
 													/>
-												) : (
-													<Image
-														src='/img/no-image.svg'
-														alt='Нет изображения'
-														width={24}
-														height={24}
-														className='w-6 h-6 opacity-40'
-													/>
-												)}
-
-												<span className='text-sm font-medium'>
-													{category.name}
-												</span>
-											</button>
-										))}
+													{category.image && typeof category.image === 'string' ? (
+														<Image
+															src={category.image}
+															alt={category.name || 'Категория'}
+															width={24}
+															height={24}
+															className='w-6 h-6 object-cover rounded-md shadow-sm flex-shrink-0'
+															unoptimized
+														/>
+													) : (
+														<Image
+															src='/img/no-image.svg'
+															alt='Нет изображения'
+															width={24}
+															height={24}
+															className='w-6 h-6 opacity-40 flex-shrink-0'
+														/>
+													)}
+													<span className='text-sm font-medium truncate'>{category.name}</span>
+												</label>
+											)
+											})
+										})()}
 									</div>
 
 									{/* Кнопка "Показать еще" */}
@@ -305,7 +315,7 @@ function CatalogContent() {
 								<div className='relative'>
 									<button
 										onClick={() => setOpenFilter(openFilter === 'price' ? null : 'price')}
-										className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+										className={`min-w-[88px] px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors text-center ${
 											currentPriceFilter
 												? 'bg-main1 text-white'
 												: 'bg-gray-bg text-black hover:bg-gray2'
@@ -330,7 +340,7 @@ function CatalogContent() {
 								<div className='relative'>
 									<button
 										onClick={() => setOpenFilter(openFilter === 'dimensions' ? null : 'dimensions')}
-										className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+										className={`min-w-[88px] px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors text-center ${
 											(filters.width_min !== undefined || filters.width_max !== undefined || 
 											 filters.depth_min !== undefined || filters.depth_max !== undefined)
 												? 'bg-main1 text-white'
@@ -368,71 +378,12 @@ function CatalogContent() {
 									)}
 								</div>
 
-								{/* Кнопка "Вид мебели" — чекбоксы как на hh.ru, множественный выбор */}
-								{categories && categories.length > 0 && (
-									<div className='relative'>
-										<button
-											onClick={() => setOpenFilter(openFilter === 'furniture_type' ? null : 'furniture_type')}
-											className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
-												filters.category ? 'bg-main1 text-white' : 'bg-gray-bg text-black hover:bg-gray2'
-											}`}
-										>
-											Вид мебели
-											{typeof filters.category === 'string' && filters.category.includes(',') && (
-												<span className='ml-1 opacity-90'>({filters.category.split(',').length})</span>
-											)}
-										</button>
-										{openFilter === 'furniture_type' && (
-											<div className='fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 sm:absolute sm:left-0 sm:top-full sm:translate-x-0 sm:translate-y-0 sm:mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-[100] w-[calc(100vw-2rem)] max-w-[340px] overflow-hidden sm:w-auto sm:min-w-[260px] sm:max-w-sm'>
-												<FurnitureTypeFilter
-													title='Вид мебели'
-													options={categories.map((c: Category) => ({ id: c.id, name: c.name }))}
-													selectedIds={
-														typeof filters.category === 'string'
-															? filters.category.split(',').map((s: string) => parseInt(s.trim(), 10)).filter((n: number) => !isNaN(n))
-															: filters.category !== undefined
-																? [Number(filters.category)]
-																: []
-													}
-													onChange={handleFurnitureTypeChange}
-												/>
-											</div>
-										)}
-									</div>
-								)}
-
-								{/* Кнопка фильтра материала */}
-								{filterRanges.materials.length > 0 && (
-									<div className='relative'>
-										<button
-											onClick={() => setOpenFilter(openFilter === 'material' ? null : 'material')}
-											className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
-												filters.material
-													? 'bg-main1 text-white'
-													: 'bg-gray-bg text-black hover:bg-gray2'
-											}`}
-										>
-											Материал
-										</button>
-									{openFilter === 'material' && (
-										<div className='fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 sm:absolute sm:left-0 sm:top-full sm:translate-x-0 sm:translate-y-0 sm:mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-[100] w-[calc(100vw-2rem)] max-w-[340px] overflow-hidden sm:w-auto sm:min-w-[200px] sm:max-w-xs'>
-											<MultiSelectFilter
-												title=''
-												options={filterRanges.materials}
-												selectedValues={filters.material ? [filters.material] : undefined}
-												onChange={handleMultiSelectChange('material')}
-											/>
-										</div>
-									)}
-									</div>
-								)}
-
 								{/* Кнопка фильтра стиля */}
 								{filterRanges.styles.length > 0 && (
 									<div className='relative'>
 										<button
 											onClick={() => setOpenFilter(openFilter === 'style' ? null : 'style')}
-											className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+											className={`min-w-[88px] px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors text-center ${
 												filters.style
 													? 'bg-main1 text-white'
 													: 'bg-gray-bg text-black hover:bg-gray2'
@@ -458,7 +409,7 @@ function CatalogContent() {
 									<div className='relative'>
 										<button
 											onClick={() => setOpenFilter(openFilter === 'color' ? null : 'color')}
-											className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+											className={`min-w-[88px] px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors text-center ${
 												filters.color
 													? 'bg-main1 text-white'
 													: 'bg-gray-bg text-black hover:bg-gray2'
@@ -484,7 +435,7 @@ function CatalogContent() {
 									<div className='relative'>
 										<button
 											onClick={() => setOpenFilter(openFilter === 'brand' ? null : 'brand')}
-											className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+											className={`min-w-[88px] px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors text-center ${
 												filters.brand
 													? 'bg-main1 text-white'
 													: 'bg-gray-bg text-black hover:bg-gray2'
@@ -505,22 +456,6 @@ function CatalogContent() {
 									</div>
 								)}
 
-							</div>
-
-							<div className='flex items-center flex-shrink-0'>
-								<span className='text-black font-medium mr-2 text-xs sm:text-sm whitespace-nowrap'>
-									Сортировка:
-								</span>
-								<select 
-									className='w-full sm:w-40 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-gray-bg text-black text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-main1'
-									onChange={e => setFilters({ ...filters, ordering: e.target.value || undefined })}
-									value={filters.ordering || ''}
-								>
-									<option value=''>По умолчанию</option>
-									<option value='price'>По возрастанию цены</option>
-									<option value='-price'>По убыванию цены</option>
-									<option value='title'>По названию</option>
-								</select>
 							</div>
 						</div>
 

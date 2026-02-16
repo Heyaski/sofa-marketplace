@@ -32,10 +32,12 @@ class Category(models.Model):
     slug = models.SlugField(unique=True, verbose_name="URL")
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, verbose_name="Родительская категория")
     image = models.ImageField(upload_to="categories/", blank=True, null=True, verbose_name="Изображение")
+    order = models.PositiveIntegerField(default=0, verbose_name="Порядок", help_text="Меньше — выше в списке")
 
     class Meta:
         verbose_name = "Категория"
         verbose_name_plural = "Категории"
+        ordering = ["order", "id"]
 
     def __str__(self):
         return self.name

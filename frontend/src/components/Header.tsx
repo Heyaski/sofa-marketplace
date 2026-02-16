@@ -200,44 +200,44 @@ export default function Header() {
 					</div>
 
 					{/* Right side - Cart, Profile, Logout */}
-					<div className='flex items-center space-x-3'>
+					<div className='flex items-center gap-0.5'>
 						{loading ? (
-							<div className='animate-pulse bg-gray-bg rounded-lg w-10 h-10'></div>
+							<div className='animate-pulse bg-gray-bg rounded-lg w-9 h-9' />
 						) : user ? (
-							<div className='flex items-center space-x-2'>
+							<>
 								<a
 									href='/profile?tab=chats'
-									className='flex items-center space-x-2 px-3 py-2 bg-gray-bg rounded-lg hover:bg-gray2 transition-colors'
+									className='w-9 h-9 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
 									title='Чаты'
+									aria-label='Чаты'
 								>
 									<ChatBubbleLeftRightIcon className='w-5 h-5 text-gray' />
-									<span className='text-sm font-medium text-black hidden xl:inline'>Чаты</span>
 								</a>
 								<a
 									href='/profile?tab=cart'
-									className='flex items-center space-x-2 px-3 py-2 bg-gray-bg rounded-lg hover:bg-gray2 transition-colors'
+									className='w-9 h-9 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
 									title='Корзина'
+									aria-label='Корзина'
 								>
 									<ShoppingCartIcon className='w-5 h-5 text-gray' />
-									<span className='text-sm font-medium text-black'>Корзина</span>
 								</a>
 								<a
 									href='/profile'
-									className='flex items-center space-x-2 px-3 py-2 bg-gray-bg rounded-lg hover:bg-gray2 transition-colors'
+									className='w-9 h-9 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
 									title='Профиль'
+									aria-label='Профиль'
 								>
 									<UserIcon className='w-5 h-5 text-gray' />
-									<span className='text-sm font-medium text-black'>Профиль</span>
 								</a>
 								<button
 									onClick={handleLogout}
-									className='flex items-center space-x-2 px-3 py-2 bg-gray-bg rounded-lg hover:bg-red-50 transition-colors'
+									className='w-9 h-9 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-red-50 transition-colors'
 									title='Выйти'
+									aria-label='Выйти'
 								>
 									<ArrowRightOnRectangleIcon className='w-5 h-5 text-gray' />
-									<span className='text-sm font-medium text-black'>Выйти</span>
 								</button>
-							</div>
+							</>
 						) : (
 							<button
 								onClick={() => setIsAuthModalOpen(true)}

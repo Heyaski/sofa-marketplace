@@ -1,28 +1,46 @@
 'use client'
 
 import Image from 'next/image'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { authService } from '../services/api'
 import { User } from '../types'
+import AuthModal from './AuthModal'
 
 export default function Footer() {
+	const router = useRouter()
+	const pathname = usePathname()
 	const [user, setUser] = useState<User | null>(null)
 	const [loading, setLoading] = useState(true)
+	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+
+	const checkAuth = async () => {
+		try {
+			const userData = await authService.getCurrentUser()
+			setUser(userData)
+		} catch {
+			setUser(null)
+		} finally {
+			setLoading(false)
+		}
+	}
 
 	useEffect(() => {
-		const checkAuth = async () => {
-			try {
-				const userData = await authService.getCurrentUser()
-				setUser(userData)
-			} catch (error) {
-				setUser(null)
-			} finally {
-				setLoading(false)
-			}
-		}
-
 		checkAuth()
+		const onAuthUpdated = () => checkAuth()
+		window.addEventListener('auth-updated', onAuthUpdated)
+		return () => window.removeEventListener('auth-updated', onAuthUpdated)
 	}, [])
+
+	const handleAuthSuccess = () => {
+		setIsAuthModalOpen(false)
+		window.dispatchEvent(new Event('auth-updated'))
+		if (pathname === '/') {
+			router.push('/catalog')
+		} else {
+			router.refresh()
+		}
+	}
 	return (
 		<footer className='bg-main1 text-white'>
 			<div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12'>
@@ -59,7 +77,7 @@ export default function Footer() {
 					{/* Login/Register Button - только для неавторизованных */}
 					{!loading && !user && (
 						<button
-							onClick={() => (window.location.href = '/')}
+							onClick={() => setIsAuthModalOpen(true)}
 							className='bg-white text-main1 px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors text-sm sm:text-base w-full sm:w-auto'
 						>
 							Войти / Зарегистрироваться
@@ -134,6 +152,12 @@ export default function Footer() {
 					</div>
 				</div>
 			</div>
+
+			<AuthModal
+				isOpen={isAuthModalOpen}
+				onClose={() => setIsAuthModalOpen(false)}
+				onSuccess={handleAuthSuccess}
+			/>
 		</footer>
 	)
 }
