@@ -23,9 +23,7 @@ from apps.admin_utils import ExportExcelMixin
 
 @admin.register(Category)
 class CategoryAdmin(ExportExcelMixin, admin.ModelAdmin):
-    list_display = ("id", "order", "name", "slug", "parent", "preview_image")
-    list_editable = ("order",)
-    list_display_links = ("name",)
+    list_display = ("id", "name", "slug", "parent", "preview_image")
     search_fields = ("name",)
     prepopulated_fields = {"slug": ("name",)}
     actions = ["export_selected_to_excel"]
