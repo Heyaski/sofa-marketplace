@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html, strip_tags
+from adminsortable2.admin import SortableAdminMixin
 from django.shortcuts import render, redirect
 from django.urls import path
 from django.contrib import messages
@@ -22,8 +23,9 @@ from apps.admin_utils import ExportExcelMixin
 
 
 @admin.register(Category)
-class CategoryAdmin(ExportExcelMixin, admin.ModelAdmin):
+class CategoryAdmin(SortableAdminMixin, ExportExcelMixin, admin.ModelAdmin):
     list_display = ("id", "name", "slug", "parent", "preview_image")
+    list_display_links = ("name",)
     search_fields = ("name",)
     prepopulated_fields = {"slug": ("name",)}
     actions = ["export_selected_to_excel"]
