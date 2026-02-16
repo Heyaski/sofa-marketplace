@@ -92,7 +92,10 @@ export default function ProductModelViewer({
 	}
 
 	return (
-		<div className={`${containerClass} cursor-grab active:cursor-grabbing`} onClick={onClick}>
+		<div
+			className={`${containerClass} cursor-grab active:cursor-grabbing`}
+			onClick={(e) => e.stopPropagation()}
+		>
 			<model-viewer
 				ref={setupRef}
 				src={modelUrl}

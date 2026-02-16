@@ -1075,30 +1075,20 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                                     defaults={'name': 'Без категории'}
                                 )
                         
-                        # Получаем ID из первой колонки (если есть)
-                        product_id = get_cell_value(row, 'id', '')
+                        # Получаем значение первого столбца Excel — используется для ID изображений и 3D моделей
+                        first_column_value = ''
+                        if row and len(row) > 0 and row[0] is not None:
+                            first_column_value = str(row[0]).strip()
                         
-                        # Получаем ID изображений и 3D моделей из Excel (если указаны)
-                        image_asset_ids = get_cell_value(row, 'image_asset_ids', '')
+                        # ID изображений и ID 3D моделей заполняются данными первого столбца (артикул/ID)
+                        # Это важно для отображения 3D модели и изображений в товаре
+                        image_asset_ids = first_column_value or get_cell_value(row, 'image_asset_ids', '')
+                        model_3d_asset_ids = first_column_value or get_cell_value(row, 'model_3d_asset_ids', '')
                         
-                        # Сначала проверяем колонку "id 3d" (приоритет), затем "ID 3D моделей"
+                        # Дополнительно: если указана колонка "id 3d", используем её для 3D моделей
                         id_3d = get_cell_value(row, 'id_3d', '')
-                        model_3d_asset_ids = get_cell_value(row, 'model_3d_asset_ids', '')
-                        
-                        # Если указана колонка "id 3d", используем её значение
                         if id_3d:
                             model_3d_asset_ids = id_3d
-                        
-                        # Если ID продукта указан в первой колонке и поля image_asset_ids/model_3d_asset_ids 
-                        # не заполнены в Excel, автоматически используем ID из первой колонки
-                        if product_id:
-                            if not image_asset_ids:
-                                # Автоматически используем ID из первой колонки для изображений
-                                image_asset_ids = product_id
-                            
-                            if not model_3d_asset_ids:
-                                # Автоматически используем ID из первой колонки для 3D моделей
-                                model_3d_asset_ids = product_id
                         
                         # Обрабатываем RGB цвет
                         color_rgb = ''
@@ -1162,8 +1152,8 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                             # Отладочная информация только для первой строки
                             errors.append(f"Строка {row_num}: RGB не обработан (R={r}, G={g}, B={b}, исходные: R='{rgb_r_val}', G='{rgb_g_val}', B='{rgb_b_val}')")
                         
-                        # Артикул — из первого столбца (ID), fallback — столбец «Артикул»
-                        article = get_cell_value(row, 'id') or get_cell_value(row, 'article')
+                        # Артикул — из первого столбца, fallback — столбец «Артикул»
+                        article = first_column_value or get_cell_value(row, 'article')
                         
                         # Данные для создания/обновления
                         product_data = {
