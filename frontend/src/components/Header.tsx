@@ -16,19 +16,26 @@ export default function Header() {
 	const [loading, setLoading] = useState(true)
 	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
 
-	useEffect(() => {
-		const checkAuth = async () => {
-			try {
-				const userData = await authService.getCurrentUser()
-				setUser(userData)
-			} catch (error) {
-				setUser(null)
-			} finally {
-				setLoading(false)
-			}
+	const checkAuth = async () => {
+		try {
+			const userData = await authService.getCurrentUser()
+			setUser(userData)
+		} catch (error) {
+			setUser(null)
+		} finally {
+			setLoading(false)
 		}
+	}
 
+	useEffect(() => {
 		checkAuth()
+	}, [])
+
+	// Обновление при авторизации (модалка, другие вкладки) — чтобы не требовалось перезагружать страницу
+	useEffect(() => {
+		const onAuthUpdated = () => checkAuth()
+		window.addEventListener('auth-updated', onAuthUpdated)
+		return () => window.removeEventListener('auth-updated', onAuthUpdated)
 	}, [])
 
 	const handleLogout = async () => {
@@ -47,11 +54,11 @@ export default function Header() {
 		try {
 			const userData = await authService.getCurrentUser()
 			setUser(userData)
-			// Отправляем событие для обновления состояния в других компонентах
 			window.dispatchEvent(new Event('auth-updated'))
-			// Если находимся на главной странице, перенаправляем в каталог
 			if (pathname === '/') {
 				router.push('/catalog')
+			} else {
+				router.refresh()
 			}
 		} catch (error) {
 			setUser(null)
@@ -93,20 +100,20 @@ export default function Header() {
 						<span className='text-xs font-medium whitespace-nowrap'>Каталог</span>
 					</a>
 
-					{/* Иконки справа — компактно */}
+					{/* Иконки справа — компактно, чат только для авторизованных */}
 					<div className='flex items-center flex-shrink-0 gap-0.5'>
-						<a
-							href='/profile?tab=chats'
-							className='w-9 h-9 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
-							title='Чаты'
-							aria-label='Чаты'
-						>
-							<ChatBubbleLeftRightIcon className='w-5 h-5 text-gray' />
-						</a>
 						{loading ? (
 							<div className='animate-pulse bg-gray-bg rounded-lg w-9 h-9' />
 						) : user ? (
 							<>
+								<a
+									href='/profile?tab=chats'
+									className='w-9 h-9 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
+									title='Чаты'
+									aria-label='Чаты'
+								>
+									<ChatBubbleLeftRightIcon className='w-5 h-5 text-gray' />
+								</a>
 								<a
 									href='/profile?tab=cart'
 									className='w-9 h-9 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
@@ -198,6 +205,14 @@ export default function Header() {
 							<div className='animate-pulse bg-gray-bg rounded-lg w-10 h-10'></div>
 						) : user ? (
 							<div className='flex items-center space-x-2'>
+								<a
+									href='/profile?tab=chats'
+									className='flex items-center space-x-2 px-3 py-2 bg-gray-bg rounded-lg hover:bg-gray2 transition-colors'
+									title='Чаты'
+								>
+									<ChatBubbleLeftRightIcon className='w-5 h-5 text-gray' />
+									<span className='text-sm font-medium text-black hidden xl:inline'>Чаты</span>
+								</a>
 								<a
 									href='/profile?tab=cart'
 									className='flex items-center space-x-2 px-3 py-2 bg-gray-bg rounded-lg hover:bg-gray2 transition-colors'

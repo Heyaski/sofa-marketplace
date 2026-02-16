@@ -174,7 +174,7 @@ export interface ApiResponse<T> {
 
 // Типы для фильтров
 export interface ProductFilters {
-	category?: number
+	category?: number | string  // число или "1,2,3" для множественного выбора
 	material?: string
 	style?: string
 	color?: string

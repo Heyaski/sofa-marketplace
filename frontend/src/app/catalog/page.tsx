@@ -8,6 +8,7 @@ import Header from '@/components/Header'
 import MultiSelectFilter from '@/components/MultiSelectFilter'
 import PriceFilter from '@/components/PriceFilter'
 import RGBRangeFilter from '@/components/RGBRangeFilter'
+import FurnitureTypeFilter from '@/components/FurnitureTypeFilter'
 import ProductCard from '@/components/ProductCard'
 import { useBaskets, useCategories, useProducts } from '@/hooks/useApi'
 import { productService } from '@/services/api'
@@ -161,17 +162,23 @@ function CatalogContent() {
 		setOpenFilter(null)
 	}
 
+	const handleFurnitureTypeChange = (ids: number[]) => {
+		if (ids.length > 0) {
+			setFilters({ ...filters, category: ids.join(',') })
+		} else {
+			const { category: _, ...rest } = filters
+			setFilters(rest)
+		}
+	}
+
 	const handleMultiSelectChange = (field: 'material' | 'style' | 'color' | 'brand') => {
 		return (values: string[] | undefined) => {
 			if (values && values.length > 0) {
-				// Для множественного выбора поддерживаем несколько значений через запятую
-				// API будет искать товары, где поле содержит любое из выбранных значений
 				setFilters({ ...filters, [field]: values.join(',') })
 			} else {
 				const { [field]: _, ...rest } = filters
 				setFilters(rest)
 			}
-			// Не закрываем список сразу, чтобы можно было выбрать несколько значений
 		}
 	}
 
@@ -361,24 +368,33 @@ function CatalogContent() {
 									)}
 								</div>
 
-								{/* Кнопка "Вид мебели" (стили) - чекбоксы как на hh.ru */}
-								{filterRanges.styles.length > 0 && (
+								{/* Кнопка "Вид мебели" — чекбоксы как на hh.ru, множественный выбор */}
+								{categories && categories.length > 0 && (
 									<div className='relative'>
 										<button
 											onClick={() => setOpenFilter(openFilter === 'furniture_type' ? null : 'furniture_type')}
 											className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
-												filters.style ? 'bg-main1 text-white' : 'bg-gray-bg text-black hover:bg-gray2'
+												filters.category ? 'bg-main1 text-white' : 'bg-gray-bg text-black hover:bg-gray2'
 											}`}
 										>
 											Вид мебели
+											{typeof filters.category === 'string' && filters.category.includes(',') && (
+												<span className='ml-1 opacity-90'>({filters.category.split(',').length})</span>
+											)}
 										</button>
 										{openFilter === 'furniture_type' && (
 											<div className='fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 sm:absolute sm:left-0 sm:top-full sm:translate-x-0 sm:translate-y-0 sm:mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-[100] w-[calc(100vw-2rem)] max-w-[340px] overflow-hidden sm:w-auto sm:min-w-[260px] sm:max-w-sm'>
-												<MultiSelectFilter
+												<FurnitureTypeFilter
 													title='Вид мебели'
-													options={filterRanges.styles}
-													selectedValues={filters.style ? filters.style.split(',').map(v => v.trim()) : undefined}
-													onChange={handleMultiSelectChange('style')}
+													options={categories.map((c: Category) => ({ id: c.id, name: c.name }))}
+													selectedIds={
+														typeof filters.category === 'string'
+															? filters.category.split(',').map((s: string) => parseInt(s.trim(), 10)).filter((n: number) => !isNaN(n))
+															: filters.category !== undefined
+																? [Number(filters.category)]
+																: []
+													}
+													onChange={handleFurnitureTypeChange}
 												/>
 											</div>
 										)}

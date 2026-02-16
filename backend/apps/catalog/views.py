@@ -39,34 +39,27 @@ class ProductViewSet(viewsets.ModelViewSet):
         # Получаем базовый queryset (уже отфильтрованный по is_active=True)
         queryset = Product.objects.filter(is_active=True)
         
-        # Фильтрация по категории
-        category_id = self.request.query_params.get('category', None)
-        
-        if category_id:
-            try:
-                category_id = int(category_id)
-                # Получаем категорию
-                from .models import Category
-                category = Category.objects.filter(id=category_id).first()
-                
-                if category:
-                    # Если выбрана основная категория (без parent), показываем:
-                    # 1. Продукты с этой категорией
-                    # 2. Продукты с подкатегориями этой категории
-                    if category.parent is None:
-                        # Получаем все подкатегории этой категории
-                        subcategories = Category.objects.filter(parent=category)
-                        # Фильтруем продукты: либо категория = основная, либо категория в подкатегориях
-                        queryset = queryset.filter(
-                            models.Q(category=category) | 
-                            models.Q(category__in=subcategories)
-                        )
+        # Фильтрация по категории (поддержка нескольких: category=1,2,3)
+        category_param = self.request.query_params.get('category', None)
+        if category_param:
+            from .models import Category
+            ids = []
+            for sid in str(category_param).split(','):
+                try:
+                    ids.append(int(sid.strip()))
+                except (ValueError, TypeError):
+                    pass
+            if ids:
+                cats = Category.objects.filter(id__in=ids)
+                q_cats = models.Q()
+                for cat in cats:
+                    if cat.parent is None:
+                        subcats = Category.objects.filter(parent=cat)
+                        q_cats |= models.Q(category=cat) | models.Q(category__in=subcats)
                     else:
-                        # Если выбрана подкатегория, показываем только продукты с этой подкатегорией
-                        queryset = queryset.filter(category=category)
-            except (ValueError, TypeError):
-                # Если category_id невалидный, игнорируем фильтр
-                pass
+                        q_cats |= models.Q(category=cat)
+                if q_cats:
+                    queryset = queryset.filter(q_cats)
         
         # Фильтрация по color_rgb
         # Поддерживаются два формата:
