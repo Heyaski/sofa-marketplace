@@ -1,6 +1,6 @@
 'use client'
 
-import { MagnifyingGlassIcon, UserIcon, ShoppingCartIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline'
+import { ChatBubbleLeftRightIcon, UserIcon, ShoppingCartIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
@@ -95,16 +95,14 @@ export default function Header() {
 
 					{/* Иконки справа — компактно */}
 					<div className='flex items-center flex-shrink-0 gap-0.5'>
-						<button
-							onClick={() => {
-								const searchInput = document.querySelector('.mobile-search-input') as HTMLInputElement
-								if (searchInput) searchInput.focus()
-							}}
+						<a
+							href='/profile?tab=chats'
 							className='w-9 h-9 bg-gray-bg rounded-lg flex items-center justify-center hover:bg-gray2 transition-colors'
-							aria-label='Поиск'
+							title='Чаты'
+							aria-label='Чаты'
 						>
-							<MagnifyingGlassIcon className='w-5 h-5 text-gray' />
-						</button>
+							<ChatBubbleLeftRightIcon className='w-5 h-5 text-gray' />
+						</a>
 						{loading ? (
 							<div className='animate-pulse bg-gray-bg rounded-lg w-9 h-9' />
 						) : user ? (

@@ -794,6 +794,8 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                 headers_original = [str(cell.value).strip() if cell.value else '' for cell in ws[1]]
                 
                 # Маппинг колонок (поддержка разных названий)
+                # Структура: ID, Название, Наличие, Ширина, Высота, Глубина, Вес, Материал, Страна, Бренд,
+                # Цвет, Артикул, Цена, Вид товара, Категория, Подкатегория, URL photo, id 3d, RGB_R, RGB_G, RGB_B
                 column_mapping = {
                     'id': ['id', 'айди', 'идентификатор', 'код товара'],
                     'title': ['название', 'name', 'title', 'наименование'],
@@ -805,13 +807,13 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                     'material': ['материал', 'material', 'матер'],
                     'country': ['страна', 'country', 'стран'],
                     'brand': ['бренд', 'brand'],
-                    'color': ['цвет', 'color'],
-                    'rgb_r': ['rgb_r', 'rgb-r', 'rgb r', 'rgbr', 'r'],  # 'r' в конце, чтобы не конфликтовать с другими столбцами
-                    'rgb_g': ['rgb_g', 'rgb-g', 'rgb g', 'rgbg', 'g'],  # 'g' в конце
-                    'rgb_b': ['rgb_b', 'rgb-b', 'rgb b', 'rgbb', 'b'],  # 'b' в конце
+                    'color': ['цвет', 'color', 'color'],
+                    'rgb_r': ['rgb_r', 'rgb-r', 'rgb r', 'rgbr'],
+                    'rgb_g': ['rgb_g', 'rgb-g', 'rgb g', 'rgbg'],
+                    'rgb_b': ['rgb_b', 'rgb-b', 'rgb b', 'rgbb'],
                     'article': ['артикул', 'article', 'sku', 'код'],
                     'price': ['цена', 'price'],
-                    'category': ['категория', 'category', 'катег'],
+                    'category': ['категория', 'category', 'катег', 'вид товара'],
                     'subcategory': ['подкатегория', 'subcategory', 'подка'],
                     'description': ['описание', 'description', 'ория'],
                     'photo_url': ['url photo', 'urlphoto', 'url_photo', 'фото', 'photo', 'image_url'],
@@ -1040,10 +1042,11 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                         col_indices['price'] = 20
                     if 'article' not in col_indices:
                         col_indices['article'] = 13
+                    # Структура: Вид товара(15), Категория(16), Подкатегория(17) — категория в каталоге берётся из Подкатегории
                     if 'category' not in col_indices:
-                        col_indices['category'] = 15
+                        col_indices['category'] = 16
                     if 'subcategory' not in col_indices:
-                        col_indices['subcategory'] = 16
+                        col_indices['subcategory'] = 17
                     if 'color' not in col_indices:
                         col_indices['color'] = 12
                     if 'material' not in col_indices:
@@ -1161,36 +1164,43 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                     try:
                         title = get_cell_value(row, 'title')
                         if not title or str(title).strip() == '':
-                            if row and len(row) > 0 and row[0] is not None and str(row[0]).strip():
+                            id_val = get_cell_value(row, 'id', '')
+                            if id_val and str(id_val).strip():
+                                title = str(id_val).strip()
+                            elif row and len(row) > 0 and row[0] is not None and str(row[0]).strip():
                                 title = str(row[0]).strip()
                             if not title or not str(title).strip():
                                 continue
                         
                         price = get_decimal_value(row, 'price', Decimal('0.00'))
                         if price is None or price <= 0:
+                            rgb_cols = {col_indices.get('rgb_r'), col_indices.get('rgb_g'), col_indices.get('rgb_b')}
                             for idx in range(min(len(row), 30)):
+                                if idx in rgb_cols:
+                                    continue
                                 if idx < len(row) and row[idx] is not None:
                                     try:
                                         v = str(row[idx]).replace(' ', '').replace(',', '.')
                                         p = Decimal(v)
-                                        if 100 <= p <= 50000000:
+                                        if 500 <= p <= 50000000:
                                             price = p
                                             break
-                                        elif 1 <= p <= 50000:
+                                        elif 100 <= p <= 50000:
                                             price = p
                                             break
                                     except (ValueError, Exception):
                                         pass
                         if price is None or price <= 0:
-                            errors.append(f"Строка {row_num}: не указана цена (title={title[:30]})")
-                            continue
+                            price = Decimal('1000')
+                            if not getattr(request, '_excel_price_warned', False):
+                                request._excel_price_warned = True
+                                messages.warning(request, "Для некоторых строк цена пустая — использована 1000 ₽. Заполните колонку «Цена» в Excel.")
                         
-                        # Получаем категорию и подкатегорию
+                        # Получаем категорию и подкатегорию. Важно: категория товара в каталоге определяется из столбца «Подкатегория»
                         category_name = get_cell_value(row, 'category', 'Без категории')
                         subcategory_name = get_cell_value(row, 'subcategory', '').strip()
                         
-                        # Используем подкатегорию как основную категорию продукта (если она указана)
-                        # Если подкатегории нет, используем категорию
+                        # Приоритет: Подкатегория → Категория. Товар попадает в каталог по значению «Подкатегория»
                         if subcategory_name:
                             # Создаем подкатегорию как основную категорию (без parent)
                             # Это будет категория, которая отображается на сайте

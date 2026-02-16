@@ -360,8 +360,6 @@ function CatalogContent() {
 					<div className='mb-4 sm:mb-6'>
 						<div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4'>
 							<div className='flex items-center gap-2 sm:gap-3 flex-wrap'>
-								<span className='text-black font-medium text-sm sm:text-base'>Фильтр:</span>
-
 								{/* Кнопка фильтра цены */}
 								<div className='relative'>
 									<button
