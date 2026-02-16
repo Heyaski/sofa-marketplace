@@ -3,10 +3,11 @@
 import { MagnifyingGlassIcon, UserIcon, ShoppingCartIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { authService } from '../services/api'
 import { User } from '../types'
 import AuthModal from './AuthModal'
+import GlobalSearchBar from './GlobalSearchBar'
 
 export default function Header() {
 	const router = useRouter()
@@ -144,18 +145,11 @@ export default function Header() {
 					</div>
 				</div>
 
-				{/* Mobile search bar (hidden by default, shown when needed) */}
+				{/* Mobile search bar */}
 				<div className='lg:hidden mb-2'>
-					<div className='relative'>
-						<input
-							type='text'
-							placeholder='Поиск по сайту...'
-							className='mobile-search-input w-full px-4 py-2 rounded-lg border border-gray2 bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent text-sm'
-						/>
-						<button className='absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-main1 rounded-full flex items-center justify-center hover:bg-main2 transition-colors'>
-							<MagnifyingGlassIcon className='w-4 h-4 text-white' />
-						</button>
-					</div>
+					<Suspense fallback={<div className='h-10 bg-gray-bg rounded-lg animate-pulse' />}>
+						<GlobalSearchBar mobile />
+					</Suspense>
 				</div>
 
 				{/* Desktop layout */}
@@ -193,15 +187,10 @@ export default function Header() {
 						</a>
 
 						{/* Search bar */}
-						<div className='relative flex-1 max-w-2xl'>
-							<input
-								type='text'
-								placeholder='Поиск по сайту...'
-								className='w-full px-4 py-2 rounded-lg border border-gray2 bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 focus:border-transparent'
-							/>
-							<button className='absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-main1 rounded-full flex items-center justify-center hover:bg-main2 transition-colors'>
-								<MagnifyingGlassIcon className='w-4 h-4 text-white' />
-							</button>
+						<div className='flex-1 max-w-2xl'>
+							<Suspense fallback={<div className='h-10 bg-gray-bg rounded-lg animate-pulse' />}>
+								<GlobalSearchBar />
+							</Suspense>
 						</div>
 					</div>
 

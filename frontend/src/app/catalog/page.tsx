@@ -13,9 +13,12 @@ import { useBaskets, useCategories, useProducts } from '@/hooks/useApi'
 import { productService } from '@/services/api'
 import { Category, Product, ProductFilters } from '@/types'
 import Image from 'next/image'
+import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 
 export default function CatalogPage() {
+	const searchParams = useSearchParams()
+	const searchFromUrl = searchParams.get('search') || ''
 	const [isCartModalOpen, setIsCartModalOpen] = useState(false)
 	const [selectedProduct, setSelectedProduct] = useState<{
 		id: number
@@ -24,6 +27,14 @@ export default function CatalogPage() {
 	const [filters, setFilters] = useState<ProductFilters>({})
 	const [visibleCategoriesCount, setVisibleCategoriesCount] = useState(10)
 	const [openFilter, setOpenFilter] = useState<string | null>(null)
+
+	// Синхронизация поиска из URL с фильтрами
+	useEffect(() => {
+		setFilters(prev => ({
+			...prev,
+			search: searchFromUrl || undefined,
+		}))
+	}, [searchFromUrl])
 
 	// ✅ API хуки с пагинацией
 	const {

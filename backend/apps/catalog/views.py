@@ -176,7 +176,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     }
 
 
-    search_fields = ["title", "description"]
+    search_fields = ["title", "description", "article", "material", "style", "color", "brand"]
 
 
     ordering_fields = ["price", "title"]

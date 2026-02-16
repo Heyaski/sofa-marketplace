@@ -22,9 +22,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 	const router = useRouter()
 	const productId = parseInt(params.id)
 	const [isCartModalOpen, setIsCartModalOpen] = useState(false)
-	const [selectedFormat, setSelectedFormat] = useState(
-		config.SUPPORTED_FORMATS[0]
-	)
+	const selectedFormat = config.DEFAULT_FORMAT
 	const [mainImage, setMainImage] = useState<string | null>(null)
 	const [isAuthenticated, setIsAuthenticated] = useState(false)
 	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)

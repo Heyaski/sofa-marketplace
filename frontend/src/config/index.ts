@@ -10,8 +10,8 @@ export const config = {
 	// Настройки пагинации
 	DEFAULT_PAGE_SIZE: 20,
 
-	// Настройки форматов файлов
-	SUPPORTED_FORMATS: ['.fbx', '.glb', '.rfa', '.usdz'],
+	// Настройки форматов файлов (по умолчанию только .rfa)
+	DEFAULT_FORMAT: '.rfa',
 
 	// Настройки валюты
 	CURRENCY: 'RUB',
