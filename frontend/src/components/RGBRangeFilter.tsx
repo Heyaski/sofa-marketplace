@@ -112,7 +112,7 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
 	return (
 		<div className='w-full py-3'>
 			<div className='mb-1 flex justify-between text-[11px] text-gray-500'>
-				<span>Диапазон цвета (яркость)</span>
+				<span>Диапазон цвета</span>
 				<span>
 					{minVal}–{maxVal}
 				</span>

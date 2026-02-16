@@ -25,6 +25,7 @@ ALLOWED_HOSTS = get_env("ALLOWED_HOSTS", "*").split(",")
 
 INSTALLED_APPS = [
     "jazzmin",  # Должен быть перед django.contrib.admin
+    "adminsortable2",  # drag-and-drop сортировка в админке
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
