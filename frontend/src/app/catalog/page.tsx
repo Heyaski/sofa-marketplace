@@ -13,6 +13,7 @@ import { useBaskets, useCategories, useProducts } from '@/hooks/useApi'
 import { productService } from '@/services/api'
 import { Category, Product, ProductFilters } from '@/types'
 import Image from 'next/image'
+import Script from 'next/script'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useMemo, useState } from 'react'
 
@@ -60,6 +61,7 @@ function CatalogContent() {
 	useEffect(() => {
 		productService.getFilterRanges().then(setFilterRangesData).catch(() => {})
 	}, [])
+
 	
 	const {
 		categories,
@@ -190,6 +192,12 @@ function CatalogContent() {
 
 	return (
 		<div className='min-h-screen bg-gray-bg pb-20 lg:pb-0'>
+			{/* model-viewer для 3D — загружаем сразу с CDN */}
+			<Script
+				src='https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer.min.js'
+				strategy='afterInteractive'
+				type='module'
+			/>
 			<Header />
 
 			<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8'>
