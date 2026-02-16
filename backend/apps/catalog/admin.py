@@ -1,6 +1,10 @@
 from django.contrib import admin
 from django.utils.html import format_html, strip_tags
-from adminsortable2.admin import SortableAdminMixin
+
+try:
+    from adminsortable2.admin import SortableAdminMixin
+except ImportError:
+    SortableAdminMixin = object  # fallback если пакет не установлен
 from django.shortcuts import render, redirect
 from django.urls import path
 from django.contrib import messages

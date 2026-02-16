@@ -25,7 +25,6 @@ ALLOWED_HOSTS = get_env("ALLOWED_HOSTS", "*").split(",")
 
 INSTALLED_APPS = [
     "jazzmin",  # Должен быть перед django.contrib.admin
-    "adminsortable2",  # drag-and-drop сортировка в админке
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -61,7 +60,14 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True  # на dev; на проде — список доменов
+CORS_ALLOW_ALL_ORIGINS = True  # разрешает все origins
+# Явный whitelist для проды (на случай если ALLOW_ALL отключат)
+CORS_ALLOWED_ORIGINS = [
+    "https://www.vizhub.pro",
+    "https://vizhub.pro",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
 
 ROOT_URLCONF = "config.urls"
 TEMPLATES = [{
