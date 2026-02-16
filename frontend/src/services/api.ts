@@ -72,6 +72,20 @@ export const productService = {
 		return response.data
 	},
 
+	// Получить диапазоны для фильтров (лёгкий запрос, без загрузки товаров)
+	getFilterRanges: async (): Promise<{
+		price: { min: number; max: number }
+		width: { min: number; max: number }
+		depth: { min: number; max: number }
+		materials: string[]
+		styles: string[]
+		colors: string[]
+		brands: string[]
+	}> => {
+		const response = await apiClient.get('/api/products/filter_ranges/')
+		return response.data
+	},
+
 	// Создать продукт (только для админов)
 	createProduct: async (product: Partial<Product>): Promise<Product> => {
 		const response = await apiClient.post('/api/products/', product)

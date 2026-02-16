@@ -49,6 +49,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
+    "config.middleware.MediaCacheMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",  # Для обслуживания статики в продакшене
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -217,8 +218,9 @@ if USE_S3_STORAGE:
                 print(f"ℹ️ Custom domain не указан, используется автоматически сформированный: {AWS_S3_CUSTOM_DOMAIN}")
         
         # Настройки для работы с файлами
+        # 3D модели и изображения редко меняются — кэш 1 год, при обновлении страницы браузер не перекачивает
         AWS_S3_OBJECT_PARAMETERS = {
-            'CacheControl': 'max-age=86400',  # Кэширование на 1 день
+            'CacheControl': 'public, max-age=31536000, immutable',
         }
         
         # Используем S3 для медиа-файлов (3D модели, изображения)

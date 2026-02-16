@@ -47,53 +47,18 @@ function CatalogContent() {
 	} = useProducts(filters)
 	
 	// Получаем все продукты без фильтров для вычисления диапазонов
-	const [allProductsForRanges, setAllProductsForRanges] = useState<Product[]>([])
-	
-	// Предзагрузка model-viewer при открытии каталога — скрипт готов до рендера карточек
-	useEffect(() => {
-		import('@google/model-viewer').catch(() => {})
-	}, [])
-
-	// Prefetch URL 3D-моделей — браузер начинает загрузку до появления model-viewer
-	useEffect(() => {
-		if (!products || products.length === 0) return
-		const MODEL_FORMATS = ['glb', 'gltf', 'usdz']
-		const getModelUrl = (p: Product): string | null => {
-			if (p.model_glb) return p.model_glb
-			const first = p.asset_3d_models?.[0]
-			if (!first?.file_url) return null
-			const ext = first.file_url.toLowerCase().split('.').pop()?.split('?')[0] || ''
-			return MODEL_FORMATS.includes(ext) ? first.file_url : null
-		}
-		const urls = products.map(getModelUrl).filter((u): u is string => !!u && (u.startsWith('http') || u.startsWith('/')))
-		const links: HTMLLinkElement[] = []
-		urls.slice(0, 16).forEach(url => {
-			const link = document.createElement('link')
-			link.rel = 'preload'
-			link.as = 'fetch'
-			link.href = url
-			link.setAttribute('crossorigin', 'anonymous')
-			document.head.appendChild(link)
-			links.push(link)
-		})
-		return () => links.forEach(el => el.remove())
-	}, [products])
+	const [filterRangesData, setFilterRangesData] = useState<{
+		price: { min: number; max: number }
+		width: { min: number; max: number }
+		depth: { min: number; max: number }
+		materials: string[]
+		styles: string[]
+		colors: string[]
+		brands: string[]
+	} | null>(null)
 
 	useEffect(() => {
-		const fetchAllProducts = async () => {
-			try {
-				// Загружаем все товары с большим page_size для вычисления диапазонов
-				const response = await productService.getProducts(undefined, 1, 1000)
-				if (response && Array.isArray(response.results)) {
-					setAllProductsForRanges(response.results)
-				} else if (Array.isArray(response)) {
-					setAllProductsForRanges(response)
-				}
-			} catch (err) {
-				console.error('Ошибка загрузки всех товаров для диапазонов:', err)
-			}
-		}
-		fetchAllProducts()
+		productService.getFilterRanges().then(setFilterRangesData).catch(() => {})
 	}, [])
 	
 	const {
@@ -103,9 +68,8 @@ function CatalogContent() {
 	} = useCategories()
 	const { createBasket, addToBasket } = useBaskets()
 
-	// Вычисляем диапазоны и уникальные значения из всех продуктов
 	const filterRanges = useMemo(() => {
-		if (!allProductsForRanges || allProductsForRanges.length === 0) {
+		if (!filterRangesData) {
 			return {
 				price: { min: 0, max: 100000 },
 				width: { min: 0, max: 500 },
@@ -116,68 +80,8 @@ function CatalogContent() {
 				brands: [] as string[],
 			}
 		}
-
-		const prices = allProductsForRanges.map(p => typeof p.price === 'number' ? p.price : parseFloat(String(p.price)) || 0).filter(p => p > 0)
-		const widths = allProductsForRanges.map(p => p.width).filter((w): w is number => w !== null && w !== undefined && w > 0)
-		const depths = allProductsForRanges.map(p => p.depth).filter((d): d is number => d !== null && d !== undefined && d > 0)
-		
-		// Разделяем множественные значения (например, "черный, красный" -> ["черный", "красный"])
-		const allMaterials: string[] = []
-		allProductsForRanges.forEach(p => {
-			if (p.material && p.material.trim()) {
-				// Разделяем по запятой и убираем пробелы
-				const materials = p.material.split(',').map(m => m.trim()).filter(m => m.length > 0)
-				allMaterials.push(...materials)
-			}
-		})
-		const materials = Array.from(new Set(allMaterials)).sort()
-
-		const allStyles: string[] = []
-		allProductsForRanges.forEach(p => {
-			if (p.style && p.style.trim()) {
-				const styles = p.style.split(',').map(s => s.trim()).filter(s => s.length > 0)
-				allStyles.push(...styles)
-			}
-		})
-		const styles = Array.from(new Set(allStyles)).sort()
-
-		const allColors: string[] = []
-		allProductsForRanges.forEach(p => {
-			if (p.color && p.color.trim()) {
-				const colors = p.color.split(',').map(c => c.trim()).filter(c => c.length > 0)
-				allColors.push(...colors)
-			}
-		})
-		const colors = Array.from(new Set(allColors)).sort()
-
-		const allBrands: string[] = []
-		allProductsForRanges.forEach(p => {
-			if (p.brand && p.brand.trim()) {
-				const brands = p.brand.split(',').map(b => b.trim()).filter(b => b.length > 0)
-				allBrands.push(...brands)
-			}
-		})
-		const brands = Array.from(new Set(allBrands)).sort()
-
-		return {
-			price: {
-				min: prices.length > 0 ? Math.floor(Math.min(...prices)) : 0,
-				max: prices.length > 0 ? Math.ceil(Math.max(...prices)) : 100000,
-			},
-			width: {
-				min: widths.length > 0 ? Math.floor(Math.min(...widths)) : 0,
-				max: widths.length > 0 ? Math.ceil(Math.max(...widths)) : 500,
-			},
-			depth: {
-				min: depths.length > 0 ? Math.floor(Math.min(...depths)) : 0,
-				max: depths.length > 0 ? Math.ceil(Math.max(...depths)) : 500,
-			},
-			materials: materials.sort(),
-			styles: styles.sort(),
-			colors: colors.sort(),
-			brands: brands.sort(),
-		}
-	}, [allProductsForRanges])
+		return filterRangesData
+	}, [filterRangesData])
 
 	const handleAddToCart = (productId: number, format: string) => {
 		setSelectedProduct({ id: productId, format })

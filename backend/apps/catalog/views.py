@@ -1,4 +1,6 @@
 from rest_framework import viewsets, filters
+from rest_framework.decorators import action
+from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import AllowAny
 from rest_framework.pagination import PageNumberPagination
@@ -179,9 +181,44 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     search_fields = ["title", "description", "article", "material", "style", "color", "brand"]
 
-
     ordering_fields = ["price", "title"]
     ordering = ["price"]
+
+    @action(detail=False, methods=["get"], permission_classes=[AllowAny])
+    def filter_ranges(self, request):
+        """
+        Лёгкий endpoint для диапазонов фильтров — без загрузки полных товаров.
+        Возвращает min/max и списки уникальных значений.
+        """
+        qs = Product.objects.filter(is_active=True).aggregate(
+            price_min=models.Min("price"),
+            price_max=models.Max("price"),
+            width_min=models.Min("width"),
+            width_max=models.Max("width"),
+            depth_min=models.Min("depth"),
+            depth_max=models.Max("depth"),
+        )
+        prices = Product.objects.filter(is_active=True, price__gt=0).values_list("price", flat=True)
+        widths = Product.objects.filter(is_active=True, width__gt=0).values_list("width", flat=True).distinct()
+        depths = Product.objects.filter(is_active=True, depth__gt=0).values_list("depth", flat=True).distinct()
+        materials = set()
+        styles = set()
+        colors = set()
+        brands = set()
+        for p in Product.objects.filter(is_active=True).values_list("material", "style", "color", "brand").iterator(chunk_size=500):
+            for val, s in zip(p, (materials, styles, colors, brands)):
+                if val:
+                    for part in str(val).split(","):
+                        s.add(part.strip())
+        return Response({
+            "price": {"min": float(qs["price_min"] or 0), "max": float(qs["price_max"] or 100000)},
+            "width": {"min": float(qs["width_min"] or 0), "max": float(qs["width_max"] or 500)},
+            "depth": {"min": float(qs["depth_min"] or 0), "max": float(qs["depth_max"] or 500)},
+            "materials": sorted(materials),
+            "styles": sorted(styles),
+            "colors": sorted(colors),
+            "brands": sorted(brands),
+        })
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
