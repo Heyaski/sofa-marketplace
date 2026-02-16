@@ -30,7 +30,6 @@ from apps.admin_utils import ExportExcelMixin
 class CategoryAdmin(SortableAdminMixin, ExportExcelMixin, admin.ModelAdmin):
     list_display = ("order", "id", "name", "slug", "parent", "preview_image")
     list_display_links = ("name",)
-    list_editable = ("order",)  # можно менять порядок вручную, если drag не работает
     search_fields = ("name",)
     prepopulated_fields = {"slug": ("name",)}
     actions = ["export_selected_to_excel"]
