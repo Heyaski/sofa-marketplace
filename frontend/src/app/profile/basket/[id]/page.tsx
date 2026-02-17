@@ -26,9 +26,6 @@ export default function BasketDetailPage() {
 	const [basket, setBasket] = useState<Basket | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [currentUser, setCurrentUser] = useState<User | null>(null)
-	const [selectedFormats, setSelectedFormats] = useState<
-		Record<number, string>
-	>({})
 	const [isAddProductsModalOpen, setIsAddProductsModalOpen] = useState(false)
 	const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false)
 	const [upgradeModalMessage, setUpgradeModalMessage] = useState<string>('')
@@ -128,13 +125,6 @@ export default function BasketDetailPage() {
 			console.error('Ошибка при отклонении запроса:', error)
 			alert(error.response?.data?.error || 'Ошибка при отклонении запроса')
 		}
-	}
-
-	const handleFormatChange = (itemId: number, format: string) => {
-		setSelectedFormats(prev => ({
-			...prev,
-			[itemId]: format,
-		}))
 	}
 
 	const handleDeleteItem = async (item: BasketItem) => {
@@ -305,7 +295,7 @@ export default function BasketDetailPage() {
 
 	if (!basket) {
 		return (
-			<div className='min-h-screen bg-gray-bg'>
+			<div className='min-h-[100dvh] bg-gray-bg flex flex-col'>
 				<Header />
 				<main className='max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 lg:pb-8'>
 					<div className='bg-white rounded-xl p-4 sm:p-6 md:p-8 shadow-card text-center'>
@@ -319,26 +309,26 @@ export default function BasketDetailPage() {
 	}
 
 	return (
-		<div className='min-h-screen bg-gray-bg'>
+		<div className='min-h-[100dvh] bg-gray-bg flex flex-col'>
 			<Header />
 
-			<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 lg:pb-8'>
+			<main className='flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 lg:pb-8 w-full'>
 				<div className='bg-white rounded-xl p-4 sm:p-6 md:p-8 shadow-card'>
 					{/* Top section */}
-					<div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8'>
+					<div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8'>
 						<div className='flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4'>
 							<button
 								onClick={() => router.push('/profile?tab=cart')}
-								className='flex items-center gap-2 text-gray hover:text-black transition-colors'
+								className='flex items-center gap-2 text-gray hover:text-black transition-colors self-start'
 							>
 								<ArrowLeftIcon className='w-5 h-5' />
 								Назад
 							</button>
-							<h1 className='text-2xl font-bold text-black'>
+							<h1 className='text-xl sm:text-2xl font-bold text-black'>
 								{basket.name || 'Проект_Квартира_Ивановых'}
 							</h1>
 						</div>
-						<div className='flex items-center gap-3'>
+						<div className='flex flex-wrap items-center gap-2 sm:gap-3'>
 							{/* Кнопка запроса редактирования для не-владельцев */}
 							{!isOwner && !canEdit && !hasPendingRequest && (
 								<button
@@ -361,13 +351,13 @@ export default function BasketDetailPage() {
 												fetchEditRequests()
 											}
 										}}
-										className='bg-gray-bg text-black px-6 py-2 rounded-lg hover:bg-gray-200 transition-colors font-medium'
+										className='bg-gray-bg text-black px-4 sm:px-6 py-2 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm sm:text-base w-full sm:w-auto'
 									>
 										Запросы на редактирование {editRequests.length > 0 && `(${editRequests.length})`}
 									</button>
 									<button
 										onClick={() => setIsAddProductsModalOpen(true)}
-										className='bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main2 transition-colors font-medium'
+										className='bg-main1 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-main2 transition-colors font-medium text-sm sm:text-base w-full sm:w-auto'
 									>
 										Добавить из каталога
 									</button>
@@ -377,7 +367,7 @@ export default function BasketDetailPage() {
 							{canEdit && !isOwner && (
 								<button
 									onClick={() => setIsAddProductsModalOpen(true)}
-									className='bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main2 transition-colors font-medium'
+									className='bg-main1 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-main2 transition-colors font-medium text-sm sm:text-base w-full sm:w-auto'
 								>
 									Добавить из каталога
 								</button>
@@ -445,105 +435,47 @@ export default function BasketDetailPage() {
 							basket.items.map((item: BasketItem, index) => (
 								<div
 									key={item.id}
-									className={`flex items-center gap-4 p-4 ${
+									className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 ${
 										index !== basket.items.length - 1
 											? 'border-b border-gray2'
 											: ''
 									}`}
 								>
-									{/* Product image */}
-									<div className='flex-shrink-0'>
-										{item.product.image ? (
-											<Image
-												src={item.product.image}
-												alt={item.product.title || 'Товар'}
-												width={120}
-												height={120}
-												className='w-24 h-24 object-cover rounded-lg bg-gray-bg'
-												unoptimized
-											/>
-										) : (
-											<Image
-												src='/img/sofa-card.svg'
-												alt='Заглушка'
-												width={120}
-												height={120}
-												className='w-24 h-24 object-cover rounded-lg bg-gray-bg'
-											/>
-										)}
-									</div>
-
-									{/* Product name */}
-									<div className='w-48'>
-										<h3 className='text-base font-medium text-black'>
-											{item.product.title || 'Наименование товара'}
-										</h3>
-									</div>
-
-									{/* Right side - grouped together */}
-									<div className='flex items-center gap-4 ml-auto'>
-										{/* Price */}
-										<div className='w-36 text-right'>
-											<p className='text-main1 font-semibold text-lg'>
+									{/* Product image + name + price — строкой на мобильных */}
+									<div className='flex items-start gap-3 sm:flex-1 min-w-0'>
+										<div className='flex-shrink-0'>
+											{item.product.image ? (
+												<Image
+													src={item.product.image}
+													alt={item.product.title || 'Товар'}
+													width={120}
+													height={120}
+													className='w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg bg-gray-bg'
+													unoptimized
+												/>
+											) : (
+												<Image
+													src='/img/sofa-card.svg'
+													alt='Заглушка'
+													width={120}
+													height={120}
+													className='w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg bg-gray-bg'
+												/>
+											)}
+										</div>
+										<div className='flex-1 min-w-0'>
+											<h3 className='text-sm sm:text-base font-medium text-black line-clamp-2'>
+												{item.product.title || 'Наименование товара'}
+											</h3>
+											<p className='text-main1 font-semibold text-base sm:text-lg mt-1'>
 												{item.product.price.toLocaleString('ru-RU')} руб
 											</p>
 										</div>
-
-										{/* 3D buttons with formats - 2 rows */}
-										<div className='flex flex-col gap-2'>
-											{/* First row: 3D Viewer + 2 formats */}
-											<div className='flex items-center gap-2'>
-												<button className='border-2 border-main1 bg-white text-black px-3 py-1.5 rounded-lg hover:bg-main1 hover:text-white transition-colors text-xs whitespace-nowrap w-36'>
-													Открыть 3D Viewer
-												</button>
-												{['.fbx', '.glb'].map(format => (
-													<label
-														key={format}
-														className='flex items-center gap-1 cursor-pointer border border-gray2 rounded-lg px-2 py-1.5'
-													>
-														<input
-															type='checkbox'
-															checked={
-																selectedFormats[item.id] === format ||
-																(format === '.fbx' && !selectedFormats[item.id])
-															}
-															onChange={() =>
-																handleFormatChange(item.id, format)
-															}
-															className='w-3 h-3 text-main1 focus:ring-main1 focus:ring-2 rounded'
-														/>
-														<span className='text-xs text-black'>{format}</span>
-													</label>
-												))}
-											</div>
-											{/* Second row: GLB Fitting + 2 formats */}
-											<div className='flex items-center gap-2'>
-												<button className='border-2 border-main1 bg-white text-black px-3 py-1.5 rounded-lg hover:bg-main1 hover:text-white transition-colors text-xs whitespace-nowrap w-36'>
-													Примерка GLB
-												</button>
-												{['.rfa', '.uszd'].map(format => (
-													<label
-														key={format}
-														className='flex items-center gap-1 cursor-pointer border border-gray2 rounded-lg px-2 py-1.5'
-													>
-														<input
-															type='checkbox'
-															checked={selectedFormats[item.id] === format}
-															onChange={() =>
-																handleFormatChange(item.id, format)
-															}
-															className='w-3 h-3 text-main1 focus:ring-main1 focus:ring-2 rounded'
-														/>
-														<span className='text-xs text-black'>{format}</span>
-													</label>
-												))}
-											</div>
-										</div>
 									</div>
 
-									{/* Action buttons - для владельца или пользователя с правом редактирования */}
+									{/* Action buttons */}
 									{(isOwner || canEdit) ? (
-										<div className='flex items-center gap-3'>
+										<div className='flex items-center gap-3 flex-shrink-0'>
 											<button
 												onClick={() =>
 													router.push(`/product/${item.product.id}`)
@@ -581,15 +513,15 @@ export default function BasketDetailPage() {
 
 					{/* Bottom section */}
 					{basket.items.length > 0 && (
-						<div className='mt-8 pt-6 border-t border-gray2 flex items-center justify-between'>
+						<div className='mt-8 pt-6 border-t border-gray2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
 							<div>
-								<p className='text-2xl font-bold text-black'>
+								<p className='text-xl sm:text-2xl font-bold text-black'>
 									ИТОГО: {calculateTotal().toLocaleString('ru-RU')} P
 								</p>
 							</div>
 							{/* Кнопка "Заказать" для владельца или пользователя с правом редактирования */}
 							{currentUser && basket && (isOwner || canEdit) ? (
-								<button className='bg-main1 text-white px-12 py-3 rounded-lg hover:bg-main2 transition-colors font-medium text-lg'>
+								<button className='bg-main1 text-white px-8 sm:px-12 py-3 rounded-lg hover:bg-main2 transition-colors font-medium text-base sm:text-lg w-full sm:w-auto'>
 									Заказать
 								</button>
 							) : currentUser && basket && !isOwner && !canEdit ? (
