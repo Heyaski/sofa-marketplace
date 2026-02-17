@@ -172,11 +172,11 @@ export default function DownloadsList() {
 	return (
 		<div>
 			{/* Header with sorting */}
-			<div className='flex items-center justify-between mb-6'>
-				<h1 className='text-3xl font-bold text-black'>История загрузок</h1>
-				<div className='flex items-center gap-2'>
-					<span className='text-gray text-sm'>Сортировка:</span>
-					<select className='px-4 py-2 border border-gray2 rounded-lg bg-white text-black focus:outline-none focus:ring-2 focus:ring-main1'>
+			<div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6'>
+				<h1 className='text-xl sm:text-3xl font-bold text-black'>История загрузок</h1>
+				<div className='flex items-center gap-2 shrink-0'>
+					<span className='text-gray text-sm whitespace-nowrap'>Сортировка:</span>
+					<select className='px-3 sm:px-4 py-2 border border-gray2 rounded-lg bg-white text-black text-sm focus:outline-none focus:ring-2 focus:ring-main1 min-w-0'>
 						<option>По дате</option>
 						<option>По названию</option>
 					</select>

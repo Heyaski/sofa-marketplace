@@ -83,11 +83,11 @@ export default function BasketsList({ baskets, onRefresh }: BasketsListProps) {
 
 	return (
 		<>
-			<div className='flex items-center justify-between mb-6'>
-				<h1 className='text-3xl font-bold text-black'>Корзина / проекты</h1>
+			<div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6'>
+				<h1 className='text-xl sm:text-3xl font-bold text-black'>Корзина / проекты</h1>
 				<button
 					onClick={() => setIsCreateModalOpen(true)}
-					className='bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main2 transition-colors font-medium'
+					className='bg-main1 text-white px-4 sm:px-6 py-2.5 rounded-lg hover:bg-main2 transition-colors font-medium text-sm sm:text-base w-full sm:w-auto shrink-0'
 				>
 					+ Создать проект (корзину)
 				</button>

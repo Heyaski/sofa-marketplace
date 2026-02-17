@@ -7,6 +7,10 @@
 @layer base {
 	html {
 		font-family: 'Inter', system-ui, sans-serif;
+		overflow-x: hidden;
+		height: 100%;
+		/* Фон как у body — убирает белое пространство при скролле на мобильных */
+		background-color: #F2F3F7;
 	}
 
 	body {
@@ -14,10 +18,7 @@
 		padding-left: env(safe-area-inset-left, 0);
 		padding-right: env(safe-area-inset-right, 0);
 		overflow-x: hidden;
-	}
-
-	html {
-		overflow-x: hidden;
+		min-height: 100%;
 	}
 }
 

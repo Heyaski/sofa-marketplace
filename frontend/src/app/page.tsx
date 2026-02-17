@@ -19,9 +19,9 @@ export default function Home() {
 	}
 
 	return (
-		<div className='min-h-screen bg-gray-bg'>
+		<div className='min-h-[100dvh] bg-gray-bg flex flex-col'>
 			<Header />
-			<main className='pb-20 lg:pb-0'>
+			<main className='flex-1 pb-20 lg:pb-0'>
 				<HeroSection onOpenAuth={() => setIsAuthModalOpen(true)} />
 			</main>
 			<Footer />

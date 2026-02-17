@@ -67,24 +67,9 @@ export default function Header() {
 	return (
 		<header className='bg-white sticky top-0 z-40 shadow-sm'>
 			<div className='max-w-7xl mx-auto px-3 sm:px-6 lg:px-8'>
-				{/* Mobile layout — компактно, всё влезает в строку */}
+				{/* Mobile layout — без лого, Каталог слева, иконки справа */}
 				<div className='flex lg:hidden items-center justify-between min-h-[48px] py-1.5 gap-1 min-w-0'>
-					{/* Logo — без текста на узких экранах, с текстом VIZHUB на широких */}
-					<a
-						href='/'
-						className='flex items-center flex-shrink-0 hover:opacity-80 transition-opacity'
-					>
-						<Image
-							src='/img/logo.svg'
-							alt='VizHub.pro'
-							width={24}
-							height={24}
-							className='w-6 h-6'
-						/>
-						<span className='text-sm font-semibold text-black ml-1.5 truncate max-w-[80px]'>VIZHUB</span>
-					</a>
-
-					{/* Catalog — иконка + текст «Каталог» */}
+					{/* Catalog — иконка + текст «Каталог» (лого скрыто на мобильной) */}
 					<a
 						href='/catalog'
 						className='flex-shrink-0 bg-main1 text-white px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 hover:bg-main2 transition-colors'

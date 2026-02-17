@@ -269,9 +269,9 @@ export default function ProfilePage() {
 
 	if (!user) {
 		return (
-			<div className='min-h-screen bg-gray-bg'>
+			<div className='min-h-[100dvh] bg-gray-bg flex flex-col'>
 				<Header />
-				<main className='max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 lg:pb-8'>
+				<main className='flex-1 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 lg:pb-8 w-full'>
 					<div className='bg-white rounded-xl p-4 sm:p-6 md:p-8 shadow-card text-center'>
 						<h2 className='text-xl sm:text-2xl font-bold text-black mb-4'>
 							Вы не авторизованы
@@ -288,10 +288,10 @@ export default function ProfilePage() {
 	}
 
 	return (
-		<div className='min-h-screen bg-gray-bg'>
+		<div className='min-h-[100dvh] bg-gray-bg flex flex-col'>
 			<Header />
 
-			<main className='max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pb-20 lg:pb-8'>
+			<main className='flex-1 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pb-20 lg:pb-8 w-full'>
 				<div className='grid grid-cols-1 lg:grid-cols-11 gap-4 sm:gap-6'>
 					{/* Левая колонка - Навигация */}
 					<div className='lg:col-span-3'>
@@ -318,7 +318,7 @@ export default function ProfilePage() {
 								</div>
 
 								<div
-									className={`flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-lg cursor-pointer overflow-hidden ${
+									className={`flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-lg cursor-pointer min-h-[44px] ${
 										activeTab === 'subscription'
 											? 'bg-main1 text-white'
 											: 'text-gray hover:bg-gray-bg'
@@ -332,7 +332,7 @@ export default function ProfilePage() {
 										height={20}
 										className='w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0'
 									/>
-									<span className='text-xs sm:text-sm whitespace-nowrap'>
+									<span className='text-xs sm:text-sm truncate'>
 										Управление подпиской
 									</span>
 								</div>
@@ -358,7 +358,7 @@ export default function ProfilePage() {
 								</div>
 
 								<div
-									className={`flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-lg cursor-pointer overflow-hidden ${
+									className={`flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-lg cursor-pointer min-h-[44px] ${
 										activeTab === 'cart'
 											? 'bg-main1 text-white'
 											: 'text-gray hover:bg-gray-bg'
@@ -372,7 +372,7 @@ export default function ProfilePage() {
 										height={20}
 										className='w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0'
 									/>
-									<span className='text-xs sm:text-sm whitespace-nowrap'>
+									<span className='text-xs sm:text-sm truncate'>
 										Корзина / проекты
 									</span>
 								</div>

@@ -19,6 +19,9 @@ const getBrightness = (rgb: string): number | null => {
 
 const THUMB_SIZE = 18
 const TRACK_HEIGHT = 8
+// Градиент: чёрный (0) → радуга → белый (255) — соответствует яркости из Excel (r+g+b)/3
+const RAINBOW_GRADIENT =
+	'linear-gradient(90deg, #000000 0%, #1a0a0a 2%, #ff0000 8%, #ff7f00 25%, #ffff00 42%, #00ff00 58%, #00ffff 75%, #0000ff 90%, #f5f5f5 98%, #ffffff 100%)'
 
 export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps) {
 	const [minVal, setMinVal] = useState(0)
@@ -120,23 +123,26 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
 
 			<div
 				ref={trackRef}
-				className='relative select-none'
-				style={{ height: Math.max(THUMB_SIZE, TRACK_HEIGHT) }}
+				className='relative select-none touch-none'
+				style={{
+					// Высота 44px — минимальная область касания для мобильных (ползунки проще двигать)
+					height: 44,
+					minHeight: 44,
+				}}
 				onPointerDown={handlePointerDown}
 				onPointerMove={handlePointerMove}
 				onPointerUp={handlePointerUp}
 				onPointerLeave={handlePointerUp}
 			>
-				{/* Радужная полоса */}
+				{/* Радужная полоса: чёрный (0) → радуга → белый (255) по номерам яркости из Excel */}
 				<div
 					className='absolute rounded-full'
 					style={{
 						left: 0,
 						right: 0,
-						top: (THUMB_SIZE - TRACK_HEIGHT) / 2,
+						top: (44 - TRACK_HEIGHT) / 2,
 						height: TRACK_HEIGHT,
-						background:
-							'linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #8b00ff)',
+						background: RAINBOW_GRADIENT,
 					}}
 				/>
 
@@ -146,25 +152,25 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
 					style={{
 						left: `${minPercent}%`,
 						width: `${Math.max(maxPercent - minPercent, 2)}%`,
-						top: (THUMB_SIZE - TRACK_HEIGHT) / 2,
+						top: (44 - TRACK_HEIGHT) / 2,
 						height: TRACK_HEIGHT,
 					}}
 				/>
 
-				{/* Левый ползунок — по центру по вертикали */}
+				{/* Левый ползунок */}
 				<div
 					className='absolute w-[18px] h-[18px] rounded-full bg-[#1976D2] border-[3px] border-white shadow-[0_2px_6px_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing pointer-events-none'
 					style={{
 						left: `calc(${minPercent}% - ${THUMB_SIZE / 2}px)`,
-						top: 0,
+						top: (44 - THUMB_SIZE) / 2,
 					}}
 				/>
-				{/* Правый ползунок — по центру по вертикали */}
+				{/* Правый ползунок */}
 				<div
 					className='absolute w-[18px] h-[18px] rounded-full bg-[#1976D2] border-[3px] border-white shadow-[0_2px_6px_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing pointer-events-none'
 					style={{
 						left: `calc(${maxPercent}% - ${THUMB_SIZE / 2}px)`,
-						top: 0,
+						top: (44 - THUMB_SIZE) / 2,
 					}}
 				/>
 			</div>
