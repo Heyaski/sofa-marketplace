@@ -62,22 +62,38 @@ class ProductViewSet(viewsets.ModelViewSet):
                     queryset = queryset.filter(q_cats)
         
         # Фильтрация по color_rgb
-        # Поддерживаются два формата:
+        # Поддерживаются форматы:
         # 1) "r,g,b"  — старый формат, поиск по подстроке
-        # 2) "min-max" — новый формат: диапазон яркости (0–255), где яркость = (r+g+b)/3
+        # 2) "min-max" — новый формат: диапазон по HEX-значению (0–16777215),
+        #    где value = (r << 16) | (g << 8) | b
         color_rgb = self.request.query_params.get('color_rgb', None)
         if color_rgb and color_rgb.strip():
-            value = color_rgb.strip()
-            if '-' in value:
-                try:
-                    # Новый формат "min-max"
-                    parts = value.split('-', 1)
-                    brightness_min = max(0, min(255, int(parts[0])))
-                    brightness_max = max(0, min(255, int(parts[1])))
-                    if brightness_min > brightness_max:
-                        brightness_min, brightness_max = brightness_max, brightness_min
+            raw = color_rgb.strip()
 
-                    # Фильтруем по яркости в Python (объём товаров небольшой)
+            # Старый формат "r,g,b" без диапазона — поиск по подстроке
+            if ',' in raw and '-' not in raw:
+                queryset = queryset.filter(color_rgb__icontains=raw)
+            elif '-' in raw:
+                try:
+                    part_min, part_max = raw.split('-', 1)
+
+                    def parse_bound(s: str) -> int:
+                        v = s.strip()
+                        if not v:
+                            return 0
+                        if v.startswith('#'):
+                            return max(0, min(0xFFFFFF, int(v[1:], 16)))
+                        if v.lower().startswith('0x'):
+                            return max(0, min(0xFFFFFF, int(v, 16)))
+                        if any(c in 'abcdefABCDEF' for c in v):
+                            return max(0, min(0xFFFFFF, int(v, 16)))
+                        return max(0, min(0xFFFFFF, int(v)))
+
+                    v_min = parse_bound(part_min)
+                    v_max = parse_bound(part_max)
+                    if v_min > v_max:
+                        v_min, v_max = v_max, v_min
+
                     filtered_ids = []
                     for product in queryset:
                         if not product.color_rgb:
@@ -89,8 +105,9 @@ class ProductViewSet(viewsets.ModelViewSet):
                             ]
                             if len(rgb_parts) != 3:
                                 continue
-                            brightness = round(sum(rgb_parts) / 3)
-                            if brightness_min <= brightness <= brightness_max:
+                            r, g, b = rgb_parts
+                            value_int = (r << 16) | (g << 8) | b
+                            if v_min <= value_int <= v_max:
                                 filtered_ids.append(product.id)
                         except (ValueError, TypeError):
                             continue
@@ -103,8 +120,8 @@ class ProductViewSet(viewsets.ModelViewSet):
                     # При ошибке парсинга — игнорируем диапазон и не фильтруем
                     pass
             else:
-                # Старый формат "r,g,b" — оставляем как есть для обратной совместимости
-                queryset = queryset.filter(color_rgb__icontains=value)
+                # Любой другой одиночный формат — поиск по подстроке
+                queryset = queryset.filter(color_rgb__icontains=raw)
 
         # Фильтрация по множественным значениям (material, style, color, brand)
         # Если значение содержит запятую, ищем товары, где поле содержит любое из значений
