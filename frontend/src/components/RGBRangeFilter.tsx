@@ -18,7 +18,7 @@ const getBrightness = (rgb: string): number | null => {
 }
 
 const THUMB_SIZE = 18
-const TRACK_HEIGHT = 8
+const TRACK_HEIGHT = 16
 // Градиент: чёрный (0) → радуга → белый (255) — соответствует яркости из Excel (r+g+b)/3
 const RAINBOW_GRADIENT =
 	'linear-gradient(90deg, #000000 0%, #1a0a0a 2%, #ff0000 8%, #ff7f00 25%, #ffff00 42%, #00ff00 58%, #00ffff 75%, #0000ff 90%, #f5f5f5 98%, #ffffff 100%)'
@@ -112,12 +112,18 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
 	const minPercent = (minVal / 255) * 100
 	const maxPercent = (maxVal / 255) * 100
 
+	const toHexByte = (v: number) =>
+		Math.max(0, Math.min(255, v))
+			.toString(16)
+			.padStart(2, '0')
+			.toUpperCase()
+
 	return (
 		<div className='w-full py-3'>
 			<div className='mb-1 flex justify-between text-[11px] text-gray-500'>
 				<span>Диапазон цвета</span>
 				<span>
-					{minVal}–{maxVal}
+					{minVal}–{maxVal} (HEX {toHexByte(minVal)}–{toHexByte(maxVal)})
 				</span>
 			</div>
 

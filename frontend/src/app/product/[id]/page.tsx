@@ -201,8 +201,8 @@ export default function ProductPage({ params }: ProductPageProps) {
 							)}
 						</div>
 
-						{/* Информация о товаре */}
-						<div className='space-y-4 sm:space-y-6'>
+			{/* Информация о товаре */}
+			<div className='space-y-4 sm:space-y-6'>
 							<h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-black'>{product.title}</h1>
 
 							{/* Цена */}
@@ -223,6 +223,56 @@ export default function ProductPage({ params }: ProductPageProps) {
 									</p>
 								</div>
 							)}
+
+							{/* Краткое описание под товаром — цвет (HEX) и габариты из Excel */}
+							<div className='space-y-1 text-sm'>
+								{(product.color || product.color_rgb) && (
+									<p className='text-gray'>
+										Цвет:{' '}
+										<span className='text-black'>
+											{product.color}
+											{product.color_rgb && (
+												<>
+													{' '}
+													(
+													{(() => {
+														const parts = product.color_rgb
+															.split(',')
+															.map(p => parseInt(p.trim(), 10))
+														if (
+															parts.length !== 3 ||
+															parts.some(p => Number.isNaN(p))
+														) {
+															return product.color_rgb
+														}
+														const toByte = (v: number) =>
+															Math.max(0, Math.min(255, v))
+																.toString(16)
+																.padStart(2, '0')
+																.toUpperCase()
+														return `#${toByte(parts[0])}${toByte(
+															parts[1]
+														)}${toByte(parts[2])}`
+													})()}
+													)
+												</>
+											)}
+										</span>
+									</p>
+								)}
+								{(product.width || product.depth || product.height) && (
+									<p className='text-gray'>
+										Габариты:{' '}
+										<span className='text-black'>
+											{product.width && `${product.width} см ширина`}
+											{product.width && (product.depth || product.height) && '; '}
+											{product.depth && `${product.depth} см глубина`}
+											{product.depth && product.height && '; '}
+											{product.height && `${product.height} см высота`}
+										</span>
+									</p>
+								)}
+							</div>
 
 							{/* Наличие */}
 							<div className='flex items-center gap-4 text-sm'>
@@ -248,12 +298,6 @@ export default function ProductPage({ params }: ProductPageProps) {
 							{/* Характеристики */}
 							<div className='space-y-3'>
 								<div className='space-y-2 text-sm'>
-									{product.article && (
-										<div className='flex justify-between'>
-											<span className='text-gray'>Артикул:</span>
-											<span className='text-black'>{product.article}</span>
-										</div>
-									)}
 									{product.category && (
 										<div className='flex justify-between'>
 											<span className='text-gray'>Категория:</span>
@@ -343,7 +387,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 							</button>
 
 							{/* Кнопки */}
-							<div className='grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4'>
+							<div className='grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4'>
 								<button
 									onClick={handleAddToCart}
 									className='bg-main1 text-white py-2.5 sm:py-3 rounded-lg hover:bg-main1/90 transition-colors font-medium text-sm sm:text-base'
@@ -353,6 +397,65 @@ export default function ProductPage({ params }: ProductPageProps) {
 								<button className='border-2 border-main1 bg-white text-black py-2.5 sm:py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors text-sm sm:text-base'>
 									Примерка GLB
 								</button>
+								{product.model_rfa && (
+									<button
+										onClick={async () => {
+											try {
+												const response = await fetch(
+													`${config.API_URL}/api/downloads/presign/`,
+													{
+														method: 'POST',
+														headers: {
+															'Content-Type': 'application/json',
+															Authorization:
+																typeof window !== 'undefined' &&
+																localStorage.getItem('access_token')
+																	? `Bearer ${localStorage.getItem('access_token')}`
+																	: '',
+														},
+														body: JSON.stringify({
+															product_id: product.id,
+															format: '.rfa',
+														}),
+													}
+												)
+
+												const contentType =
+													response.headers.get('content-type')
+												const isJson =
+													contentType &&
+													contentType.includes('application/json')
+												const data = isJson ? await response.json() : null
+
+												if (!response.ok) {
+													const message =
+														data?.error ||
+														data?.message ||
+														'Ошибка при получении ссылки для скачивания RFA'
+													alert(message)
+													return
+												}
+
+												if (data?.url) {
+													window.location.href = data.url
+												} else {
+													alert('RFA-файл недоступен для этого товара')
+												}
+											} catch (error) {
+												console.error(
+													'Ошибка при скачивании RFA:',
+													error
+												)
+												alert(
+													'Ошибка при скачивании RFA-файла'
+												)
+											}
+										}}
+										className='border-2 border-main1 bg-white text-main1 py-2.5 sm:py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors text-sm sm:text-base'
+									>
+										Скачать RFA
+									</button>
+								)}
 							</div>
 
 							{/* Ссылка на вход/регистрацию - только для неавторизованных */}
