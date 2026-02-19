@@ -224,7 +224,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 								</div>
 							)}
 
-							{/* Краткое описание под товаром — цвет (HEX) и габариты из Excel */}
+							{/* Краткое описание под товаром — аккуратный цвет с HEX */}
 							<div className='space-y-1 text-sm'>
 								{(product.color || product.color_rgb) && (
 									<p className='text-gray'>
@@ -257,18 +257,6 @@ export default function ProductPage({ params }: ProductPageProps) {
 													)
 												</>
 											)}
-										</span>
-									</p>
-								)}
-								{(product.width || product.depth || product.height) && (
-									<p className='text-gray'>
-										Габариты:{' '}
-										<span className='text-black'>
-											{product.width && `${product.width} см ширина`}
-											{product.width && (product.depth || product.height) && '; '}
-											{product.depth && `${product.depth} см глубина`}
-											{product.depth && product.height && '; '}
-											{product.height && `${product.height} см высота`}
 										</span>
 									</p>
 								)}
@@ -330,12 +318,6 @@ export default function ProductPage({ params }: ProductPageProps) {
 											<span className='text-black'>{product.style}</span>
 										</div>
 									)}
-									{product.color && (
-										<div className='flex justify-between'>
-											<span className='text-gray'>Цвет:</span>
-											<span className='text-black'>{product.color}</span>
-										</div>
-									)}
 								</div>
 
 								{/* Размеры */}
@@ -381,21 +363,13 @@ export default function ProductPage({ params }: ProductPageProps) {
 								)}
 							</div>
 
-							{/* Кнопка Яндекс */}
-							<button className='w-full border-2 border-red-500 bg-white text-black py-2.5 sm:py-3 px-4 rounded-lg hover:bg-red-50 transition-colors text-sm sm:text-base'>
-								Открыть товар в Яндекс
-							</button>
-
-							{/* Кнопки */}
-							<div className='grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4'>
+							{/* Основные действия */}
+							<div className='grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4'>
 								<button
 									onClick={handleAddToCart}
 									className='bg-main1 text-white py-2.5 sm:py-3 rounded-lg hover:bg-main1/90 transition-colors font-medium text-sm sm:text-base'
 								>
 									Добавить в корзину
-								</button>
-								<button className='border-2 border-main1 bg-white text-black py-2.5 sm:py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors text-sm sm:text-base'>
-									Примерка GLB
 								</button>
 								{product.model_rfa && (
 									<button

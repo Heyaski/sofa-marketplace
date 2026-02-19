@@ -47,13 +47,13 @@ export default function ProductCard({
 			}
 		}
 
-		const dims: string[] = []
-		if (product.width) dims.push(`${product.width} см ширина`)
-		if (product.depth) dims.push(`${product.depth} см глубина`)
-		if (product.height) dims.push(`${product.height} см высота`)
+		const dimsNumbers: string[] = []
+		if (product.width) dimsNumbers.push(`${product.width}`)
+		if (product.depth) dimsNumbers.push(`${product.depth}`)
+		if (product.height) dimsNumbers.push(`${product.height}`)
 
-		if (dims.length) {
-			parts.push(dims.join(' · '))
+		if (dimsNumbers.length) {
+			parts.push(`${dimsNumbers.join(' × ')} см`)
 		}
 
 		return parts.join(' • ')
