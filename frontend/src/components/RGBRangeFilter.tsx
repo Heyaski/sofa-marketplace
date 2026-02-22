@@ -12,12 +12,10 @@ const TRACK_HEIGHT = 16
 const MAX_HUE = 360
 const GRADIENT_STOPS = 36
 
-function hslToRgbString(h: number): string {
-  const s = 1
-  const l = 0.5
-  const c = (1 - Math.abs(2 * l - 1)) * s
+function hueToRgb(h: number): { r: number; g: number; b: number } {
+  const c = 1
   const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
-  const m = l - c / 2
+  const m = 0
   let r1: number, g1: number, b1: number
   if (h < 60) { r1 = c; g1 = x; b1 = 0 }
   else if (h < 120) { r1 = x; g1 = c; b1 = 0 }
@@ -25,10 +23,21 @@ function hslToRgbString(h: number): string {
   else if (h < 240) { r1 = 0; g1 = x; b1 = c }
   else if (h < 300) { r1 = x; g1 = 0; b1 = c }
   else { r1 = c; g1 = 0; b1 = x }
-  const r = Math.round((r1 + m) * 255)
-  const g = Math.round((g1 + m) * 255)
-  const b = Math.round((b1 + m) * 255)
+  return {
+    r: Math.round((r1 + m) * 255),
+    g: Math.round((g1 + m) * 255),
+    b: Math.round((b1 + m) * 255),
+  }
+}
+
+function hueToRgbString(h: number): string {
+  const { r, g, b } = hueToRgb(h)
   return `rgb(${r},${g},${b})`
+}
+
+function hueToHex(h: number): string {
+  const { r, g, b } = hueToRgb(h)
+  return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0').toUpperCase()).join('')
 }
 
 const clampHue = (v: number) => Math.max(0, Math.min(MAX_HUE, Math.round(v)))
@@ -45,7 +54,7 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
     for (let i = 0; i <= GRADIENT_STOPS; i++) {
       const hue = (i / GRADIENT_STOPS) * MAX_HUE
       const pct = ((i / GRADIENT_STOPS) * 100).toFixed(2)
-      stops.push(`${hslToRgbString(hue)} ${pct}%`)
+      stops.push(`${hueToRgbString(hue)} ${pct}%`)
     }
     return `linear-gradient(90deg, ${stops.join(', ')})`
   }, [])
@@ -125,25 +134,29 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
   const minPercent = (minVal / MAX_HUE) * 100
   const maxPercent = (maxVal / MAX_HUE) * 100
 
-  const minColor = hslToRgbString(minVal)
-  const maxColor = hslToRgbString(maxVal)
+  const minColor = hueToRgbString(minVal)
+  const maxColor = hueToRgbString(maxVal)
+  const minRgb = hueToRgb(minVal)
+  const maxRgb = hueToRgb(maxVal)
+  const minHex = hueToHex(minVal)
+  const maxHex = hueToHex(maxVal)
 
   return (
     <div className='w-full py-3'>
       <div className='mb-1 flex justify-between text-[11px] text-gray-500'>
         <span>Диапазон цвета</span>
-        <span className='flex items-center gap-2'>
+        <span className='flex items-center gap-1.5'>
           <span
             className='inline-block w-3 h-3 rounded-full border border-gray-300'
             style={{ background: minColor }}
           />
-          {minVal}°
-          <span className='mx-0.5'>–</span>
+          <span>{minHex}</span>
+          <span className='text-gray-400'>–</span>
           <span
             className='inline-block w-3 h-3 rounded-full border border-gray-300'
             style={{ background: maxColor }}
           />
-          {maxVal}°
+          <span>{maxHex}</span>
         </span>
       </div>
 
