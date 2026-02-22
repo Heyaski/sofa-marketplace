@@ -1,6 +1,26 @@
 import colorsys
 
 from rest_framework import viewsets, filters
+
+
+def _rgb_to_scale(hue_deg: float, s: float, v: float) -> float:
+    """
+    Переводит цвет (HSV) в позицию на единой шкале 0–460:
+      0– 25  Чёрный   (V < 0.20)
+     25– 50  Серый    (S < 0.10, 0.20 ≤ V ≤ 0.67)
+     50– 75  Белый    (S < 0.10, V > 0.67)
+     75–100  Бежевый  (тёплый, слабонасыщенный)
+    100–460  Радуга   (хроматические, S ≥ 0.10)
+    """
+    if v < 0.20:
+        return (v / 0.20) * 25.0
+    if s < 0.10 and v <= 0.67:
+        return 25.0 + ((v - 0.20) / 0.47) * 25.0
+    if s < 0.10 and v > 0.67:
+        return 50.0 + ((v - 0.67) / 0.33) * 25.0
+    if 15 <= hue_deg <= 55 and 0.10 <= s <= 0.40 and v > 0.60:
+        return 75.0 + ((hue_deg - 15.0) / 40.0) * 25.0
+    return 100.0 + hue_deg
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
@@ -63,18 +83,22 @@ class ProductViewSet(viewsets.ModelViewSet):
                 if q_cats:
                     queryset = queryset.filter(q_cats)
         
-        # Фильтрация по оттенку (hue). Формат: "min-max" где min/max — градусы 0–360.
-        # Ахроматические цвета (saturation < 10%) пропускаются.
+        # Фильтрация по цвету. Единая шкала 0–460:
+        #   0– 25  Чёрный   (V < 0.20)
+        #  25– 50  Серый    (S < 0.10, 0.20 ≤ V ≤ 0.67)
+        #  50– 75  Белый    (S < 0.10, V > 0.67)
+        #  75–100  Бежевый  (15° ≤ H ≤ 55°, 0.10 ≤ S ≤ 0.40, V > 0.60)
+        # 100–460  Радуга   (Hue 0°–360°, S ≥ 0.10)
         color_hue = self.request.query_params.get('color_hue', None)
         if color_hue and color_hue.strip():
             raw = color_hue.strip()
             if '-' in raw:
                 try:
                     part_min, part_max = raw.split('-', 1)
-                    hue_min = max(0.0, min(360.0, float(part_min.strip())))
-                    hue_max = max(0.0, min(360.0, float(part_max.strip())))
-                    if hue_min > hue_max:
-                        hue_min, hue_max = hue_max, hue_min
+                    scale_min = max(0.0, min(460.0, float(part_min.strip())))
+                    scale_max = max(0.0, min(460.0, float(part_max.strip())))
+                    if scale_min > scale_max:
+                        scale_min, scale_max = scale_max, scale_min
 
                     filtered_ids = []
                     for product in queryset:
@@ -88,11 +112,13 @@ class ProductViewSet(viewsets.ModelViewSet):
                             if len(rgb_parts) != 3:
                                 continue
                             r, g, b = rgb_parts
-                            h, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
-                            if s < 0.10:
-                                continue
+                            h, s, v = colorsys.rgb_to_hsv(
+                                r / 255.0, g / 255.0, b / 255.0
+                            )
                             hue_deg = h * 360.0
-                            if hue_min <= hue_deg <= hue_max:
+
+                            pos = _rgb_to_scale(hue_deg, s, v)
+                            if scale_min <= pos <= scale_max:
                                 filtered_ids.append(product.id)
                         except (ValueError, TypeError):
                             continue

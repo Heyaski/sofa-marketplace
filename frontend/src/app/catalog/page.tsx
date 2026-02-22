@@ -477,7 +477,7 @@ function CatalogContent() {
 
 					</div>
 
-				{/* Радужная полоса фильтра по оттенку */}
+				{/* Полоса цвета: нейтральные + радуга */}
 				<div className='mb-4 sm:mb-6'>
 					<RGBRangeFilter
 						value={filters.color_hue}
