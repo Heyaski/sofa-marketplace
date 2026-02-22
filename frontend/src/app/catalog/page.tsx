@@ -477,20 +477,20 @@ function CatalogContent() {
 
 					</div>
 
-					{/* Полоса RGB-диапазона под фильтрами */}
-					<div className='mb-4 sm:mb-6'>
-						<RGBRangeFilter
-							value={filters.color_rgb}
-							onChange={v => {
-								if (v) {
-									setFilters({ ...filters, color_rgb: v })
-								} else {
-									const { color_rgb: _removed, ...rest } = filters
-									setFilters(rest)
-								}
-							}}
-						/>
-					</div>
+				{/* Радужная полоса фильтра по оттенку */}
+				<div className='mb-4 sm:mb-6'>
+					<RGBRangeFilter
+						value={filters.color_hue}
+						onChange={v => {
+							if (v) {
+								setFilters({ ...filters, color_hue: v })
+							} else {
+								const { color_hue: _removed, ...rest } = filters
+								setFilters(rest)
+							}
+						}}
+					/>
+				</div>
 
 					<div className='border-t border-gray2 mb-4 sm:mb-6 lg:mb-8'></div>
 

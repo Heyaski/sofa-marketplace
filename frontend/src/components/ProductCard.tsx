@@ -32,31 +32,24 @@ export default function ProductCard({
 		return new Intl.NumberFormat('ru-RU').format(Number(price))
 	}
 
-	const getShortDescription = () => {
-		const parts: string[] = []
+	const getCategoryName = () => {
+		if (!product.title) return ''
+		const match = product.title.match(/^[А-Яа-яЁё]+/)
+		return match ? match[0] : ''
+	}
 
-		const hex = rgbToHex(product.color_rgb)
+	const getCardDescription = () => {
+		const categoryName = getCategoryName()
+		const colorName = product.color || ''
+		const dims: string[] = []
+		if (product.width) dims.push(`${product.width}`)
+		if (product.depth) dims.push(`${product.depth}`)
+		if (product.height) dims.push(`${product.height}`)
 
-		if (product.color || hex) {
-			if (product.color && hex) {
-				parts.push(`${product.color} (${hex})`)
-			} else if (product.color) {
-				parts.push(product.color)
-			} else if (hex) {
-				parts.push(hex)
-			}
-		}
-
-		const dimsNumbers: string[] = []
-		if (product.width) dimsNumbers.push(`${product.width}`)
-		if (product.depth) dimsNumbers.push(`${product.depth}`)
-		if (product.height) dimsNumbers.push(`${product.height}`)
-
-		if (dimsNumbers.length) {
-			parts.push(`${dimsNumbers.join(' × ')} см`)
-		}
-
-		return parts.join(' • ')
+		let line = categoryName
+		if (colorName) line += ` ${colorName}`
+		if (dims.length) line += ` ${dims.join('×')} см`
+		return line.trim()
 	}
 
 	const handleDownloadRfa = async () => {
@@ -117,28 +110,13 @@ export default function ProductCard({
 				<ProductModelViewer product={product} variant='card' />
 			</div>
 
-			{/* Название товара */}
+			{/* Описание: категория + цвет + размеры */}
 			<div
-				className='text-sm font-semibold text-black mb-1 sm:mb-2 cursor-pointer hover:text-main1 transition-colors line-clamp-2 min-h-[2.5rem]'
+				className='text-sm font-semibold text-black mb-3 cursor-pointer hover:text-main1 transition-colors line-clamp-2 min-h-[2.5rem]'
 				onClick={handleCardClick}
-				title={product.title}
+				title={getCardDescription()}
 			>
-				{product.title}
-			</div>
-
-			{/* Артикул */}
-			{/* (скрыт по требованию) */}
-
-			{/* Краткое описание: цвет и габариты */}
-			{getShortDescription() && (
-				<div className='text-xs text-gray mb-2'>
-					{getShortDescription()}
-				</div>
-			)}
-
-			{/* Цена */}
-			<div className='text-base sm:text-lg font-bold text-black mb-2 sm:mb-3'>
-				{formatPrice(Number(product.price))} {config.CURRENCY_SYMBOL}
+				{getCardDescription()}
 			</div>
 
 			{/* Действия */}

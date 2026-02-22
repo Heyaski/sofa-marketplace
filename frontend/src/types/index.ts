@@ -27,7 +27,7 @@ export interface Product {
 	material: string
 	style: string
 	color: string
-	color_rgb?: string
+	color_hue?: string
 	brand?: string
 	country?: string
 	
@@ -179,7 +179,7 @@ export interface ProductFilters {
 	material?: string
 	style?: string
 	color?: string
-	color_rgb?: string
+	color_hue?: string
 	brand?: string
 	country?: string
 	availability?: 'in_stock' | 'on_order' | 'out_of_stock'

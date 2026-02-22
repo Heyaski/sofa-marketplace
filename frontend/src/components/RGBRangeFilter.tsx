@@ -3,119 +3,81 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 interface RGBRangeFilterProps {
-  // Диапазон как "min-max", где min/max — целые 0–16777215 (0x000000–0xFFFFFF)
   value: string | undefined
   onChange: (value: string | undefined) => void
 }
 
 const THUMB_SIZE = 18
 const TRACK_HEIGHT = 16
-const MAX_VALUE = 0xFFFFFF
-const GRADIENT_STOPS = 64
+const MAX_HUE = 360
+const GRADIENT_STOPS = 36
 
-const clampValue = (v: number) => Math.max(0, Math.min(MAX_VALUE, v))
-
-const valueToRgb = (v: number) => {
-  const value = clampValue(v)
-  return {
-    r: (value >> 16) & 255,
-    g: (value >> 8) & 255,
-    b: value & 255,
-  }
+function hslToRgbString(h: number): string {
+  const s = 1
+  const l = 0.5
+  const c = (1 - Math.abs(2 * l - 1)) * s
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
+  const m = l - c / 2
+  let r1: number, g1: number, b1: number
+  if (h < 60) { r1 = c; g1 = x; b1 = 0 }
+  else if (h < 120) { r1 = x; g1 = c; b1 = 0 }
+  else if (h < 180) { r1 = 0; g1 = c; b1 = x }
+  else if (h < 240) { r1 = 0; g1 = x; b1 = c }
+  else if (h < 300) { r1 = x; g1 = 0; b1 = c }
+  else { r1 = c; g1 = 0; b1 = x }
+  const r = Math.round((r1 + m) * 255)
+  const g = Math.round((g1 + m) * 255)
+  const b = Math.round((b1 + m) * 255)
+  return `rgb(${r},${g},${b})`
 }
 
-const valueToHex = (v: number) =>
-  '#' +
-  clampValue(v)
-    .toString(16)
-    .padStart(6, '0')
-    .toUpperCase()
-
-const parseRangeValue = (raw: string | undefined): { min: number; max: number } => {
-  if (!raw) return { min: 0, max: MAX_VALUE }
-
-  const trimmed = raw.trim()
-
-  // Формат "min-max" (десятичный или HEX)
-  const rangeMatch = trimmed.match(/^([^-]+)-([^-]+)$/)
-  if (rangeMatch) {
-    const parsePart = (s: string) => {
-      const v = s.trim()
-      if (!v) return 0
-      if (v.startsWith('#')) return clampValue(parseInt(v.slice(1), 16))
-      if (v.toLowerCase().startsWith('0x')) return clampValue(parseInt(v, 16))
-      if (/[a-fA-F]/.test(v)) return clampValue(parseInt(v, 16))
-      return clampValue(parseInt(v, 10))
-    }
-
-    let min = parsePart(rangeMatch[1])
-    let max = parsePart(rangeMatch[2])
-    if (Number.isNaN(min) || Number.isNaN(max)) return { min: 0, max: MAX_VALUE }
-    if (min > max) [min, max] = [max, min]
-    return { min, max }
-  }
-
-  // "#RRGGBB" → точечный диапазон
-  if (/^#?[0-9a-fA-F]{6}$/.test(trimmed)) {
-    const hex = trimmed.startsWith('#') ? trimmed.slice(1) : trimmed
-    const value = clampValue(parseInt(hex, 16))
-    return { min: value, max: value }
-  }
-
-  // "r,g,b" → точечный диапазон
-  if (trimmed.includes(',')) {
-    const parts = trimmed.split(',').map(p => parseInt(p.trim(), 10))
-    if (parts.length === 3 && !parts.some(p => Number.isNaN(p))) {
-      const [r, g, b] = parts.map(v => Math.max(0, Math.min(255, v)))
-      const value = (r << 16) | (g << 8) | b
-      return { min: value, max: value }
-    }
-  }
-
-  return { min: 0, max: MAX_VALUE }
-}
+const clampHue = (v: number) => Math.max(0, Math.min(MAX_HUE, Math.round(v)))
 
 export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps) {
   const [minVal, setMinVal] = useState(0)
-  const [maxVal, setMaxVal] = useState(MAX_VALUE)
+  const [maxVal, setMaxVal] = useState(MAX_HUE)
   const activeThumbRef = useRef<'min' | 'max' | null>(null)
   const [pendingValue, setPendingValue] = useState<string | undefined>(undefined)
   const trackRef = useRef<HTMLDivElement>(null)
 
-  // Градиент по HEX-пространству, посчитанный программно
   const gradient = useMemo(() => {
     const stops: string[] = []
     for (let i = 0; i <= GRADIENT_STOPS; i++) {
-      const t = i / GRADIENT_STOPS
-      const v = Math.round(t * MAX_VALUE)
-      const { r, g, b } = valueToRgb(v)
-      const pct = (t * 100).toFixed(2)
-      stops.push(`rgb(${r},${g},${b}) ${pct}%`)
+      const hue = (i / GRADIENT_STOPS) * MAX_HUE
+      const pct = ((i / GRADIENT_STOPS) * 100).toFixed(2)
+      stops.push(`${hslToRgbString(hue)} ${pct}%`)
     }
     return `linear-gradient(90deg, ${stops.join(', ')})`
   }, [])
 
-  // Синхронизация из внешнего значения
   useEffect(() => {
-    const { min, max } = parseRangeValue(value)
-    setMinVal(min)
-    setMaxVal(max)
+    if (!value) {
+      setMinVal(0)
+      setMaxVal(MAX_HUE)
+      return
+    }
+    const parts = value.trim().split('-')
+    if (parts.length === 2) {
+      const min = clampHue(parseFloat(parts[0]) || 0)
+      const max = clampHue(parseFloat(parts[1]) || MAX_HUE)
+      setMinVal(min)
+      setMaxVal(max)
+    }
   }, [value])
 
   const updateRange = (source: 'min' | 'max', rawValue: number) => {
+    const clamped = clampHue(rawValue)
     if (source === 'min') {
-      const clampedMin = clampValue(Math.min(maxVal - 1, rawValue))
-      const finalMin = Number.isNaN(clampedMin) ? minVal : clampedMin
+      const finalMin = Math.min(maxVal - 1, clamped)
       setMinVal(finalMin)
       setPendingValue(
-        finalMin === 0 && maxVal === MAX_VALUE ? undefined : `${finalMin}-${maxVal}`,
+        finalMin === 0 && maxVal === MAX_HUE ? undefined : `${finalMin}-${maxVal}`,
       )
     } else {
-      const clampedMax = clampValue(Math.max(minVal + 1, rawValue))
-      const finalMax = Number.isNaN(clampedMax) ? maxVal : clampedMax
+      const finalMax = Math.max(minVal + 1, clamped)
       setMaxVal(finalMax)
       setPendingValue(
-        minVal === 0 && finalMax === MAX_VALUE ? undefined : `${minVal}-${finalMax}`,
+        minVal === 0 && finalMax === MAX_HUE ? undefined : `${minVal}-${finalMax}`,
       )
     }
   }
@@ -132,7 +94,7 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
     if (!track) return 0
     const rect = track.getBoundingClientRect()
     const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
-    return clampValue(Math.round(x * MAX_VALUE))
+    return clampHue(x * MAX_HUE)
   }
 
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -140,8 +102,8 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
     if (!track) return
     const rect = track.getBoundingClientRect()
     const x = (e.clientX - rect.left) / rect.width
-    const minX = minVal / MAX_VALUE
-    const maxX = maxVal / MAX_VALUE
+    const minX = minVal / MAX_HUE
+    const maxX = maxVal / MAX_HUE
     const mid = (minX + maxX) / 2
     const thumb = x < mid ? 'min' : 'max'
     activeThumbRef.current = thumb
@@ -160,18 +122,28 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
     ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
   }
 
-  const minPercent = (minVal / MAX_VALUE) * 100
-  const maxPercent = (maxVal / MAX_VALUE) * 100
+  const minPercent = (minVal / MAX_HUE) * 100
+  const maxPercent = (maxVal / MAX_HUE) * 100
 
-  const minHex = valueToHex(minVal)
-  const maxHex = valueToHex(maxVal)
+  const minColor = hslToRgbString(minVal)
+  const maxColor = hslToRgbString(maxVal)
 
   return (
     <div className='w-full py-3'>
       <div className='mb-1 flex justify-between text-[11px] text-gray-500'>
         <span>Диапазон цвета</span>
-        <span>
-          {minHex}–{maxHex}
+        <span className='flex items-center gap-2'>
+          <span
+            className='inline-block w-3 h-3 rounded-full border border-gray-300'
+            style={{ background: minColor }}
+          />
+          {minVal}°
+          <span className='mx-0.5'>–</span>
+          <span
+            className='inline-block w-3 h-3 rounded-full border border-gray-300'
+            style={{ background: maxColor }}
+          />
+          {maxVal}°
         </span>
       </div>
 
@@ -184,7 +156,7 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
       >
-        {/* Радужная полоса по HEX-пространству (0x000000–0xFFFFFF) */}
+        {/* Радужная полоса: полный спектр HSL Hue 0°–360° */}
         <div
           className='absolute rounded-full'
           style={{
@@ -196,31 +168,65 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
           }}
         />
 
-        {/* Заливка выбранного диапазона */}
+        {/* Подсветка выбранного диапазона */}
         <div
-          className='absolute rounded-full bg-white/40 pointer-events-none'
+          className='absolute rounded-full pointer-events-none'
           style={{
             left: `${minPercent}%`,
-            width: `${Math.max(maxPercent - minPercent, 1)}%`,
+            width: `${Math.max(maxPercent - minPercent, 0.5)}%`,
             top: (44 - TRACK_HEIGHT) / 2,
             height: TRACK_HEIGHT,
+            boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.8)',
           }}
         />
 
+        {/* Затемнение вне диапазона — слева */}
+        {minPercent > 0 && (
+          <div
+            className='absolute rounded-l-full pointer-events-none'
+            style={{
+              left: 0,
+              width: `${minPercent}%`,
+              top: (44 - TRACK_HEIGHT) / 2,
+              height: TRACK_HEIGHT,
+              background: 'rgba(0,0,0,0.45)',
+            }}
+          />
+        )}
+        {/* Затемнение вне диапазона — справа */}
+        {maxPercent < 100 && (
+          <div
+            className='absolute rounded-r-full pointer-events-none'
+            style={{
+              left: `${maxPercent}%`,
+              width: `${100 - maxPercent}%`,
+              top: (44 - TRACK_HEIGHT) / 2,
+              height: TRACK_HEIGHT,
+              background: 'rgba(0,0,0,0.45)',
+            }}
+          />
+        )}
+
         {/* Левый ползунок */}
         <div
-          className='absolute w-[18px] h-[18px] rounded-full bg-[#1976D2] border-[3px] border-white shadow-[0_2px_6px_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing pointer-events-none'
+          className='absolute rounded-full border-[3px] border-white shadow-[0_2px_6px_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing pointer-events-none'
           style={{
+            width: THUMB_SIZE,
+            height: THUMB_SIZE,
             left: `calc(${minPercent}% - ${THUMB_SIZE / 2}px)`,
             top: (44 - THUMB_SIZE) / 2,
+            background: minColor,
           }}
         />
         {/* Правый ползунок */}
         <div
-          className='absolute w-[18px] h-[18px] rounded-full bg-[#1976D2] border-[3px] border-white shadow-[0_2px_6px_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing pointer-events-none'
+          className='absolute rounded-full border-[3px] border-white shadow-[0_2px_6px_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing pointer-events-none'
           style={{
+            width: THUMB_SIZE,
+            height: THUMB_SIZE,
             left: `calc(${maxPercent}% - ${THUMB_SIZE / 2}px)`,
             top: (44 - THUMB_SIZE) / 2,
+            background: maxColor,
           }}
         />
       </div>

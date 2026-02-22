@@ -1,3 +1,5 @@
+import colorsys
+
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -61,38 +63,18 @@ class ProductViewSet(viewsets.ModelViewSet):
                 if q_cats:
                     queryset = queryset.filter(q_cats)
         
-        # Фильтрация по color_rgb
-        # Поддерживаются форматы:
-        # 1) "r,g,b"  — старый формат, поиск по подстроке
-        # 2) "min-max" — новый формат: диапазон по HEX-значению (0–16777215),
-        #    где value = (r << 16) | (g << 8) | b
-        color_rgb = self.request.query_params.get('color_rgb', None)
-        if color_rgb and color_rgb.strip():
-            raw = color_rgb.strip()
-
-            # Старый формат "r,g,b" без диапазона — поиск по подстроке
-            if ',' in raw and '-' not in raw:
-                queryset = queryset.filter(color_rgb__icontains=raw)
-            elif '-' in raw:
+        # Фильтрация по оттенку (hue). Формат: "min-max" где min/max — градусы 0–360.
+        # Ахроматические цвета (saturation < 10%) пропускаются.
+        color_hue = self.request.query_params.get('color_hue', None)
+        if color_hue and color_hue.strip():
+            raw = color_hue.strip()
+            if '-' in raw:
                 try:
                     part_min, part_max = raw.split('-', 1)
-
-                    def parse_bound(s: str) -> int:
-                        v = s.strip()
-                        if not v:
-                            return 0
-                        if v.startswith('#'):
-                            return max(0, min(0xFFFFFF, int(v[1:], 16)))
-                        if v.lower().startswith('0x'):
-                            return max(0, min(0xFFFFFF, int(v, 16)))
-                        if any(c in 'abcdefABCDEF' for c in v):
-                            return max(0, min(0xFFFFFF, int(v, 16)))
-                        return max(0, min(0xFFFFFF, int(v)))
-
-                    v_min = parse_bound(part_min)
-                    v_max = parse_bound(part_max)
-                    if v_min > v_max:
-                        v_min, v_max = v_max, v_min
+                    hue_min = max(0.0, min(360.0, float(part_min.strip())))
+                    hue_max = max(0.0, min(360.0, float(part_max.strip())))
+                    if hue_min > hue_max:
+                        hue_min, hue_max = hue_max, hue_min
 
                     filtered_ids = []
                     for product in queryset:
@@ -106,8 +88,11 @@ class ProductViewSet(viewsets.ModelViewSet):
                             if len(rgb_parts) != 3:
                                 continue
                             r, g, b = rgb_parts
-                            value_int = (r << 16) | (g << 8) | b
-                            if v_min <= value_int <= v_max:
+                            h, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
+                            if s < 0.10:
+                                continue
+                            hue_deg = h * 360.0
+                            if hue_min <= hue_deg <= hue_max:
                                 filtered_ids.append(product.id)
                         except (ValueError, TypeError):
                             continue
@@ -117,11 +102,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                     else:
                         queryset = queryset.none()
                 except (ValueError, TypeError):
-                    # При ошибке парсинга — игнорируем диапазон и не фильтруем
                     pass
-            else:
-                # Любой другой одиночный формат — поиск по подстроке
-                queryset = queryset.filter(color_rgb__icontains=raw)
 
         # Фильтрация по множественным значениям (material, style, color, brand)
         # Если значение содержит запятую, ищем товары, где поле содержит любое из значений
