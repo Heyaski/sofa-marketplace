@@ -27,7 +27,7 @@ export interface Product {
 	material: string
 	style: string
 	color: string
-	color_hue?: string
+	color_rgb?: string
 	brand?: string
 	country?: string
 	
