@@ -5,6 +5,7 @@
 import io
 import os
 import tempfile
+import requests
 from datetime import datetime
 
 from reportlab.lib import colors
@@ -91,38 +92,77 @@ def get_font_name(bold=False):
         return 'Helvetica-Bold' if bold else 'Helvetica'
 
 
+def _read_file_field(field_file):
+    """
+    Читает содержимое файлового поля Django (ImageField/FileField).
+    Работает и с локальным хранилищем, и с S3.
+    Возвращает io.BytesIO или None.
+    """
+    if not field_file:
+        return None
+    
+    # Способ 1: Попробовать прочитать через Django storage API (.open / .read)
+    try:
+        field_file.open('rb')
+        data = field_file.read()
+        field_file.close()
+        if data:
+            return io.BytesIO(data)
+    except Exception:
+        pass
+    
+    # Способ 2: Если есть URL — скачать по HTTP (S3, CDN и т.д.)
+    try:
+        url = field_file.url
+        if url:
+            # Для относительных URL добавляем домен (на случай локального dev-сервера)
+            if url.startswith('/'):
+                url = f"http://localhost:8000{url}"
+            resp = requests.get(url, timeout=15)
+            if resp.status_code == 200 and resp.content:
+                return io.BytesIO(resp.content)
+    except Exception:
+        pass
+    
+    # Способ 3: Если есть локальный путь — прочитать с диска
+    try:
+        path = field_file.path
+        if os.path.exists(path):
+            with open(path, 'rb') as f:
+                return io.BytesIO(f.read())
+    except Exception:
+        pass
+    
+    return None
+
+
 def get_product_image(product):
-    """Получает путь к изображению товара для КП.
+    """Получает изображение товара для КП как io.BytesIO.
     Использует уже загруженные фото товара (ProductImage, FileAsset, image).
+    Работает с любым storage backend (локальный, S3 и т.д.).
     """
     # Приоритет 1: Первое изображение из ProductImage (загружены через импорт/админку)
     if product.images.exists():
         first_image = product.images.first()
-        if first_image and first_image.image and hasattr(first_image.image, 'path'):
-            try:
-                if os.path.exists(first_image.image.path):
-                    return first_image.image.path
-            except Exception:
-                pass
+        if first_image and first_image.image:
+            result = _read_file_field(first_image.image)
+            if result:
+                return result
     
     # Приоритет 2: Изображения из FileAsset по ID
     image_assets = product.get_image_assets()
     if image_assets.exists():
         first_asset = image_assets.first()
-        if first_asset and first_asset.file and hasattr(first_asset.file, 'path'):
-            try:
-                if os.path.exists(first_asset.file.path):
-                    return first_asset.file.path
-            except Exception:
-                pass
+        if first_asset and first_asset.file:
+            result = _read_file_field(first_asset.file)
+            if result:
+                return result
     
     # Приоритет 3: Основное изображение товара (старое поле image)
-    if product.image and hasattr(product.image, 'path'):
-        try:
-            if os.path.exists(product.image.path):
-                return product.image.path
-        except Exception:
-            pass
+    if product.image:
+        result = _read_file_field(product.image)
+        if result:
+            return result
     
     return None
 
@@ -313,10 +353,10 @@ def generate_commercial_proposal_pdf(proposal_request):
         item_name = Paragraph(product.title, cell_left_style)
         
         # Изображение
-        img_path = get_product_image(product)
-        if img_path:
+        img_data = get_product_image(product)
+        if img_data:
             try:
-                img = RLImage(img_path, width=60, height=60)
+                img = RLImage(img_data, width=60, height=60)
                 img.hAlign = 'CENTER'
                 item_image = img
             except Exception:
