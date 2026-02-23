@@ -105,6 +105,20 @@ export interface BasketEditRequest {
 	message?: string
 }
 
+// Тип для ответа КП (коммерческого предложения)
+export interface CommercialProposalResponse {
+	id: number
+	client_name: string
+	company_name?: string
+	email?: string
+	telegram?: string
+	delivery_method: 'email' | 'telegram'
+	project_name: string
+	status: 'pending' | 'generated' | 'sent' | 'failed'
+	pdf_url?: string | null
+	created_at: string
+}
+
 // Типы для заказов
 export interface Order {
 	id: number

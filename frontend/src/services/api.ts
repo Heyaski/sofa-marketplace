@@ -6,6 +6,7 @@ import {
 	BasketEditRequest,
 	Category,
 	Chat,
+	CommercialProposalResponse,
 	Download,
 	LoginCredentials,
 	Message,
@@ -210,6 +211,26 @@ export const basketService = {
 	// Получить запросы на редактирование для корзины
 	getBasketEditRequests: async (basketId: number): Promise<BasketEditRequest[]> => {
 		const response = await apiClient.get(`/api/baskets/${basketId}/edit_requests/`)
+		return response.data
+	},
+
+	// Сгенерировать и отправить коммерческое предложение
+	generateCommercialProposal: async (
+		basketId: number,
+		data: {
+			client_name: string
+			company_name?: string
+			email?: string
+			telegram?: string
+			delivery_method: 'email' | 'telegram'
+			project_name: string
+			basket_id: number
+		}
+	): Promise<CommercialProposalResponse> => {
+		const response = await apiClient.post(
+			`/api/baskets/${basketId}/generate_commercial_proposal/`,
+			data
+		)
 		return response.data
 	},
 }

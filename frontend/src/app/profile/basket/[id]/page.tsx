@@ -2,6 +2,7 @@
 
 import AddProductsModal from '@/components/AddProductsModal'
 import BottomNav from '@/components/BottomNav'
+import CommercialProposalModal from '@/components/CommercialProposalModal'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import UpgradeSubscriptionModal from '@/components/UpgradeSubscriptionModal'
@@ -32,6 +33,7 @@ export default function BasketDetailPage() {
 	const [editRequests, setEditRequests] = useState<BasketEditRequest[]>([])
 	const [showEditRequests, setShowEditRequests] = useState(false)
 	const [hasPendingRequest, setHasPendingRequest] = useState(false)
+	const [isProposalModalOpen, setIsProposalModalOpen] = useState(false)
 
 	useEffect(() => {
 		const fetchData = async () => {
@@ -519,11 +521,19 @@ export default function BasketDetailPage() {
 									ИТОГО: {calculateTotal().toLocaleString('ru-RU')} P
 								</p>
 							</div>
-							{/* Кнопка "Заказать" для владельца или пользователя с правом редактирования */}
+							{/* Кнопки для владельца или пользователя с правом редактирования */}
 							{currentUser && basket && (isOwner || canEdit) ? (
-								<button className='bg-main1 text-white px-8 sm:px-12 py-3 rounded-lg hover:bg-main2 transition-colors font-medium text-base sm:text-lg w-full sm:w-auto'>
-									Заказать
-								</button>
+								<div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto'>
+									<button
+										onClick={() => setIsProposalModalOpen(true)}
+										className='bg-white text-main1 border-2 border-main1 px-6 sm:px-8 py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors font-medium text-sm sm:text-base w-full sm:w-auto'
+									>
+										Подобрать аналоги в продаже
+									</button>
+									<button className='bg-main1 text-white px-8 sm:px-12 py-3 rounded-lg hover:bg-main2 transition-colors font-medium text-base sm:text-lg w-full sm:w-auto'>
+										Заказать
+									</button>
+								</div>
 							) : currentUser && basket && !isOwner && !canEdit ? (
 								<div className='flex flex-col items-end gap-2'>
 									<p className='text-gray text-sm'>
@@ -589,6 +599,20 @@ export default function BasketDetailPage() {
 						| 'premium') || 'trial'
 				}
 				message={upgradeModalMessage}
+			/>
+
+			{/* Modal for commercial proposal */}
+			<CommercialProposalModal
+				isOpen={isProposalModalOpen}
+				onClose={() => setIsProposalModalOpen(false)}
+				basketId={basketId}
+				basketName={basket?.name || ''}
+				userName={
+					currentUser
+						? `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.username
+						: ''
+				}
+				userEmail={currentUser?.email || ''}
 			/>
 		</div>
 	)
