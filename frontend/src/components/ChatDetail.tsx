@@ -159,16 +159,17 @@ export default function ChatDetail({
 	return (
 		<div className='flex flex-col h-full'>
 			{/* Header */}
-			<div className='flex items-center justify-between p-4 border-b border-gray2'>
-				<div className='flex items-center gap-3 flex-1'>
+			<div className='flex items-center justify-between p-3 sm:p-4 border-b border-gray2'>
+				<div className='flex items-center gap-2 sm:gap-3 flex-1 min-w-0'>
 					<button
 						onClick={onBack}
-						className='text-gray hover:text-main1 transition-colors'
+						className='text-gray hover:text-main1 transition-colors flex-shrink-0 text-sm sm:text-base'
 					>
 						&lt; Назад
 					</button>
-					<div className='flex-1'>
-						<h2 className='text-lg font-semibold text-black'>
+					<div className='flex-1 min-w-0'>
+						<p className='text-xs text-gray mb-0.5'>Чат</p>
+						<h2 className='text-base sm:text-lg font-semibold text-black truncate'>
 							{isGroupChat
 								? chat.name || 'Групповой чат'
 								: otherUser?.username || 'Имя пользователя'}
@@ -256,6 +257,7 @@ export default function ChatDetail({
 													key={productMsg.id}
 													className='bg-white rounded-lg p-3 mb-2 last:mb-0'
 												>
+													<p className='text-xs text-gray mb-2'>Товар</p>
 													<div className='flex gap-3'>
 														<div className='w-16 h-16 bg-gray-bg rounded-lg overflow-hidden flex-shrink-0'>
 															{productMsg.product.image ? (
@@ -316,7 +318,7 @@ export default function ChatDetail({
 												>
 													<div className='flex items-center gap-2'>
 														<svg
-															className='w-5 h-5 text-gray'
+															className='w-5 h-5 text-main1 flex-shrink-0'
 															fill='none'
 															stroke='currentColor'
 															viewBox='0 0 24 24'
@@ -325,12 +327,15 @@ export default function ChatDetail({
 																strokeLinecap='round'
 																strokeLinejoin='round'
 																strokeWidth={2}
-																d='M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z'
+																d='M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z'
 															/>
 														</svg>
-														<p className='text-sm font-medium text-black'>
-															{basketMsg.basket.name}
-														</p>
+														<div className='text-left'>
+															<p className='text-xs text-gray'>Корзина</p>
+															<p className='text-sm font-medium text-black'>
+																{basketMsg.basket.name}
+															</p>
+														</div>
 													</div>
 												</button>
 											))}
@@ -351,7 +356,7 @@ export default function ChatDetail({
 			</div>
 
 			{/* Input area */}
-			<div className='border-t border-gray2 p-4'>
+			<div className='border-t border-gray2 p-3 sm:p-4'>
 				{showBasketSelector ? (
 					<div className='mb-4'>
 						<div className='flex items-center justify-between mb-2'>
@@ -385,7 +390,7 @@ export default function ChatDetail({
 					</div>
 				) : null}
 
-				<div className='flex items-center gap-2'>
+				<div className='flex items-center gap-1.5 sm:gap-2 min-w-0'>
 					<input
 						type='text'
 						value={messageText}
@@ -396,11 +401,11 @@ export default function ChatDetail({
 							}
 						}}
 						placeholder='Введите сообщение'
-						className='flex-1 px-4 py-2 rounded-lg bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1'
+						className='flex-1 min-w-0 px-3 py-2 sm:px-4 rounded-lg bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 text-sm sm:text-base'
 					/>
 					<button
 						onClick={() => setShowBasketSelector(!showBasketSelector)}
-						className='p-2 text-gray hover:text-main1 transition-colors'
+						className='p-2 flex-shrink-0 text-gray hover:text-main1 transition-colors'
 						title='Отправить корзину'
 					>
 						<svg
@@ -420,9 +425,12 @@ export default function ChatDetail({
 					<button
 						onClick={handleSendMessage}
 						disabled={!messageText.trim()}
-						className='bg-main1 text-white px-6 py-2 rounded-lg font-medium hover:bg-main2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+						title='Отправить'
+						aria-label='Отправить'
+						className='bg-main1 text-white px-3 py-2 sm:px-5 rounded-lg font-medium hover:bg-main2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm flex-shrink-0'
 					>
-						Отправить
+						<span className='hidden sm:inline'>Отправить</span>
+						<svg className='w-5 h-5 sm:hidden' fill='currentColor' viewBox='0 0 24 24' aria-hidden><path d='M2.01 21L23 12 2.01 3 2 10l15 2-15 2z'/></svg>
 					</button>
 				</div>
 			</div>

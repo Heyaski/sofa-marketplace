@@ -61,12 +61,12 @@ export default function AddProductsModal({
 	}
 
 	return (
-		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto'>
-			<div className='bg-white rounded-3xl max-w-6xl w-full max-h-[90vh] flex flex-col'>
+		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4 overflow-y-auto'>
+			<div className='bg-white rounded-2xl sm:rounded-3xl max-w-6xl w-full max-h-[90vh] flex flex-col'>
 				{/* Header */}
-				<div className='flex justify-between items-center p-6 border-b border-gray2'>
-					<h2 className='text-2xl font-bold text-black'>
-						Добавить товары из каталога
+				<div className='flex justify-between items-center p-4 sm:p-6 border-b border-gray2'>
+					<h2 className='text-lg sm:text-2xl font-bold text-black'>
+						Добавить товары в корзину
 					</h2>
 					<button
 						onClick={onClose}
@@ -77,7 +77,7 @@ export default function AddProductsModal({
 				</div>
 
 				{/* Search */}
-				<div className='p-6 border-b border-gray2'>
+				<div className='p-4 sm:p-6 border-b border-gray2'>
 					<input
 						type='text'
 						placeholder='Поиск товаров...'
@@ -88,7 +88,7 @@ export default function AddProductsModal({
 				</div>
 
 				{/* Products grid - scrollable */}
-				<div className='flex-1 overflow-y-auto p-6'>
+				<div className='flex-1 overflow-y-auto p-4 sm:p-6'>
 					{loading ? (
 						<div className='text-center py-8'>
 							<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-main1 mx-auto'></div>
@@ -132,23 +132,23 @@ export default function AddProductsModal({
 				</div>
 
 				{/* Footer */}
-				<div className='p-6 border-t border-gray2 flex justify-between items-center'>
-					<div className='text-gray'>
-						Выбрано товаров: {selectedProducts.size}
+				<div className='p-4 sm:p-6 border-t border-gray2 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3'>
+					<div className='text-gray text-sm order-2 sm:order-1'>
+						Выбрано: {selectedProducts.size}
 					</div>
-					<div className='flex gap-3'>
+					<div className='flex gap-2 sm:gap-3 order-1 sm:order-2'>
 						<button
 							onClick={onClose}
-							className='px-6 py-2 border border-gray2 text-black rounded-lg hover:bg-gray-bg transition-colors'
+							className='flex-1 sm:flex-none px-4 py-2 sm:px-5 sm:py-2 border border-gray2 text-black rounded-lg hover:bg-gray-bg transition-colors text-sm font-medium'
 						>
 							Отмена
 						</button>
 						<button
 							onClick={handleAdd}
 							disabled={selectedProducts.size === 0}
-							className='bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main2 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed'
+							className='flex-1 sm:flex-none px-4 py-2 sm:px-5 sm:py-2 bg-main1 text-white rounded-lg hover:bg-main2 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed'
 						>
-							Добавить выбранные ({selectedProducts.size})
+							Добавить ({selectedProducts.size})
 						</button>
 					</div>
 				</div>

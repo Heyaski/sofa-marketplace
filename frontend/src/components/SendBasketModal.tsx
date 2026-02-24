@@ -229,12 +229,12 @@ export default function SendBasketModal({
 	if (!isOpen) return null
 
 	return (
-		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4'>
-			<div className='bg-white rounded-3xl max-w-2xl w-full p-8 relative'>
+		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4'>
+			<div className='bg-white rounded-2xl sm:rounded-3xl max-w-2xl w-full p-4 sm:p-6 lg:p-8 relative max-h-[90vh] overflow-y-auto'>
 				{/* Header with title and close button */}
-				<div className='flex items-center justify-between mb-6'>
-					<h2 className='text-2xl font-bold text-black'>
-						Выберите способ отправки товара
+				<div className='flex items-center justify-between mb-4 sm:mb-6'>
+					<h2 className='text-lg sm:text-2xl font-bold text-black pr-8'>
+						Отправить корзину
 					</h2>
 					<button
 						onClick={onClose}
@@ -350,13 +350,13 @@ export default function SendBasketModal({
 				</div>
 
 				{/* Action buttons */}
-				<div className='flex items-center gap-3'>
+				<div className='flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3'>
 					<button
 						onClick={handleCopyLink}
-						className='flex items-center gap-2 px-4 py-2 bg-gray-bg text-black rounded-lg hover:bg-gray-200 transition-colors text-sm'
+						className='flex items-center justify-center gap-1.5 px-3 py-2 sm:px-4 bg-gray-bg text-black rounded-lg hover:bg-gray-200 transition-colors text-xs sm:text-sm'
 					>
-						<ClipboardDocumentIcon className='w-5 h-5' />
-						{linkCopied ? 'Ссылка скопирована!' : 'Скопировать ссылку'}
+						<ClipboardDocumentIcon className='w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0' />
+						{linkCopied ? 'Скопировано!' : 'Скопировать ссылку'}
 					</button>
 					<button
 						onClick={handleSend}
@@ -365,7 +365,7 @@ export default function SendBasketModal({
 							(sendToUser && !selectedUserId) ||
 							(sendToEmail && !email.trim())
 						}
-						className='flex-1 bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main2 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed'
+						className='px-4 py-2 sm:px-6 bg-main1 text-white rounded-lg hover:bg-main2 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed'
 					>
 						{sending ? 'Отправка...' : 'Отправить'}
 					</button>
