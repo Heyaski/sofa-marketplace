@@ -65,6 +65,18 @@ export default function ProfilePage() {
 		setSelectedChat(chat)
 	}
 
+	// При открытии чата — сбрасываем скролл страницы, плавное открытие без скачков
+	useEffect(() => {
+		if (selectedChat) {
+			window.scrollTo({ top: 0, behavior: 'auto' })
+			const prevOverflow = document.body.style.overflow
+			document.body.style.overflow = 'hidden'
+			return () => {
+				document.body.style.overflow = prevOverflow
+			}
+		}
+	}, [selectedChat])
+
 	// Обработка URL параметров (tab, возврат с оплаты)
 	useEffect(() => {
 		const urlParams = new URLSearchParams(window.location.search)

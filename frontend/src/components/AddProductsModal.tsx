@@ -61,8 +61,8 @@ export default function AddProductsModal({
 	}
 
 	return (
-		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4 overflow-y-auto'>
-			<div className='bg-white rounded-2xl sm:rounded-3xl max-w-6xl w-full max-h-[90vh] flex flex-col'>
+		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4 overflow-hidden'>
+			<div className='bg-white rounded-2xl sm:rounded-3xl max-w-6xl w-full max-h-[min(85vh,calc(100dvh-5rem))] flex flex-col my-auto'>
 				{/* Header */}
 				<div className='flex justify-between items-center p-4 sm:p-6 border-b border-gray2'>
 					<h2 className='text-lg sm:text-2xl font-bold text-black'>
@@ -109,8 +109,8 @@ export default function AddProductsModal({
 										key={product.id}
 										className={`relative border-2 rounded-lg overflow-hidden transition-all ${
 											isSelected
-												? 'border-main1 shadow-lg'
-												: 'border-transparent hover:border-gray2'
+												? 'border-main1 shadow-md'
+												: 'border-gray-200 hover:border-gray-300'
 										}`}
 									>
 										<ProductCard
@@ -132,7 +132,7 @@ export default function AddProductsModal({
 				</div>
 
 				{/* Footer */}
-				<div className='p-4 sm:p-6 border-t border-gray2 space-y-3'>
+				<div className='p-4 sm:p-6 pb-6 sm:pb-6 border-t border-gray2 space-y-3 flex-shrink-0 bg-white'>
 					<div className='text-gray text-sm'>
 						Выбрано товаров: {selectedProducts.size}
 					</div>

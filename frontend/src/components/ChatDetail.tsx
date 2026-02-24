@@ -24,6 +24,7 @@ export default function ChatDetail({
 	const [baskets, setBaskets] = useState<Basket[]>([])
 	const [showBasketSelector, setShowBasketSelector] = useState(false)
 	const messagesEndRef = useRef<HTMLDivElement>(null)
+	const messagesContainerRef = useRef<HTMLDivElement>(null)
 
 	useEffect(() => {
 		if (chat) {
@@ -96,7 +97,10 @@ export default function ChatDetail({
 
 
 	const scrollToBottom = () => {
-		messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+		const container = messagesContainerRef.current
+		if (container) {
+			container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
+		}
 	}
 
 	const handleSendMessage = async () => {
@@ -208,7 +212,10 @@ export default function ChatDetail({
 			</div>
 
 			{/* Messages */}
-			<div className='flex-1 overflow-y-auto p-4 space-y-4'>
+			<div
+				ref={messagesContainerRef}
+				className='flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4'
+			>
 				{loading ? (
 					<div className='flex items-center justify-center h-full'>
 						<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-main1'></div>
