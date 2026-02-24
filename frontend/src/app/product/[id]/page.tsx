@@ -79,10 +79,6 @@ export default function ProductPage({ params }: ProductPageProps) {
 		setIsCartModalOpen(false)
 	}
 
-	const formatPrice = (price: number) => {
-		return new Intl.NumberFormat('ru-RU').format(Number(price))
-	}
-
 	// Получаем массив изображений для миниатюр
 	const getThumbnails = () => {
 		const thumbnails: string[] = []
@@ -205,16 +201,6 @@ export default function ProductPage({ params }: ProductPageProps) {
 			<div className='space-y-4 sm:space-y-6'>
 							<h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-black'>{product.title}</h1>
 
-							{/* Цена */}
-							<div className='space-y-2'>
-								<div className='text-2xl sm:text-3xl font-bold text-black'>
-									{formatPrice(Number(product.price))} {config.CURRENCY_SYMBOL}
-								</div>
-								<div className='text-base sm:text-lg text-gray line-through'>
-									{formatPrice(Number(product.price))} {config.CURRENCY_SYMBOL}
-								</div>
-							</div>
-
 							{/* Описание */}
 							{product.description && (
 								<div className='prose max-w-none'>
@@ -224,144 +210,32 @@ export default function ProductPage({ params }: ProductPageProps) {
 								</div>
 							)}
 
-							{/* Краткое описание под товаром — аккуратный цвет с HEX */}
-							<div className='space-y-1 text-sm'>
-								{(product.color || product.color_rgb) && (
-									<p className='text-gray'>
-										Цвет:{' '}
-										<span className='text-black'>
-											{product.color}
-											{product.color_rgb && (
-												<>
-													{' '}
-													(
-													{(() => {
-														const parts = product.color_rgb
-															.split(',')
-															.map(p => parseInt(p.trim(), 10))
-														if (
-															parts.length !== 3 ||
-															parts.some(p => Number.isNaN(p))
-														) {
-															return product.color_rgb
-														}
-														const toByte = (v: number) =>
-															Math.max(0, Math.min(255, v))
-																.toString(16)
-																.padStart(2, '0')
-																.toUpperCase()
-														return `#${toByte(parts[0])}${toByte(
-															parts[1]
-														)}${toByte(parts[2])}`
-													})()}
-													)
-												</>
-											)}
-										</span>
-									</p>
-								)}
-							</div>
-
-							{/* Наличие */}
-							<div className='flex items-center gap-4 text-sm'>
-								{product.availability && (
-									<span
-										className={`px-3 py-1 rounded-full text-xs font-medium ${
-											product.availability === 'in_stock'
-												? 'bg-green-100 text-green-700'
-												: product.availability === 'on_order'
-												? 'bg-yellow-100 text-yellow-700'
-												: 'bg-red-100 text-red-700'
-										}`}
-									>
-										{product.availability === 'in_stock'
-											? 'В наличии'
-											: product.availability === 'on_order'
-											? 'Под заказ'
-											: 'Нет в наличии'}
-									</span>
-								)}
-							</div>
-
-							{/* Характеристики */}
-							<div className='space-y-3'>
+							{/* Размеры (без веса) */}
+							{(product.width || product.height || product.depth) && (
 								<div className='space-y-2 text-sm'>
-									{product.category && (
-										<div className='flex justify-between'>
-											<span className='text-gray'>Категория:</span>
-											<span className='text-black'>
-												{product.category.name}
-											</span>
-										</div>
-									)}
-									{product.brand && (
-										<div className='flex justify-between'>
-											<span className='text-gray'>Бренд:</span>
-											<span className='text-black'>{product.brand}</span>
-										</div>
-									)}
-									{product.country && (
-										<div className='flex justify-between'>
-											<span className='text-gray'>Страна:</span>
-											<span className='text-black'>{product.country}</span>
-										</div>
-									)}
-									{product.material && (
-										<div className='flex justify-between'>
-											<span className='text-gray'>Материал:</span>
-											<span className='text-black'>{product.material}</span>
-										</div>
-									)}
-									{product.style && (
-										<div className='flex justify-between'>
-											<span className='text-gray'>Стиль:</span>
-											<span className='text-black'>{product.style}</span>
-										</div>
-									)}
-								</div>
-
-								{/* Размеры */}
-								{(product.width ||
-									product.height ||
-									product.depth ||
-									product.weight) && (
-									<div className='border-t pt-3 mt-3'>
-										<div className='text-sm font-medium text-black mb-2'>
-											Размеры:
-										</div>
-										<div className='grid grid-cols-2 gap-2 text-sm'>
-											{product.width && (
-												<div className='flex justify-between'>
-													<span className='text-gray'>Ширина:</span>
-													<span className='text-black'>{product.width} см</span>
-												</div>
-											)}
-											{product.height && (
-												<div className='flex justify-between'>
-													<span className='text-gray'>Высота:</span>
-													<span className='text-black'>
-														{product.height} см
-													</span>
-												</div>
-											)}
-											{product.depth && (
-												<div className='flex justify-between'>
-													<span className='text-gray'>Глубина:</span>
-													<span className='text-black'>{product.depth} см</span>
-												</div>
-											)}
-											{product.weight && (
-												<div className='flex justify-between'>
-													<span className='text-gray'>Вес:</span>
-													<span className='text-black'>
-														{product.weight} кг
-													</span>
-												</div>
-											)}
-										</div>
+									<div className='text-sm font-medium text-black'>Размеры:</div>
+									<div className='grid grid-cols-2 gap-2 text-sm'>
+										{product.width && (
+											<div className='flex justify-between'>
+												<span className='text-gray'>Ширина:</span>
+												<span className='text-black'>{product.width} см</span>
+											</div>
+										)}
+										{product.height && (
+											<div className='flex justify-between'>
+												<span className='text-gray'>Высота:</span>
+												<span className='text-black'>{product.height} см</span>
+											</div>
+										)}
+										{product.depth && (
+											<div className='flex justify-between'>
+												<span className='text-gray'>Глубина:</span>
+												<span className='text-black'>{product.depth} см</span>
+											</div>
+										)}
 									</div>
-								)}
-							</div>
+								</div>
+							)}
 
 							{/* Основные действия */}
 							<div className='grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4'>

@@ -529,20 +529,11 @@ export default function BasketDetailPage() {
 									<p className='text-gray text-sm'>
 										Эта корзина принадлежит другому пользователю
 									</p>
-									{!hasPendingRequest && (
-										<button
-											onClick={handleRequestEdit}
-											className='bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main2 transition-colors font-medium text-sm'
-										>
-											Запросить редактирование
-										</button>
-									)}
 									{hasPendingRequest && (
-										<div className='flex flex-col items-end gap-2'>
+										<>
 											<p className='text-sm text-gray'>Запрос на редактирование отправлен</p>
 											<button
 												onClick={async () => {
-													// Обновляем корзину, чтобы проверить, был ли запрос одобрен
 													const updatedBasket = await basketService.getBasket(basketId)
 													setBasket(updatedBasket)
 													if (updatedBasket.can_edit) {
@@ -554,7 +545,7 @@ export default function BasketDetailPage() {
 											>
 												Обновить статус
 											</button>
-										</div>
+										</>
 									)}
 								</div>
 							) : (
