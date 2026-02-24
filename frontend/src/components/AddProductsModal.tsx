@@ -107,10 +107,10 @@ export default function AddProductsModal({
 								return (
 									<div
 										key={product.id}
-										className={`relative border-2 rounded-lg overflow-hidden transition-all ${
+										className={`relative border-2 rounded-lg overflow-hidden transition-all shadow-md ${
 											isSelected
-												? 'border-main1 shadow-md'
-												: 'border-gray-200 hover:border-gray-300'
+												? 'border-main1 shadow-lg'
+												: 'border-transparent hover:border-gray2 hover:shadow-lg'
 										}`}
 									>
 										<ProductCard

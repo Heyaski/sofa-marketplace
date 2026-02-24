@@ -104,7 +104,7 @@ export default function ProductCard({
 	}
 
 	return (
-		<div className='product-card bg-white rounded-xl border border-gray-200 shadow-sm p-3 sm:p-4 hover:shadow-md hover:border-gray-300 transition-all duration-200'>
+		<div className='product-card bg-white rounded-xl shadow-md p-3 sm:p-4 hover:shadow-lg transition-all duration-200'>
 			{/* 3D модель или изображение товара — можно крутить в каталоге */}
 			<div className='rounded-lg mb-3 sm:mb-4 overflow-hidden' onClick={handleCardClick}>
 				<ProductModelViewer product={product} variant='card' />
