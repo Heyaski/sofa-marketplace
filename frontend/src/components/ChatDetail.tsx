@@ -159,30 +159,20 @@ export default function ChatDetail({
 	return (
 		<div className='flex flex-col h-full'>
 			{/* Header */}
-			<div className='flex items-center justify-between p-3 sm:p-4 border-b border-gray2'>
-				<div className='flex items-center gap-2 sm:gap-3 flex-1 min-w-0'>
-					<button
-						onClick={onBack}
-						className='text-gray hover:text-main1 transition-colors flex-shrink-0 text-sm sm:text-base'
-					>
-						&lt; Назад
-					</button>
-					<div className='flex-1 min-w-0'>
-						<p className='text-xs text-gray mb-0.5'>Чат</p>
-						<h2 className='text-base sm:text-lg font-semibold text-black truncate'>
-							{isGroupChat
-								? chat.name || 'Групповой чат'
-								: otherUser?.username || 'Имя пользователя'}
-						</h2>
-						{isGroupChat && participants.length > 0 && (
-							<p className='text-xs text-gray'>
-								Участников: {participants.length}
-							</p>
-						)}
-					</div>
-				</div>
-				{!isGroupChat && (
-					<div className='w-10 h-10 rounded-full bg-gray-bg overflow-hidden'>
+			<div className='flex items-center gap-3 p-3 sm:p-4 border-b border-gray2'>
+				<button
+					onClick={onBack}
+					className='text-gray hover:text-main1 transition-colors flex-shrink-0 text-sm py-1'
+				>
+					&lt; Назад
+				</button>
+				<h2 className='flex-1 min-w-0 text-base sm:text-lg font-semibold text-black truncate text-center'>
+					{isGroupChat
+						? chat.name || 'Групповой чат'
+						: otherUser?.username || 'Имя пользователя'}
+				</h2>
+				{!isGroupChat ? (
+					<div className='w-10 h-10 rounded-full bg-gray-bg overflow-hidden flex-shrink-0'>
 						<Image
 							src='/img/profile_default.svg'
 							alt={otherUser?.username || 'User'}
@@ -191,9 +181,8 @@ export default function ChatDetail({
 							className='w-full h-full object-cover'
 						/>
 					</div>
-				)}
-				{isGroupChat && (
-					<div className='flex -space-x-2'>
+				) : (
+					<div className='flex -space-x-2 flex-shrink-0'>
 						{participants.slice(0, 3).map((participant, idx) => (
 							<div
 								key={participant.id}

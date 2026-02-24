@@ -132,11 +132,11 @@ export default function AddProductsModal({
 				</div>
 
 				{/* Footer */}
-				<div className='p-4 sm:p-6 border-t border-gray2 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3'>
-					<div className='text-gray text-sm order-2 sm:order-1'>
-						Выбрано: {selectedProducts.size}
+				<div className='p-4 sm:p-6 border-t border-gray2 space-y-3'>
+					<div className='text-gray text-sm'>
+						Выбрано товаров: {selectedProducts.size}
 					</div>
-					<div className='flex gap-2 sm:gap-3 order-1 sm:order-2'>
+					<div className='flex gap-2 sm:gap-3'>
 						<button
 							onClick={onClose}
 							className='flex-1 sm:flex-none px-4 py-2 sm:px-5 sm:py-2 border border-gray2 text-black rounded-lg hover:bg-gray-bg transition-colors text-sm font-medium'
