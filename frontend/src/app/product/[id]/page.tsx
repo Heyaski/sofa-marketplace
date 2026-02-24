@@ -160,21 +160,22 @@ export default function ProductPage({ params }: ProductPageProps) {
 					</nav>
 				</div>
 
-				<div className='bg-white rounded-xl p-4 sm:p-5 lg:p-6 shadow-card max-w-3xl'>
-					<div className='flex flex-col lg:flex-row lg:items-start gap-4 sm:gap-5'>
+				<div className='bg-white rounded-xl p-4 sm:p-6 lg:p-8 shadow-card'>
+					<div className='grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12'>
 						{/* 3D модель или изображения товара — можно крутить */}
-						<div className='w-full lg:w-[45%] lg:flex-shrink-0'>
-							<div className='bg-gray-bg rounded-lg overflow-hidden aspect-square max-h-[320px] sm:max-h-[400px]'>
+						<div className='space-y-4'>
+							<div className='bg-gray-bg rounded-lg overflow-hidden'>
 								<ProductModelViewer product={product} variant='page' selectedImageUrl={mainImage} />
 							</div>
+
 							{/* Миниатюры — если несколько изображений */}
 							{thumbnails.length > 1 && (
-								<div className='overflow-x-auto mt-2 pb-1'>
+								<div className='overflow-x-auto pb-2'>
 									<div className='flex gap-2 min-w-max'>
 										{thumbnails.map((thumbnail, index) => (
 											<div
 												key={index}
-												className={`flex-shrink-0 w-12 h-12 bg-gray-bg rounded-lg p-1 cursor-pointer transition-all ${
+												className={`flex-shrink-0 w-16 h-16 bg-gray-bg rounded-lg p-1 cursor-pointer transition-all ${
 													mainImage === thumbnail
 														? 'ring-2 ring-main1 bg-gray-100'
 														: 'hover:bg-gray'
@@ -184,8 +185,8 @@ export default function ProductPage({ params }: ProductPageProps) {
 												<Image
 													src={thumbnail}
 													alt={`Миниатюра ${index + 1}`}
-													width={48}
-													height={48}
+													width={60}
+													height={60}
 													className='w-full h-full object-contain'
 													unoptimized
 												/>
@@ -196,9 +197,9 @@ export default function ProductPage({ params }: ProductPageProps) {
 							)}
 						</div>
 
-						{/* Информация о товаре */}
-						<div className='flex-1 min-w-0 space-y-3 sm:space-y-4'>
-							<h1 className='text-lg sm:text-xl font-bold text-black'>{product.title}</h1>
+			{/* Информация о товаре */}
+			<div className='space-y-4 sm:space-y-6'>
+							<h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-black'>{product.title}</h1>
 
 							{/* Описание */}
 							{product.description && (
@@ -211,24 +212,33 @@ export default function ProductPage({ params }: ProductPageProps) {
 
 							{/* Размеры (без веса) */}
 							{(product.width || product.height || product.depth) && (
-								<div className='space-y-1.5 text-sm'>
+								<div className='space-y-2 text-sm'>
 									<div className='text-sm font-medium text-black'>Размеры:</div>
-									<div className='flex flex-wrap gap-x-4 gap-y-1 text-sm'>
+									<div className='grid grid-cols-2 gap-2 text-sm'>
 										{product.width && (
-											<span><span className='text-gray'>Ширина:</span> <span className='text-black'>{product.width} см</span></span>
+											<div className='flex justify-between'>
+												<span className='text-gray'>Ширина:</span>
+												<span className='text-black'>{product.width} см</span>
+											</div>
 										)}
 										{product.height && (
-											<span><span className='text-gray'>Высота:</span> <span className='text-black'>{product.height} см</span></span>
+											<div className='flex justify-between'>
+												<span className='text-gray'>Высота:</span>
+												<span className='text-black'>{product.height} см</span>
+											</div>
 										)}
 										{product.depth && (
-											<span><span className='text-gray'>Глубина:</span> <span className='text-black'>{product.depth} см</span></span>
+											<div className='flex justify-between'>
+												<span className='text-gray'>Глубина:</span>
+												<span className='text-black'>{product.depth} см</span>
+											</div>
 										)}
 									</div>
 								</div>
 							)}
 
 							{/* Основные действия */}
-							<div className='flex flex-wrap gap-2 sm:gap-3'>
+							<div className='grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4'>
 								<button
 									onClick={handleAddToCart}
 									className='bg-main1 text-white py-2.5 sm:py-3 rounded-lg hover:bg-main1/90 transition-colors font-medium text-sm sm:text-base'
