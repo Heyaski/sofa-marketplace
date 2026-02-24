@@ -733,6 +733,11 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                 'model_3d_asset_ids'
             ),
         }),
+        ('Коммерческое предложение (КП)', {
+            'fields': ('shop_url', 'cp_notes'),
+            'classes': ('collapse',),
+            'description': 'Данные для формирования КП. Фото берётся из уже загруженных изображений товара.',
+        }),
         ('Настройки', {
             'fields': ('is_active', 'is_trending')
         }),

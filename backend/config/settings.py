@@ -132,6 +132,9 @@ EMAIL_HOST_USER = "antontenditnik60@gmail.com"
 EMAIL_HOST_PASSWORD = "plryjeqormckvdta"
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
+# Настройки Telegram бота (для отправки КП)
+TELEGRAM_BOT_TOKEN = get_env("TELEGRAM_BOT_TOKEN", "")
+
 # Настройки ЮКассы
 YOOKASSA_ACCOUNT_ID = get_env("YOOKASSA_ACCOUNT_ID", "")
 YOOKASSA_SECRET_KEY = get_env("YOOKASSA_SECRET_KEY", "")

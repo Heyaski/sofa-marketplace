@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Basket, BasketItem, BasketEditRequest
+from .models import Basket, BasketItem, BasketEditRequest, CommercialProposalRequest
 from apps.admin_utils import ExportExcelMixin
 
 
@@ -28,3 +28,29 @@ class BasketEditRequestAdmin(ExportExcelMixin, admin.ModelAdmin):
     search_fields = ('basket__name', 'requester__username', 'requester__email')
     readonly_fields = ('created_at', 'updated_at')
     actions = ["export_selected_to_excel"]
+
+
+@admin.register(CommercialProposalRequest)
+class CommercialProposalRequestAdmin(ExportExcelMixin, admin.ModelAdmin):
+    list_display = ('id', 'basket', 'user', 'client_name', 'company_name', 'delivery_method', 'status', 'created_at')
+    list_filter = ('status', 'delivery_method', 'created_at')
+    search_fields = ('client_name', 'company_name', 'email', 'telegram', 'project_name', 'user__username')
+    readonly_fields = ('created_at', 'updated_at')
+    date_hierarchy = 'created_at'
+    actions = ["export_selected_to_excel"]
+    
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('basket', 'user', 'project_name', 'status')
+        }),
+        ('Контактные данные клиента', {
+            'fields': ('client_name', 'company_name', 'email', 'telegram', 'delivery_method')
+        }),
+        ('Файл', {
+            'fields': ('pdf_file',)
+        }),
+        ('Даты', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )

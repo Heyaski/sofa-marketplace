@@ -1,7 +1,7 @@
 # apps/baskets/serializers.py
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Basket, BasketItem, BasketEditRequest
+from .models import Basket, BasketItem, BasketEditRequest, CommercialProposalRequest
 from apps.catalog.models import Product
 
 
@@ -92,3 +92,33 @@ class BasketEditRequestSerializer(serializers.ModelSerializer):
         model = BasketEditRequest
         fields = ["id", "basket", "basket_id", "requester", "status", "created_at", "updated_at", "message"]
         read_only_fields = ["requester", "status", "created_at", "updated_at"]
+
+
+class CommercialProposalRequestSerializer(serializers.ModelSerializer):
+    """Сериализатор для запросов на коммерческое предложение"""
+    basket_id = serializers.IntegerField(write_only=True)
+    pdf_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = CommercialProposalRequest
+        fields = [
+            "id", "basket_id", "client_name", "company_name", 
+            "email", "telegram", "delivery_method", "project_name",
+            "status", "pdf_url", "created_at"
+        ]
+        read_only_fields = ["status", "created_at"]
+    
+    def get_pdf_url(self, obj):
+        request = self.context.get("request")
+        if obj.pdf_file and hasattr(obj.pdf_file, "url"):
+            return request.build_absolute_uri(obj.pdf_file.url) if request else obj.pdf_file.url
+        return None
+    
+    def validate(self, data):
+        """Проверяем, что указан хотя бы один канал связи"""
+        delivery_method = data.get('delivery_method', 'email')
+        if delivery_method == 'email' and not data.get('email'):
+            raise serializers.ValidationError({"email": "Укажите email для отправки КП"})
+        if delivery_method == 'telegram' and not data.get('telegram'):
+            raise serializers.ValidationError({"telegram": "Укажите Telegram для отправки КП"})
+        return data

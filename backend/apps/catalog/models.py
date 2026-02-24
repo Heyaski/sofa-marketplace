@@ -93,6 +93,10 @@ class Product(models.Model):
     model_rfa = models.CharField(max_length=500, blank=True, verbose_name="RFA файл")
     model_usdz = models.CharField(max_length=500, blank=True, verbose_name="USDZ файл")
     model_ar_glb = models.CharField(max_length=500, blank=True, verbose_name="AR-GLB файл")
+    
+    # Поля для Коммерческого предложения (КП)
+    shop_url = models.URLField(max_length=500, blank=True, verbose_name="Ссылка на магазин", help_text="URL магазина/поставщика для КП")
+    cp_notes = models.TextField(blank=True, verbose_name="Примечание для КП", help_text="Дополнительная информация для коммерческого предложения (производитель, коллекция и т.д.)")
 
     class Meta:
         verbose_name = "Товар"

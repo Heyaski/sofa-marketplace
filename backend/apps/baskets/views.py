@@ -4,9 +4,13 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db.models import Q
+from django.core.files.base import ContentFile
 
-from .models import Basket, BasketItem, BasketEditRequest
-from .serializers import BasketSerializer, BasketItemSerializer, BasketEditRequestSerializer
+from .models import Basket, BasketItem, BasketEditRequest, CommercialProposalRequest
+from .serializers import (
+    BasketSerializer, BasketItemSerializer, BasketEditRequestSerializer,
+    CommercialProposalRequestSerializer
+)
 from apps.catalog.models import Product
 from apps.chats.models import MessageBasket
 
@@ -185,6 +189,92 @@ class BasketViewSet(viewsets.ModelViewSet):
         serializer = BasketEditRequestSerializer(requests, many=True, context={'request': request})
         return Response(serializer.data)
     
+    # Генерация коммерческого предложения
+    @action(detail=True, methods=["post"])
+    def generate_commercial_proposal(self, request, pk=None):
+        """Генерирует коммерческое предложение (КП) и отправляет по email или Telegram"""
+        basket = self.get_object()
+        
+        # Проверяем, что в корзине есть товары
+        if not basket.items.exists():
+            return Response(
+                {"error": "Корзина пуста. Добавьте товары для формирования КП."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        serializer = CommercialProposalRequestSerializer(data=request.data, context={'request': request})
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Получаем данные из запроса
+        data = serializer.validated_data
+        basket_id = data.pop('basket_id', basket.id)
+        
+        # Создаем запрос КП
+        proposal = CommercialProposalRequest.objects.create(
+            basket=basket,
+            user=request.user,
+            client_name=data.get('client_name', ''),
+            company_name=data.get('company_name', ''),
+            email=data.get('email', ''),
+            telegram=data.get('telegram', ''),
+            delivery_method=data.get('delivery_method', 'email'),
+            project_name=data.get('project_name', basket.name),
+        )
+        
+        try:
+            # Генерируем PDF
+            from services.commercial_proposal import (
+                generate_commercial_proposal_pdf,
+                send_proposal_email,
+                send_proposal_telegram,
+            )
+            
+            pdf_bytes = generate_commercial_proposal_pdf(proposal)
+            
+            # Сохраняем PDF
+            filename = f"cp_{proposal.id}_{basket.id}.pdf"
+            proposal.pdf_file.save(filename, ContentFile(pdf_bytes), save=False)
+            proposal.status = 'generated'
+            proposal.save()
+            
+            # Отправляем по выбранному каналу
+            try:
+                if proposal.delivery_method == 'email' and proposal.email:
+                    send_proposal_email(proposal, pdf_bytes)
+                    proposal.status = 'sent'
+                    proposal.save()
+                elif proposal.delivery_method == 'telegram' and proposal.telegram:
+                    send_proposal_telegram(proposal, pdf_bytes)
+                    proposal.status = 'sent'
+                    proposal.save()
+            except Exception as send_error:
+                # КП сгенерировано, но не отправлено
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Ошибка отправки КП #{proposal.id}: {send_error}")
+                # Не меняем статус - оставляем 'generated'
+            
+            # Обновляем данные пользователя (собираем контактную информацию)
+            user = request.user
+            if data.get('email') and not user.email:
+                user.email = data['email']
+                user.save(update_fields=['email'])
+            
+            result_serializer = CommercialProposalRequestSerializer(proposal, context={'request': request})
+            return Response(result_serializer.data, status=status.HTTP_201_CREATED)
+        
+        except Exception as e:
+            proposal.status = 'failed'
+            proposal.save()
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Ошибка генерации КП #{proposal.id}: {e}", exc_info=True)
+            return Response(
+                {"error": f"Ошибка генерации КП: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
     # Получение корзины по публичной ссылке (без авторизации)
     @action(detail=False, methods=["get"], url_path="share/(?P<share_token>[^/.]+)", permission_classes=[AllowAny])
     def get_by_share_token(self, request, share_token=None):
