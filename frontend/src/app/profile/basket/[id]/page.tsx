@@ -266,14 +266,6 @@ export default function BasketDetailPage() {
 		}
 	}
 
-	const calculateTotal = () => {
-		if (!basket) return 0
-		return basket.items.reduce(
-			(total, item) => total + item.product.price * item.quantity,
-			0
-		)
-	}
-
 	const isOwner =
 		currentUser &&
 		basket &&
@@ -469,9 +461,6 @@ export default function BasketDetailPage() {
 											<h3 className='text-sm sm:text-base font-medium text-black line-clamp-2'>
 												{item.product.title || 'Наименование товара'}
 											</h3>
-											<p className='text-main1 font-semibold text-base sm:text-lg mt-1'>
-												{item.product.price.toLocaleString('ru-RU')} руб
-											</p>
 										</div>
 									</div>
 
@@ -515,12 +504,7 @@ export default function BasketDetailPage() {
 
 					{/* Bottom section */}
 					{basket.items.length > 0 && (
-						<div className='mt-8 pt-6 border-t border-gray2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
-							<div>
-								<p className='text-xl sm:text-2xl font-bold text-black'>
-									ИТОГО: {calculateTotal().toLocaleString('ru-RU')} P
-								</p>
-							</div>
+						<div className='mt-8 pt-6 border-t border-gray2 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4'>
 							{/* Кнопки для владельца или пользователя с правом редактирования */}
 							{currentUser && basket && (isOwner || canEdit) ? (
 								<div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto'>

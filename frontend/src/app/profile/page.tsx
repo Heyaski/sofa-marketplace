@@ -18,7 +18,7 @@ import {
 	formatCardNumber,
 	validateCardData,
 } from '@/utils/cardValidation'
-import { ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline'
+import { ArrowRightOnRectangleIcon, UserIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -305,12 +305,10 @@ export default function ProfilePage() {
 									}`}
 									onClick={() => setActiveTab('profile')}
 								>
-									<Image
-										src='/img/profile_left.svg'
-										alt='Profile'
-										width={20}
-										height={20}
-										className='w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0'
+									<UserIcon
+										className={`w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 ${
+											activeTab === 'profile' ? 'text-white' : 'text-gray'
+										}`}
 									/>
 									<span className='font-medium whitespace-nowrap text-xs sm:text-sm'>
 										Профиль

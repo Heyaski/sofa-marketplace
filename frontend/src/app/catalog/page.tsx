@@ -12,7 +12,6 @@ import ProductCard from '@/components/ProductCard'
 import { useBaskets, useCategories, useProducts } from '@/hooks/useApi'
 import { productService } from '@/services/api'
 import { Category, Product, ProductFilters } from '@/types'
-import Image from 'next/image'
 import Script from 'next/script'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useMemo, useState } from 'react'
@@ -266,24 +265,6 @@ function CatalogContent() {
 														}}
 														className='w-4 h-4 flex-shrink-0 text-main1 border-gray2 rounded focus:ring-2 focus:ring-main1 cursor-pointer accent-main1'
 													/>
-													{category.image && typeof category.image === 'string' ? (
-														<Image
-															src={category.image}
-															alt={category.name || 'Категория'}
-															width={24}
-															height={24}
-															className='w-6 h-6 object-cover rounded-md shadow-sm flex-shrink-0'
-															unoptimized
-														/>
-													) : (
-														<Image
-															src='/img/no-image.svg'
-															alt='Нет изображения'
-															width={24}
-															height={24}
-															className='w-6 h-6 opacity-40 flex-shrink-0'
-														/>
-													)}
 													<span className='text-sm font-medium truncate'>{category.name}</span>
 												</label>
 											)
