@@ -41,7 +41,7 @@ export default function ProfilePage() {
 		last_name: '',
 		username: '',
 		profile: {
-			subscription_type: 'trial' as 'trial' | 'basic' | 'premium',
+			subscription_type: 'free' as 'free' | 'trial' | 'basic' | 'pro' | 'premium',
 			card_number: '',
 			card_holder: '',
 			card_expiry: '',
@@ -103,7 +103,7 @@ export default function ProfilePage() {
 					last_name: userData.last_name || '',
 					username: userData.username || '',
 					profile: {
-						subscription_type: userData.profile?.subscription_type || 'trial',
+						subscription_type: userData.profile?.subscription_type || 'free',
 						card_number: userData.profile?.card_number || '',
 						card_holder: userData.profile?.card_holder || '',
 						card_expiry: userData.profile?.card_expiry || '',
@@ -133,7 +133,7 @@ export default function ProfilePage() {
 				last_name: user.last_name || '',
 				username: user.username || '',
 				profile: {
-					subscription_type: user.profile?.subscription_type || 'trial',
+					subscription_type: user.profile?.subscription_type || 'free',
 					card_number: user.profile?.card_number || '',
 					card_holder: user.profile?.card_holder || '',
 					card_expiry: user.profile?.card_expiry || '',
@@ -197,7 +197,7 @@ export default function ProfilePage() {
 				last_name: user.last_name || '',
 				username: user.username || '',
 				profile: {
-					subscription_type: user.profile?.subscription_type || 'trial',
+					subscription_type: user.profile?.subscription_type || 'free',
 					card_number: user.profile?.card_number || '',
 					card_holder: user.profile?.card_holder || '',
 					card_expiry: user.profile?.card_expiry || '',
