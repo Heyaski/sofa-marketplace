@@ -104,7 +104,7 @@ export default function TariffTable() {
 				</div>
 				<div className='mt-6 text-center'>
 					<Link
-						href='/profile/subscription'
+						href='/profile?tab=subscription'
 						className='inline-block bg-main1 text-white px-6 py-3 rounded-lg font-medium hover:bg-main2 transition-colors'
 					>
 						Выбрать тариф
