@@ -23,19 +23,20 @@ class YooKassaService:
             Configuration.account_id = self.account_id
             Configuration.secret_key = self.secret_key
     
-    def create_subscription_payment(self, user, subscription_type, return_url):
+    def create_subscription_payment(self, user, subscription_type, return_url, billing_period='monthly'):
         """
         Создает платеж для подписки
         
         Args:
             user: Пользователь Django
-            subscription_type: Тип подписки ('basic' или 'premium')
+            subscription_type: Тип подписки ('basic' или 'pro'/'premium')
             return_url: URL для возврата после оплаты
+            billing_period: 'monthly' или 'yearly' — период оплаты (годовая со скидкой)
             
         Returns:
             dict: Данные платежа с confirmation_url
         """
-        logger.info(f"Создание платежа для пользователя {user.id} ({user.username}), тип подписки: {subscription_type}")
+        logger.info(f"Создание платежа для пользователя {user.id} ({user.username}), тип подписки: {subscription_type}, период: {billing_period}")
         
         if not self.account_id or not self.secret_key:
             logger.error("YOOKASSA_ACCOUNT_ID и YOOKASSA_SECRET_KEY не настроены")
@@ -48,11 +49,15 @@ class YooKassaService:
             logger.error(f"План подписки с типом '{subscription_type}' не найден или неактивен")
             raise ValueError(f"План подписки с типом '{subscription_type}' не найден. Проверьте настройки в админ-панели.")
         
-        # Получаем цену и длительность из плана
-        # Форматируем цену как строку с двумя знаками после запятой
-        amount = f"{plan.price:.2f}"
-        duration_days = plan.duration_days
-        description = plan.description or f"{plan.name} - {duration_days} дней"
+        # Цена и длительность в зависимости от периода
+        if billing_period == 'yearly' and plan.price_yearly is not None and plan.price_yearly > 0:
+            amount = f"{float(plan.price_yearly):.2f}"
+            duration_days = 365
+            description = plan.description or f"{plan.name} - год"
+        else:
+            amount = f"{plan.price:.2f}"
+            duration_days = plan.duration_days
+            description = plan.description or f"{plan.name} - {duration_days} дней"
         
         logger.info(f"План: {plan.name}, Сумма платежа: {amount} RUB, Длительность: {duration_days} дней")
         

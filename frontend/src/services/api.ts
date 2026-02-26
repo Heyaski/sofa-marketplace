@@ -323,7 +323,8 @@ export const subscriptionService = {
 	// Создать платеж для подписки через ЮКассу
 	createSubscriptionPayment: async (
 		subscriptionType: string,
-		returnUrl?: string
+		returnUrl?: string,
+		billingPeriod?: 'monthly' | 'yearly'
 	): Promise<{
 		payment_id: string
 		confirmation_url: string
@@ -333,6 +334,7 @@ export const subscriptionService = {
 		const response = await apiClient.post('/api/subscriptions/create_payment/', {
 			subscription_type: subscriptionType,
 			return_url: returnUrl,
+			billing_period: billingPeriod || 'monthly',
 		})
 		return response.data
 	},

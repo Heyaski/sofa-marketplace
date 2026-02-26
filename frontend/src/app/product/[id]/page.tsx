@@ -326,7 +326,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 									Скачать RFA
 								</button>
 								{toastMessage && (
-									<div className='absolute left-0 right-0 bottom-full mb-1 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg shadow-lg z-10'>
+									<div className='fixed left-1/2 bottom-8 -translate-x-1/2 px-4 py-3 text-sm rounded-lg shadow-xl z-[9999]' style={{ backgroundColor: '#1a1a1a', color: '#ffffff' }}>
 										{toastMessage}
 									</div>
 								)}

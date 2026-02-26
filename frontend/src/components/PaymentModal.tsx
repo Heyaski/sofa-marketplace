@@ -19,6 +19,7 @@ interface PaymentModalProps {
 	planName: string
 	planPrice: string
 	planId: string
+	billingPeriod?: 'monthly' | 'yearly'
 }
 
 export default function PaymentModal({
@@ -28,6 +29,7 @@ export default function PaymentModal({
 	planName,
 	planPrice,
 	planId,
+	billingPeriod = 'monthly',
 }: PaymentModalProps) {
 	const [user, setUser] = useState<User | null>(null)
 	const [showNewCardForm, setShowNewCardForm] = useState(false)
@@ -135,7 +137,8 @@ export default function PaymentModal({
 			const returnUrl = `${window.location.origin}/profile?payment_success=true&planId=${planId}&tab=subscription`
 			const paymentData = await subscriptionService.createSubscriptionPayment(
 				planId,
-				returnUrl
+				returnUrl,
+				billingPeriod
 			)
 
 			// Сохраняем payment_id для проверки статуса после возврата

@@ -101,6 +101,11 @@ export default function ProductModelViewer({
 			ref={containerRef}
 			className={`${containerClass} cursor-grab active:cursor-grabbing`}
 			onClick={(e) => e.stopPropagation()}
+			onDoubleClick={(e) => {
+				e.stopPropagation()
+				onClick?.()
+			}}
+			title={onClick ? 'Двойной щелчок — открыть карточку товара' : undefined}
 		>
 			<model-viewer
 				ref={setupRef}

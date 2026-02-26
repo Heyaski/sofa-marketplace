@@ -92,13 +92,18 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            logger.info(f"Создание платежа для типа подписки: {subscription_type}, return_url: {return_url}")
+            billing_period = request.data.get('billing_period', 'monthly')
+            if billing_period not in ('monthly', 'yearly'):
+                billing_period = 'monthly'
+            
+            logger.info(f"Создание платежа для типа подписки: {subscription_type}, период: {billing_period}, return_url: {return_url}")
             
             yookassa_service = YooKassaService()
             payment_data = yookassa_service.create_subscription_payment(
                 user=request.user,
                 subscription_type=subscription_type,
-                return_url=return_url
+                return_url=return_url,
+                billing_period=billing_period
             )
             
             logger.info(f"Платеж успешно создан: {payment_data.get('payment_id')}")

@@ -1,8 +1,9 @@
 # apps/baskets/serializers.py
 from rest_framework import serializers
 from django.contrib.auth.models import User
+from django.db.models import Q
 from .models import Basket, BasketItem, BasketEditRequest, CommercialProposalRequest
-from apps.catalog.models import Product
+from apps.catalog.models import Product, FileAsset
 from apps.catalog.serializers import FileAssetSerializer
 
 
@@ -12,7 +13,7 @@ class ProductSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Product
-        fields = ["id", "title", "price", "image"]
+        fields = ["id", "title", "price", "image", "article"]
         ref_name = "BasketProduct"
     
     def get_image(self, obj):
@@ -32,10 +33,22 @@ class ProductSerializer(serializers.ModelSerializer):
             file_url = ser.data.get("file_url")
             if file_url:
                 return file_url
-        # 3. photo_url (из Excel)
+        # 3. FileAsset по артикулу (asset_id совпадает с артикулом: IMR-556065, IMR-556065(1))
+        if obj.article and obj.article.strip():
+            article_clean = obj.article.strip()
+            asset = FileAsset.objects.filter(
+                file_type='image',
+                Q(asset_id__iexact=article_clean) | Q(asset_id__istartswith=article_clean + '(')
+            ).order_by('asset_id').first()
+            if asset:
+                ser = FileAssetSerializer(asset, context={"request": request})
+                file_url = ser.data.get("file_url")
+                if file_url:
+                    return file_url
+        # 4. photo_url (из Excel)
         if obj.photo_url:
             return obj.photo_url
-        # 4. Старое поле image
+        # 5. Старое поле image
         if obj.image and hasattr(obj.image, "url"):
             url = obj.image.url
             if url.startswith(('http://', 'https://')):

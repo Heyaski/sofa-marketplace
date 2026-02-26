@@ -11,6 +11,8 @@ interface SubscriptionPlan {
 	id: string
 	name: string
 	price: string
+	priceYearly?: string
+	priceYearlyPerMonth?: string
 	features: string
 	image: string
 	isSelected?: boolean
@@ -36,6 +38,17 @@ export default function SubscriptionManagement() {
 		id: string
 		name: string
 		price: string
+		priceYearly?: string
+		priceYearlyPerMonth?: string
+		billingPeriod: 'monthly' | 'yearly'
+	} | null>(null)
+	const [isBillingChoiceOpen, setIsBillingChoiceOpen] = useState(false)
+	const [pendingPlanForPayment, setPendingPlanForPayment] = useState<{
+		id: string
+		name: string
+		price: string
+		priceYearly?: string
+		priceYearlyPerMonth?: string
 	} | null>(null)
 
 	// Загружаем данные пользователя и планы подписок при монтировании компонента
@@ -63,6 +76,8 @@ export default function SubscriptionManagement() {
 
 				const plansList: SubscriptionPlan[] = apiPlans.map((plan: Plan) => {
 					const priceValue = typeof plan.price === 'string' ? parseFloat(plan.price) : Number(plan.price)
+					const priceYearly = plan.price_yearly != null ? Number(plan.price_yearly) : null
+					const priceYearlyPerMonth = plan.price_yearly_per_month != null ? Number(plan.price_yearly_per_month) : null
 					const formattedPrice = priceValue === 0
 						? 'Бесплатно'
 						: priceValue.toLocaleString('ru-RU', {
@@ -70,10 +85,18 @@ export default function SubscriptionManagement() {
 								currency: 'RUB',
 								minimumFractionDigits: 0,
 							}) + '/мес'
+					const formattedYearly = priceYearly != null && priceYearly > 0
+						? priceYearly.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: 0 })
+						: undefined
+					const formattedYearlyPerMonth = priceYearlyPerMonth != null && priceYearlyPerMonth > 0
+						? priceYearlyPerMonth.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: 0 }) + '/мес'
+						: undefined
 					return {
 						id: plan.subscription_type,
 						name: plan.name,
 						price: formattedPrice,
+						priceYearly: formattedYearly,
+						priceYearlyPerMonth: formattedYearlyPerMonth,
 						features: plan.limits || plan.description || '',
 						image: planImages[plan.subscription_type] || '/img/base_subscriptions.svg',
 					}
@@ -167,13 +190,41 @@ export default function SubscriptionManagement() {
 		if (planId === 'free' || planId === 'trial') return // Не оплачиваются
 		const plan = plans.find(p => p.id === planId)
 		if (plan && planId !== currentSubscription) {
-			setSelectedPlanForPayment({
-				id: plan.id,
-				name: plan.name,
-				price: plan.price,
-			})
-			setIsPaymentModalOpen(true)
+			// Если есть годовой тариф — показываем выбор периода
+			if (plan.priceYearly && plan.priceYearlyPerMonth) {
+				setPendingPlanForPayment({
+					id: plan.id,
+					name: plan.name,
+					price: plan.price,
+					priceYearly: plan.priceYearly,
+					priceYearlyPerMonth: plan.priceYearlyPerMonth,
+				})
+				setIsBillingChoiceOpen(true)
+			} else {
+				setSelectedPlanForPayment({
+					id: plan.id,
+					name: plan.name,
+					price: plan.price,
+					billingPeriod: 'monthly',
+				})
+				setIsPaymentModalOpen(true)
+			}
 		}
+	}
+
+	const handleChooseBillingPeriod = (billingPeriod: 'monthly' | 'yearly') => {
+		if (!pendingPlanForPayment) return
+		const price = billingPeriod === 'yearly' && pendingPlanForPayment.priceYearly
+			? pendingPlanForPayment.priceYearly
+			: pendingPlanForPayment.price
+		setSelectedPlanForPayment({
+			...pendingPlanForPayment,
+			price,
+			billingPeriod,
+		})
+		setPendingPlanForPayment(null)
+		setIsBillingChoiceOpen(false)
+		setIsPaymentModalOpen(true)
 	}
 
 	const handlePaymentSuccess = async () => {
@@ -190,6 +241,7 @@ export default function SubscriptionManagement() {
 		// Закрываем модальное окно оплаты
 		setIsPaymentModalOpen(false)
 		setSelectedPlanForPayment(null)
+		setPendingPlanForPayment(null)
 		console.log('Payment successful for plan:', selectedPlanForPayment)
 	}
 
@@ -274,6 +326,46 @@ export default function SubscriptionManagement() {
 				</div>
 			)}
 
+			{/* Billing period choice modal */}
+			{isBillingChoiceOpen && pendingPlanForPayment && (
+				<div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4'>
+					<div className='bg-white rounded-xl p-6 max-w-md w-full shadow-xl'>
+						<h3 className='text-xl font-bold text-black mb-4'>Выберите период оплаты</h3>
+						<p className='text-gray text-sm mb-6'>{pendingPlanForPayment.name}</p>
+						<div className='space-y-3'>
+							<button
+								onClick={() => handleChooseBillingPeriod('monthly')}
+								className='w-full p-4 border-2 border-main1 rounded-lg text-left hover:bg-main1/5 transition-colors'
+							>
+								<span className='font-medium text-black block'>За месяц</span>
+								<span className='text-main1'>{pendingPlanForPayment.price}</span>
+							</button>
+							<button
+								onClick={() => handleChooseBillingPeriod('yearly')}
+								className='w-full p-4 border-2 border-main1 rounded-lg text-left hover:bg-main1/5 transition-colors'
+							>
+								<span className='font-medium text-black block'>За год</span>
+								<span className='text-main1'>{pendingPlanForPayment.priceYearly}</span>
+								{pendingPlanForPayment.priceYearlyPerMonth && (
+									<span className='text-gray text-sm block mt-1'>
+										{pendingPlanForPayment.priceYearlyPerMonth} — экономия
+									</span>
+								)}
+							</button>
+						</div>
+						<button
+							onClick={() => {
+								setIsBillingChoiceOpen(false)
+								setPendingPlanForPayment(null)
+							}}
+							className='mt-4 w-full py-2 text-gray hover:text-black'
+						>
+							Отмена
+						</button>
+					</div>
+				</div>
+			)}
+
 			{/* Tariff Details Modal */}
 			<TariffDetailsModal
 				isOpen={isTariffDetailsModalOpen}
@@ -292,6 +384,7 @@ export default function SubscriptionManagement() {
 					planName={selectedPlanForPayment.name}
 					planPrice={selectedPlanForPayment.price}
 					planId={selectedPlanForPayment.id}
+					billingPeriod={selectedPlanForPayment.billingPeriod}
 				/>
 			)}
 		</div>

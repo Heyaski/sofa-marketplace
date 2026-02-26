@@ -114,37 +114,47 @@ export default function ProductCard({
 	return (
 		<div className='product-card bg-white rounded-xl shadow-md p-3 sm:p-4 hover:shadow-lg transition-all duration-200'>
 			{/* 3D модель или изображение товара — можно крутить в каталоге */}
-			<div className='rounded-lg mb-3 sm:mb-4 overflow-hidden' onClick={handleCardClick}>
-				<ProductModelViewer product={product} variant='card' />
+			<div className='rounded-lg mb-3 sm:mb-4 overflow-hidden'>
+				<ProductModelViewer product={product} variant='card' onClick={handleCardClick} />
 			</div>
 
-			{/* Описание: категория + цвет + размеры */}
+			{/* Описание: категория + цвет + размеры — клик открывает карточку */}
 			<div
-				className='text-sm font-semibold text-black mb-3 cursor-pointer hover:text-main1 transition-colors line-clamp-2 min-h-[2.5rem]'
+				className='text-sm font-semibold text-black mb-1 cursor-pointer hover:text-main1 transition-colors line-clamp-2 min-h-[2.5rem]'
 				onClick={handleCardClick}
 				title={getCardDescription()}
+				role='button'
+				tabIndex={0}
+				onKeyDown={(e) => e.key === 'Enter' && handleCardClick()}
 			>
 				{getCardDescription()}
 			</div>
+			<button
+				type='button'
+				onClick={handleCardClick}
+				className='text-xs text-main1 hover:text-main2 mb-3 text-left w-full'
+			>
+				Подробнее →
+			</button>
 
 			{/* Действия */}
-			<div className='flex flex-col sm:flex-row gap-2 relative'>
+			<div className='flex flex-col gap-2 relative'>
 				<button
 					onClick={() => onAddToCart(product.id, config.DEFAULT_FORMAT)}
-					className='btn-primary py-2 sm:py-2.5 px-4 w-full sm:w-auto text-sm sm:text-base'
+					className='btn-primary py-2 px-3 w-full text-sm font-medium whitespace-nowrap rounded-lg'
 				>
 					.rfa в корзину
 				</button>
 
 				<button
 					onClick={handleDownloadRfa}
-					className='border border-main1 text-main1 bg-white hover:bg-main1 hover:text-white transition-colors rounded-lg py-2 sm:py-2.5 px-4 text-xs sm:text-sm w-full sm:w-auto'
+					className='py-2 px-3 w-full text-sm font-medium whitespace-nowrap rounded-lg border border-gray2 text-black bg-white hover:bg-gray-bg hover:border-main1 hover:text-main1 transition-colors'
 				>
 					Скачать RFA
 				</button>
 
 				{toastMessage && (
-					<div className='absolute left-0 right-0 bottom-full mb-1 px-2 py-1.5 bg-gray-800 text-white text-xs rounded-lg shadow-lg z-10'>
+					<div className='fixed left-1/2 bottom-8 -translate-x-1/2 px-4 py-3 text-sm rounded-lg shadow-xl z-[9999]' style={{ backgroundColor: '#1a1a1a', color: '#ffffff' }}>
 						{toastMessage}
 					</div>
 				)}
