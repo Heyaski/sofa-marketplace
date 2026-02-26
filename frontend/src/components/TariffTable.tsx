@@ -20,8 +20,8 @@ function formatMonthlyPrice(plan: Plan): string {
 function formatYearlyPrice(plan: Plan): string {
 	const perMonth = plan.price_yearly_per_month
 	const total = plan.price_yearly
-	if ((perMonth == null || perMonth === '') && (total == null || total === '')) return '—'
-	if (perMonth != null && perMonth !== '') {
+	if (perMonth == null && total == null) return '—'
+	if (perMonth != null) {
 		const totalVal = total != null ? Number(total) : Number(perMonth) * 12
 		return `${Number(perMonth).toLocaleString('ru-RU')} ₽/мес (${Number(totalVal).toLocaleString('ru-RU')} ₽/год)`
 	}
