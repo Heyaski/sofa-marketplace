@@ -24,11 +24,24 @@ export default function ProductPage({ params }: ProductPageProps) {
 	const [isCartModalOpen, setIsCartModalOpen] = useState(false)
 	const selectedFormat = config.DEFAULT_FORMAT
 	const [mainImage, setMainImage] = useState<string | null>(null)
-	const [isAuthenticated, setIsAuthenticated] = useState(false)
+	const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
 	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
 
 	const { product, loading, error } = useProduct(productId)
 	const { createBasket, addToBasket } = useBaskets()
+
+	useEffect(() => {
+		const token = localStorage.getItem('access_token')
+		if (token) {
+			import('@/services/api').then(({ authService }) =>
+				authService.getCurrentUser()
+					.then(() => setIsAuthenticated(true))
+					.catch(() => setIsAuthenticated(false))
+			)
+		} else {
+			setIsAuthenticated(false)
+		}
+	}, [])
 
 	// Устанавливаем главное изображение при загрузке продукта
 	useEffect(() => {
@@ -46,13 +59,11 @@ export default function ProductPage({ params }: ProductPageProps) {
 		}
 	}, [product?.asset_images, product?.images, product?.image])
 
-	// Проверка авторизации пользователя
-	useEffect(() => {
-		const token = localStorage.getItem('access_token')
-		setIsAuthenticated(!!token)
-	}, [])
-
 	const handleAddToCart = () => {
+		if (isAuthenticated === false) {
+			setIsAuthModalOpen(true)
+			return
+		}
 		setIsCartModalOpen(true)
 	}
 
@@ -307,7 +318,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 							</div>
 
 							{/* Ссылка на вход/регистрацию - только для неавторизованных */}
-							{!isAuthenticated && (
+							{isAuthenticated === false && (
 								<div className='text-sm text-gray text-center'>
 									<button
 										className='hover:text-black transition-colors cursor-pointer'
@@ -338,6 +349,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 				onSuccess={() => {
 					setIsAuthenticated(true)
 					setIsAuthModalOpen(false)
+					window.dispatchEvent(new Event('auth-updated'))
 				}}
 			/>
 		</div>

@@ -15,8 +15,23 @@ class ProductSerializer(serializers.ModelSerializer):
     
     def get_image(self, obj):
         request = self.context.get("request")
+        # 1. Основное фото
         if obj.image and hasattr(obj.image, "url"):
-            return request.build_absolute_uri(obj.image.url) if request else obj.image.url
+            url = obj.image.url
+            return request.build_absolute_uri(url) if request and not url.startswith(('http://', 'https://')) else url
+        # 2. ProductImage (связанные изображения)
+        first_pi = obj.images.first()
+        if first_pi and first_pi.image and hasattr(first_pi.image, "url"):
+            url = first_pi.image.url
+            return request.build_absolute_uri(url) if request and not url.startswith(('http://', 'https://')) else url
+        # 3. FileAsset (image_asset_ids)
+        first_asset = obj.get_image_assets().first()
+        if first_asset and first_asset.file and hasattr(first_asset.file, "url"):
+            url = first_asset.file.url
+            return request.build_absolute_uri(url) if request and not url.startswith(('http://', 'https://')) else url
+        # 4. photo_url (из Excel)
+        if obj.photo_url:
+            return obj.photo_url
         return None
 
 

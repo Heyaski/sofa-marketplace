@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useBaskets } from '../hooks/useApi'
 
@@ -67,12 +68,21 @@ export default function CartModal({
 					</button>
 				</div>
 
-				{/* Title */}
-				<h2 className='text-lg sm:text-xl font-bold text-black mb-4 sm:mb-6 text-left'>
-					{isCreatingNew
-						? 'Создание новой корзины'
-						: 'Выберите в какую корзину добавить товар'}
-				</h2>
+				{/* Title + На главную */}
+				<div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 sm:mb-6'>
+					<h2 className='text-lg sm:text-xl font-bold text-black text-left'>
+						{isCreatingNew
+							? 'Создание новой корзины'
+							: 'Выберите в какую корзину добавить товар'}
+					</h2>
+					<Link
+						href='/'
+						onClick={onClose}
+						className='text-main1 hover:text-main2 text-sm font-medium'
+					>
+						На главную
+					</Link>
+				</div>
 
 				{!isCreatingNew ? (
 					<>

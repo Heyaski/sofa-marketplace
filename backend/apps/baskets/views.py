@@ -36,8 +36,10 @@ class BasketViewSet(viewsets.ModelViewSet):
             messagebasket__message__chat__participant2=self.request.user
         )
         
-        # Объединяем и убираем дубликаты
-        return (user_baskets | shared_baskets).distinct()
+        # Объединяем и убираем дубликаты; prefetch для изображений товаров в корзине
+        return (user_baskets | shared_baskets).distinct().prefetch_related(
+            'items__product', 'items__product__images'
+        )
     
     def get_object(self):
         """Переопределяем get_object для проверки доступа"""

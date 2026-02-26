@@ -1,5 +1,6 @@
 'use client'
 
+import AuthModal from '@/components/AuthModal'
 import BottomNav from '@/components/BottomNav'
 import CartModal from '@/components/CartModal'
 import DimensionsFilter from '@/components/DimensionsFilter'
@@ -10,7 +11,7 @@ import PriceFilter from '@/components/PriceFilter'
 import RGBRangeFilter from '@/components/RGBRangeFilter'
 import ProductCard from '@/components/ProductCard'
 import { useBaskets, useCategories, useProducts } from '@/hooks/useApi'
-import { productService } from '@/services/api'
+import { authService, productService } from '@/services/api'
 import { Category, Product, ProductFilters } from '@/types'
 import Script from 'next/script'
 import { useSearchParams } from 'next/navigation'
@@ -27,6 +28,14 @@ function CatalogContent() {
 	const [filters, setFilters] = useState<ProductFilters>({})
 	const [visibleCategoriesCount, setVisibleCategoriesCount] = useState(10)
 	const [openFilter, setOpenFilter] = useState<string | null>(null)
+	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+	const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+
+	useEffect(() => {
+		authService.getCurrentUser()
+			.then(() => setIsAuthenticated(true))
+			.catch(() => setIsAuthenticated(false))
+	}, [])
 
 	// Синхронизация поиска из URL с фильтрами
 	useEffect(() => {
@@ -85,6 +94,10 @@ function CatalogContent() {
 	}, [filterRangesData])
 
 	const handleAddToCart = (productId: number, format: string) => {
+		if (isAuthenticated === false) {
+			setIsAuthModalOpen(true)
+			return
+		}
 		setSelectedProduct({ id: productId, format })
 		setIsCartModalOpen(true)
 	}
@@ -525,6 +538,15 @@ function CatalogContent() {
 				}}
 				onAddToCart={handleCartSelect}
 				onCreateNewCart={handleCreateNewCart}
+			/>
+
+			<AuthModal
+				isOpen={isAuthModalOpen}
+				onClose={() => setIsAuthModalOpen(false)}
+				onSuccess={() => {
+					setIsAuthenticated(true)
+					setIsAuthModalOpen(false)
+				}}
 			/>
 		</div>
 	)
