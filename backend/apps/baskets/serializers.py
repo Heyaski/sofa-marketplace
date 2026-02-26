@@ -37,8 +37,8 @@ class ProductSerializer(serializers.ModelSerializer):
         if obj.article and obj.article.strip():
             article_clean = obj.article.strip()
             asset = FileAsset.objects.filter(
+                Q(asset_id__iexact=article_clean) | Q(asset_id__istartswith=article_clean + '('),
                 file_type='image',
-                Q(asset_id__iexact=article_clean) | Q(asset_id__istartswith=article_clean + '(')
             ).order_by('asset_id').first()
             if asset:
                 ser = FileAssetSerializer(asset, context={"request": request})

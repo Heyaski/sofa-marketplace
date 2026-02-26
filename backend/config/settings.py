@@ -66,6 +66,8 @@ CORS_ALLOW_ALL_ORIGINS = True  # разрешает все origins
 CORS_ALLOWED_ORIGINS = [
     "https://www.vizhub.pro",
     "https://vizhub.pro",
+    "https://www.vizhub.org",
+    "https://vizhub.org",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
