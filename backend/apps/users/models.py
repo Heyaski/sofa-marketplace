@@ -8,9 +8,11 @@ class UserProfile(models.Model):
     """Расширенный профиль пользователя"""
     
     SUBSCRIPTION_CHOICES = [
-        ('trial', 'Пробная'),
-        ('basic', 'Базовая'),
-        ('premium', 'Премиум'),
+        ('free', 'Free'),
+        ('trial', 'Trial'),
+        ('basic', 'Базовый'),
+        ('pro', 'Pro'),
+        ('premium', 'Pro (legacy)'),
     ]
     
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
@@ -19,7 +21,7 @@ class UserProfile(models.Model):
     subscription_type = models.CharField(
         max_length=10,
         choices=SUBSCRIPTION_CHOICES,
-        default='trial',
+        default='free',
         verbose_name='Тип подписки'
     )
     
@@ -69,11 +71,13 @@ class UserProfile(models.Model):
     def get_download_limit(self):
         """Возвращает лимит скачиваний в зависимости от типа подписки"""
         limits = {
-            'trial': 3,      # Пробная: 3 модели
-            'basic': 10,     # Базовая: 10 моделей
-            'premium': None, # Премиум: без ограничений (None = безлимит)
+            'free': 5,        # 5 моделей сразу + 5 каждые 7 дней
+            'trial': 100,     # 14 дней, 100 скачиваний всего
+            'basic': None,    # без ограничений
+            'pro': None,      # без ограничений
+            'premium': None,  # legacy → без ограничений
         }
-        return limits.get(self.subscription_type, 3)
+        return limits.get(self.subscription_type, 5)
     
     def can_download(self, current_downloads_count):
         """Проверяет, может ли пользователь скачать еще модели"""
@@ -89,14 +93,24 @@ class UserProfile(models.Model):
         """
         Проверяет статус подписки и автоматически переключает на пробную, если подписка истекла
         """
-        # Если уже пробная подписка, ничего не делаем
-        if self.subscription_type == 'trial':
+        # Free не имеет срока
+        if self.subscription_type == 'free':
             return True
         
-        # Проверяем, не истекла ли подписка
+        # Trial истекает через 14 дней
+        if self.subscription_type == 'trial':
+            if self.subscription_end_date and now() > self.subscription_end_date:
+                self.subscription_type = 'free'
+                self.subscription_start_date = None
+                self.subscription_end_date = None
+                self.save()
+                return False
+            return True
+        
+        # Проверяем, не истекла ли платная подписка
         if self.subscription_end_date and now() > self.subscription_end_date:
-            # Подписка истекла, возвращаем к пробной
-            self.subscription_type = 'trial'
+            # Подписка истекла, возвращаем к Free
+            self.subscription_type = 'free'
             self.subscription_start_date = None
             self.subscription_end_date = None
             self.auto_renewal = False

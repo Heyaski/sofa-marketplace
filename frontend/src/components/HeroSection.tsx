@@ -61,14 +61,27 @@ export default function HeroSection({ onOpenAuth }: HeroSectionProps) {
 					{/* Left content */}
 					<div className='space-y-4 sm:space-y-6 lg:space-y-8 max-w-lg'>
 						<h1 className='text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-black leading-tight'>
-							Реалистичная мебель в 3D — для интерьеров, которые хочется трогать
+							RevitBoost
 						</h1>
 
-						<p className='text-base sm:text-lg text-black leading-relaxed'>
-							Готовые модели реальной мебели для быстрого и эффектного
-							проектирования интерьеров. Точность, стиль и готовность к рендеру
-							— сразу после загрузки.
+						<p className='text-xl sm:text-2xl text-main1 font-semibold'>
+							Мгновенная замена Revit-моделей на high-poly для фотореалистичного рендера
 						</p>
+
+						<div className='space-y-4 text-base sm:text-lg text-black leading-relaxed'>
+							<p>
+								Revit3dmaxBridge — это скрипт и библиотека Revit-моделей, которые позволяют за секунды превратить обычные низкополигональные семейства в высокодетализированные 3D-модели при экспорте или перетаскивании в 3ds Max.
+							</p>
+							<p>
+								Работает с Corona, V-Ray, Enscape и другими рендерами.
+								Экономьте часы на ручной замене геометрии и настройке — больше времени на творчество и красивые рендеры.
+							</p>
+							<ul className='list-disc list-inside space-y-1'>
+								<li>Скрипт автоматической замены (настраивается под ваши high-poly файлы или облачные ссылки)</li>
+								<li>Библиотека 4000+ авторских параметрических Revit-семейств в стилях сканди, лофт, минимализм, современная классика</li>
+								<li>Полная сохранность параметризации Revit (размеры, материалы, типы)</li>
+							</ul>
+						</div>
 
 						{!loading && !isAuthenticated && (
 							<div className='pt-2 sm:pt-4'>
@@ -94,6 +107,10 @@ export default function HeroSection({ onOpenAuth }: HeroSectionProps) {
 						/>
 					</div>
 				</div>
+				{/* Дисклеймер */}
+				<p className='mt-12 text-xs sm:text-sm text-gray max-w-3xl'>
+					Все Revit-модели — оригинальные авторские разработки. High-poly модели подставляются из файлов или ссылок, которые указывает пользователь. Мы не предоставляем, не храним и не несём ответственности за происхождение high-poly контента. Пользователь самостоятельно отвечает за используемые 3D-файлы и их права.
+				</p>
 			</div>
 		</section>
 	)

@@ -5,28 +5,31 @@ from apps.admin_utils import ExportExcelMixin
 
 @admin.register(Plan)
 class PlanAdmin(ExportExcelMixin, admin.ModelAdmin):
-    list_display = ('id', 'name', 'subscription_type', 'price', 'duration_days', 'is_active')
-    list_filter = ('subscription_type', 'is_active', 'duration_days')
-    search_fields = ('name', 'description', 'subscription_type')
-    list_editable = ('price', 'duration_days', 'is_active')
+    list_display = ('id', 'order', 'name', 'subscription_type', 'price', 'price_yearly', 'price_yearly_per_month', 'duration_days', 'is_active')
+    list_filter = ('subscription_type', 'is_active')
+    search_fields = ('name', 'description', 'subscription_type', 'revit_access', 'script_access', 'highpoly_access', 'limits')
+    list_editable = ('order', 'price', 'price_yearly', 'price_yearly_per_month', 'duration_days', 'is_active')
+    ordering = ('order', 'subscription_type')
     actions = ["export_selected_to_excel"]
     
     fieldsets = (
         ('Основная информация', {
-            'fields': ('name', 'subscription_type', 'is_active')
+            'fields': ('name', 'subscription_type', 'order', 'is_active')
         }),
-        ('Цена и длительность', {
-            'fields': ('price', 'duration_days')
+        ('Цены', {
+            'fields': ('price', 'price_yearly', 'price_yearly_per_month', 'duration_days'),
+            'description': 'price — помесячно, price_yearly — сумма за год, price_yearly_per_month — показываемая цена/мес при годовой оплате'
         }),
-        ('Описание', {
+        ('Доступ по тарифу (для таблицы на сайте)', {
+            'fields': ('revit_access', 'script_access', 'highpoly_access', 'limits')
+        }),
+        ('Описание для чека', {
             'fields': ('description',),
-            'description': 'Описание будет использоваться в чеке при оплате'
         }),
     )
     
     def get_readonly_fields(self, request, obj=None):
-        # subscription_type можно изменить только при создании
-        if obj:  # редактирование существующего объекта
+        if obj:
             return ('subscription_type',)
         return ()
 

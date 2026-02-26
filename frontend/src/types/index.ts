@@ -72,6 +72,7 @@ export interface Category {
 		slug: string
 	} | null
 	image?: string | null
+	unlock_day?: number
 }
 
 // Типы для корзины
@@ -133,11 +134,18 @@ export interface Order {
 export interface Plan {
 	id: number
 	name: string
-	subscription_type: 'basic' | 'premium'
+	subscription_type: 'free' | 'trial' | 'basic' | 'pro' | 'premium'
 	price: string | number
+	price_yearly?: number | null
+	price_yearly_per_month?: number | null
 	duration_days: number
 	description: string
+	revit_access?: string
+	script_access?: string
+	highpoly_access?: string
+	limits?: string
 	is_active: boolean
+	order?: number
 }
 
 export interface Subscription {
@@ -159,7 +167,7 @@ export interface Download {
 
 // Типы для пользователей
 export interface UserProfile {
-	subscription_type: 'trial' | 'basic' | 'premium'
+	subscription_type: 'free' | 'trial' | 'basic' | 'pro' | 'premium'
 	subscription_type_display?: string
 	card_number: string
 	card_holder: string

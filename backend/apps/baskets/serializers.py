@@ -3,9 +3,11 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import Basket, BasketItem, BasketEditRequest, CommercialProposalRequest
 from apps.catalog.models import Product
+from apps.catalog.serializers import FileAssetSerializer
 
 
 class ProductSerializer(serializers.ModelSerializer):
+    """Сериализатор товара для корзины: только 2D изображение (не 3D модель)."""
     image = serializers.SerializerMethodField()
     
     class Meta:
@@ -14,24 +16,31 @@ class ProductSerializer(serializers.ModelSerializer):
         ref_name = "BasketProduct"
     
     def get_image(self, obj):
+        """Возвращает URL изображения. Приоритет как в каталоге. Для S3 используем FileAssetSerializer."""
         request = self.context.get("request")
-        # 1. Основное фото
-        if obj.image and hasattr(obj.image, "url"):
-            url = obj.image.url
-            return request.build_absolute_uri(url) if request and not url.startswith(('http://', 'https://')) else url
-        # 2. ProductImage (связанные изображения)
+        # 1. ProductImage (связанные изображения)
         first_pi = obj.images.first()
         if first_pi and first_pi.image and hasattr(first_pi.image, "url"):
             url = first_pi.image.url
-            return request.build_absolute_uri(url) if request and not url.startswith(('http://', 'https://')) else url
-        # 3. FileAsset (image_asset_ids)
+            if url.startswith(('http://', 'https://')):
+                return url
+            return request.build_absolute_uri(url) if request else url
+        # 2. FileAsset (image_asset_ids) — через FileAssetSerializer для правильных signed URLs
         first_asset = obj.get_image_assets().first()
-        if first_asset and first_asset.file and hasattr(first_asset.file, "url"):
-            url = first_asset.file.url
-            return request.build_absolute_uri(url) if request and not url.startswith(('http://', 'https://')) else url
-        # 4. photo_url (из Excel)
+        if first_asset:
+            ser = FileAssetSerializer(first_asset, context={"request": request})
+            file_url = ser.data.get("file_url")
+            if file_url:
+                return file_url
+        # 3. photo_url (из Excel)
         if obj.photo_url:
             return obj.photo_url
+        # 4. Старое поле image
+        if obj.image and hasattr(obj.image, "url"):
+            url = obj.image.url
+            if url.startswith(('http://', 'https://')):
+                return url
+            return request.build_absolute_uri(url) if request else url
         return None
 
 

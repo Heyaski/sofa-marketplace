@@ -17,8 +17,7 @@ class PlanViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     
     def get_queryset(self):
-        # Возвращаем только активные планы с заполненным subscription_type, отсортированные по типу
-        return Plan.objects.filter(is_active=True, subscription_type__isnull=False).order_by('subscription_type')
+        return Plan.objects.filter(is_active=True, subscription_type__isnull=False).exclude(subscription_type='premium').order_by('order', 'subscription_type')
 
 
 class SubscriptionViewSet(viewsets.ModelViewSet):
@@ -50,10 +49,10 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            if subscription_type not in ['basic', 'premium']:
+            if subscription_type not in ['basic', 'pro', 'premium']:
                 logger.warning(f"Неверный тип подписки: {subscription_type}")
                 return Response(
-                    {"error": f"Неверный тип подписки: {subscription_type}. Доступны: basic, premium"},
+                    {"error": f"Неверный тип подписки: {subscription_type}. Доступны: basic, pro"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             

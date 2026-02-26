@@ -33,6 +33,11 @@ class Category(models.Model):
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, verbose_name="Родительская категория")
     image = models.ImageField(upload_to="categories/", blank=True, null=True, verbose_name="Изображение")
     order = models.PositiveIntegerField(default=0, verbose_name="Порядок", db_index=True)
+    unlock_day = models.PositiveSmallIntegerField(
+        default=0,
+        verbose_name="День открытия (Trial)",
+        help_text="В день Trial: 0 — сразу, 4 — на 4-й день, 8 — на 8-й, 12 — на 12-й. Для обычных тарифов — 0."
+    )
 
     class Meta:
         verbose_name = "Категория"

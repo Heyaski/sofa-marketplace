@@ -16,20 +16,19 @@ interface SubscriptionPlan {
 	isCurrent?: boolean
 }
 
-// Пробная подписка не хранится в базе, добавляем её вручную
-const trialPlan: SubscriptionPlan = {
-	id: 'trial',
-	name: 'Пробная',
-	price: 'БЕСПЛАТНО',
-	features: 'Пробное скачивание 3-х моделей',
-	image: '/img/test_subscriptions.svg',
+const planImages: Record<string, string> = {
+	free: '/img/test_subscriptions.svg',
+	trial: '/img/test_subscriptions.svg',
+	basic: '/img/base_subscriptions.svg',
+	pro: '/img/premium_subscriptions.svg',
+	premium: '/img/premium_subscriptions.svg',
 }
 
 export default function SubscriptionManagement() {
 	const [user, setUser] = useState<User | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [plans, setPlans] = useState<SubscriptionPlan[]>([])
-	const [selectedPlan, setSelectedPlan] = useState<string>('trial')
+	const [selectedPlan, setSelectedPlan] = useState<string>('free')
 	const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
 	const [selectedPlanForPayment, setSelectedPlanForPayment] = useState<{
 		id: string
@@ -48,61 +47,40 @@ export default function SubscriptionManagement() {
 				])
 
 				setUser(userData)
-				// Устанавливаем текущую подписку из данных пользователя
 				if (userData.profile?.subscription_type) {
 					setSelectedPlan(userData.profile.subscription_type)
 				}
 
 				// Преобразуем планы из API в формат для компонента
-				const plansList: SubscriptionPlan[] = [trialPlan]
-
-				// Маппинг изображений для планов
-				const planImages: Record<string, string> = {
-					basic: '/img/base_subscriptions.svg',
-					premium: '/img/premium_subscriptions.svg',
-				}
-
-				// Маппинг описаний для планов
-				const planFeatures: Record<string, string> = {
-					basic: '10 скачиваний в месяц',
-					premium: 'Безлимитное скачивание моделей',
-				}
-
-				// Добавляем планы из API
-				// Проверяем, является ли ответ ApiResponse или массивом
 				let apiPlans: Plan[] = []
 				if (Array.isArray(plansResponse)) {
 					apiPlans = plansResponse
 				} else if (plansResponse && typeof plansResponse === 'object' && 'results' in plansResponse) {
 					apiPlans = plansResponse.results
 				}
-				
-				if (apiPlans.length > 0) {
-					apiPlans.forEach((plan: Plan) => {
-						const priceValue = typeof plan.price === 'string' 
-							? parseFloat(plan.price) 
-							: plan.price
-						const formattedPrice = priceValue.toLocaleString('ru-RU', {
-							style: 'currency',
-							currency: 'RUB',
-							minimumFractionDigits: 0,
-						}) + '/мес'
 
-						plansList.push({
-							id: plan.subscription_type,
-							name: plan.name,
-							price: formattedPrice,
-							features: plan.description || planFeatures[plan.subscription_type] || '',
-							image: planImages[plan.subscription_type] || '/img/base_subscriptions.svg',
-						})
-					})
-				}
+				const plansList: SubscriptionPlan[] = apiPlans.map((plan: Plan) => {
+					const priceValue = typeof plan.price === 'string' ? parseFloat(plan.price) : Number(plan.price)
+					const formattedPrice = priceValue === 0
+						? 'Бесплатно'
+						: priceValue.toLocaleString('ru-RU', {
+								style: 'currency',
+								currency: 'RUB',
+								minimumFractionDigits: 0,
+							}) + '/мес'
+					return {
+						id: plan.subscription_type,
+						name: plan.name,
+						price: formattedPrice,
+						features: plan.limits || plan.description || '',
+						image: planImages[plan.subscription_type] || '/img/base_subscriptions.svg',
+					}
+				})
 
 				setPlans(plansList)
 			} catch (error) {
 				console.error('Ошибка при загрузке данных:', error)
-				// В случае ошибки используем дефолтные планы
-				setPlans([trialPlan])
+				setPlans([])
 			} finally {
 				setLoading(false)
 			}
@@ -181,12 +159,11 @@ export default function SubscriptionManagement() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []) // Запускаем только один раз при монтировании компонента
 
-	// Определяем текущую подписку пользователя
-	const currentSubscription = user?.profile?.subscription_type || 'trial'
+	const currentSubscription = user?.profile?.subscription_type || 'free'
 
 	const handleSelectPlan = (planId: string) => {
+		if (planId === 'free' || planId === 'trial') return // Не оплачиваются
 		const plan = plans.find(p => p.id === planId)
-		// Проверяем, что план существует и не является текущим
 		if (plan && planId !== currentSubscription) {
 			setSelectedPlanForPayment({
 				id: plan.id,
@@ -226,7 +203,7 @@ export default function SubscriptionManagement() {
 				</div>
 			) : (
 				<div className='bg-white rounded-xl overflow-hidden'>
-					<div className='grid grid-cols-1 md:grid-cols-3 divide-x divide-gray-300'>
+					<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-x divide-gray-300'>
 						{plans.map(plan => {
 							const isCurrent = plan.id === currentSubscription
 							return (
@@ -260,17 +237,28 @@ export default function SubscriptionManagement() {
 									</p>
 
 									{/* Кнопка выбора */}
-									<button
-										onClick={() => handleSelectPlan(plan.id)}
-										className={`w-full py-3 px-4 rounded-lg font-medium ${
-											isCurrent
-												? 'bg-gray text-white cursor-not-allowed'
-												: 'bg-main1 text-white hover:bg-main2'
-										}`}
-										disabled={isCurrent}
-									>
-										{isCurrent ? 'Выбрано' : 'Выбрать'}
-									</button>
+									{(plan.id === 'free' || plan.id === 'trial') ? (
+										<button
+											className={`w-full py-3 px-4 rounded-lg font-medium ${
+												isCurrent ? 'bg-gray text-white cursor-not-allowed' : 'bg-gray-bg text-black cursor-default'
+											}`}
+											disabled={!isCurrent}
+										>
+											{isCurrent ? 'Текущий тариф' : 'Бесплатно'}
+										</button>
+									) : (
+										<button
+											onClick={() => handleSelectPlan(plan.id)}
+											className={`w-full py-3 px-4 rounded-lg font-medium ${
+												isCurrent
+													? 'bg-gray text-white cursor-not-allowed'
+													: 'bg-main1 text-white hover:bg-main2'
+											}`}
+											disabled={isCurrent}
+										>
+											{isCurrent ? 'Текущий тариф' : 'Выбрать'}
+										</button>
+									)}
 								</div>
 							)
 						})}

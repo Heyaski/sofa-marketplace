@@ -10,7 +10,7 @@ import { Plan } from '@/types'
 interface UpgradeSubscriptionModalProps {
 	isOpen: boolean
 	onClose: () => void
-	currentSubscription: 'trial' | 'basic' | 'premium'
+	currentSubscription: 'free' | 'trial' | 'basic' | 'pro' | 'premium'
 	message?: string
 }
 
@@ -23,14 +23,12 @@ interface SubscriptionPlan {
 	downloadLimit: number | null
 }
 
-// Пробная подписка не хранится в базе, добавляем её вручную
-const trialPlan: SubscriptionPlan = {
-	id: 'trial',
-	name: 'Пробная',
-	price: 'БЕСПЛАТНО',
-	features: 'Пробное скачивание 3-х моделей',
-	image: '/img/test_subscriptions.svg',
-	downloadLimit: 3,
+const planImages: Record<string, string> = {
+	free: '/img/test_subscriptions.svg',
+	trial: '/img/test_subscriptions.svg',
+	basic: '/img/base_subscriptions.svg',
+	pro: '/img/premium_subscriptions.svg',
+	premium: '/img/premium_subscriptions.svg',
 }
 
 export default function UpgradeSubscriptionModal({
@@ -55,57 +53,44 @@ export default function UpgradeSubscriptionModal({
 				try {
 					const plansResponse = await subscriptionService.getPlans()
 
-					// Преобразуем планы из API в формат для компонента
-					const plansList: SubscriptionPlan[] = [trialPlan]
-
-					// Маппинг изображений для планов
-					const planImages: Record<string, string> = {
-						basic: '/img/base_subscriptions.svg',
-						premium: '/img/premium_subscriptions.svg',
-					}
-
-					// Маппинг лимитов скачиваний
-					const planLimits: Record<string, number | null> = {
-						basic: 10,
-						premium: null,
-					}
-
-					// Добавляем планы из API
-					// Проверяем, является ли ответ ApiResponse или массивом
 					let apiPlans: Plan[] = []
 					if (Array.isArray(plansResponse)) {
 						apiPlans = plansResponse
 					} else if (plansResponse && typeof plansResponse === 'object' && 'results' in plansResponse) {
 						apiPlans = plansResponse.results
 					}
-					
-					if (apiPlans.length > 0) {
-						apiPlans.forEach((plan: Plan) => {
-							const priceValue = typeof plan.price === 'string' 
-								? parseFloat(plan.price) 
-								: plan.price
-							const formattedPrice = priceValue.toLocaleString('ru-RU', {
-								style: 'currency',
-								currency: 'RUB',
-								minimumFractionDigits: 0,
-							}) + '/мес'
 
-							plansList.push({
-								id: plan.subscription_type,
-								name: plan.name,
-								price: formattedPrice,
-								features: plan.description || '',
-								image: planImages[plan.subscription_type] || '/img/base_subscriptions.svg',
-								downloadLimit: planLimits[plan.subscription_type] || null,
-							})
-						})
+					const planLimits: Record<string, number | null> = {
+						free: 5,
+						trial: 100,
+						basic: null,
+						pro: null,
+						premium: null,
 					}
+
+					const plansList: SubscriptionPlan[] = apiPlans.map((plan: Plan) => {
+						const priceValue = typeof plan.price === 'string' ? parseFloat(plan.price) : Number(plan.price)
+						const formattedPrice = priceValue === 0
+							? 'Бесплатно'
+							: priceValue.toLocaleString('ru-RU', {
+									style: 'currency',
+									currency: 'RUB',
+									minimumFractionDigits: 0,
+								}) + '/мес'
+						return {
+							id: plan.subscription_type,
+							name: plan.name,
+							price: formattedPrice,
+							features: plan.limits || plan.description || '',
+							image: planImages[plan.subscription_type] || '/img/base_subscriptions.svg',
+							downloadLimit: planLimits[plan.subscription_type] ?? null,
+						}
+					})
 
 					setPlans(plansList)
 				} catch (error) {
 					console.error('Ошибка при загрузке планов:', error)
-					// В случае ошибки используем дефолтные планы
-					setPlans([trialPlan])
+					setPlans([])
 				} finally {
 					setLoading(false)
 				}
@@ -118,9 +103,9 @@ export default function UpgradeSubscriptionModal({
 	if (!isOpen) return null
 
 	const handleSelectPlan = (planId: string) => {
+		if (planId === 'free' || planId === 'trial') return
 		const plan = plans.find(p => p.id === planId)
 		if (plan && plan.id !== currentSubscription) {
-			// Открываем модальное окно оплаты
 			setSelectedPlanForPayment({
 				id: plan.id,
 				name: plan.name,
@@ -178,10 +163,10 @@ export default function UpgradeSubscriptionModal({
 					<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6'>
 						{plans.map(plan => {
 						const isCurrent = plan.id === currentSubscription
+						const paidPlans = ['basic', 'pro', 'premium']
 						const isUpgrade =
-							(currentSubscription === 'trial' && plan.id === 'basic') ||
-							(currentSubscription === 'trial' && plan.id === 'premium') ||
-							(currentSubscription === 'basic' && plan.id === 'premium')
+							(['free', 'trial'].includes(currentSubscription) && paidPlans.includes(plan.id)) ||
+							(currentSubscription === 'basic' && ['pro', 'premium'].includes(plan.id))
 
 						return (
 							<div
