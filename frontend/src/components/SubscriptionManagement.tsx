@@ -5,6 +5,7 @@ import { User, Plan } from '@/types'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import PaymentModal from './PaymentModal'
+import TariffDetailsModal from './TariffDetailsModal'
 
 interface SubscriptionPlan {
 	id: string
@@ -30,6 +31,7 @@ export default function SubscriptionManagement() {
 	const [plans, setPlans] = useState<SubscriptionPlan[]>([])
 	const [selectedPlan, setSelectedPlan] = useState<string>('free')
 	const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
+	const [isTariffDetailsModalOpen, setIsTariffDetailsModalOpen] = useState(false)
 	const [selectedPlanForPayment, setSelectedPlanForPayment] = useState<{
 		id: string
 		name: string
@@ -193,8 +195,14 @@ export default function SubscriptionManagement() {
 
 	return (
 		<div className='bg-white rounded-xl p-8 shadow-card min-h-[600px]'>
-			<div className='mb-8'>
+			<div className='mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
 				<h1 className='text-3xl font-bold text-black'>Управление подпиской</h1>
+				<button
+					onClick={() => setIsTariffDetailsModalOpen(true)}
+					className='text-main1 hover:text-main2 font-medium text-sm sm:text-base whitespace-nowrap'
+				>
+					Подробное описание
+				</button>
 			</div>
 
 			{loading ? (
@@ -265,6 +273,12 @@ export default function SubscriptionManagement() {
 					</div>
 				</div>
 			)}
+
+			{/* Tariff Details Modal */}
+			<TariffDetailsModal
+				isOpen={isTariffDetailsModalOpen}
+				onClose={() => setIsTariffDetailsModalOpen(false)}
+			/>
 
 			{/* Payment Modal */}
 			{selectedPlanForPayment && (

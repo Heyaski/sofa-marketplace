@@ -1,8 +1,10 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { config } from '../config'
 import { Product } from '../types'
+import { formatDimension } from '../utils/format'
 import ProductModelViewer from './ProductModelViewer'
 
 interface ProductCardProps {
@@ -15,6 +17,13 @@ export default function ProductCard({
 	onAddToCart,
 }: ProductCardProps) {
 	const router = useRouter()
+	const [toastMessage, setToastMessage] = useState<string | null>(null)
+
+	useEffect(() => {
+		if (!toastMessage) return
+		const t = setTimeout(() => setToastMessage(null), 3000)
+		return () => clearTimeout(t)
+	}, [toastMessage])
 
 	const rgbToHex = (rgb?: string) => {
 		if (!rgb) return undefined
@@ -42,9 +51,9 @@ export default function ProductCard({
 		const categoryName = getCategoryName()
 		const colorName = product.color || ''
 		const dims: string[] = []
-		if (product.width) dims.push(`${product.width}`)
-		if (product.depth) dims.push(`${product.depth}`)
-		if (product.height) dims.push(`${product.height}`)
+		if (product.width != null) dims.push(formatDimension(product.width))
+		if (product.depth != null) dims.push(formatDimension(product.depth))
+		if (product.height != null) dims.push(formatDimension(product.height))
 
 		let line = categoryName
 		if (colorName) line += ` ${colorName}`
@@ -53,13 +62,12 @@ export default function ProductCard({
 	}
 
 	const handleDownloadRfa = async () => {
-		try {
-			// Если для товара нет RFA модели, просто выходим
-			if (!product.model_rfa) {
-				alert('Для этого товара RFA-файл недоступен')
-				return
-			}
+		if (!product.model_rfa) {
+			setToastMessage('У этой модели отсутствует RFA-файл')
+			return
+		}
 
+		try {
 			const response = await fetch(`${config.API_URL}/api/downloads/presign/`, {
 				method: 'POST',
 				headers: {
@@ -120,21 +128,25 @@ export default function ProductCard({
 			</div>
 
 			{/* Действия */}
-			<div className='flex flex-col sm:flex-row gap-2'>
+			<div className='flex flex-col sm:flex-row gap-2 relative'>
 				<button
 					onClick={() => onAddToCart(product.id, config.DEFAULT_FORMAT)}
 					className='btn-primary py-2 sm:py-2.5 px-4 w-full sm:w-auto text-sm sm:text-base'
 				>
-					В корзину
+					.rfa в корзину
 				</button>
 
-				{product.model_rfa && (
-					<button
-						onClick={handleDownloadRfa}
-						className='border border-main1 text-main1 bg-white hover:bg-main1 hover:text-white transition-colors rounded-lg py-2 sm:py-2.5 px-4 text-xs sm:text-sm w-full sm:w-auto'
-					>
-						Скачать RFA
-					</button>
+				<button
+					onClick={handleDownloadRfa}
+					className='border border-main1 text-main1 bg-white hover:bg-main1 hover:text-white transition-colors rounded-lg py-2 sm:py-2.5 px-4 text-xs sm:text-sm w-full sm:w-auto'
+				>
+					Скачать RFA
+				</button>
+
+				{toastMessage && (
+					<div className='absolute left-0 right-0 bottom-full mb-1 px-2 py-1.5 bg-gray-800 text-white text-xs rounded-lg shadow-lg z-10'>
+						{toastMessage}
+					</div>
 				)}
 			</div>
 		</div>

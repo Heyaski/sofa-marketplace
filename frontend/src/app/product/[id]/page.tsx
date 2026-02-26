@@ -7,6 +7,7 @@ import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import ProductModelViewer from '@/components/ProductModelViewer'
 import { config } from '@/config'
+import { formatDimension } from '@/utils/format'
 import { useBaskets, useProduct } from '@/hooks/useApi'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
@@ -26,9 +27,16 @@ export default function ProductPage({ params }: ProductPageProps) {
 	const [mainImage, setMainImage] = useState<string | null>(null)
 	const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
 	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+	const [toastMessage, setToastMessage] = useState<string | null>(null)
 
 	const { product, loading, error } = useProduct(productId)
 	const { createBasket, addToBasket } = useBaskets()
+
+	useEffect(() => {
+		if (!toastMessage) return
+		const t = setTimeout(() => setToastMessage(null), 3000)
+		return () => clearTimeout(t)
+	}, [toastMessage])
 
 	useEffect(() => {
 		const token = localStorage.getItem('access_token')
@@ -226,22 +234,22 @@ export default function ProductPage({ params }: ProductPageProps) {
 								<div className='space-y-2 text-sm'>
 									<div className='text-sm font-medium text-black'>Размеры:</div>
 									<div className='grid grid-cols-2 gap-2 text-sm'>
-										{product.width && (
+										{product.width != null && (
 											<div className='flex justify-between'>
 												<span className='text-gray'>Ширина:</span>
-												<span className='text-black'>{product.width} см</span>
+												<span className='text-black'>{formatDimension(product.width)} см</span>
 											</div>
 										)}
-										{product.height && (
+										{product.height != null && (
 											<div className='flex justify-between'>
 												<span className='text-gray'>Высота:</span>
-												<span className='text-black'>{product.height} см</span>
+												<span className='text-black'>{formatDimension(product.height)} см</span>
 											</div>
 										)}
-										{product.depth && (
+										{product.depth != null && (
 											<div className='flex justify-between'>
 												<span className='text-gray'>Глубина:</span>
-												<span className='text-black'>{product.depth} см</span>
+												<span className='text-black'>{formatDimension(product.depth)} см</span>
 											</div>
 										)}
 									</div>
@@ -249,71 +257,78 @@ export default function ProductPage({ params }: ProductPageProps) {
 							)}
 
 							{/* Основные действия */}
-							<div className='grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4'>
+							<div className='grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 relative'>
 								<button
 									onClick={handleAddToCart}
 									className='bg-main1 text-white py-2.5 sm:py-3 rounded-lg hover:bg-main1/90 transition-colors font-medium text-sm sm:text-base'
 								>
-									Добавить в корзину
+									.rfa в корзину
 								</button>
-								{product.model_rfa && (
-									<button
-										onClick={async () => {
-											try {
-												const response = await fetch(
-													`${config.API_URL}/api/downloads/presign/`,
-													{
-														method: 'POST',
-														headers: {
-															'Content-Type': 'application/json',
-															Authorization:
-																typeof window !== 'undefined' &&
-																localStorage.getItem('access_token')
-																	? `Bearer ${localStorage.getItem('access_token')}`
-																	: '',
-														},
-														body: JSON.stringify({
-															product_id: product.id,
-															format: '.rfa',
-														}),
-													}
-												)
-
-												const contentType =
-													response.headers.get('content-type')
-												const isJson =
-													contentType &&
-													contentType.includes('application/json')
-												const data = isJson ? await response.json() : null
-
-												if (!response.ok) {
-													const message =
-														data?.error ||
-														data?.message ||
-														'Ошибка при получении ссылки для скачивания RFA'
-													alert(message)
-													return
+								<button
+									onClick={async () => {
+										if (!product.model_rfa) {
+											setToastMessage('У этой модели отсутствует RFA-файл')
+											return
+										}
+										try {
+											const response = await fetch(
+												`${config.API_URL}/api/downloads/presign/`,
+												{
+													method: 'POST',
+													headers: {
+														'Content-Type': 'application/json',
+														Authorization:
+															typeof window !== 'undefined' &&
+															localStorage.getItem('access_token')
+																? `Bearer ${localStorage.getItem('access_token')}`
+																: '',
+													},
+													body: JSON.stringify({
+														product_id: product.id,
+														format: '.rfa',
+													}),
 												}
+											)
 
-												if (data?.url) {
-													window.location.href = data.url
-												} else {
-													alert('RFA-файл недоступен для этого товара')
-												}
-											} catch (error) {
-												console.error(
-													'Ошибка при скачивании RFA:',
-													error
-												)
-												alert(
-													'Ошибка при скачивании RFA-файла'
-												)
+											const contentType =
+												response.headers.get('content-type')
+											const isJson =
+												contentType &&
+												contentType.includes('application/json')
+											const data = isJson ? await response.json() : null
+
+											if (!response.ok) {
+												const message =
+													data?.error ||
+													data?.message ||
+													'Ошибка при получении ссылки для скачивания RFA'
+												alert(message)
+												return
 											}
-										}}
-										className='border-2 border-main1 bg-white text-main1 py-2.5 sm:py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors text-sm sm:text-base'
-									>
-										Скачать RFA
-									</button>
+
+											if (data?.url) {
+												window.location.href = data.url
+											} else {
+												setToastMessage('RFA-файл недоступен для этого товара')
+											}
+										} catch (error) {
+											console.error(
+												'Ошибка при скачивании RFA:',
+												error
+											)
+											alert(
+												'Ошибка при скачивании RFA-файла'
+											)
+										}
+									}}
+									className='border-2 border-main1 bg-white text-main1 py-2.5 sm:py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors text-sm sm:text-base'
+								>
+									Скачать RFA
+								</button>
+								{toastMessage && (
+									<div className='absolute left-0 right-0 bottom-full mb-1 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg shadow-lg z-10'>
+										{toastMessage}
+									</div>
 								)}
 							</div>
 
