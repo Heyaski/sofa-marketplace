@@ -189,13 +189,23 @@ class ProductSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
     images = serializers.SerializerMethodField()
     
-    # Новые поля для файловых ресурсов
+    # Новые поля для файловых ресурсов (обязательно включаем — __all__ только модель)
     asset_images = serializers.SerializerMethodField()
     asset_3d_models = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = "__all__"
+        # Явно включаем asset_3d_models, asset_images, images — иначе 3D не подгружаются в каталоге
+        fields = (
+            "id", "title", "article", "category", "subcategory", "description", "price",
+            "material", "style", "color", "color_rgb", "brand", "country",
+            "width", "height", "depth", "weight", "availability",
+            "is_active", "is_trending", "photo_url",
+            "image_asset_ids", "model_3d_asset_ids",
+            "model_glb", "model_fbx", "model_rfa", "model_usdz", "model_ar_glb",
+            "shop_url", "cp_notes",
+            "image", "images", "asset_images", "asset_3d_models",
+        )
         ref_name = "CatalogProduct"
     
     def get_images(self, obj):

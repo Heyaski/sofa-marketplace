@@ -705,13 +705,19 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                     new_ids = [a.asset_id for a in assets]
             # 2) По model_3d_asset_ids (частичное): ищем asset_id, начинающийся с этого значения
             if not new_ids and product.model_3d_asset_ids:
+                import re
                 for aid in [x.strip() for x in product.model_3d_asset_ids.split(',') if x.strip()]:
-                    found = FileAsset.objects.filter(
-                        asset_id__istartswith=aid,
-                        file_type='3d_model'
-                    ).first()
-                    if found:
-                        new_ids = [found.asset_id]
+                    # Пробуем оба варианта: "ДиванП7682" и "Диван П7682"
+                    variants = [aid, re.sub(r'([а-яёa-z])([А-ЯЁA-Z])', r'\1 \2', aid)]
+                    for v in variants:
+                        found = FileAsset.objects.filter(
+                            asset_id__istartswith=v,
+                            file_type='3d_model'
+                        ).first()
+                        if found:
+                            new_ids = [found.asset_id]
+                            break
+                    if new_ids:
                         break
             if new_ids:
                 product.model_3d_asset_ids = ','.join(new_ids)
