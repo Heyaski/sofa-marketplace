@@ -230,19 +230,20 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
                     image_extensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.svg']
                     model_extensions = ['.glb', '.gltf', '.fbx', '.obj', '.usdz', '.rfa', '.dae', '.3ds']
                     
-                    # Функция для извлечения базового артикула из asset_id
+                    # Функция для извлечения базового артикула из asset_id (столбец A -> столбец N)
                     def extract_base_article(asset_id):
-                        """Извлекает базовый артикул из asset_id (например: IMR-556065(1) -> IMR-556065, IMR-517626 (2) -> IMR-517626)"""
+                        """IMR-556065(1) -> IMR-556065, IMR-1284569WHT -> IMR-1284569."""
                         if not asset_id:
                             return ''
-                        # Убираем пробелы в начале и конце
-                        asset_id = asset_id.strip()
-                        # Ищем скобку (может быть с пробелом: " (2)" или без: "(2)")
-                        if '(' in asset_id:
-                            # Разделяем по скобке и берем первую часть
-                            base = asset_id.split('(')[0].strip()
-                            return base
-                        return asset_id
+                        s = asset_id.strip()
+                        # Вариант в скобках: IMR-556065(1) -> IMR-556065
+                        if '(' in s:
+                            return s.split('(')[0].strip()
+                        # Суффикс цвета 2-4 буквы: IMR-1284569WHT -> IMR-1284569, IMR-1284569BLK -> IMR-1284569
+                        m = re.match(r'^(.+)([A-Z]{2,4})$', s.upper())
+                        if m and len(m.group(1)) >= 4:
+                            return m.group(1)
+                        return s
                     
                     # Словарь для группировки созданных FileAsset по артикулам
                     articles_files = {}  # {article: {'images': [FileAsset], 'models': [FileAsset]}}
@@ -340,8 +341,25 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
                     # После создания всех FileAsset, привязываем их к существующим товарам по артикулу
                     for article, files_data in articles_files.items():
                         try:
-                            # Ищем товар по артикулу (без учета регистра)
+                            # Ищем товар: по base article, по полному ID или по model_3d_asset_ids (столбец U)
                             product = Product.objects.filter(article__iexact=article).first()
+                            if not product and files_data.get('models'):
+                                first_asset_id = files_data['models'][0].asset_id
+                                if first_asset_id != article:
+                                    product = Product.objects.filter(article__iexact=first_asset_id).first()
+                                # Id 3d (столбец U) может отличаться от артикула — ищем по model_3d_asset_ids
+                                if not product:
+                                    mid = first_asset_id.strip()
+                                    product = Product.objects.filter(
+                                        Q(model_3d_asset_ids__iexact=mid) |
+                                        Q(model_3d_asset_ids__istartswith=mid + ',') |
+                                        Q(model_3d_asset_ids__iendswith=',' + mid) |
+                                        Q(model_3d_asset_ids__icontains=',' + mid + ',')
+                                    ).first()
+                            if not product and files_data.get('images'):
+                                first_asset_id = files_data['images'][0].asset_id
+                                if first_asset_id != article:
+                                    product = Product.objects.filter(article__iexact=first_asset_id).first()
                             
                             if product:
                                 # Привязываем изображения
@@ -462,17 +480,19 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
         """Синхронизация существующих FileAsset с товарами по артикулу"""
         if request.method == "POST":
             try:
-                # Функция для извлечения базового артикула
+                # Функция для извлечения базового артикула (столбец A -> столбец N)
                 def extract_base_article(asset_id):
-                    """Извлекает базовый артикул из asset_id"""
+                    """IMR-556065(1) -> IMR-556065, IMR-1284569WHT -> IMR-1284569."""
                     if not asset_id:
                         return ''
-                    asset_id = asset_id.strip()
-                    if '(' in asset_id:
-                        base = asset_id.split('(')[0].strip()
-                        return base
-                    return asset_id
-                
+                    s = asset_id.strip()
+                    if '(' in s:
+                        return s.split('(')[0].strip()
+                    m = re.match(r'^(.+)([A-Z]{2,4})$', s.upper())
+                    if m and len(m.group(1)) >= 4:
+                        return m.group(1)
+                    return s
+
                 # Группируем FileAsset по артикулам
                 articles_files = {}
                 all_file_assets = FileAsset.objects.all()
@@ -497,11 +517,22 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
                 # Привязываем файлы к товарам
                 for article, files_data in articles_files.items():
                     try:
-                        # Ищем товар по артикулу (без учета регистра)
-                        # Убираем пробелы из артикула для поиска
+                        # Ищем товар по артикулу (base/полный ID) или по model_3d_asset_ids (столбец U)
                         article_clean = article.strip().upper()
                         product = Product.objects.filter(article__iexact=article_clean).first()
-                        
+                        if not product and (files_data.get('models') or files_data.get('images')):
+                            first_asset = files_data.get('models', [None])[0] or files_data.get('images', [None])[0]
+                            if first_asset and first_asset.asset_id != article:
+                                product = Product.objects.filter(article__iexact=first_asset.asset_id).first()
+                            # Id 3d (столбец U) может отличаться от артикула
+                            if not product and files_data.get('models'):
+                                mid = files_data['models'][0].asset_id.strip()
+                                product = Product.objects.filter(
+                                    Q(model_3d_asset_ids__iexact=mid) |
+                                    Q(model_3d_asset_ids__istartswith=mid + ',') |
+                                    Q(model_3d_asset_ids__iendswith=',' + mid) |
+                                    Q(model_3d_asset_ids__icontains=',' + mid + ',')
+                                ).first()
                         # Если не найдено, пробуем поиск без учета пробелов в артикуле товара
                         if not product:
                             # Ищем товары, у которых артикул совпадает после удаления пробелов
@@ -1519,8 +1550,10 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                                         product.image_asset_ids = ','.join(image_asset_ids_list)
                                         product.save(update_fields=['image_asset_ids'])
                                 
-                                # Ищем 3D модели по артикулу в ZIP
+                                # Ищем 3D модели: по артикулу и по Id 3d (столбец U)
                                 found_models = find_files_by_article(article, files_in_zip, '3d_model')
+                                if not found_models and model_3d_asset_ids:
+                                    found_models = find_files_by_article(model_3d_asset_ids, files_in_zip, '3d_model')
                                 if found_models:
                                     # Создаем FileAsset для каждой 3D модели (если еще нет)
                                     model_asset_ids_list = []

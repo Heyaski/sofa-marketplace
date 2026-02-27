@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Product } from '../types'
 
@@ -62,24 +61,17 @@ export default function ProductModelViewer({
 		modelViewerRef.current = el
 	}, [])
 
-	// Фотографии показываем ТОЛЬКО в корзине/КП. В каталоге и на странице товара — только заглушки.
-	const placeholderUrl = '/img/sofa-card.svg'
+	// Каталог/страница товара: прозрачная заглушка пока 3D загружается, затем только 3D (без заглушки).
+	// Корзина/КП используют product.image (фото), не этот компонент.
+	const TRANSPARENT_PIXEL = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjwvc3ZnPg=='
 	const shouldShow3D = !!modelUrl && isValidUrl(modelUrl) && scriptReady
 
 	const containerClass = `overflow-hidden bg-gray-50 flex items-center justify-center ${variant === 'card' ? 'aspect-square' : 'aspect-square sm:min-h-[400px]'} ${className}`
 
-	// Без 3D модели или пока она загружается — показываем заглушку (никогда фото товара)
+	// Без 3D или пока загружается — прозрачная заглушка (убирается, когда 3D отображается)
 	if (!shouldShow3D) {
 		return (
-			<div ref={containerRef} className={`${containerClass} cursor-pointer`} onClick={onClick}>
-				<Image
-					src={placeholderUrl}
-					alt='Заглушка'
-					width={variant === 'card' ? 300 : 600}
-					height={variant === 'card' ? 300 : 600}
-					className='w-full h-full object-contain opacity-70'
-				/>
-			</div>
+			<div ref={containerRef} className={`${containerClass} cursor-pointer`} onClick={onClick} aria-hidden />
 		)
 	}
 
@@ -97,7 +89,7 @@ export default function ProductModelViewer({
 			<model-viewer
 				ref={setupRef}
 				src={modelUrl}
-				poster={placeholderUrl}
+				poster={TRANSPARENT_PIXEL}
 				alt={product.title || '3D модель'}
 				camera-controls
 				shadow-intensity='1'
