@@ -90,8 +90,7 @@ export default function ProductModelViewer({
 	const containerRef = useRef<HTMLDivElement>(null)
 	const modelViewerRef = useRef<any>(null)
 
-	// Загружаем 3D только когда карточка в зоне видимости; при выходе — размонтируем model-viewer
-	// иначе 40+ WebGL контекстов → "context loss and was blocked"
+	// Загружаем 3D только когда карточка в зоне видимости; после загрузки — model-viewer остаётся навсегда
 	useEffect(() => {
 		if (variant !== 'card' || !containerRef.current) return
 		const el = containerRef.current
@@ -117,39 +116,49 @@ export default function ProductModelViewer({
 		return () => { cancelled = true }
 	}, [modelUrl])
 
-	// Кэш: берём из Cache API или загружаем и сохраняем — при обновлении страницы модель сразу
+	// Кэш: загружаем при появлении в зоне видимости; при выходе — НЕ сбрасываем resolvedSrc,
+	// 3D остаётся на экране при скролле, без перезагрузки.
 	const blobUrlRef = useRef<string | null>(null)
+	const loadedForUrlRef = useRef<string | null>(null)
 	useEffect(() => {
-		if (!modelUrl || !isInView || !scriptReady) return
+		if (!modelUrl || !scriptReady) return
+		if (variant === 'card' && !isInView) return
+		if (loadedForUrlRef.current === modelUrl) return
 		let cancelled = false
+		if (loadedForUrlRef.current && loadedForUrlRef.current !== modelUrl && blobUrlRef.current) {
+			URL.revokeObjectURL(blobUrlRef.current)
+			blobUrlRef.current = null
+			loadedForUrlRef.current = null
+			setResolvedSrc(null)
+		}
 		getCachedOrFetchModelUrl(modelUrl).then((src) => {
 			if (cancelled) {
 				if (src !== modelUrl && src.startsWith('blob:')) URL.revokeObjectURL(src)
 				return
 			}
+			loadedForUrlRef.current = modelUrl
 			if (src !== modelUrl && src.startsWith('blob:')) blobUrlRef.current = src
 			setResolvedSrc(src)
 		})
-		return () => {
-			cancelled = true
-			if (blobUrlRef.current) {
-				URL.revokeObjectURL(blobUrlRef.current)
-				blobUrlRef.current = null
-			}
-			setResolvedSrc(null)
+		return () => { cancelled = true }
+	}, [modelUrl, isInView, scriptReady, variant])
+	useEffect(() => () => {
+		if (blobUrlRef.current) {
+			URL.revokeObjectURL(blobUrlRef.current)
+			blobUrlRef.current = null
 		}
-	}, [modelUrl, isInView, scriptReady])
+	}, [])
 
 	const setupRef = useCallback((el: any) => {
 		modelViewerRef.current = el
 	}, [])
 
 	const TRANSPARENT_PIXEL = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjwvc3ZnPg=='
-	const shouldShow3D = !!modelUrl && isValidUrl(modelUrl) && scriptReady && resolvedSrc !== null && (variant !== 'card' || isInView)
+	const shouldShow3D = !!modelUrl && isValidUrl(modelUrl) && scriptReady && resolvedSrc !== null
 
 	const containerClass = `overflow-hidden bg-gray-50 flex items-center justify-center ${variant === 'card' ? 'aspect-square' : 'aspect-square sm:min-h-[400px]'} ${className}`
 
-	// Пока грузится 3D — только заглушка (никаких картинок товара)
+	// Пока грузится 3D — только загрузчик (никаких картинок)
 	if (!shouldShow3D) {
 		return (
 			<div ref={containerRef} className={`${containerClass} cursor-pointer flex flex-col items-center justify-center gap-2`} onClick={onClick}>
