@@ -138,7 +138,7 @@ def _read_file_field(field_file):
 
 def get_product_image(product):
     """Получает изображение товара для КП как io.BytesIO.
-    Использует уже загруженные фото товара (ProductImage, FileAsset, image).
+    Использует уже загруженные фото товара (ProductImage, FileAsset, image, photo_url).
     Работает с любым storage backend (локальный, S3 и т.д.).
     """
     # Приоритет 1: Первое изображение из ProductImage (загружены через импорт/админку)
@@ -158,7 +158,16 @@ def get_product_image(product):
             if result:
                 return result
     
-    # Приоритет 3: Основное изображение товара (старое поле image)
+    # Приоритет 3: photo_url (из Excel импорта — внешняя ссылка)
+    if product.photo_url:
+        try:
+            resp = requests.get(product.photo_url, timeout=15)
+            if resp.status_code == 200 and resp.content:
+                return io.BytesIO(resp.content)
+        except Exception:
+            pass
+    
+    # Приоритет 4: Основное изображение товара (старое поле image)
     if product.image:
         result = _read_file_field(product.image)
         if result:

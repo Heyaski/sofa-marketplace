@@ -9,7 +9,6 @@ import ProductModelViewer from '@/components/ProductModelViewer'
 import { config } from '@/config'
 import { formatDimension } from '@/utils/format'
 import { useBaskets, useProduct } from '@/hooks/useApi'
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
@@ -24,7 +23,6 @@ export default function ProductPage({ params }: ProductPageProps) {
 	const productId = parseInt(params.id)
 	const [isCartModalOpen, setIsCartModalOpen] = useState(false)
 	const selectedFormat = config.DEFAULT_FORMAT
-	const [mainImage, setMainImage] = useState<string | null>(null)
 	const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
 	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
 	const [toastMessage, setToastMessage] = useState<string | null>(null)
@@ -50,22 +48,6 @@ export default function ProductPage({ params }: ProductPageProps) {
 			setIsAuthenticated(false)
 		}
 	}, [])
-
-	// Устанавливаем главное изображение при загрузке продукта
-	useEffect(() => {
-		// Приоритет 1: asset_images (из FileAsset)
-		if (product?.asset_images && product.asset_images.length > 0) {
-			setMainImage(product.asset_images[0].file_url)
-		} 
-		// Приоритет 2: images (из ProductImage)
-		else if (product?.images && product.images.length > 0) {
-			setMainImage(product.images[0].image_url)
-		} 
-		// Приоритет 3: старое поле image (для обратной совместимости)
-		else if (product?.image) {
-			setMainImage(product.image)
-		}
-	}, [product?.asset_images, product?.images, product?.image])
 
 	const handleAddToCart = () => {
 		if (isAuthenticated === false) {
@@ -97,37 +79,6 @@ export default function ProductPage({ params }: ProductPageProps) {
 		}
 		setIsCartModalOpen(false)
 	}
-
-	// Получаем массив изображений для миниатюр
-	const getThumbnails = () => {
-		const thumbnails: string[] = []
-		
-		// Добавляем изображения из asset_images (FileAsset)
-		if (product?.asset_images && product.asset_images.length > 0) {
-			product.asset_images.forEach(asset => {
-				if (asset.file_url) {
-					thumbnails.push(asset.file_url)
-				}
-			})
-		}
-		
-		// Добавляем изображения из images (ProductImage)
-		if (product?.images && product.images.length > 0) {
-			product.images.forEach(img => {
-				if (img.image_url) {
-					thumbnails.push(img.image_url)
-				}
-			})
-		}
-		
-		// Если нет изображений в массивах, но есть старое поле image
-		if (thumbnails.length === 0 && product?.image) {
-			thumbnails.push(product.image)
-		}
-		
-		return thumbnails
-	}
-	const thumbnails = getThumbnails()
 
 	if (loading) {
 		return (
@@ -184,36 +135,8 @@ export default function ProductPage({ params }: ProductPageProps) {
 						{/* 3D модель или изображения товара — можно крутить */}
 						<div className='space-y-4'>
 							<div className='bg-gray-bg rounded-lg overflow-hidden'>
-								<ProductModelViewer product={product} variant='page' selectedImageUrl={mainImage} />
+								<ProductModelViewer product={product} variant='page' />
 							</div>
-
-							{/* Миниатюры — если несколько изображений */}
-							{thumbnails.length > 1 && (
-								<div className='overflow-x-auto pb-2'>
-									<div className='flex gap-2 min-w-max'>
-										{thumbnails.map((thumbnail, index) => (
-											<div
-												key={index}
-												className={`flex-shrink-0 w-16 h-16 bg-gray-bg rounded-lg p-1 cursor-pointer transition-all ${
-													mainImage === thumbnail
-														? 'ring-2 ring-main1 bg-gray-100'
-														: 'hover:bg-gray'
-												}`}
-												onClick={() => setMainImage(thumbnail)}
-											>
-												<Image
-													src={thumbnail}
-													alt={`Миниатюра ${index + 1}`}
-													width={60}
-													height={60}
-													className='w-full h-full object-contain'
-													unoptimized
-												/>
-											</div>
-										))}
-									</div>
-								</div>
-							)}
 						</div>
 
 			{/* Информация о товаре */}

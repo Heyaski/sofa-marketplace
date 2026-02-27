@@ -31,8 +31,6 @@ interface ProductModelViewerProps {
 	variant?: 'card' | 'page'
 	className?: string
 	onClick?: () => void
-	/** При нескольких изображениях — какой показывать (URL) */
-	selectedImageUrl?: string | null
 }
 
 export default function ProductModelViewer({
@@ -40,7 +38,6 @@ export default function ProductModelViewer({
 	variant = 'card',
 	className = '',
 	onClick,
-	selectedImageUrl,
 }: ProductModelViewerProps) {
 	const modelUrl = getModelUrl(product)
 	const [scriptReady, setScriptReady] = useState(false)
@@ -65,33 +62,23 @@ export default function ProductModelViewer({
 		modelViewerRef.current = el
 	}, [])
 
-	const defaultImage = product.image || product.asset_images?.[0]?.file_url || product.photo_url
-	const fallbackImage = selectedImageUrl ?? defaultImage
+	// Фотографии показываем ТОЛЬКО в корзине/КП. В каталоге и на странице товара — только заглушки.
+	const placeholderUrl = '/img/sofa-card.svg'
 	const shouldShow3D = !!modelUrl && isValidUrl(modelUrl) && scriptReady
 
 	const containerClass = `overflow-hidden bg-gray-50 flex items-center justify-center ${variant === 'card' ? 'aspect-square' : 'aspect-square sm:min-h-[400px]'} ${className}`
 
+	// Без 3D модели или пока она загружается — показываем заглушку (никогда фото товара)
 	if (!shouldShow3D) {
 		return (
 			<div ref={containerRef} className={`${containerClass} cursor-pointer`} onClick={onClick}>
-				{fallbackImage ? (
-					<Image
-						src={fallbackImage}
-						alt={product.title || 'Товар'}
-						width={variant === 'card' ? 300 : 600}
-						height={variant === 'card' ? 300 : 600}
-						className='w-full h-full object-contain'
-						unoptimized
-					/>
-				) : (
-					<Image
-						src='/img/sofa-card.svg'
-						alt='Заглушка'
-						width={300}
-						height={300}
-						className='w-full h-full object-contain opacity-70'
-					/>
-				)}
+				<Image
+					src={placeholderUrl}
+					alt='Заглушка'
+					width={variant === 'card' ? 300 : 600}
+					height={variant === 'card' ? 300 : 600}
+					className='w-full h-full object-contain opacity-70'
+				/>
 			</div>
 		)
 	}
@@ -110,7 +97,7 @@ export default function ProductModelViewer({
 			<model-viewer
 				ref={setupRef}
 				src={modelUrl}
-				poster={fallbackImage || undefined}
+				poster={placeholderUrl}
 				alt={product.title || '3D модель'}
 				camera-controls
 				shadow-intensity='1'
