@@ -90,12 +90,13 @@ export default function ProductModelViewer({
 	const containerRef = useRef<HTMLDivElement>(null)
 	const modelViewerRef = useRef<any>(null)
 
-	// Загружаем 3D только когда карточка в зоне видимости — ускоряет каталог в 10+ раз
+	// Загружаем 3D только когда карточка в зоне видимости; при выходе — размонтируем model-viewer
+	// иначе 40+ WebGL контекстов → "context loss and was blocked"
 	useEffect(() => {
 		if (variant !== 'card' || !containerRef.current) return
 		const el = containerRef.current
 		const io = new IntersectionObserver(
-			([e]) => { if (e.isIntersecting) setIsInView(true) },
+			([e]) => setIsInView(e.isIntersecting),
 			{ rootMargin: '100px', threshold: 0.01 }
 		)
 		io.observe(el)
