@@ -204,7 +204,7 @@ function CatalogContent() {
 
 	return (
 		<div className='min-h-screen bg-gray-bg pb-20 lg:pb-0'>
-			{/* model-viewer для 3D — загружаем сразу с CDN */}
+			{/* model-viewer для 3D — загружаем параллельно со страницей */}
 			<Script
 				src='https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer.min.js'
 				strategy='afterInteractive'

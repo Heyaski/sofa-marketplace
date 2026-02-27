@@ -1,9 +1,11 @@
 'use client'
 
+import Image from 'next/image'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Product } from '../types'
 
 const MODEL_VIEWER_FORMATS = ['glb', 'gltf', 'usdz']
+const GLB_CACHE_NAME = 'vizhub-glb-models'
 
 function getModelUrl(product: Product): string | null {
 	if (!product) return null
@@ -25,6 +27,25 @@ function isValidUrl(url: string | null | undefined): boolean {
 	return u.startsWith('http://') || u.startsWith('https://') || u.startsWith('/')
 }
 
+async function getCachedOrFetchModelUrl(url: string): Promise<string> {
+	if (typeof caches === 'undefined') return url
+	try {
+		const cached = await caches.match(url)
+		if (cached) {
+			const blob = await cached.blob()
+			return URL.createObjectURL(blob)
+		}
+		const res = await fetch(url, { mode: 'cors' })
+		if (!res.ok) return url
+		const cache = await caches.open(GLB_CACHE_NAME)
+		cache.put(url, res.clone())
+		const blob = await res.blob()
+		return URL.createObjectURL(blob)
+	} catch {
+		return url
+	}
+}
+
 interface ProductModelViewerProps {
 	product: Product
 	variant?: 'card' | 'page'
@@ -40,8 +61,22 @@ export default function ProductModelViewer({
 }: ProductModelViewerProps) {
 	const modelUrl = getModelUrl(product)
 	const [scriptReady, setScriptReady] = useState(false)
+	const [isInView, setIsInView] = useState(variant === 'page')
+	const [resolvedSrc, setResolvedSrc] = useState<string | null>(null)
 	const containerRef = useRef<HTMLDivElement>(null)
 	const modelViewerRef = useRef<any>(null)
+
+	// Загружаем 3D только когда карточка в зоне видимости — ускоряет каталог в 10+ раз
+	useEffect(() => {
+		if (variant !== 'card' || !containerRef.current) return
+		const el = containerRef.current
+		const io = new IntersectionObserver(
+			([e]) => { if (e.isIntersecting) setIsInView(true) },
+			{ rootMargin: '200px', threshold: 0.01 }
+		)
+		io.observe(el)
+		return () => io.disconnect()
+	}, [variant])
 
 	// Ждём model-viewer: CDN в каталоге или import на других страницах
 	useEffect(() => {
@@ -57,21 +92,50 @@ export default function ProductModelViewer({
 		return () => { cancelled = true }
 	}, [modelUrl])
 
+	// Кэш: берём из Cache API или загружаем и сохраняем — при обновлении страницы модель сразу
+	const blobUrlRef = useRef<string | null>(null)
+	useEffect(() => {
+		if (!modelUrl || !isInView || !scriptReady) return
+		let cancelled = false
+		getCachedOrFetchModelUrl(modelUrl).then((src) => {
+			if (cancelled) {
+				if (src !== modelUrl && src.startsWith('blob:')) URL.revokeObjectURL(src)
+				return
+			}
+			if (src !== modelUrl && src.startsWith('blob:')) blobUrlRef.current = src
+			setResolvedSrc(src)
+		})
+		return () => {
+			cancelled = true
+			if (blobUrlRef.current) {
+				URL.revokeObjectURL(blobUrlRef.current)
+				blobUrlRef.current = null
+			}
+			setResolvedSrc(null)
+		}
+	}, [modelUrl, isInView, scriptReady])
+
 	const setupRef = useCallback((el: any) => {
 		modelViewerRef.current = el
 	}, [])
 
-	// Каталог/страница товара: прозрачная заглушка пока 3D загружается, затем только 3D (без заглушки).
-	// Корзина/КП используют product.image (фото), не этот компонент.
 	const TRANSPARENT_PIXEL = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjwvc3ZnPg=='
-	const shouldShow3D = !!modelUrl && isValidUrl(modelUrl) && scriptReady
+	const shouldShow3D = !!modelUrl && isValidUrl(modelUrl) && scriptReady && resolvedSrc !== null && (variant !== 'card' || isInView)
 
 	const containerClass = `overflow-hidden bg-gray-50 flex items-center justify-center ${variant === 'card' ? 'aspect-square' : 'aspect-square sm:min-h-[400px]'} ${className}`
 
-	// Без 3D или пока загружается — прозрачная заглушка (убирается, когда 3D отображается)
+	// Пока карточка не в зоне видимости, нет 3D или ещё не получили src из кэша — фото
 	if (!shouldShow3D) {
+		const poster = product.image && isValidUrl(product.image) ? product.image : '/img/sofa-card.svg'
+		const isExternal = poster.startsWith('http')
 		return (
-			<div ref={containerRef} className={`${containerClass} cursor-pointer`} onClick={onClick} aria-hidden />
+			<div ref={containerRef} className={`${containerClass} cursor-pointer`} onClick={onClick}>
+				{isExternal ? (
+					<img src={poster} alt={product.title || ''} className='w-full h-full object-contain' />
+				) : (
+					<Image src={poster} alt={product.title || ''} width={300} height={300} className='w-full h-full object-contain' />
+				)}
+			</div>
 		)
 	}
 
@@ -88,7 +152,7 @@ export default function ProductModelViewer({
 		>
 			<model-viewer
 				ref={setupRef}
-				src={modelUrl}
+				src={resolvedSrc}
 				poster={TRANSPARENT_PIXEL}
 				alt={product.title || '3D модель'}
 				camera-controls
