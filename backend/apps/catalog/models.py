@@ -121,13 +121,22 @@ class Product(models.Model):
         return FileAsset.objects.filter(asset_id__in=ids, file_type='image')
     
     def get_3d_model_assets(self):
-        """Получить все 3D модели по их ID"""
+        """Получить все 3D модели по их ID. Поддерживает точное совпадение и префикс (asset_id Пуф1506_IVVatOj найдётся по model_3d_asset_ids='Пуф1506')."""
         if not self.model_3d_asset_ids:
-            return FileAsset.objects.none()  # Возвращаем пустой QuerySet, а не список
+            return FileAsset.objects.none()
         ids = [id.strip() for id in self.model_3d_asset_ids.split(',') if id.strip()]
         if not ids:
             return FileAsset.objects.none()
-        return FileAsset.objects.filter(asset_id__in=ids, file_type='3d_model')
+        # Сначала точное совпадение
+        qs = FileAsset.objects.filter(asset_id__in=ids, file_type='3d_model')
+        if qs.exists():
+            return qs
+        # Префикс: model_3d_asset_ids="Пуф1506" найдёт asset_id="Пуф1506_IVVatOj"
+        from django.db.models import Q
+        prefix_conditions = Q()
+        for aid in ids:
+            prefix_conditions |= Q(asset_id__startswith=aid, file_type='3d_model')
+        return FileAsset.objects.filter(prefix_conditions).distinct()
     
     def get_glb_url(self):
         """Получить URL GLB модели (приоритет: model_glb, затем FileAsset)"""

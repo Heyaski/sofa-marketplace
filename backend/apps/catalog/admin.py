@@ -682,7 +682,42 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
     search_fields = ("title", "article", "description", "brand")
     list_editable = ("price", "is_active")
     inlines = [ProductImageInline]
-    actions = ["export_selected_to_excel", "clear_invalid_photo_urls"]
+    actions = ["export_selected_to_excel", "clear_invalid_photo_urls", "sync_3d_models_from_fileassets"]
+
+    @admin.action(description="Подтянуть 3D модели из FileAsset (без импорта)")
+    def sync_3d_models_from_fileassets(self, request, queryset):
+        """Привязывает 3D модели из FileAsset к товарам по артикулу или по префиксу model_3d_asset_ids."""
+        from apps.catalog.models import FileAsset
+        linked = 0
+        for product in queryset:
+            # Уже есть рабочая 3D модель?
+            if product.get_3d_model_assets().exists():
+                continue
+            new_ids = []
+            # 1) По артикулу: ищем FileAsset 3d_model где asset_id начинается с артикула
+            if product.article:
+                base_article = product.article.split('(')[0].strip()
+                assets = FileAsset.objects.filter(
+                    asset_id__istartswith=base_article,
+                    file_type='3d_model'
+                ).order_by('asset_id')
+                if assets.exists():
+                    new_ids = [a.asset_id for a in assets]
+            # 2) По model_3d_asset_ids (частичное): ищем asset_id, начинающийся с этого значения
+            if not new_ids and product.model_3d_asset_ids:
+                for aid in [x.strip() for x in product.model_3d_asset_ids.split(',') if x.strip()]:
+                    found = FileAsset.objects.filter(
+                        asset_id__istartswith=aid,
+                        file_type='3d_model'
+                    ).first()
+                    if found:
+                        new_ids = [found.asset_id]
+                        break
+            if new_ids:
+                product.model_3d_asset_ids = ','.join(new_ids)
+                product.save(update_fields=['model_3d_asset_ids'])
+                linked += 1
+        self.message_user(request, f"Подтянуто 3D моделей для {linked} товаров.")
 
     @admin.action(description="Очистить невалидные photo_url (HYPERLINK, file://)")
     def clear_invalid_photo_urls(self, request, queryset):
@@ -1174,7 +1209,9 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                 # Пропускаем заголовок
                 for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
                     try:
-                        title = get_cell_value(row, 'title')
+                        # Название товара = Id 3d (для корректной подгрузки 3D моделей)
+                        id_3d = get_cell_value(row, 'id_3d', '')
+                        title = id_3d if id_3d else get_cell_value(row, 'title')
                         if not title or str(title).strip() == '':
                             id_val = get_cell_value(row, 'id', '')
                             if id_val and str(id_val).strip():
