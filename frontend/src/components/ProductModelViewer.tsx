@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Product } from '../types'
 
@@ -149,17 +148,12 @@ export default function ProductModelViewer({
 
 	const containerClass = `overflow-hidden bg-gray-50 flex items-center justify-center ${variant === 'card' ? 'aspect-square' : 'aspect-square sm:min-h-[400px]'} ${className}`
 
-	// Пока карточка не в зоне видимости, нет 3D или ещё не получили src из кэша — фото
+	// Пока грузится 3D — только заглушка (никаких картинок товара)
 	if (!shouldShow3D) {
-		const poster = product.image && isValidUrl(product.image) ? product.image : '/img/sofa-card.svg'
-		const isExternal = poster.startsWith('http')
 		return (
-			<div ref={containerRef} className={`${containerClass} cursor-pointer`} onClick={onClick}>
-				{isExternal ? (
-					<img src={poster} alt={product.title || ''} className='w-full h-full object-contain' />
-				) : (
-					<Image src={poster} alt={product.title || ''} width={300} height={300} className='w-full h-full object-contain' />
-				)}
+			<div ref={containerRef} className={`${containerClass} cursor-pointer flex flex-col items-center justify-center gap-2`} onClick={onClick}>
+				<div className='animate-spin rounded-full h-8 w-8 border-2 border-main1 border-t-transparent' />
+				<span className='text-xs text-gray'>Загрузка 3D...</span>
 			</div>
 		)
 	}
