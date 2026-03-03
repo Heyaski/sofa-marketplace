@@ -17,6 +17,7 @@ export interface FileAsset {
 export interface Product {
 	id: number
 	title: string
+	title_display?: string
 	category: Category
 	subcategory?: string
 	description: string

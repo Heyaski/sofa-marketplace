@@ -2,6 +2,7 @@
 
 import { basketService, messageService } from '@/services/api'
 import { Basket, Chat, Message } from '@/types'
+import { getTitleWithoutBrand } from '@/utils/productTitle'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
@@ -272,7 +273,7 @@ export default function ChatDetail({
 														</div>
 														<div className='flex-1'>
 															<p className='text-sm font-medium text-black mb-2'>
-																{productMsg.product.title}
+																{productMsg.product.title_display ?? getTitleWithoutBrand(productMsg.product.title || '', productMsg.product.brand) ?? productMsg.product.title}
 															</p>
 															<div className='flex flex-wrap gap-2'>
 																{['.rfa', '.glb', '.fbx'].map(format => (

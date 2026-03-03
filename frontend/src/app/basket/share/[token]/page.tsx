@@ -153,7 +153,13 @@ export default function BasketSharePage({ params }: BasketSharePageProps) {
 										key={item.id}
 										className='flex flex-col sm:flex-row sm:items-center gap-4 p-4 border border-gray2 rounded-lg hover:bg-gray-bg transition-colors'
 									>
-									{/* Изображение товара */}
+									{/* ID 3D модели + изображение товара */}
+									<div className='flex items-center gap-3 flex-shrink-0'>
+										{item.product.model_3d_id && (
+											<span className='text-xs sm:text-sm text-black font-semibold font-mono'>
+												{item.product.model_3d_id}
+											</span>
+										)}
 									<div className='w-20 h-20 sm:w-24 sm:h-24 bg-gray-bg rounded-lg overflow-hidden flex-shrink-0'>
 										{item.product.image ? (
 											<Image
@@ -176,11 +182,12 @@ export default function BasketSharePage({ params }: BasketSharePageProps) {
 											</div>
 										)}
 									</div>
+									</div>
 
 									{/* Информация о товаре */}
 									<div className='flex-1'>
 										<h3 className='text-lg font-semibold text-black mb-1'>
-											{getTitleWithoutBrand(item.product.title || '', item.product.brand) || item.product.title}
+											{item.product.title_display ?? getTitleWithoutBrand(item.product.title || '', item.product.brand) ?? item.product.title}
 										</h3>
 											{item.product.article && (
 												<p className='text-sm text-gray mb-2'>

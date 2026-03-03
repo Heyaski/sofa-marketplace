@@ -8,13 +8,33 @@ from apps.catalog.serializers import FileAssetSerializer
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    """Сериализатор товара для корзины: только 2D изображение (не 3D модель)."""
+    """Сериализатор товара для корзины: 2D изображение, model_3d_id, title_display."""
     image = serializers.SerializerMethodField()
+    model_3d_id = serializers.SerializerMethodField()
+    title_display = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = ["id", "title", "price", "image", "article", "brand"]
+        fields = ["id", "title", "price", "image", "article", "brand", "model_3d_id", "title_display"]
         ref_name = "BasketProduct"
+
+    def get_model_3d_id(self, obj):
+        """Первый ID 3D модели (например Пуф1667)"""
+        if not obj.model_3d_asset_ids:
+            return None
+        first = obj.model_3d_asset_ids.split(',')[0].strip()
+        return first or None
+
+    def get_title_display(self, obj):
+        """Название без бренда"""
+        title = obj.title or ''
+        brand = (obj.brand or '').strip()
+        if not brand:
+            return title
+        import re
+        escaped = re.escape(brand)
+        pattern = re.compile(r'\s*' + escaped + r'\s*', re.IGNORECASE)
+        return re.sub(r'\s+', ' ', pattern.sub(' ', title)).strip()
 
     def get_image(self, obj):
         """Возвращает URL изображения. Приоритет как в каталоге. Для S3 используем FileAssetSerializer."""

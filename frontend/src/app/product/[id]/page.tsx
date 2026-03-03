@@ -148,7 +148,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 			{/* Информация о товаре */}
 			<div className='space-y-4 sm:space-y-6'>
 							<h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-black'>
-								{getTitleWithoutBrand(product.title || '', product.brand)}
+								{product.title_display ?? getTitleWithoutBrand(product.title || '', product.brand)}
 							</h1>
 
 							{/* Описание */}

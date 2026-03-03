@@ -53,7 +53,7 @@ export default function ProductCard({
 		return new Intl.NumberFormat('ru-RU').format(Number(price))
 	}
 
-	const displayTitle = getTitleWithoutBrand(product.title || '', product.brand)
+	const displayTitle = product.title_display ?? getTitleWithoutBrand(product.title || '', product.brand)
 
 	const getCategoryName = () => {
 		if (!displayTitle) return ''

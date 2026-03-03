@@ -436,8 +436,15 @@ export default function BasketDetailPage() {
 											: ''
 									}`}
 								>
-									{/* Product image + name — строкой на мобильных */}
+									{/* ID 3D модели + image + name */}
 									<div className='flex items-start gap-3 sm:flex-1 min-w-0'>
+										{item.product.model_3d_id && (
+											<div className='flex-shrink-0 flex items-center'>
+												<span className='text-xs sm:text-sm text-black font-semibold font-mono'>
+													{item.product.model_3d_id}
+												</span>
+											</div>
+										)}
 										<div className='flex-shrink-0'>
 										{item.product.image ? (
 											<Image
@@ -460,7 +467,7 @@ export default function BasketDetailPage() {
 									</div>
 									<div className='flex-1 min-w-0'>
 										<h3 className='text-sm sm:text-base font-medium text-black line-clamp-2'>
-											{getTitleWithoutBrand(item.product.title || '', item.product.brand) || 'Наименование товара'}
+											{item.product.title_display ?? getTitleWithoutBrand(item.product.title || '', item.product.brand) ?? 'Наименование товара'}
 										</h3>
 									</div>
 								</div>

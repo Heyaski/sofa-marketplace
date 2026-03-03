@@ -7,7 +7,6 @@ import DimensionsFilter from '@/components/DimensionsFilter'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import MultiSelectFilter from '@/components/MultiSelectFilter'
-import PriceFilter from '@/components/PriceFilter'
 import RGBRangeFilter from '@/components/RGBRangeFilter'
 import ProductCard from '@/components/ProductCard'
 import { useBaskets, useCategories, useProducts } from '@/hooks/useApi'
@@ -146,21 +145,6 @@ function CatalogContent() {
 		setVisibleCategoriesCount(prev => prev + 10)
 	}
 
-	const handlePriceChange = (value: { min: number; max: number } | undefined) => {
-		if (value) {
-			setFilters({ ...filters, price_min: value.min, price_max: value.max })
-		} else {
-			const { price_min, price_max, ...rest } = filters
-			setFilters(rest)
-		}
-		setOpenFilter(null)
-	}
-	
-	const handlePriceApply = () => {
-		// Фильтр уже применен в handlePriceChange, просто закрываем
-		setOpenFilter(null)
-	}
-
 	const handleDimensionsChange = (value: { width: { min: number; max: number }; depth: { min: number; max: number } } | undefined) => {
 		if (value) {
 			setFilters({ 
@@ -203,10 +187,6 @@ function CatalogContent() {
 
 	const visibleCategories = categories?.slice(0, visibleCategoriesCount) || []
 	const hasMoreCategories = categories && categories.length > visibleCategoriesCount
-
-	const currentPriceFilter = filters.price_min !== undefined && filters.price_max !== undefined
-		? { min: filters.price_min, max: filters.price_max }
-		: undefined
 
 	return (
 		<div className='min-h-screen bg-gray-bg pb-20 lg:pb-0'>
@@ -319,31 +299,6 @@ function CatalogContent() {
 					<div className='mb-4 sm:mb-6'>
 						<div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4'>
 							<div className='flex items-center gap-2 sm:gap-3 flex-wrap'>
-								{/* Кнопка фильтра цены */}
-								<div className='relative'>
-									<button
-										onClick={() => setOpenFilter(openFilter === 'price' ? null : 'price')}
-										className={`min-w-[88px] px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors text-center ${
-											currentPriceFilter
-												? 'bg-main1 text-white'
-												: 'bg-gray-bg text-black hover:bg-gray2'
-										}`}
-									>
-										Цена
-									</button>
-									{openFilter === 'price' && (
-										<div className='fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 sm:absolute sm:left-0 sm:top-full sm:translate-x-0 sm:translate-y-0 sm:mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-[100] w-[calc(100vw-2rem)] max-w-[340px] overflow-hidden sm:w-auto sm:min-w-[300px] sm:max-w-sm'>
-											<PriceFilter
-												minPrice={filterRanges.price.min}
-												maxPrice={filterRanges.price.max}
-												value={currentPriceFilter}
-												onChange={handlePriceChange}
-												onApply={handlePriceApply}
-											/>
-										</div>
-									)}
-								</div>
-
 								{/* Кнопка фильтра габаритов */}
 								<div className='relative'>
 									<button

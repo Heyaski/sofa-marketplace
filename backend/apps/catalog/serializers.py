@@ -189,6 +189,7 @@ class ProductSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
     images = serializers.SerializerMethodField()
     model_3d_id = serializers.SerializerMethodField()
+    title_display = serializers.SerializerMethodField()
 
     # Новые поля для файловых ресурсов (обязательно включаем — __all__ только модель)
     asset_images = serializers.SerializerMethodField()
@@ -202,7 +203,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "material", "style", "color", "color_rgb", "brand", "country",
             "width", "height", "depth", "weight", "availability",
             "is_active", "is_trending", "photo_url",
-            "image_asset_ids", "model_3d_asset_ids", "model_3d_id",
+            "image_asset_ids", "model_3d_asset_ids", "model_3d_id", "title_display",
             "model_glb", "model_fbx", "model_rfa", "model_usdz", "model_ar_glb",
             "shop_url", "cp_notes",
             "image", "images", "asset_images", "asset_3d_models",
@@ -255,6 +256,17 @@ class ProductSerializer(serializers.ModelSerializer):
             return None
         first = obj.model_3d_asset_ids.split(',')[0].strip()
         return first or None
+
+    def get_title_display(self, obj):
+        """Название без бренда для отображения"""
+        title = obj.title or ''
+        brand = (obj.brand or '').strip()
+        if not brand:
+            return title
+        import re
+        escaped = re.escape(brand)
+        pattern = re.compile(r'\s*' + escaped + r'\s*', re.IGNORECASE)
+        return re.sub(r'\s+', ' ', pattern.sub(' ', title)).strip()
 
     def get_asset_images(self, obj):
         """Получить все изображения из FileAsset"""

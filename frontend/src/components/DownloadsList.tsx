@@ -220,7 +220,7 @@ export default function DownloadsList() {
 							{/* Product name */}
 							<div className='w-48'>
 								<h3 className='text-base font-medium text-black'>
-									{download.product.title || 'Наименование товара'}
+									{download.product.title_display ?? download.product.title ?? 'Наименование товара'}
 								</h3>
 							</div>
 
