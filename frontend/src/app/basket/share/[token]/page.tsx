@@ -154,7 +154,7 @@ export default function BasketSharePage({ params }: BasketSharePageProps) {
 									>
 									{/* ID 3D модели */}
 									<div className='flex-shrink-0 min-w-[60px] sm:min-w-[80px] text-center self-center'>
-										<span className='text-xs sm:text-sm text-main1 font-semibold font-mono break-all'>
+										<span className='text-xs sm:text-sm text-black font-semibold font-mono break-all'>
 											{item.product.model_3d_asset_ids || `#${item.product.id}`}
 										</span>
 									</div>

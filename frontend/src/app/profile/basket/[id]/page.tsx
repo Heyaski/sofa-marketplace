@@ -439,7 +439,7 @@ export default function BasketDetailPage() {
 								<div className='flex items-center gap-3 sm:flex-1 min-w-0'>
 									{/* ID 3D модели */}
 									<div className='flex-shrink-0 min-w-[60px] sm:min-w-[80px] text-center'>
-										<span className='text-xs sm:text-sm text-main1 font-semibold font-mono break-all'>
+										<span className='text-xs sm:text-sm text-black font-semibold font-mono break-all'>
 											{item.product.model_3d_asset_ids || `#${item.product.id}`}
 										</span>
 									</div>

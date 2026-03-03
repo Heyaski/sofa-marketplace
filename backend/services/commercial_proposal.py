@@ -383,16 +383,13 @@ def generate_commercial_proposal_pdf(proposal_request):
         # Сумма
         item_sum = Paragraph(f'{item_total:,.0f}'.replace(',', ' '), cell_style)
         
-        # Ссылка на магазин
-        shop_url = product.shop_url or ''
-        if shop_url:
-            # Сокращаем URL для отображения
-            display_url = shop_url.replace('https://', '').replace('http://', '')
-            if len(display_url) > 35:
-                display_url = display_url[:35] + '...'
-            item_shop = Paragraph(f'<a href="{shop_url}" color="blue">{display_url}</a>', cell_small_style)
-        else:
-            item_shop = Paragraph('—', cell_style)
+        # Ссылка на карточку товара на сайте
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'https://vizhub.pro').rstrip('/')
+        product_url = f'{frontend_url}/product/{product.id}'
+        display_url = product_url.replace('https://', '').replace('http://', '')
+        if len(display_url) > 35:
+            display_url = display_url[:35] + '...'
+        item_shop = Paragraph(f'<a href="{product_url}" color="blue">{display_url}</a>', cell_small_style)
         
         # Примечание (габариты + доп. информация)
         notes_parts = []
