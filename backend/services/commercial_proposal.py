@@ -357,7 +357,7 @@ def generate_commercial_proposal_pdf(proposal_request):
         
         # ID — берём ID 3D модели из поля model_3d_asset_ids
         model_id = product.model_3d_asset_ids.strip().split(',')[0] if product.model_3d_asset_ids and product.model_3d_asset_ids.strip() else f'#{product.id}'
-        item_id = Paragraph(model_id, cell_style)
+        item_id = Paragraph(model_id, cell_small_style)
         
         # Наименование
         item_name = Paragraph(product.title, cell_left_style)
@@ -415,14 +415,14 @@ def generate_commercial_proposal_pdf(proposal_request):
     # Определяем ширины столбцов
     available_width = page_width - 30 * mm  # margins
     col_widths = [
-        45,   # ID (может содержать model_3d_asset_ids)
-        90,   # Наименование
+        60,   # ID (model_3d_asset_ids, например «Пуф1497»)
+        85,   # Наименование
         75,   # Изображение
-        50,   # Кол-во, шт
+        45,   # Кол-во, шт
         55,   # Цена
         55,   # Сумма
-        85,   # Магазин
-        available_width - 45 - 90 - 75 - 50 - 55 - 55 - 85,  # Примечание
+        80,   # Магазин
+        available_width - 60 - 85 - 75 - 45 - 55 - 55 - 80,  # Примечание
     ]
     
     # Минимальная высота строк

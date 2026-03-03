@@ -153,8 +153,8 @@ export default function BasketSharePage({ params }: BasketSharePageProps) {
 										className='flex flex-col sm:flex-row sm:items-center gap-4 p-4 border border-gray2 rounded-lg hover:bg-gray-bg transition-colors'
 									>
 									{/* ID 3D модели */}
-									<div className='flex-shrink-0 min-w-[60px] sm:min-w-[80px]'>
-										<span className='text-xs sm:text-sm text-gray font-mono break-all'>
+									<div className='flex-shrink-0 min-w-[60px] sm:min-w-[80px] text-center self-center'>
+										<span className='text-xs sm:text-sm text-main1 font-semibold font-mono break-all'>
 											{item.product.model_3d_asset_ids || `#${item.product.id}`}
 										</span>
 									</div>
