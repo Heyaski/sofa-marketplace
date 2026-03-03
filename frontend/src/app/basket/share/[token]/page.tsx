@@ -153,35 +153,35 @@ export default function BasketSharePage({ params }: BasketSharePageProps) {
 										key={item.id}
 										className='flex flex-col sm:flex-row sm:items-center gap-4 p-4 border border-gray2 rounded-lg hover:bg-gray-bg transition-colors'
 									>
-										{/* Изображение товара */}
-										<div className='w-20 h-20 sm:w-24 sm:h-24 bg-gray-bg rounded-lg overflow-hidden flex-shrink-0'>
-											{item.product.image ? (
+									{/* Изображение товара */}
+									<div className='w-20 h-20 sm:w-24 sm:h-24 bg-gray-bg rounded-lg overflow-hidden flex-shrink-0'>
+										{item.product.image ? (
+											<Image
+												src={item.product.image}
+												alt={item.product.title}
+												width={96}
+												height={96}
+												className='w-full h-full object-cover'
+												unoptimized
+											/>
+										) : (
+											<div className='w-full h-full flex items-center justify-center'>
 												<Image
-													src={item.product.image}
-													alt={item.product.title}
-													width={96}
-													height={96}
-													className='w-full h-full object-cover'
-													unoptimized
+													src='/img/sofa-card.svg'
+													alt='Нет изображения'
+													width={48}
+													height={48}
+													className='opacity-50'
 												/>
-											) : (
-												<div className='w-full h-full flex items-center justify-center'>
-													<Image
-														src='/img/sofa-card.svg'
-														alt='Нет изображения'
-														width={48}
-														height={48}
-														className='opacity-50'
-													/>
-												</div>
-											)}
-										</div>
+											</div>
+										)}
+									</div>
 
-										{/* Информация о товаре */}
-										<div className='flex-1'>
-											<h3 className='text-lg font-semibold text-black mb-1'>
-												{getTitleWithoutBrand(item.product.title || '', item.product.brand) || item.product.title}
-											</h3>
+									{/* Информация о товаре */}
+									<div className='flex-1'>
+										<h3 className='text-lg font-semibold text-black mb-1'>
+											{getTitleWithoutBrand(item.product.title || '', item.product.brand) || item.product.title}
+										</h3>
 											{item.product.article && (
 												<p className='text-sm text-gray mb-2'>
 													Артикул: {item.product.article}

@@ -23,6 +23,9 @@ SECRET_KEY = get_env("DJANGO_SECRET", "dev")
 DEBUG = bool(int(get_env("DEBUG", "1")))
 ALLOWED_HOSTS = get_env("ALLOWED_HOSTS", "*").split(",")
 
+# URL фронтенда (для ссылок в КП и email-ах)
+FRONTEND_URL = get_env("FRONTEND_URL", "https://vizhub.pro")
+
 INSTALLED_APPS = [
     "jazzmin",  # Должен быть перед django.contrib.admin
     "adminsortable2",  # drag-and-drop сортировка в админке

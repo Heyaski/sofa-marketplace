@@ -439,31 +439,31 @@ export default function BasketDetailPage() {
 									{/* Product image + name — строкой на мобильных */}
 									<div className='flex items-start gap-3 sm:flex-1 min-w-0'>
 										<div className='flex-shrink-0'>
-											{item.product.image ? (
-												<Image
-													src={item.product.image}
-													alt={item.product.title || 'Товар'}
-													width={120}
-													height={120}
-													className='w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg bg-gray-bg'
-													unoptimized
-												/>
-											) : (
-												<Image
-													src='/img/sofa-card.svg'
-													alt='Заглушка'
-													width={120}
-													height={120}
-													className='w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg bg-gray-bg'
-												/>
-											)}
-										</div>
-										<div className='flex-1 min-w-0'>
-											<h3 className='text-sm sm:text-base font-medium text-black line-clamp-2'>
-												{getTitleWithoutBrand(item.product.title || '', item.product.brand) || 'Наименование товара'}
-											</h3>
-										</div>
+										{item.product.image ? (
+											<Image
+												src={item.product.image}
+												alt={item.product.title || 'Товар'}
+												width={120}
+												height={120}
+												className='w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg bg-gray-bg'
+												unoptimized
+											/>
+										) : (
+											<Image
+												src='/img/sofa-card.svg'
+												alt='Заглушка'
+												width={120}
+												height={120}
+												className='w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg bg-gray-bg'
+											/>
+										)}
 									</div>
+									<div className='flex-1 min-w-0'>
+										<h3 className='text-sm sm:text-base font-medium text-black line-clamp-2'>
+											{getTitleWithoutBrand(item.product.title || '', item.product.brand) || 'Наименование товара'}
+										</h3>
+									</div>
+								</div>
 
 									{/* Action buttons */}
 									{(isOwner || canEdit) ? (
