@@ -337,7 +337,7 @@ def generate_commercial_proposal_pdf(proposal_request):
         Paragraph('ID', header_cell_style),
         Paragraph('Наименование', header_cell_style),
         Paragraph('Изображение', header_cell_style),
-        Paragraph('Кол-во,<br/>шт', header_cell_style),
+        Paragraph('Кол-во,&nbsp;шт', header_cell_style),
         Paragraph('Цена за<br/>шт., руб.', header_cell_style),
         Paragraph('Сумма,<br/>руб.', header_cell_style),
         Paragraph('Магазин,<br/>ссылка', header_cell_style),
@@ -355,8 +355,9 @@ def generate_commercial_proposal_pdf(proposal_request):
         item_total = price * quantity
         total_sum += item_total
         
-        # ID
-        item_id = Paragraph(f'M-{idx}', cell_style)
+        # ID — берём ID 3D модели из поля model_3d_asset_ids
+        model_id = product.model_3d_asset_ids.strip().split(',')[0] if product.model_3d_asset_ids and product.model_3d_asset_ids.strip() else f'#{product.id}'
+        item_id = Paragraph(model_id, cell_style)
         
         # Наименование
         item_name = Paragraph(product.title, cell_left_style)
@@ -414,14 +415,14 @@ def generate_commercial_proposal_pdf(proposal_request):
     # Определяем ширины столбцов
     available_width = page_width - 30 * mm  # margins
     col_widths = [
-        30,   # ID
+        45,   # ID (может содержать model_3d_asset_ids)
         90,   # Наименование
         75,   # Изображение
-        40,   # Кол-во
+        50,   # Кол-во, шт
         55,   # Цена
         55,   # Сумма
-        90,   # Магазин
-        available_width - 30 - 90 - 75 - 40 - 55 - 55 - 90,  # Примечание
+        85,   # Магазин
+        available_width - 45 - 90 - 75 - 50 - 55 - 55 - 85,  # Примечание
     ]
     
     # Минимальная высота строк

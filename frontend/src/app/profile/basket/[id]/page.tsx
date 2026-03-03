@@ -435,34 +435,40 @@ export default function BasketDetailPage() {
 											: ''
 									}`}
 								>
-									{/* Product image + name + price — строкой на мобильных */}
-									<div className='flex items-start gap-3 sm:flex-1 min-w-0'>
-										<div className='flex-shrink-0'>
-											{item.product.image ? (
-												<Image
-													src={item.product.image}
-													alt={item.product.title || 'Товар'}
-													width={120}
-													height={120}
-													className='w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg bg-gray-bg'
-													unoptimized
-												/>
-											) : (
-												<Image
-													src='/img/sofa-card.svg'
-													alt='Заглушка'
-													width={120}
-													height={120}
-													className='w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg bg-gray-bg'
-												/>
-											)}
-										</div>
-										<div className='flex-1 min-w-0'>
-											<h3 className='text-sm sm:text-base font-medium text-black line-clamp-2'>
-												{item.product.title || 'Наименование товара'}
-											</h3>
-										</div>
+								{/* ID + Product image + name — строкой на мобильных */}
+								<div className='flex items-start gap-3 sm:flex-1 min-w-0'>
+									{/* ID 3D модели */}
+									<div className='flex-shrink-0 min-w-[60px] sm:min-w-[80px]'>
+										<span className='text-xs sm:text-sm text-gray font-mono break-all'>
+											{item.product.model_3d_asset_ids || `#${item.product.id}`}
+										</span>
 									</div>
+									<div className='flex-shrink-0'>
+										{item.product.image ? (
+											<Image
+												src={item.product.image}
+												alt={item.product.title || 'Товар'}
+												width={120}
+												height={120}
+												className='w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg bg-gray-bg'
+												unoptimized
+											/>
+										) : (
+											<Image
+												src='/img/sofa-card.svg'
+												alt='Заглушка'
+												width={120}
+												height={120}
+												className='w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg bg-gray-bg'
+											/>
+										)}
+									</div>
+									<div className='flex-1 min-w-0'>
+										<h3 className='text-sm sm:text-base font-medium text-black line-clamp-2'>
+											{item.product.title || 'Наименование товара'}
+										</h3>
+									</div>
+								</div>
 
 									{/* Action buttons */}
 									{(isOwner || canEdit) ? (
