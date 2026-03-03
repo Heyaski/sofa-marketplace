@@ -15,7 +15,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ["id", "title", "price", "image", "article", "brand", "model_3d_id", "title_display"]
+        fields = ["id", "title", "price", "image", "article", "model_3d_id", "title_display"]
         ref_name = "BasketProduct"
 
     def get_model_3d_id(self, obj):
@@ -26,12 +26,18 @@ class ProductSerializer(serializers.ModelSerializer):
         return first or None
 
     def get_title_display(self, obj):
-        """Название без бренда"""
+        """Название без бренда. НЕ удаляем, если brand похож на цвет."""
         title = obj.title or ''
         brand = (obj.brand or '').strip()
         if not brand:
             return title
         import re
+        color_pattern = re.compile(
+            r'цвета?$|цветовой|коричнев|чёрн|черн|бел|син|сер|красн|зелен|зёл|жёлт|оранж|беж|золот|серебр|фиолет|розов',
+            re.IGNORECASE
+        )
+        if color_pattern.search(brand):
+            return title
         escaped = re.escape(brand)
         pattern = re.compile(r'\s*' + escaped + r'\s*', re.IGNORECASE)
         return re.sub(r'\s+', ' ', pattern.sub(' ', title)).strip()

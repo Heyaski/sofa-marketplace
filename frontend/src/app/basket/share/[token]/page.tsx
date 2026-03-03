@@ -5,7 +5,6 @@ import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import { basketService } from '@/services/api'
 import { Basket } from '@/types'
-import { getTitleWithoutBrand } from '@/utils/productTitle'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -156,9 +155,11 @@ export default function BasketSharePage({ params }: BasketSharePageProps) {
 									{/* ID 3D модели + изображение товара */}
 									<div className='flex items-center gap-3 flex-shrink-0'>
 										{item.product.model_3d_id && (
-											<span className='text-xs sm:text-sm text-black font-semibold font-mono'>
-												{item.product.model_3d_id}
-											</span>
+											<div className='min-w-[70px] sm:min-w-[80px] flex items-center justify-center'>
+												<span className='text-lg font-semibold text-black text-center'>
+													{item.product.model_3d_id}
+												</span>
+											</div>
 										)}
 									<div className='w-20 h-20 sm:w-24 sm:h-24 bg-gray-bg rounded-lg overflow-hidden flex-shrink-0'>
 										{item.product.image ? (
@@ -185,9 +186,9 @@ export default function BasketSharePage({ params }: BasketSharePageProps) {
 									</div>
 
 									{/* Информация о товаре */}
-									<div className='flex-1'>
-										<h3 className='text-lg font-semibold text-black mb-1'>
-											{item.product.title_display ?? getTitleWithoutBrand(item.product.title || '', item.product.brand) ?? item.product.title}
+									<div className='flex-1 flex flex-col items-center justify-center'>
+										<h3 className='text-lg font-semibold text-black mb-1 text-center'>
+											{item.product.title_display ?? item.product.title}
 										</h3>
 											{item.product.article && (
 												<p className='text-sm text-gray mb-2'>
