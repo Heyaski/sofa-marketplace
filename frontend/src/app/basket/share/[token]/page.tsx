@@ -155,8 +155,8 @@ export default function BasketSharePage({ params }: BasketSharePageProps) {
 									{/* ID 3D модели + изображение товара */}
 									<div className='flex items-center gap-3 flex-shrink-0'>
 										{item.product.model_3d_id && (
-											<div className='min-w-[70px] sm:min-w-[80px] flex items-center justify-center'>
-												<span className='text-lg font-semibold text-black text-center'>
+											<div className='min-w-[70px] sm:min-w-[80px] flex items-center'>
+												<span className='text-lg font-semibold text-black'>
 													{item.product.model_3d_id}
 												</span>
 											</div>
@@ -186,8 +186,8 @@ export default function BasketSharePage({ params }: BasketSharePageProps) {
 									</div>
 
 									{/* Информация о товаре */}
-									<div className='flex-1 flex flex-col items-center justify-center'>
-										<h3 className='text-lg font-semibold text-black mb-1 text-center'>
+									<div className='flex-1 flex flex-col justify-center'>
+										<h3 className='text-lg font-semibold text-black mb-1'>
 											{item.product.title_display ?? item.product.title}
 										</h3>
 											{item.product.article && (

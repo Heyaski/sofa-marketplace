@@ -438,8 +438,8 @@ export default function BasketDetailPage() {
 									{/* ID 3D модели + image + name */}
 									<div className='flex items-center gap-3 sm:flex-1 min-w-0'>
 										{item.product.model_3d_id && (
-											<div className='flex-shrink-0 min-w-[70px] sm:min-w-[80px] flex items-center justify-center'>
-												<span className='text-sm sm:text-base font-medium text-black text-center'>
+											<div className='flex-shrink-0 min-w-[70px] sm:min-w-[80px] flex items-center'>
+												<span className='text-sm sm:text-base font-medium text-black'>
 													{item.product.model_3d_id}
 												</span>
 											</div>
@@ -464,8 +464,8 @@ export default function BasketDetailPage() {
 											/>
 										)}
 									</div>
-									<div className='flex-1 min-w-0 flex items-center justify-center'>
-										<h3 className='text-sm sm:text-base font-medium text-black line-clamp-2 text-center'>
+									<div className='flex-1 min-w-0 flex items-center'>
+										<h3 className='text-sm sm:text-base font-medium text-black line-clamp-2'>
 											{item.product.title_display ?? item.product.title ?? 'Наименование товара'}
 										</h3>
 									</div>
