@@ -2,22 +2,34 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { EllipsisVerticalIcon } from '@heroicons/react/24/outline'
 import { config } from '../config'
 import { Product } from '../types'
 import { formatDimension } from '../utils/format'
+import { getTitleWithoutBrand } from '../utils/productTitle'
 import ProductModelViewer from './ProductModelViewer'
+import EditProductModal from './EditProductModal'
+import { productService } from '../services/api'
 
 interface ProductCardProps {
 	product: Product
 	onAddToCart: (productId: number, format: string) => void
+	isSuperuser?: boolean
+	onProductUpdated?: (product: Product) => void
+	onProductDeleted?: (productId: number) => void
 }
 
 export default function ProductCard({
 	product,
 	onAddToCart,
+	isSuperuser = false,
+	onProductUpdated,
+	onProductDeleted,
 }: ProductCardProps) {
 	const router = useRouter()
 	const [toastMessage, setToastMessage] = useState<string | null>(null)
+	const [menuOpen, setMenuOpen] = useState(false)
+	const [editModalOpen, setEditModalOpen] = useState(false)
 
 	useEffect(() => {
 		if (!toastMessage) return
@@ -41,9 +53,11 @@ export default function ProductCard({
 		return new Intl.NumberFormat('ru-RU').format(Number(price))
 	}
 
+	const displayTitle = getTitleWithoutBrand(product.title || '', product.brand)
+
 	const getCategoryName = () => {
-		if (!product.title) return ''
-		const match = product.title.match(/^[А-Яа-яЁё]+/)
+		if (!displayTitle) return ''
+		const match = displayTitle.match(/^[А-Яа-яЁё]+/)
 		return match ? match[0] : ''
 	}
 
@@ -111,10 +125,73 @@ export default function ProductCard({
 		router.push(`/product/${product.id}`)
 	}
 
+	const handleEdit = (e: React.MouseEvent) => {
+		e.stopPropagation()
+		setMenuOpen(false)
+		setEditModalOpen(true)
+	}
+
+	const handleDelete = async (e: React.MouseEvent) => {
+		e.stopPropagation()
+		setMenuOpen(false)
+		if (!confirm(`Удалить товар «${getTitleWithoutBrand(product.title || '', product.brand)}»?`)) return
+		try {
+			await productService.deleteProduct(product.id)
+			onProductDeleted?.(product.id)
+			setToastMessage('Товар удалён')
+		} catch (err) {
+			console.error(err)
+			setToastMessage('Ошибка удаления товара')
+		}
+	}
+
 	return (
-		<div className='product-card bg-white rounded-xl shadow-md p-3 sm:p-4 hover:shadow-lg transition-all duration-200'>
+		<div className='product-card bg-white rounded-xl shadow-md p-3 sm:p-4 hover:shadow-lg transition-all duration-200 relative'>
+			{/* 3 точки для суперпользователя */}
+			{isSuperuser && (
+				<div className='absolute right-2 top-2 z-20'>
+					<button
+						type='button'
+						onClick={e => { e.stopPropagation(); setMenuOpen(v => !v) }}
+						className='p-1 rounded-full hover:bg-gray-200 text-gray hover:text-black'
+						aria-label='Меню'
+					>
+						<EllipsisVerticalIcon className='w-5 h-5' />
+					</button>
+					{menuOpen && (
+						<>
+							<div
+								className='fixed inset-0 z-40'
+								onClick={() => setMenuOpen(false)}
+								aria-hidden='true'
+							/>
+							<div className='absolute right-0 top-8 z-50 bg-white rounded-lg shadow-lg border border-gray2 py-1 min-w-[140px]'>
+								<button
+									type='button'
+									onClick={handleEdit}
+									className='w-full text-left px-4 py-2 text-sm hover:bg-gray-bg text-black'
+								>
+									Редактировать
+								</button>
+								<button
+									type='button'
+									onClick={handleDelete}
+									className='w-full text-left px-4 py-2 text-sm hover:bg-gray-bg text-red-500'
+								>
+									Удалить
+								</button>
+							</div>
+						</>
+					)}
+				</div>
+			)}
 			{/* 3D модель или изображение товара — можно крутить в каталоге */}
-			<div className='rounded-lg mb-3 sm:mb-4 overflow-hidden'>
+			<div className='rounded-lg mb-3 sm:mb-4 overflow-hidden relative'>
+				{product.model_3d_id && (
+					<span className='absolute left-2 top-2 z-10 text-xs text-gray font-medium bg-white/80 px-1.5 py-0.5 rounded'>
+						{product.model_3d_id}
+					</span>
+				)}
 				<ProductModelViewer product={product} variant='card' onClick={handleCardClick} />
 			</div>
 
@@ -159,6 +236,13 @@ export default function ProductCard({
 					</div>
 				)}
 			</div>
+
+			<EditProductModal
+				product={product}
+				isOpen={editModalOpen}
+				onClose={() => setEditModalOpen(false)}
+				onSaved={updated => { onProductUpdated?.(updated); setEditModalOpen(false) }}
+			/>
 		</div>
 	)
 }

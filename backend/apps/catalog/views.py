@@ -24,8 +24,18 @@ def _rgb_to_scale(hue_deg: float, s: float, v: float) -> float:
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission
 from rest_framework.pagination import PageNumberPagination
+
+
+class IsCatalogEditor(BasePermission):
+    """Только суперпользователь может редактировать и удалять товары"""
+    def has_permission(self, request, view):
+        return (
+            request.user and
+            request.user.is_authenticated and
+            getattr(request.user, 'is_superuser', False)
+        )
 from django.db import models
 from .models import Product, Category
 from .serializers import ProductSerializer, CategorySerializer
@@ -41,10 +51,15 @@ class ProductPagination(PageNumberPagination):
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.filter(is_active=True)  # Показываем только активные товары
     serializer_class = ProductSerializer
-    permission_classes = [AllowAny]  # Разрешаем чтение без авторизации
+    permission_classes = [AllowAny]  # По умолчанию; для update/destroy — IsCatalogEditor
     pagination_class = ProductPagination
 
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+
+    def get_permissions(self):
+        if self.action in ('update', 'partial_update', 'destroy'):
+            return [IsAuthenticated(), IsCatalogEditor()]
+        return [AllowAny()]
 
     def get_serializer_context(self):
         """Добавляем request и action в контекст для правильной генерации URL изображений"""
@@ -130,9 +145,8 @@ class ProductViewSet(viewsets.ModelViewSet):
                 except (ValueError, TypeError):
                     pass
 
-        # Фильтрация по множественным значениям (material, style, color, brand)
-        # Если значение содержит запятую, ищем товары, где поле содержит любое из значений
-        for field in ['material', 'style', 'color', 'brand']:
+        # Фильтрация по множественным значениям (material, style, color; бренд исключён)
+        for field in ['material', 'style', 'color']:
             value = self.request.query_params.get(field, None)
             if value:
                 # Разделяем значения по запятой
@@ -196,7 +210,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     }
 
 
-    search_fields = ["title", "description", "article", "material", "style", "color", "brand"]
+    search_fields = ["title", "description", "article", "material", "style", "color"]
 
     ordering_fields = ["price", "title"]
     ordering = ["price"]
@@ -221,9 +235,8 @@ class ProductViewSet(viewsets.ModelViewSet):
         materials = set()
         styles = set()
         colors = set()
-        brands = set()
-        for p in Product.objects.filter(is_active=True).values_list("material", "style", "color", "brand").iterator(chunk_size=500):
-            for val, s in zip(p, (materials, styles, colors, brands)):
+        for p in Product.objects.filter(is_active=True).values_list("material", "style", "color").iterator(chunk_size=500):
+            for val, s in zip(p, (materials, styles, colors)):
                 if val:
                     for part in str(val).split(","):
                         s.add(part.strip())
@@ -234,7 +247,6 @@ class ProductViewSet(viewsets.ModelViewSet):
             "materials": sorted(materials),
             "styles": sorted(styles),
             "colors": sorted(colors),
-            "brands": sorted(brands),
         })
 
 

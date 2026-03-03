@@ -10,12 +10,12 @@ from apps.catalog.serializers import FileAssetSerializer
 class ProductSerializer(serializers.ModelSerializer):
     """Сериализатор товара для корзины: только 2D изображение (не 3D модель)."""
     image = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Product
-        fields = ["id", "title", "price", "image", "article"]
+        fields = ["id", "title", "price", "image", "article", "brand"]
         ref_name = "BasketProduct"
-    
+
     def get_image(self, obj):
         """Возвращает URL изображения. Приоритет как в каталоге. Для S3 используем FileAssetSerializer."""
         request = self.context.get("request")

@@ -81,7 +81,6 @@ export const productService = {
 		materials: string[]
 		styles: string[]
 		colors: string[]
-		brands: string[]
 	}> => {
 		const response = await apiClient.get('/api/products/filter_ranges/')
 		return response.data
@@ -93,12 +92,12 @@ export const productService = {
 		return response.data
 	},
 
-	// Обновить продукт (только для админов)
+	// Обновить продукт (суперпользователь / админ)
 	updateProduct: async (
 		id: number,
 		product: Partial<Product>
 	): Promise<Product> => {
-		const response = await apiClient.put(`/api/products/${id}/`, product)
+		const response = await apiClient.patch(`/api/products/${id}/`, product)
 		return response.data
 	},
 

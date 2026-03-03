@@ -5,6 +5,7 @@ import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import { basketService } from '@/services/api'
 import { Basket } from '@/types'
+import { getTitleWithoutBrand } from '@/utils/productTitle'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -179,7 +180,7 @@ export default function BasketSharePage({ params }: BasketSharePageProps) {
 										{/* Информация о товаре */}
 										<div className='flex-1'>
 											<h3 className='text-lg font-semibold text-black mb-1'>
-												{item.product.title}
+												{getTitleWithoutBrand(item.product.title || '', item.product.brand) || item.product.title}
 											</h3>
 											{item.product.article && (
 												<p className='text-sm text-gray mb-2'>

@@ -12,7 +12,7 @@ import RGBRangeFilter from '@/components/RGBRangeFilter'
 import ProductCard from '@/components/ProductCard'
 import { useBaskets, useCategories, useProducts } from '@/hooks/useApi'
 import { authService, productService } from '@/services/api'
-import { Category, Product, ProductFilters } from '@/types'
+import { Category, Product, ProductFilters, User } from '@/types'
 import Script from 'next/script'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useMemo, useState } from 'react'
@@ -30,11 +30,18 @@ function CatalogContent() {
 	const [openFilter, setOpenFilter] = useState<string | null>(null)
 	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
 	const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+	const [currentUser, setCurrentUser] = useState<User | null>(null)
 
 	useEffect(() => {
 		authService.getCurrentUser()
-			.then(() => setIsAuthenticated(true))
-			.catch(() => setIsAuthenticated(false))
+			.then((user) => {
+				setIsAuthenticated(true)
+				setCurrentUser(user)
+			})
+			.catch(() => {
+				setIsAuthenticated(false)
+				setCurrentUser(null)
+			})
 	}, [])
 
 	// Синхронизация поиска из URL с фильтрами
@@ -53,6 +60,7 @@ function CatalogContent() {
 		error: productsError,
 		hasMore,
 		loadMore,
+		refetch: refetchProducts,
 	} = useProducts(filters)
 	
 	// Получаем все продукты без фильтров для вычисления диапазонов
@@ -63,7 +71,6 @@ function CatalogContent() {
 		materials: string[]
 		styles: string[]
 		colors: string[]
-		brands: string[]
 	} | null>(null)
 
 	useEffect(() => {
@@ -87,7 +94,6 @@ function CatalogContent() {
 				materials: [] as string[],
 				styles: [] as string[],
 				colors: [] as string[],
-				brands: [] as string[],
 			}
 		}
 		return filterRangesData
@@ -184,7 +190,7 @@ function CatalogContent() {
 		}
 	}
 
-	const handleMultiSelectChange = (field: 'material' | 'style' | 'color' | 'brand') => {
+	const handleMultiSelectChange = (field: 'material' | 'style' | 'color') => {
 		return (values: string[] | undefined) => {
 			if (values && values.length > 0) {
 				setFilters({ ...filters, [field]: values.join(',') })
@@ -432,32 +438,6 @@ function CatalogContent() {
 									</div>
 								)}
 
-								{/* Кнопка фильтра бренда */}
-								{filterRanges.brands.length > 0 && (
-									<div className='relative'>
-										<button
-											onClick={() => setOpenFilter(openFilter === 'brand' ? null : 'brand')}
-											className={`min-w-[88px] px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors text-center ${
-												filters.brand
-													? 'bg-main1 text-white'
-													: 'bg-gray-bg text-black hover:bg-gray2'
-											}`}
-										>
-											Бренд
-										</button>
-									{openFilter === 'brand' && (
-										<div className='fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 sm:absolute sm:left-0 sm:top-full sm:translate-x-0 sm:translate-y-0 sm:mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-[100] w-[calc(100vw-2rem)] max-w-[340px] overflow-hidden sm:w-auto sm:min-w-[200px] sm:max-w-xs'>
-											<MultiSelectFilter
-												title=''
-												options={filterRanges.brands}
-												selectedValues={filters.brand ? filters.brand.split(',').map(v => v.trim()) : undefined}
-												onChange={handleMultiSelectChange('brand')}
-											/>
-										</div>
-									)}
-									</div>
-								)}
-
 							</div>
 						</div>
 
@@ -507,6 +487,9 @@ function CatalogContent() {
 										key={product.id}
 										product={product}
 										onAddToCart={handleAddToCart}
+										isSuperuser={!!(currentUser?.is_superuser)}
+										onProductUpdated={() => refetchProducts()}
+										onProductDeleted={() => refetchProducts()}
 									/>
 								))}
 							</div>
@@ -543,9 +526,16 @@ function CatalogContent() {
 			<AuthModal
 				isOpen={isAuthModalOpen}
 				onClose={() => setIsAuthModalOpen(false)}
-				onSuccess={() => {
-					setIsAuthenticated(true)
+				onSuccess={async () => {
 					setIsAuthModalOpen(false)
+					try {
+						const user = await authService.getCurrentUser()
+						setIsAuthenticated(true)
+						setCurrentUser(user)
+					} catch {
+						setIsAuthenticated(false)
+						setCurrentUser(null)
+					}
 				}}
 			/>
 		</div>

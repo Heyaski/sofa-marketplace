@@ -188,7 +188,8 @@ class ProductSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
     image = serializers.SerializerMethodField()
     images = serializers.SerializerMethodField()
-    
+    model_3d_id = serializers.SerializerMethodField()
+
     # Новые поля для файловых ресурсов (обязательно включаем — __all__ только модель)
     asset_images = serializers.SerializerMethodField()
     asset_3d_models = serializers.SerializerMethodField()
@@ -201,7 +202,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "material", "style", "color", "color_rgb", "brand", "country",
             "width", "height", "depth", "weight", "availability",
             "is_active", "is_trending", "photo_url",
-            "image_asset_ids", "model_3d_asset_ids",
+            "image_asset_ids", "model_3d_asset_ids", "model_3d_id",
             "model_glb", "model_fbx", "model_rfa", "model_usdz", "model_ar_glb",
             "shop_url", "cp_notes",
             "image", "images", "asset_images", "asset_3d_models",
@@ -248,6 +249,13 @@ class ProductSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(image_url) if request else image_url
         return None
     
+    def get_model_3d_id(self, obj):
+        """Первый ID 3D модели из model_3d_asset_ids (например Пуф123)"""
+        if not obj.model_3d_asset_ids:
+            return None
+        first = obj.model_3d_asset_ids.split(',')[0].strip()
+        return first or None
+
     def get_asset_images(self, obj):
         """Получить все изображения из FileAsset"""
         request = self.context.get("request")

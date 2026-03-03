@@ -25,8 +25,8 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_active', 'profile']
-        read_only_fields = ['id', 'is_active']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_active', 'is_superuser', 'profile']
+        read_only_fields = ['id', 'is_active', 'is_superuser']
     
     def update(self, instance, validated_data):
         # Извлекаем данные профиля из validated_data

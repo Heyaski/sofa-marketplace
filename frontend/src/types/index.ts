@@ -52,6 +52,7 @@ export interface Product {
 	// 3D модели
 	image_asset_ids?: string
 	model_3d_asset_ids?: string
+	model_3d_id?: string | null
 	asset_3d_models?: FileAsset[]
 	model_glb?: string
 	model_fbx?: string
@@ -184,6 +185,7 @@ export interface User {
 	first_name: string
 	last_name: string
 	is_active: boolean
+	is_superuser?: boolean
 	profile?: UserProfile
 }
 

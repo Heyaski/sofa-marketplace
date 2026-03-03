@@ -8,6 +8,7 @@ import Header from '@/components/Header'
 import ProductModelViewer from '@/components/ProductModelViewer'
 import { config } from '@/config'
 import { formatDimension } from '@/utils/format'
+import { getTitleWithoutBrand } from '@/utils/productTitle'
 import { useBaskets, useProduct } from '@/hooks/useApi'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -134,14 +135,21 @@ export default function ProductPage({ params }: ProductPageProps) {
 					<div className='grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12'>
 						{/* 3D модель или изображения товара — можно крутить */}
 						<div className='space-y-4'>
-							<div className='bg-gray-bg rounded-lg overflow-hidden'>
+							<div className='bg-gray-bg rounded-lg overflow-hidden relative'>
+								{product.model_3d_id && (
+									<span className='absolute left-3 top-3 z-10 text-xs text-gray font-medium bg-white/80 px-2 py-1 rounded'>
+										{product.model_3d_id}
+									</span>
+								)}
 								<ProductModelViewer product={product} variant='page' />
 							</div>
 						</div>
 
 			{/* Информация о товаре */}
 			<div className='space-y-4 sm:space-y-6'>
-							<h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-black'>{product.title}</h1>
+							<h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-black'>
+								{getTitleWithoutBrand(product.title || '', product.brand)}
+							</h1>
 
 							{/* Описание */}
 							{product.description && (

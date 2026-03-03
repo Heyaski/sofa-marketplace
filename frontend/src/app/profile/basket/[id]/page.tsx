@@ -9,6 +9,7 @@ import UpgradeSubscriptionModal from '@/components/UpgradeSubscriptionModal'
 import { config } from '@/config'
 import apiClient from '@/lib/api'
 import { authService, basketService, basketEditRequestService } from '@/services/api'
+import { getTitleWithoutBrand } from '@/utils/productTitle'
 import { Basket, BasketItem, User, BasketEditRequest } from '@/types'
 import {
 	ArrowDownTrayIcon,
@@ -435,7 +436,7 @@ export default function BasketDetailPage() {
 											: ''
 									}`}
 								>
-									{/* Product image + name + price — строкой на мобильных */}
+									{/* Product image + name — строкой на мобильных */}
 									<div className='flex items-start gap-3 sm:flex-1 min-w-0'>
 										<div className='flex-shrink-0'>
 											{item.product.image ? (
@@ -459,7 +460,7 @@ export default function BasketDetailPage() {
 										</div>
 										<div className='flex-1 min-w-0'>
 											<h3 className='text-sm sm:text-base font-medium text-black line-clamp-2'>
-												{item.product.title || 'Наименование товара'}
+												{getTitleWithoutBrand(item.product.title || '', item.product.brand) || 'Наименование товара'}
 											</h3>
 										</div>
 									</div>
