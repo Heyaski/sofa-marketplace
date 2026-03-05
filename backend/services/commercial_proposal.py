@@ -632,8 +632,8 @@ def _set_cell_font(cell, font_name, font_size=9):
 
 def generate_commercial_proposal_docx(proposal_request):
     """
-    Генерирует DOCX коммерческого предложения.
-    Структура точно как в PDF: альбомная A4, те же колонки, жирные метки, карточка проекта.
+    Генерирует DOCX коммерческого предложения — 1 в 1 как PDF.
+    Альбомная A4, серый заголовок, чередование строк, картинки, карточка проекта.
     """
     from docx.shared import Inches
     from docx.oxml.ns import qn as _qn
@@ -644,7 +644,7 @@ def generate_commercial_proposal_docx(proposal_request):
 
     doc = Document()
 
-    # === СТРАНИЦА: альбомная A4, поля как в PDF ===
+    # === СТРАНИЦА: альбомная A4, поля как в PDF (15мм / 25мм низ) ===
     section = doc.sections[0]
     section.page_width = Cm(29.7)
     section.page_height = Cm(21.0)
@@ -653,7 +653,6 @@ def generate_commercial_proposal_docx(proposal_request):
     section.top_margin = Cm(1.5)
     section.bottom_margin = Cm(2.5)
 
-    # Инженерный шрифт — ISOCPEUR (AutoCAD/Windows), фолбэк Courier New
     engineer_font = "ISOCPEUR"
     fallback_font = "Courier New"
 
@@ -661,30 +660,40 @@ def generate_commercial_proposal_docx(proposal_request):
     normal_style.font.name = fallback_font
     normal_style.font.size = Pt(9)
 
+    # ---- хелперы ----
+
     def _par(text, bold=False, size=9, align=WD_ALIGN_PARAGRAPH.LEFT):
         p = doc.add_paragraph()
         p.alignment = align
-        r = p.add_run(text)
-        _set_run_font(r, engineer_font, size, bold)
+        _set_run_font(p.add_run(text), engineer_font, size, bold)
         return p
 
     def _par_labeled(label, value, size=10):
-        """Параграф с жирной меткой и обычным значением — как в PDF."""
         p = doc.add_paragraph()
-        r1 = p.add_run(f"{label}: ")
-        _set_run_font(r1, engineer_font, size, bold=True)
-        r2 = p.add_run(value)
-        _set_run_font(r2, engineer_font, size, bold=False)
+        _set_run_font(p.add_run(f"{label}: "), engineer_font, size, bold=True)
+        _set_run_font(p.add_run(value), engineer_font, size, bold=False)
         return p
 
     def _cell_text(cell, text, bold=False, size=9, align=WD_ALIGN_PARAGRAPH.LEFT):
         para = cell.paragraphs[0]
         para.clear()
         para.alignment = align
-        r = para.add_run(text)
-        _set_run_font(r, engineer_font, size, bold)
+        _set_run_font(para.add_run(text), engineer_font, size, bold)
 
-    def _remove_cell_borders(cell):
+    def _cell_bg(cell, hex_color):
+        """Серый/белый фон ячейки."""
+        tc = cell._tc
+        tcPr = tc.get_or_add_tcPr()
+        # удалить старый shd если есть
+        for old in tcPr.findall(_qn('w:shd')):
+            tcPr.remove(old)
+        shd = _OxmlElement('w:shd')
+        shd.set(_qn('w:val'), 'clear')
+        shd.set(_qn('w:color'), 'auto')
+        shd.set(_qn('w:fill'), hex_color)
+        tcPr.append(shd)
+
+    def _remove_borders(cell):
         tc = cell._tc
         tcPr = tc.get_or_add_tcPr()
         tcBorders = _OxmlElement('w:tcBorders')
@@ -694,15 +703,23 @@ def generate_commercial_proposal_docx(proposal_request):
             tcBorders.append(el)
         tcPr.append(tcBorders)
 
-    # === ЗАГОЛОВОК ===
+    def _table_full_width(tbl_obj):
+        """Растянуть таблицу на 100% ширины страницы."""
+        tblPr = tbl_obj._tbl.tblPr
+        for old in tblPr.findall(_qn('w:tblW')):
+            tblPr.remove(old)
+        tblW = _OxmlElement('w:tblW')
+        tblW.set(_qn('w:w'), '5000')
+        tblW.set(_qn('w:type'), 'pct')
+        tblPr.append(tblW)
+
+    # ---- ЗАГОЛОВОК ----
     title_par = doc.add_paragraph()
     title_par.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    title_run = title_par.add_run("КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ")
-    _set_run_font(title_run, engineer_font, 16, bold=True)
-
+    _set_run_font(title_par.add_run("КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ"), engineer_font, 16, bold=True)
     doc.add_paragraph()
 
-    # === МЕТА-ИНФОРМАЦИЯ (с жирными метками, как в PDF) ===
+    # ---- МЕТА (с жирными метками, как в PDF) ----
     months_ru = {
         'January': 'января', 'February': 'февраля', 'March': 'марта',
         'April': 'апреля', 'May': 'мая', 'June': 'июня',
@@ -710,35 +727,41 @@ def generate_commercial_proposal_docx(proposal_request):
         'October': 'октября', 'November': 'ноября', 'December': 'декабря',
     }
     month_en = proposal_request.created_at.strftime('%B')
-    date_str = proposal_request.created_at.strftime('%d {month} %Y г.')
-    date_str = date_str.replace('{month}', months_ru.get(month_en, month_en))
-
+    date_str = proposal_request.created_at.strftime('%d {month} %Y г.').replace(
+        '{month}', months_ru.get(month_en, month_en)
+    )
     _par_labeled("Дата", date_str)
     _par_labeled("Клиент", proposal_request.client_name)
     if proposal_request.company_name:
         _par_labeled("От", proposal_request.company_name)
     _par_labeled("Проект", proposal_request.project_name)
-
     doc.add_paragraph()
 
-    # === ТАБЛИЦА ТОВАРОВ ===
+    # ---- ТАБЛИЦА ТОВАРОВ ----
+    # Ширины в Cm пропорциональны PDF (доступно ~26.7 см)
+    # PDF: 60 / 85 / 75 / 45 / 55 / 55 / 80 / ~305 pts
+    col_cms = [2.12, 3.00, 2.65, 1.59, 1.94, 1.94, 2.83, 10.63]
+
     table = doc.add_table(rows=1, cols=8)
     table.style = 'Table Grid'
+    _table_full_width(table)
 
-    col_inches = [1.0, 1.5, 1.3, 0.7, 0.9, 0.9, 1.4, 1.8]
     for idx, cell in enumerate(table.rows[0].cells):
-        cell.width = Inches(col_inches[idx])
+        cell.width = Cm(col_cms[idx])
 
-    headers = ["ID", "Наименование", "Изображение", "Кол-во, шт",
-               "Цена за шт., руб.", "Сумма, руб.", "Магазин, ссылка", "Примечание"]
-    hdr_cells = table.rows[0].cells
-    for idx, text in enumerate(headers):
-        _cell_text(hdr_cells[idx], text, bold=True, size=9, align=WD_ALIGN_PARAGRAPH.CENTER)
+    # Заголовок таблицы — серый фон D9D9D9 (= 0.85 gray как в PDF)
+    hdr_texts = [
+        "ID", "Наименование", "Изображение", "Кол-во,\nшт",
+        "Цена за\nшт., руб.", "Сумма,\nруб.", "Магазин,\nссылка", "Примечание",
+    ]
+    for idx, cell in enumerate(table.rows[0].cells):
+        _cell_bg(cell, 'D9D9D9')
+        _cell_text(cell, hdr_texts[idx], bold=True, size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
 
     total_sum = 0
-    IMG_SIDE_CM = 3.0
+    IMG_W_CM = 2.5  # ширина картинки в ячейке
 
-    for item in items:
+    for row_idx, item in enumerate(items):
         product = item.product
         quantity = item.quantity
         price = float(product.price)
@@ -747,90 +770,91 @@ def generate_commercial_proposal_docx(proposal_request):
 
         row_cells = table.add_row().cells
         for idx, cell in enumerate(row_cells):
-            cell.width = Inches(col_inches[idx])
+            cell.width = Cm(col_cms[idx])
+
+        # Чередование фона строк (белый / светло-серый), как в PDF
+        row_bg = 'FFFFFF' if row_idx % 2 == 0 else 'F7F7F7'
+        for cell in row_cells:
+            _cell_bg(cell, row_bg)
 
         # ID
         model_id = (
             product.model_3d_asset_ids.strip().split(',')[0]
-            if getattr(product, "model_3d_asset_ids", None) and product.model_3d_asset_ids.strip()
+            if getattr(product, 'model_3d_asset_ids', None) and product.model_3d_asset_ids.strip()
             else f'#{product.id}'
         )
         _cell_text(row_cells[0], model_id, size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
 
-        # Наименование (тип + цвет, без бренда)
-        display_title = _strip_brand(product.title, getattr(product, "brand", None))
+        # Наименование (без бренда)
+        display_title = _strip_brand(product.title, getattr(product, 'brand', None))
         _cell_text(row_cells[1], display_title, size=8)
 
-        # Изображение — фиксированная ширина, python-docx сам сохраняет пропорции
+        # Изображение — добавляем напрямую, без PIL (python-docx сам сохраняет пропорции)
         img_par = row_cells[2].paragraphs[0]
         img_par.alignment = WD_ALIGN_PARAGRAPH.CENTER
         img_data = get_product_image(product)
         if img_data:
             try:
                 img_data.seek(0)
-                img_par.add_run().add_picture(img_data, width=Cm(IMG_SIDE_CM))
+                img_par.add_run().add_picture(img_data, width=Cm(IMG_W_CM))
             except Exception:
-                img_par.add_run("—")
+                img_par.add_run('—')
         else:
-            img_par.add_run("—")
+            img_par.add_run('—')
 
-        # Кол-во
+        # Кол-во / Цена / Сумма
         _cell_text(row_cells[3], str(quantity), size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
-
-        # Цена и сумма
         _cell_text(row_cells[4], f'{price:,.0f}'.replace(',', ' '), size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
         _cell_text(row_cells[5], f'{item_total:,.0f}'.replace(',', ' '), size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
 
-        # Ссылка — поиск по оригинальному названию (с брендом) для точных результатов
+        # Ссылка — поиск по полному оригинальному названию (с брендом = точные результаты)
         original_title = product.title or display_title
         search_query = quote_plus(f'{original_title} купить')
         search_url = f'https://ya.ru/search/?text={search_query}'
-        link_text = display_title[:35] + '...' if len(display_title) > 35 else display_title
-        _add_hyperlink_to_cell(row_cells[6], search_url, f'Яндекс: {link_text}', engineer_font, font_size=8)
+        link_label = f'ya.ru: {display_title[:30]}...' if len(display_title) > 30 else f'ya.ru: {display_title}'
+        _add_hyperlink_to_cell(row_cells[6], search_url, link_label, engineer_font, font_size=8)
 
-        # Примечание (габариты + доп. информация)
+        # Примечание (габариты + производитель)
         notes_parts = []
         dims = format_dimensions(product)
         if dims:
             notes_parts.append(dims.replace('\n', ' '))
-        if getattr(product, "cp_notes", None):
+        if getattr(product, 'cp_notes', None):
             notes_parts.append(product.cp_notes)
-        elif getattr(product, "brand", None):
-            notes_parts.append(f"Производитель: {product.brand}")
-        _cell_text(row_cells[7], " ".join(notes_parts) if notes_parts else "—", size=8)
+        elif getattr(product, 'brand', None):
+            notes_parts.append(f'Производитель: {product.brand}')
+        _cell_text(row_cells[7], ' '.join(notes_parts) if notes_parts else '—', size=8)
 
-    # === ИТОГО ===
+    # ---- ИТОГО ----
     doc.add_paragraph()
     total_par = doc.add_paragraph()
     total_par.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    total_run = total_par.add_run(f"ИТОГО: {total_sum:,.0f} руб.".replace(',', ' '))
-    _set_run_font(total_run, engineer_font, 12, bold=True)
+    _set_run_font(
+        total_par.add_run(f'ИТОГО: {total_sum:,.0f} руб.'.replace(',', ' ')),
+        engineer_font, 12, bold=True,
+    )
 
-    # === ПРИМЕЧАНИЯ ===
+    # ---- ПРИМЕЧАНИЯ ----
     doc.add_paragraph()
-    notes_title_par = doc.add_paragraph()
-    _set_run_font(notes_title_par.add_run("Примечания:"), engineer_font, 9, bold=True)
-    _par("1. Смотреть совместно с планом расстановки мебели и развертками.")
-    _par("2. Детальные чертежи для мебели индивидуального производства составлять совместно с поставщиками.")
-
+    notes_p = doc.add_paragraph()
+    _set_run_font(notes_p.add_run('Примечания:'), engineer_font, 9, bold=True)
+    _par('1. Смотреть совместно с планом расстановки мебели и развертками.')
+    _par('2. Детальные чертежи для мебели индивидуального производства составлять совместно с поставщиками.')
     doc.add_paragraph()
 
-    # === КАРТОЧКА ПРОЕКТА (справа внизу, как в PDF) ===
-    # Таблица 1×2: пустая широкая ячейка слева + карточка справа
+    # ---- КАРТОЧКА ПРОЕКТА (справа внизу, как в PDF) ----
     card_wrap = doc.add_table(rows=1, cols=2)
     card_wrap.style = 'Table Grid'
-    _remove_cell_borders(card_wrap.rows[0].cells[0])  # левая ячейка без рамок
-
-    # Правая ячейка — разделяем на 2 строки через вложенную таблицу
+    _remove_borders(card_wrap.rows[0].cells[0])
+    card_wrap.rows[0].cells[0].width = Cm(21.2)
     right_cell = card_wrap.rows[0].cells[1]
     right_cell.width = Cm(5.5)
-    card_wrap.rows[0].cells[0].width = Cm(20.7)
 
     inner = right_cell.add_table(rows=2, cols=1)
     inner.style = 'Table Grid'
-    _cell_text(inner.rows[0].cells[0], "КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ",
+    _cell_text(inner.rows[0].cells[0], 'КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ',
                bold=True, size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
-    _cell_text(inner.rows[1].cells[0], f"Дизайн-проект: {proposal_request.project_name}",
+    _cell_text(inner.rows[1].cells[0], f'Дизайн-проект: {proposal_request.project_name}',
                size=7, align=WD_ALIGN_PARAGRAPH.CENTER)
 
     buffer = io.BytesIO()
