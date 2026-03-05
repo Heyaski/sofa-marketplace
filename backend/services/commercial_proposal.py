@@ -423,8 +423,9 @@ def generate_commercial_proposal_pdf(proposal_request):
         # Сумма
         item_sum = Paragraph(f'{item_total:,.0f}'.replace(',', ' '), cell_style)
         
-        # Ссылка — поиск товара в Яндексе по названию
-        search_query = quote_plus(f'{display_title} купить')
+        # Ссылка — поиск по оригинальному названию (с брендом) для точных результатов
+        original_title = product.title or display_title
+        search_query = quote_plus(f'{original_title} купить')
         search_url = f'https://ya.ru/search/?text={search_query}'
         short_label = f'ya.ru: {display_title[:30]}...' if len(display_title) > 30 else f'ya.ru: {display_title}'
         item_shop = Paragraph(
@@ -760,23 +761,14 @@ def generate_commercial_proposal_docx(proposal_request):
         display_title = _strip_brand(product.title, getattr(product, "brand", None))
         _cell_text(row_cells[1], display_title, size=8)
 
-        # Изображение — одинаковый размер, сохраняя пропорции
+        # Изображение — фиксированная ширина, python-docx сам сохраняет пропорции
         img_par = row_cells[2].paragraphs[0]
         img_par.alignment = WD_ALIGN_PARAGRAPH.CENTER
         img_data = get_product_image(product)
         if img_data:
             try:
                 img_data.seek(0)
-                with PILImage.open(img_data) as pil_img:
-                    orig_w, orig_h = pil_img.size
-                img_data.seek(0)
-                if orig_w > 0 and orig_h > 0:
-                    if orig_w >= orig_h:
-                        img_par.add_run().add_picture(img_data, width=Cm(IMG_SIDE_CM))
-                    else:
-                        img_par.add_run().add_picture(img_data, height=Cm(IMG_SIDE_CM))
-                else:
-                    img_par.add_run("—")
+                img_par.add_run().add_picture(img_data, width=Cm(IMG_SIDE_CM))
             except Exception:
                 img_par.add_run("—")
         else:
@@ -789,8 +781,9 @@ def generate_commercial_proposal_docx(proposal_request):
         _cell_text(row_cells[4], f'{price:,.0f}'.replace(',', ' '), size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
         _cell_text(row_cells[5], f'{item_total:,.0f}'.replace(',', ' '), size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
 
-        # Ссылка — поиск в Яндексе (кликабельная гиперссылка)
-        search_query = quote_plus(f'{display_title} купить')
+        # Ссылка — поиск по оригинальному названию (с брендом) для точных результатов
+        original_title = product.title or display_title
+        search_query = quote_plus(f'{original_title} купить')
         search_url = f'https://ya.ru/search/?text={search_query}'
         link_text = display_title[:35] + '...' if len(display_title) > 35 else display_title
         _add_hyperlink_to_cell(row_cells[6], search_url, f'Яндекс: {link_text}', engineer_font, font_size=8)
