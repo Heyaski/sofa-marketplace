@@ -181,16 +181,14 @@ class CommercialProposalRequestSerializer(serializers.ModelSerializer):
     
     def get_pdf_url(self, obj):
         request = self.context.get("request")
-        if obj.pdf_file:
-            path = f"/api/kp/{obj.id}/pdf/"
-            return request.build_absolute_uri(path) if request else path
+        if obj.pdf_file and hasattr(obj.pdf_file, "url"):
+            return request.build_absolute_uri(obj.pdf_file.url) if request else obj.pdf_file.url
         return None
 
     def get_docx_url(self, obj):
         request = self.context.get("request")
-        if obj.docx_file:
-            path = f"/api/kp/{obj.id}/docx/"
-            return request.build_absolute_uri(path) if request else path
+        if obj.docx_file and hasattr(obj.docx_file, "url"):
+            return request.build_absolute_uri(obj.docx_file.url) if request else obj.docx_file.url
         return None
     
     def validate(self, data):

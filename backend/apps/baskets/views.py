@@ -1,11 +1,10 @@
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db.models import Q
 from django.core.files.base import ContentFile
-from django.http import FileResponse, Http404
 
 from .models import Basket, BasketItem, BasketEditRequest, CommercialProposalRequest
 from .serializers import (
@@ -14,47 +13,6 @@ from .serializers import (
 )
 from apps.catalog.models import Product
 from apps.chats.models import MessageBasket
-
-
-def _kp_has_access(proposal, user):
-    if not proposal:
-        return False
-    b = proposal.basket
-    if b.user == user:
-        return True
-    return MessageBasket.objects.filter(basket=b, message__chat__participant1=user).exists() or MessageBasket.objects.filter(basket=b, message__chat__participant2=user).exists()
-
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def kp_download_pdf(request, proposal_id):
-    """Скачивание PDF с именем КП.pdf."""
-    try:
-        p = CommercialProposalRequest.objects.select_related("basket").get(pk=proposal_id)
-    except CommercialProposalRequest.DoesNotExist:
-        raise Http404
-    if not _kp_has_access(p, request.user) or not p.pdf_file:
-        raise Http404
-    f = p.pdf_file.open("rb")
-    r = FileResponse(f, content_type="application/pdf")
-    r["Content-Disposition"] = 'attachment; filename="КП.pdf"'
-    return r
-
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def kp_download_docx(request, proposal_id):
-    """Скачивание DOCX с именем КП.docx."""
-    try:
-        p = CommercialProposalRequest.objects.select_related("basket").get(pk=proposal_id)
-    except CommercialProposalRequest.DoesNotExist:
-        raise Http404
-    if not _kp_has_access(p, request.user) or not p.docx_file:
-        raise Http404
-    f = p.docx_file.open("rb")
-    r = FileResponse(f, content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-    r["Content-Disposition"] = 'attachment; filename="КП.docx"'
-    return r
 
 
 class BasketViewSet(viewsets.ModelViewSet):
