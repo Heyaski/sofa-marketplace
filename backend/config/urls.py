@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from apps.users.views import CustomTokenObtainPairView
+from apps.baskets.views import kp_download_pdf, kp_download_docx
 
 # подключаем наш сервис оплаты
 from services.payment_views import pay_order
@@ -29,6 +30,10 @@ urlpatterns = [
 
     # оплата
     path("api/orders/<int:order_id>/pay/", pay_order, name="pay_order"),
+
+    # Скачивание КП с именем КП.pdf / КП.docx
+    path("api/kp/<int:proposal_id>/pdf/", kp_download_pdf),
+    path("api/kp/<int:proposal_id>/docx/", kp_download_docx),
 ]
 
 # 👇 эта часть обязательна для отображения изображений при DEBUG=True

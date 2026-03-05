@@ -423,10 +423,10 @@ def generate_commercial_proposal_pdf(proposal_request):
         # Сумма
         item_sum = Paragraph(f'{item_total:,.0f}'.replace(',', ' '), cell_style)
         
-        # Ссылка — поиск точной модели: ID + название + бренд (максимальная точность)
+        # Ссылка — как в DOCX: ID + название + бренд + купить (точный поиск в Яндексе)
         original_title = product.title or display_title
         search_parts = [model_id, original_title]
-        if product.brand:
+        if getattr(product, 'brand', None):
             search_parts.append(product.brand)
         search_parts.append('купить')
         search_query = quote_plus(' '.join(search_parts))
