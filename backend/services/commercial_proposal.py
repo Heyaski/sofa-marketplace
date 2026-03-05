@@ -579,7 +579,13 @@ def _add_hyperlink_to_cell(cell, url, text, font_name, font_size=8):
 
     paragraph = cell.paragraphs[0]
     paragraph.clear()
-    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    # Принудительно задаём выравнивание по центру через XML
+    pPr = paragraph._p.get_or_add_pPr()
+    for old in pPr.findall(qn('w:jc')):
+        pPr.remove(old)
+    jc = OxmlElement('w:jc')
+    jc.set(qn('w:val'), 'center')
+    pPr.append(jc)
 
     try:
         part = paragraph.part
@@ -677,7 +683,14 @@ def generate_commercial_proposal_docx(proposal_request):
     def _cell_text(cell, text, bold=False, size=9, align=WD_ALIGN_PARAGRAPH.LEFT):
         para = cell.paragraphs[0]
         para.clear()
-        para.alignment = align
+        # Принудительно задаём выравнивание через XML (paragraph.alignment иногда не срабатывает в ячейках)
+        align_val = 'center' if align == WD_ALIGN_PARAGRAPH.CENTER else 'left'
+        pPr = para._p.get_or_add_pPr()
+        for old in pPr.findall(_qn('w:jc')):
+            pPr.remove(old)
+        jc = _OxmlElement('w:jc')
+        jc.set(_qn('w:val'), align_val)
+        pPr.append(jc)
         _set_run_font(para.add_run(text), docx_font, size, bold)
 
     def _cell_bg(cell, hex_color):
