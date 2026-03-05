@@ -579,7 +579,7 @@ def _add_hyperlink_to_cell(cell, url, text, font_name, font_size=8):
 
     paragraph = cell.paragraphs[0]
     paragraph.clear()
-    paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     try:
         part = paragraph.part
@@ -787,7 +787,7 @@ def generate_commercial_proposal_docx(proposal_request):
 
         # Наименование (без бренда)
         display_title = _strip_brand(product.title, getattr(product, 'brand', None))
-        _cell_text(row_cells[1], display_title, size=8)
+        _cell_text(row_cells[1], display_title, size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
 
         # Изображение — конвертируем в JPEG для гарантированной совместимости с DOCX
         img_par = row_cells[2].paragraphs[0]
@@ -833,7 +833,7 @@ def generate_commercial_proposal_docx(proposal_request):
             notes_parts.append(product.cp_notes)
         elif getattr(product, 'brand', None):
             notes_parts.append(f'Производитель: {product.brand}')
-        _cell_text(row_cells[7], ' '.join(notes_parts) if notes_parts else '—', size=8)
+        _cell_text(row_cells[7], ' '.join(notes_parts) if notes_parts else '—', size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
 
     # ---- ИТОГО ----
     doc.add_paragraph()
