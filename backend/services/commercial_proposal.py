@@ -631,19 +631,31 @@ def _set_cell_font(cell, font_name, font_size=9):
 
 def generate_commercial_proposal_docx(proposal_request):
     """
-    Генерирует DOCX коммерческого предложения с той же структурой, что и PDF.
-    Возвращает bytes DOCX-файла.
+    Генерирует DOCX коммерческого предложения.
+    Структура точно как в PDF: альбомная A4, те же колонки, жирные метки, карточка проекта.
     """
+    from docx.shared import Inches
+    from docx.oxml.ns import qn as _qn
+    from docx.oxml import OxmlElement as _OxmlElement
+
     basket = proposal_request.basket
     items = basket.items.select_related('product').all()
 
     doc = Document()
 
+    # === СТРАНИЦА: альбомная A4, поля как в PDF ===
+    section = doc.sections[0]
+    section.page_width = Cm(29.7)
+    section.page_height = Cm(21.0)
+    section.left_margin = Cm(1.5)
+    section.right_margin = Cm(1.5)
+    section.top_margin = Cm(1.5)
+    section.bottom_margin = Cm(2.5)
+
     # Инженерный шрифт — ISOCPEUR (AutoCAD/Windows), фолбэк Courier New
     engineer_font = "ISOCPEUR"
     fallback_font = "Courier New"
 
-    # Устанавливаем шрифт по умолчанию через стиль Normal
     normal_style = doc.styles["Normal"]
     normal_style.font.name = fallback_font
     normal_style.font.size = Pt(9)
@@ -655,6 +667,15 @@ def generate_commercial_proposal_docx(proposal_request):
         _set_run_font(r, engineer_font, size, bold)
         return p
 
+    def _par_labeled(label, value, size=10):
+        """Параграф с жирной меткой и обычным значением — как в PDF."""
+        p = doc.add_paragraph()
+        r1 = p.add_run(f"{label}: ")
+        _set_run_font(r1, engineer_font, size, bold=True)
+        r2 = p.add_run(value)
+        _set_run_font(r2, engineer_font, size, bold=False)
+        return p
+
     def _cell_text(cell, text, bold=False, size=9, align=WD_ALIGN_PARAGRAPH.LEFT):
         para = cell.paragraphs[0]
         para.clear()
@@ -662,7 +683,17 @@ def generate_commercial_proposal_docx(proposal_request):
         r = para.add_run(text)
         _set_run_font(r, engineer_font, size, bold)
 
-    # Заголовок
+    def _remove_cell_borders(cell):
+        tc = cell._tc
+        tcPr = tc.get_or_add_tcPr()
+        tcBorders = _OxmlElement('w:tcBorders')
+        for side in ('top', 'left', 'bottom', 'right', 'insideH', 'insideV'):
+            el = _OxmlElement(f'w:{side}')
+            el.set(_qn('w:val'), 'none')
+            tcBorders.append(el)
+        tcPr.append(tcBorders)
+
+    # === ЗАГОЛОВОК ===
     title_par = doc.add_paragraph()
     title_par.alignment = WD_ALIGN_PARAGRAPH.CENTER
     title_run = title_par.add_run("КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ")
@@ -670,7 +701,7 @@ def generate_commercial_proposal_docx(proposal_request):
 
     doc.add_paragraph()
 
-    # Дата
+    # === МЕТА-ИНФОРМАЦИЯ (с жирными метками, как в PDF) ===
     months_ru = {
         'January': 'января', 'February': 'февраля', 'March': 'марта',
         'April': 'апреля', 'May': 'мая', 'June': 'июня',
@@ -681,32 +712,30 @@ def generate_commercial_proposal_docx(proposal_request):
     date_str = proposal_request.created_at.strftime('%d {month} %Y г.')
     date_str = date_str.replace('{month}', months_ru.get(month_en, month_en))
 
-    _par(f"Дата: {date_str}")
-    _par(f"Клиент: {proposal_request.client_name}")
+    _par_labeled("Дата", date_str)
+    _par_labeled("Клиент", proposal_request.client_name)
     if proposal_request.company_name:
-        _par(f"От: {proposal_request.company_name}")
-    _par(f"Проект: {proposal_request.project_name}")
+        _par_labeled("От", proposal_request.company_name)
+    _par_labeled("Проект", proposal_request.project_name)
 
     doc.add_paragraph()
 
-    # Таблица товаров
-    from docx.shared import Inches
+    # === ТАБЛИЦА ТОВАРОВ ===
     table = doc.add_table(rows=1, cols=8)
     table.style = 'Table Grid'
 
-    # Ширины колонок в дюймах (сумма ~11" для A4 альбом)
     col_inches = [1.0, 1.5, 1.3, 0.7, 0.9, 0.9, 1.4, 1.8]
     for idx, cell in enumerate(table.rows[0].cells):
         cell.width = Inches(col_inches[idx])
 
-    # Заголовок таблицы
-    headers = ["ID", "Наименование", "Изображение", "Кол-во, шт", "Цена за шт., руб.", "Сумма, руб.", "Магазин, ссылка", "Примечание"]
+    headers = ["ID", "Наименование", "Изображение", "Кол-во, шт",
+               "Цена за шт., руб.", "Сумма, руб.", "Магазин, ссылка", "Примечание"]
     hdr_cells = table.rows[0].cells
     for idx, text in enumerate(headers):
         _cell_text(hdr_cells[idx], text, bold=True, size=9, align=WD_ALIGN_PARAGRAPH.CENTER)
 
     total_sum = 0
-    IMG_SIDE_CM = 3.0  # одинаковый размер всех изображений
+    IMG_SIDE_CM = 3.0
 
     for item in items:
         product = item.product
@@ -742,19 +771,16 @@ def generate_commercial_proposal_docx(proposal_request):
                     orig_w, orig_h = pil_img.size
                 img_data.seek(0)
                 if orig_w > 0 and orig_h > 0:
-                    # Вписываем в квадрат IMG_SIDE_CM, сохраняя пропорции
                     if orig_w >= orig_h:
-                        img_run = img_par.add_run()
-                        img_run.add_picture(img_data, width=Cm(IMG_SIDE_CM))
+                        img_par.add_run().add_picture(img_data, width=Cm(IMG_SIDE_CM))
                     else:
-                        img_run = img_par.add_run()
-                        img_run.add_picture(img_data, height=Cm(IMG_SIDE_CM))
+                        img_par.add_run().add_picture(img_data, height=Cm(IMG_SIDE_CM))
                 else:
-                    row_cells[2].paragraphs[0].add_run("—")
+                    img_par.add_run("—")
             except Exception:
-                row_cells[2].paragraphs[0].add_run("—")
+                img_par.add_run("—")
         else:
-            row_cells[2].paragraphs[0].add_run("—")
+            img_par.add_run("—")
 
         # Кол-во
         _cell_text(row_cells[3], str(quantity), size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
@@ -763,7 +789,7 @@ def generate_commercial_proposal_docx(proposal_request):
         _cell_text(row_cells[4], f'{price:,.0f}'.replace(',', ' '), size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
         _cell_text(row_cells[5], f'{item_total:,.0f}'.replace(',', ' '), size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
 
-        # Ссылка — поиск в Яндексе (гиперссылка)
+        # Ссылка — поиск в Яндексе (кликабельная гиперссылка)
         search_query = quote_plus(f'{display_title} купить')
         search_url = f'https://ya.ru/search/?text={search_query}'
         link_text = display_title[:35] + '...' if len(display_title) > 35 else display_title
@@ -780,20 +806,39 @@ def generate_commercial_proposal_docx(proposal_request):
             notes_parts.append(f"Производитель: {product.brand}")
         _cell_text(row_cells[7], " ".join(notes_parts) if notes_parts else "—", size=8)
 
-    # Итог
+    # === ИТОГО ===
     doc.add_paragraph()
     total_par = doc.add_paragraph()
     total_par.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     total_run = total_par.add_run(f"ИТОГО: {total_sum:,.0f} руб.".replace(',', ' '))
     _set_run_font(total_run, engineer_font, 12, bold=True)
 
-    # Примечания
+    # === ПРИМЕЧАНИЯ ===
     doc.add_paragraph()
     notes_title_par = doc.add_paragraph()
-    notes_title_run = notes_title_par.add_run("Примечания:")
-    _set_run_font(notes_title_run, engineer_font, 9, bold=True)
+    _set_run_font(notes_title_par.add_run("Примечания:"), engineer_font, 9, bold=True)
     _par("1. Смотреть совместно с планом расстановки мебели и развертками.")
     _par("2. Детальные чертежи для мебели индивидуального производства составлять совместно с поставщиками.")
+
+    doc.add_paragraph()
+
+    # === КАРТОЧКА ПРОЕКТА (справа внизу, как в PDF) ===
+    # Таблица 1×2: пустая широкая ячейка слева + карточка справа
+    card_wrap = doc.add_table(rows=1, cols=2)
+    card_wrap.style = 'Table Grid'
+    _remove_cell_borders(card_wrap.rows[0].cells[0])  # левая ячейка без рамок
+
+    # Правая ячейка — разделяем на 2 строки через вложенную таблицу
+    right_cell = card_wrap.rows[0].cells[1]
+    right_cell.width = Cm(5.5)
+    card_wrap.rows[0].cells[0].width = Cm(20.7)
+
+    inner = right_cell.add_table(rows=2, cols=1)
+    inner.style = 'Table Grid'
+    _cell_text(inner.rows[0].cells[0], "КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ",
+               bold=True, size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
+    _cell_text(inner.rows[1].cells[0], f"Дизайн-проект: {proposal_request.project_name}",
+               size=7, align=WD_ALIGN_PARAGRAPH.CENTER)
 
     buffer = io.BytesIO()
     doc.save(buffer)

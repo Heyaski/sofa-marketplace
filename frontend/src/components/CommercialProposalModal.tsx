@@ -130,16 +130,16 @@ export default function CommercialProposalModal({
 									Скачать PDF
 								</a>
 							)}
-							{docxUrl && (
-								<a
-									href={docxUrl}
-									target='_blank'
-									rel='noopener noreferrer'
-									className='inline-block bg-white text-main1 border border-main1 px-6 py-2 rounded-lg hover:bg-main1 hover:text-white transition-colors font-medium'
-								>
-									Скачать DOCX
-								</a>
-							)}
+						{docxUrl && (
+							<a
+								href={docxUrl}
+								target='_blank'
+								rel='noopener noreferrer'
+								className='inline-block bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main2 transition-colors font-medium'
+							>
+								Скачать DOCX
+							</a>
+						)}
 						</div>
 						<div>
 							<button
