@@ -225,18 +225,22 @@ class BasketViewSet(viewsets.ModelViewSet):
         )
         
         try:
-            # Генерируем PDF
+            # Генерируем PDF и DOCX
             from services.commercial_proposal import (
                 generate_commercial_proposal_pdf,
+                generate_commercial_proposal_docx,
                 send_proposal_email,
                 send_proposal_telegram,
             )
             
             pdf_bytes = generate_commercial_proposal_pdf(proposal)
+            docx_bytes = generate_commercial_proposal_docx(proposal)
             
-            # Сохраняем PDF
-            filename = f"cp_{proposal.id}_{basket.id}.pdf"
-            proposal.pdf_file.save(filename, ContentFile(pdf_bytes), save=False)
+            # Сохраняем файлы
+            filename_pdf = f"cp_{proposal.id}_{basket.id}.pdf"
+            filename_docx = f"cp_{proposal.id}_{basket.id}.docx"
+            proposal.pdf_file.save(filename_pdf, ContentFile(pdf_bytes), save=False)
+            proposal.docx_file.save(filename_docx, ContentFile(docx_bytes), save=False)
             proposal.status = 'generated'
             proposal.save()
             

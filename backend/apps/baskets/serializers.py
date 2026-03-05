@@ -26,21 +26,28 @@ class ProductSerializer(serializers.ModelSerializer):
         return first or None
 
     def get_title_display(self, obj):
-        """Название без бренда. НЕ удаляем, если brand похож на цвет."""
+        """
+        Название без бренда: тип мебели + цвет.
+        Пример: «Табурет мягкий Handy светло-коричневого цвета» → «Табурет светло-коричневого цвета».
+        """
+        import re
         title = obj.title or ''
         brand = (obj.brand or '').strip()
-        if not brand:
-            return title
-        import re
-        color_pattern = re.compile(
-            r'цвета?$|цветовой|коричнев|чёрн|черн|бел|син|сер|красн|зелен|зёл|жёлт|оранж|беж|золот|серебр|фиолет|розов',
-            re.IGNORECASE
-        )
-        if color_pattern.search(brand):
-            return title
-        escaped = re.escape(brand)
-        pattern = re.compile(r'\s*' + escaped + r'\s*', re.IGNORECASE)
-        return re.sub(r'\s+', ' ', pattern.sub(' ', title)).strip()
+        base = title
+        if brand:
+            escaped = re.escape(brand)
+            pattern = re.compile(r'\s*' + escaped + r'\s*', re.IGNORECASE)
+            base = pattern.sub(' ', base)
+        base = re.sub(r'\s+', ' ', base).strip()
+        if not base:
+            return ''
+        m_type = re.match(r'^\s*([^\s,]+)', base)
+        item_type = m_type.group(1) if m_type else ''
+        m_color = re.search(r'((?:[А-Яа-яЁё]+-)*[А-Яа-яЁё]+\s+цвет[а-я]*)\s*$', base, re.IGNORECASE)
+        if item_type and m_color:
+            color_part = m_color.group(1).strip()
+            return f"{item_type} {color_part}".strip()
+        return base
 
     def get_image(self, obj):
         """Возвращает URL изображения. Приоритет как в каталоге. Для S3 используем FileAssetSerializer."""
@@ -161,13 +168,14 @@ class CommercialProposalRequestSerializer(serializers.ModelSerializer):
     """Сериализатор для запросов на коммерческое предложение"""
     basket_id = serializers.IntegerField(write_only=True)
     pdf_url = serializers.SerializerMethodField()
+    docx_url = serializers.SerializerMethodField()
     
     class Meta:
         model = CommercialProposalRequest
         fields = [
             "id", "basket_id", "client_name", "company_name", 
             "email", "telegram", "delivery_method", "project_name",
-            "status", "pdf_url", "created_at"
+            "status", "pdf_url", "docx_url", "created_at"
         ]
         read_only_fields = ["status", "created_at"]
     
@@ -175,6 +183,12 @@ class CommercialProposalRequestSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if obj.pdf_file and hasattr(obj.pdf_file, "url"):
             return request.build_absolute_uri(obj.pdf_file.url) if request else obj.pdf_file.url
+        return None
+    
+    def get_docx_url(self, obj):
+        request = self.context.get("request")
+        if obj.docx_file and hasattr(obj.docx_file, "url"):
+            return request.build_absolute_uri(obj.docx_file.url) if request else obj.docx_file.url
         return None
     
     def validate(self, data):

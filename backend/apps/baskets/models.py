@@ -86,7 +86,7 @@ class BasketEditRequest(models.Model):
 
 
 def cp_file_upload_path(instance, filename):
-    """Путь для сохранения PDF файлов коммерческих предложений"""
+    """Путь для сохранения файлов коммерческих предложений (PDF/DOCX)"""
     return os.path.join('commercial_proposals', f'cp_{instance.id or "new"}_{filename}')
 
 
@@ -122,8 +122,9 @@ class CommercialProposalRequest(models.Model):
     # Статус
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='pending', verbose_name="Статус")
     
-    # Сгенерированный PDF
+    # Сгенерированные файлы КП
     pdf_file = models.FileField(upload_to='commercial_proposals/', blank=True, null=True, verbose_name="PDF файл КП")
+    docx_file = models.FileField(upload_to='commercial_proposals/', blank=True, null=True, verbose_name="DOCX файл КП")
     
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")

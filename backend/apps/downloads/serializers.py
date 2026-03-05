@@ -1,14 +1,25 @@
+import re
 from rest_framework import serializers
 from .models import Download
 from apps.catalog.models import Product
 
 class ProductSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
+    title_display = serializers.SerializerMethodField()
     
     class Meta:
         model = Product
-        fields = ["id", "title", "price", "image"]
+        fields = ["id", "title", "price", "image", "title_display"]
     
+    def get_title_display(self, obj):
+        title = obj.title or ''
+        brand = (obj.brand or '').strip()
+        if not brand:
+            return title
+        escaped = re.escape(brand)
+        pattern = re.compile(r'\s*' + escaped + r'\s*', re.IGNORECASE)
+        return re.sub(r'\s+', ' ', pattern.sub(' ', title)).strip()
+
     def get_image(self, obj):
         request = self.context.get("request")
         if obj.image and hasattr(obj.image, "url"):

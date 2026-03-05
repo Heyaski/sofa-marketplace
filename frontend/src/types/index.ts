@@ -119,6 +119,7 @@ export interface CommercialProposalResponse {
 	project_name: string
 	status: 'pending' | 'generated' | 'sent' | 'failed'
 	pdf_url?: string | null
+	docx_url?: string | null
 	created_at: string
 }
 

@@ -1,12 +1,14 @@
 """
-Сервис генерации коммерческого предложения (КП) в формате PDF.
+Сервис генерации коммерческого предложения (КП) в формате PDF и DOCX.
 Формирует таблицу с фото, ценой, габаритами товаров из корзины.
 """
 import io
 import os
+import re
 import tempfile
 import requests
 from datetime import datetime
+from urllib.parse import quote_plus
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
@@ -19,77 +21,105 @@ from reportlab.platypus import (
 )
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.utils import ImageReader
+
+from docx import Document
+from docx.shared import Cm, Pt
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from PIL import Image as PILImage
 
 from django.conf import settings
 
+# Имя шрифта, зарегистрированного для КП
+_CP_FONT = 'CPFont'
+_CP_FONT_BOLD = 'CPFont-Bold'
+
+
+def _strip_brand(title, brand):
+    """
+    Убирает бренд из названия товара и оставляет только
+    тип мебели и цвет, если удаётся распарсить.
+    Пример:
+      "Табурет мягкий Handy светло-коричневого цвета" + brand "Handy"
+      → "Табурет светло-коричневого цвета"
+    """
+    base = title or ''
+    if brand and brand.strip():
+        escaped = re.escape(brand.strip())
+        pattern = re.compile(r'\s*' + escaped + r'\s*', re.IGNORECASE)
+        base = pattern.sub(' ', base)
+    base = re.sub(r'\s+', ' ', base).strip()
+    if not base:
+        return ''
+
+    # Первый "тип" мебели — первое слово до пробела/запятой
+    m_type = re.match(r'^\s*([^\s,]+)', base)
+    item_type = m_type.group(1) if m_type else ''
+
+    # Хвост с цветом — одно/составное слово непосредственно перед "цвет..." в конце строки
+    m_color = re.search(r'((?:[А-Яа-яЁё]+-)*[А-Яа-яЁё]+\s+цвет[а-я]*)\s*$', base, re.IGNORECASE)
+    if item_type and m_color:
+        color_part = m_color.group(1).strip()
+        return f"{item_type} {color_part}".strip()
+
+    return base
+
+
 
 def register_fonts():
-    """Регистрирует шрифты для поддержки кириллицы"""
-    # Пробуем найти шрифт в системе
-    font_paths = [
-        # Windows
-        'C:/Windows/Fonts/arial.ttf',
-        'C:/Windows/Fonts/arialbd.ttf',
-        'C:/Windows/Fonts/ariali.ttf',
-        # Linux
-        '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-        '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
-        # macOS
-        '/Library/Fonts/Arial.ttf',
+    """Регистрирует инженерный шрифт (ISOCPEUR → Courier New → built-in Courier)."""
+    font_candidates = [
+        # ISOCPEUR — инженерный шрифт (Windows, AutoCAD)
+        'C:/Windows/Fonts/isocpeur.ttf',
+        # GOST type B (если установлен)
+        'C:/Windows/Fonts/GOST_B.ttf',
+        # Courier New (Windows)
+        'C:/Windows/Fonts/cour.ttf',
+        # Courier New (Linux — пакет ttf-mscorefonts-installer)
+        '/usr/share/fonts/truetype/msttcorefonts/Courier_New.ttf',
+        '/usr/share/fonts/truetype/courier-prime/CourierPrime-Regular.ttf',
+        # DejaVu Mono (Linux fallback)
+        '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf',
+        '/Library/Fonts/Courier New.ttf',
     ]
-    
-    registered = False
-    
-    # Пробуем Arial
-    for path in font_paths:
+    bold_candidates = [
+        'C:/Windows/Fonts/courbd.ttf',
+        '/usr/share/fonts/truetype/msttcorefonts/Courier_New_Bold.ttf',
+        '/usr/share/fonts/truetype/courier-prime/CourierPrime-Bold.ttf',
+        '/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf',
+        '/Library/Fonts/Courier New Bold.ttf',
+    ]
+
+    registered_regular = False
+    for path in font_candidates:
         if os.path.exists(path):
             try:
-                if 'arialbd' in path.lower() or 'Bold' in path:
-                    pdfmetrics.registerFont(TTFont('Arial-Bold', path))
-                elif 'ariali' in path.lower() or 'Italic' in path:
-                    pdfmetrics.registerFont(TTFont('Arial-Italic', path))
-                else:
-                    pdfmetrics.registerFont(TTFont('Arial', path))
-                    registered = True
+                pdfmetrics.registerFont(TTFont(_CP_FONT, path))
+                registered_regular = True
+                break
             except Exception:
                 pass
-    
-    if not registered:
-        # Пробуем DejaVu как запасной вариант
-        dejavu_paths = [
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
-        ]
-        for path in dejavu_paths:
-            if os.path.exists(path):
-                try:
-                    if 'Bold' in path:
-                        pdfmetrics.registerFont(TTFont('Arial-Bold', path))
-                    else:
-                        pdfmetrics.registerFont(TTFont('Arial', path))
-                        registered = True
-                except Exception:
-                    pass
-    
-    if not registered:
-        # Используем встроенный Helvetica (без кириллицы, но хотя бы не падает)
-        # В реальном проекте нужно положить Arial.ttf в проект
-        pass
-    
-    return registered
+
+    for path in bold_candidates:
+        if os.path.exists(path):
+            try:
+                pdfmetrics.registerFont(TTFont(_CP_FONT_BOLD, path))
+                break
+            except Exception:
+                pass
+
+    return registered_regular
 
 
 def get_font_name(bold=False):
-    """Возвращает имя шрифта для использования"""
+    """Возвращает имя зарегистрированного шрифта; фолбэк — встроенный Courier."""
+    target = _CP_FONT_BOLD if bold else _CP_FONT
     try:
-        if bold:
-            pdfmetrics.getFont('Arial-Bold')
-            return 'Arial-Bold'
-        else:
-            pdfmetrics.getFont('Arial')
-            return 'Arial'
+        pdfmetrics.getFont(target)
+        return target
     except KeyError:
-        return 'Helvetica-Bold' if bold else 'Helvetica'
+        # Courier — встроенный инженерный шрифт PDF, всегда доступен
+        return 'Courier-Bold' if bold else 'Courier'
 
 
 def _read_file_field(field_file):
@@ -359,16 +389,26 @@ def generate_commercial_proposal_pdf(proposal_request):
         model_id = product.model_3d_asset_ids.strip().split(',')[0] if product.model_3d_asset_ids and product.model_3d_asset_ids.strip() else f'#{product.id}'
         item_id = Paragraph(model_id, cell_small_style)
         
-        # Наименование
-        item_name = Paragraph(product.title, cell_left_style)
+        # Наименование (без бренда)
+        display_title = _strip_brand(product.title, product.brand)
+        item_name = Paragraph(display_title, cell_left_style)
         
-        # Изображение
+        # Изображение (сохраняем пропорции, вписываем в ячейку)
         img_data = get_product_image(product)
         if img_data:
             try:
-                img = RLImage(img_data, width=60, height=60)
-                img.hAlign = 'CENTER'
-                item_image = img
+                max_w, max_h = 65, 65  # points; чуть меньше ширины колонки (75pt) и высоты строки (75pt)
+                img_data.seek(0)
+                reader = ImageReader(img_data)
+                iw, ih = reader.getSize()
+                if iw > 0 and ih > 0:
+                    ratio = min(max_w / iw, max_h / ih)
+                    img_data.seek(0)
+                    img = RLImage(img_data, width=iw * ratio, height=ih * ratio)
+                    img.hAlign = 'CENTER'
+                    item_image = img
+                else:
+                    item_image = Paragraph('—', cell_style)
             except Exception:
                 item_image = Paragraph('—', cell_style)
         else:
@@ -383,13 +423,14 @@ def generate_commercial_proposal_pdf(proposal_request):
         # Сумма
         item_sum = Paragraph(f'{item_total:,.0f}'.replace(',', ' '), cell_style)
         
-        # Ссылка на карточку товара на сайте
-        frontend_url = getattr(settings, 'FRONTEND_URL', 'https://vizhub.pro').rstrip('/')
-        product_url = f'{frontend_url}/product/{product.id}'
-        display_url = product_url.replace('https://', '').replace('http://', '')
-        if len(display_url) > 35:
-            display_url = display_url[:35] + '...'
-        item_shop = Paragraph(f'<a href="{product_url}" color="blue">{display_url}</a>', cell_small_style)
+        # Ссылка — поиск товара в Яндексе по названию
+        search_query = quote_plus(f'{display_title} купить')
+        search_url = f'https://ya.ru/search/?text={search_query}'
+        short_label = f'ya.ru: {display_title[:30]}...' if len(display_title) > 30 else f'ya.ru: {display_title}'
+        item_shop = Paragraph(
+            f'<a href="{search_url}" color="blue">{short_label}</a>',
+            cell_small_style,
+        )
         
         # Примечание (габариты + доп. информация)
         notes_parts = []
@@ -517,6 +558,245 @@ def generate_commercial_proposal_pdf(proposal_request):
     # Собираем PDF
     doc.build(elements)
     
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+def _set_run_font(run, font_name, size_pt=None, bold=None):
+    """Применяет инженерный шрифт к run."""
+    run.font.name = font_name
+    if size_pt is not None:
+        run.font.size = Pt(size_pt)
+    if bold is not None:
+        run.bold = bold
+
+
+def _add_hyperlink_to_cell(cell, url, text, font_name, font_size=8):
+    """Вставляет гиперссылку в ячейку таблицы DOCX."""
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+
+    paragraph = cell.paragraphs[0]
+    paragraph.clear()
+    paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+    try:
+        part = paragraph.part
+        r_id = part.relate_to(
+            url,
+            'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink',
+            is_external=True,
+        )
+
+        hyperlink = OxmlElement('w:hyperlink')
+        hyperlink.set(qn('r:id'), r_id)
+
+        new_run = OxmlElement('w:r')
+        rpr = OxmlElement('w:rPr')
+
+        # Шрифт
+        rFonts = OxmlElement('w:rFonts')
+        rFonts.set(qn('w:ascii'), font_name)
+        rFonts.set(qn('w:hAnsi'), font_name)
+        rpr.append(rFonts)
+
+        sz = OxmlElement('w:sz')
+        sz.set(qn('w:val'), str(font_size * 2))  # half-points
+        rpr.append(sz)
+
+        color = OxmlElement('w:color')
+        color.set(qn('w:val'), '0563C1')
+        rpr.append(color)
+
+        u = OxmlElement('w:u')
+        u.set(qn('w:val'), 'single')
+        rpr.append(u)
+
+        new_run.append(rpr)
+        t = OxmlElement('w:t')
+        t.text = text
+        new_run.append(t)
+        hyperlink.append(new_run)
+        paragraph._p.append(hyperlink)
+    except Exception:
+        paragraph.add_run(text)
+
+
+def _set_cell_font(cell, font_name, font_size=9):
+    """Применяет шрифт ко всем run-ам в ячейке."""
+    for para in cell.paragraphs:
+        for run in para.runs:
+            _set_run_font(run, font_name, font_size)
+
+
+def generate_commercial_proposal_docx(proposal_request):
+    """
+    Генерирует DOCX коммерческого предложения с той же структурой, что и PDF.
+    Возвращает bytes DOCX-файла.
+    """
+    basket = proposal_request.basket
+    items = basket.items.select_related('product').all()
+
+    doc = Document()
+
+    # Инженерный шрифт — ISOCPEUR (AutoCAD/Windows), фолбэк Courier New
+    engineer_font = "ISOCPEUR"
+    fallback_font = "Courier New"
+
+    # Устанавливаем шрифт по умолчанию через стиль Normal
+    normal_style = doc.styles["Normal"]
+    normal_style.font.name = fallback_font
+    normal_style.font.size = Pt(9)
+
+    def _par(text, bold=False, size=9, align=WD_ALIGN_PARAGRAPH.LEFT):
+        p = doc.add_paragraph()
+        p.alignment = align
+        r = p.add_run(text)
+        _set_run_font(r, engineer_font, size, bold)
+        return p
+
+    def _cell_text(cell, text, bold=False, size=9, align=WD_ALIGN_PARAGRAPH.LEFT):
+        para = cell.paragraphs[0]
+        para.clear()
+        para.alignment = align
+        r = para.add_run(text)
+        _set_run_font(r, engineer_font, size, bold)
+
+    # Заголовок
+    title_par = doc.add_paragraph()
+    title_par.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    title_run = title_par.add_run("КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ")
+    _set_run_font(title_run, engineer_font, 16, bold=True)
+
+    doc.add_paragraph()
+
+    # Дата
+    months_ru = {
+        'January': 'января', 'February': 'февраля', 'March': 'марта',
+        'April': 'апреля', 'May': 'мая', 'June': 'июня',
+        'July': 'июля', 'August': 'августа', 'September': 'сентября',
+        'October': 'октября', 'November': 'ноября', 'December': 'декабря',
+    }
+    month_en = proposal_request.created_at.strftime('%B')
+    date_str = proposal_request.created_at.strftime('%d {month} %Y г.')
+    date_str = date_str.replace('{month}', months_ru.get(month_en, month_en))
+
+    _par(f"Дата: {date_str}")
+    _par(f"Клиент: {proposal_request.client_name}")
+    if proposal_request.company_name:
+        _par(f"От: {proposal_request.company_name}")
+    _par(f"Проект: {proposal_request.project_name}")
+
+    doc.add_paragraph()
+
+    # Таблица товаров
+    from docx.shared import Inches
+    table = doc.add_table(rows=1, cols=8)
+    table.style = 'Table Grid'
+
+    # Ширины колонок в дюймах (сумма ~11" для A4 альбом)
+    col_inches = [1.0, 1.5, 1.3, 0.7, 0.9, 0.9, 1.4, 1.8]
+    for idx, cell in enumerate(table.rows[0].cells):
+        cell.width = Inches(col_inches[idx])
+
+    # Заголовок таблицы
+    headers = ["ID", "Наименование", "Изображение", "Кол-во, шт", "Цена за шт., руб.", "Сумма, руб.", "Магазин, ссылка", "Примечание"]
+    hdr_cells = table.rows[0].cells
+    for idx, text in enumerate(headers):
+        _cell_text(hdr_cells[idx], text, bold=True, size=9, align=WD_ALIGN_PARAGRAPH.CENTER)
+
+    total_sum = 0
+    IMG_SIDE_CM = 3.0  # одинаковый размер всех изображений
+
+    for item in items:
+        product = item.product
+        quantity = item.quantity
+        price = float(product.price)
+        item_total = price * quantity
+        total_sum += item_total
+
+        row_cells = table.add_row().cells
+        for idx, cell in enumerate(row_cells):
+            cell.width = Inches(col_inches[idx])
+
+        # ID
+        model_id = (
+            product.model_3d_asset_ids.strip().split(',')[0]
+            if getattr(product, "model_3d_asset_ids", None) and product.model_3d_asset_ids.strip()
+            else f'#{product.id}'
+        )
+        _cell_text(row_cells[0], model_id, size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
+
+        # Наименование (тип + цвет, без бренда)
+        display_title = _strip_brand(product.title, getattr(product, "brand", None))
+        _cell_text(row_cells[1], display_title, size=8)
+
+        # Изображение — одинаковый размер, сохраняя пропорции
+        img_par = row_cells[2].paragraphs[0]
+        img_par.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        img_data = get_product_image(product)
+        if img_data:
+            try:
+                img_data.seek(0)
+                with PILImage.open(img_data) as pil_img:
+                    orig_w, orig_h = pil_img.size
+                img_data.seek(0)
+                if orig_w > 0 and orig_h > 0:
+                    # Вписываем в квадрат IMG_SIDE_CM, сохраняя пропорции
+                    if orig_w >= orig_h:
+                        img_run = img_par.add_run()
+                        img_run.add_picture(img_data, width=Cm(IMG_SIDE_CM))
+                    else:
+                        img_run = img_par.add_run()
+                        img_run.add_picture(img_data, height=Cm(IMG_SIDE_CM))
+                else:
+                    row_cells[2].paragraphs[0].add_run("—")
+            except Exception:
+                row_cells[2].paragraphs[0].add_run("—")
+        else:
+            row_cells[2].paragraphs[0].add_run("—")
+
+        # Кол-во
+        _cell_text(row_cells[3], str(quantity), size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
+
+        # Цена и сумма
+        _cell_text(row_cells[4], f'{price:,.0f}'.replace(',', ' '), size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
+        _cell_text(row_cells[5], f'{item_total:,.0f}'.replace(',', ' '), size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
+
+        # Ссылка — поиск в Яндексе (гиперссылка)
+        search_query = quote_plus(f'{display_title} купить')
+        search_url = f'https://ya.ru/search/?text={search_query}'
+        link_text = display_title[:35] + '...' if len(display_title) > 35 else display_title
+        _add_hyperlink_to_cell(row_cells[6], search_url, f'Яндекс: {link_text}', engineer_font, font_size=8)
+
+        # Примечание (габариты + доп. информация)
+        notes_parts = []
+        dims = format_dimensions(product)
+        if dims:
+            notes_parts.append(dims.replace('\n', ' '))
+        if getattr(product, "cp_notes", None):
+            notes_parts.append(product.cp_notes)
+        elif getattr(product, "brand", None):
+            notes_parts.append(f"Производитель: {product.brand}")
+        _cell_text(row_cells[7], " ".join(notes_parts) if notes_parts else "—", size=8)
+
+    # Итог
+    doc.add_paragraph()
+    total_par = doc.add_paragraph()
+    total_par.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    total_run = total_par.add_run(f"ИТОГО: {total_sum:,.0f} руб.".replace(',', ' '))
+    _set_run_font(total_run, engineer_font, 12, bold=True)
+
+    # Примечания
+    doc.add_paragraph()
+    notes_title_par = doc.add_paragraph()
+    notes_title_run = notes_title_par.add_run("Примечания:")
+    _set_run_font(notes_title_run, engineer_font, 9, bold=True)
+    _par("1. Смотреть совместно с планом расстановки мебели и развертками.")
+    _par("2. Детальные чертежи для мебели индивидуального производства составлять совместно с поставщиками.")
+
+    buffer = io.BytesIO()
+    doc.save(buffer)
     buffer.seek(0)
     return buffer.getvalue()
 

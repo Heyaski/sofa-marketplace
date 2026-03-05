@@ -31,6 +31,7 @@ export default function CommercialProposalModal({
 	const [success, setSuccess] = useState(false)
 	const [error, setError] = useState('')
 	const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+	const [docxUrl, setDocxUrl] = useState<string | null>(null)
 
 	if (!isOpen) return null
 
@@ -51,9 +52,8 @@ export default function CommercialProposalModal({
 			})
 
 			setSuccess(true)
-			if (result.pdf_url) {
-				setPdfUrl(result.pdf_url)
-			}
+			setPdfUrl(result.pdf_url || null)
+			setDocxUrl(result.docx_url || null)
 		} catch (err: any) {
 			console.error('Ошибка генерации КП:', err)
 			const errorMessage =
@@ -73,6 +73,7 @@ export default function CommercialProposalModal({
 		setSuccess(false)
 		setError('')
 		setPdfUrl(null)
+		setDocxUrl(null)
 		onClose()
 	}
 
@@ -118,16 +119,28 @@ export default function CommercialProposalModal({
 								? `Коммерческое предложение отправлено на ${email}`
 								: `Коммерческое предложение отправлено в Telegram`}
 						</p>
-						{pdfUrl && (
-							<a
-								href={pdfUrl}
-								target='_blank'
-								rel='noopener noreferrer'
-								className='inline-block bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main2 transition-colors font-medium mb-3'
-							>
-								Скачать PDF
-							</a>
-						)}
+						<div className='flex flex-col items-center gap-2 mb-3'>
+							{pdfUrl && (
+								<a
+									href={pdfUrl}
+									target='_blank'
+									rel='noopener noreferrer'
+									className='inline-block bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main2 transition-colors font-medium'
+								>
+									Скачать PDF
+								</a>
+							)}
+							{docxUrl && (
+								<a
+									href={docxUrl}
+									target='_blank'
+									rel='noopener noreferrer'
+									className='inline-block bg-white text-main1 border border-main1 px-6 py-2 rounded-lg hover:bg-main1 hover:text-white transition-colors font-medium'
+								>
+									Скачать DOCX
+								</a>
+							)}
+						</div>
 						<div>
 							<button
 								onClick={handleClose}

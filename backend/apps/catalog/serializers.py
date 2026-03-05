@@ -258,22 +258,31 @@ class ProductSerializer(serializers.ModelSerializer):
         return first or None
 
     def get_title_display(self, obj):
-        """Название без бренда для отображения. НЕ удаляем, если brand похож на цвет."""
+        """
+        Название без бренда для отображения.
+        Стараемся оставить только тип мебели и цвет.
+        Пример: «Табурет мягкий Handy светло-коричневого цвета» → «Табурет светло-коричневого цвета».
+        """
+        import re
         title = obj.title or ''
         brand = (obj.brand or '').strip()
-        if not brand:
-            return title
-        # Если brand похож на обозначение цвета — не трогаем (часто в brand ошибочно попал цвет)
-        import re
-        color_pattern = re.compile(
-            r'цвета?$|цветовой|коричнев|чёрн|черн|бел|син|сер|красн|зелен|зёл|жёлт|оранж|беж|золот|серебр|фиолет|розов',
-            re.IGNORECASE
-        )
-        if color_pattern.search(brand):
-            return title
-        escaped = re.escape(brand)
-        pattern = re.compile(r'\s*' + escaped + r'\s*', re.IGNORECASE)
-        return re.sub(r'\s+', ' ', pattern.sub(' ', title)).strip()
+        base = title
+        if brand:
+            escaped = re.escape(brand)
+            pattern = re.compile(r'\s*' + escaped + r'\s*', re.IGNORECASE)
+            base = pattern.sub(' ', base)
+        base = re.sub(r'\s+', ' ', base).strip()
+        if not base:
+            return ''
+        m_type = re.match(r'^\s*([^\s,]+)', base)
+        item_type = m_type.group(1) if m_type else ''
+        # Ищем цветовую фразу: (префикс-)слово цвет[а-я]* в конце строки.
+        # Используем точный паттерн чтобы не захватить модельное название (Виконт, Maral и т.п.)
+        m_color = re.search(r'((?:[А-Яа-яЁё]+-)*[А-Яа-яЁё]+\s+цвет[а-я]*)\s*$', base, re.IGNORECASE)
+        if item_type and m_color:
+            color_part = m_color.group(1).strip()
+            return f"{item_type} {color_part}".strip()
+        return base
 
     def get_asset_images(self, obj):
         """Получить все изображения из FileAsset"""
