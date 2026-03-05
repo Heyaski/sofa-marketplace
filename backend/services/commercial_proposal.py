@@ -789,17 +789,27 @@ def generate_commercial_proposal_docx(proposal_request):
         display_title = _strip_brand(product.title, getattr(product, 'brand', None))
         _cell_text(row_cells[1], display_title, size=8)
 
-        # Изображение — добавляем напрямую, без PIL (python-docx сам сохраняет пропорции)
+        # Изображение — конвертируем в JPEG для гарантированной совместимости с DOCX
         img_par = row_cells[2].paragraphs[0]
         img_par.alignment = WD_ALIGN_PARAGRAPH.CENTER
         img_data = get_product_image(product)
+        added_img = False
         if img_data:
             try:
                 img_data.seek(0)
-                img_par.add_run().add_picture(img_data, width=Cm(IMG_W_CM))
+                pil_img = PILImage.open(img_data)
+                pil_img.load()
+                if pil_img.mode not in ('RGB', 'L'):
+                    pil_img = pil_img.convert('RGB')
+                jpeg_buf = io.BytesIO()
+                pil_img.save(jpeg_buf, format='JPEG', quality=85)
+                pil_img.close()
+                jpeg_buf.seek(0)
+                img_par.add_run().add_picture(jpeg_buf, width=Cm(IMG_W_CM))
+                added_img = True
             except Exception:
-                img_par.add_run('—')
-        else:
+                pass
+        if not added_img:
             img_par.add_run('—')
 
         # Кол-во / Цена / Сумма
