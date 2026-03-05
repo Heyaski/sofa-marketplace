@@ -17,6 +17,7 @@ interface ProductCardProps {
 	isSuperuser?: boolean
 	onProductUpdated?: (product: Product) => void
 	onProductDeleted?: (productId: number) => void
+	onAuthRequired?: () => void
 }
 
 export default function ProductCard({
@@ -25,6 +26,7 @@ export default function ProductCard({
 	isSuperuser = false,
 	onProductUpdated,
 	onProductDeleted,
+	onAuthRequired,
 }: ProductCardProps) {
 	const router = useRouter()
 	const [toastMessage, setToastMessage] = useState<string | null>(null)
@@ -81,14 +83,22 @@ export default function ProductCard({
 			return
 		}
 
+		const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+		if (!token) {
+			if (onAuthRequired) {
+				onAuthRequired()
+			} else {
+				setToastMessage('Для скачивания файлов необходимо войти в аккаунт')
+			}
+			return
+		}
+
 		try {
 			const response = await fetch(`${config.API_URL}/api/downloads/presign/`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					Authorization: typeof window !== 'undefined' && localStorage.getItem('access_token')
-						? `Bearer ${localStorage.getItem('access_token')}`
-						: '',
+					Authorization: `Bearer ${token}`,
 				},
 				body: JSON.stringify({
 					product_id: product.id,
@@ -101,8 +111,17 @@ export default function ProductCard({
 			const data = isJson ? await response.json() : null
 
 			if (!response.ok) {
+				if (response.status === 401) {
+					if (onAuthRequired) {
+						onAuthRequired()
+					} else {
+						setToastMessage('Для скачивания файлов необходимо войти в аккаунт')
+					}
+					return
+				}
 				const message =
 					data?.error ||
+					data?.detail ||
 					data?.message ||
 					'Ошибка при получении ссылки для скачивания RFA'
 				alert(message)
@@ -110,7 +129,6 @@ export default function ProductCard({
 			}
 
 			if (data?.url) {
-				// Открываем RFA в новом табе / запускаем скачивание
 				window.location.href = data.url
 			} else {
 				alert('RFA-файл недоступен для этого товара')
@@ -187,11 +205,11 @@ export default function ProductCard({
 			)}
 			{/* 3D модель или изображение товара — можно крутить в каталоге */}
 			<div className='rounded-lg mb-3 sm:mb-4 overflow-hidden relative'>
-				{product.model_3d_id && (
-					<span className='absolute left-2 top-2 z-10 text-xs text-gray font-medium bg-white/80 px-1.5 py-0.5 rounded'>
-						{product.model_3d_id}
-					</span>
-				)}
+			{isSuperuser && product.model_3d_id && (
+				<span className='absolute left-2 top-2 z-10 text-xs text-gray font-medium bg-white/80 px-1.5 py-0.5 rounded'>
+					{product.model_3d_id}
+				</span>
+			)}
 				<ProductModelViewer product={product} variant='card' onClick={handleCardClick} />
 			</div>
 

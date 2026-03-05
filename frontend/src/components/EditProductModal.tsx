@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Product } from '../types'
 import { productService } from '../services/api'
 
@@ -24,6 +24,15 @@ export default function EditProductModal({
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 
+	const [glbFile, setGlbFile] = useState<File | null>(null)
+	const [rfaFile, setRfaFile] = useState<File | null>(null)
+	const [uploadingGlb, setUploadingGlb] = useState(false)
+	const [uploadingRfa, setUploadingRfa] = useState(false)
+	const [glbStatus, setGlbStatus] = useState<string | null>(null)
+	const [rfaStatus, setRfaStatus] = useState<string | null>(null)
+	const glbInputRef = useRef<HTMLInputElement>(null)
+	const rfaInputRef = useRef<HTMLInputElement>(null)
+
 	useEffect(() => {
 		if (isOpen) {
 			setTitle(product.title || '')
@@ -31,6 +40,10 @@ export default function EditProductModal({
 			setHeight(product.height != null ? String(product.height) : '')
 			setDepth(product.depth != null ? String(product.depth) : '')
 			setError(null)
+			setGlbFile(null)
+			setRfaFile(null)
+			setGlbStatus(null)
+			setRfaStatus(null)
 		}
 	}, [isOpen, product])
 
@@ -48,7 +61,31 @@ export default function EditProductModal({
 			payload.width = parseNum(width)
 			payload.height = parseNum(height)
 			payload.depth = parseNum(depth)
-			const updated = await productService.updateProduct(product.id, payload)
+			let updated = await productService.updateProduct(product.id, payload)
+
+			if (glbFile) {
+				setUploadingGlb(true)
+				try {
+					updated = await productService.uploadProductModel(product.id, glbFile, 'glb')
+					setGlbStatus('Загружено')
+				} catch {
+					setGlbStatus('Ошибка загрузки GLB')
+				} finally {
+					setUploadingGlb(false)
+				}
+			}
+			if (rfaFile) {
+				setUploadingRfa(true)
+				try {
+					updated = await productService.uploadProductModel(product.id, rfaFile, 'rfa')
+					setRfaStatus('Загружено')
+				} catch {
+					setRfaStatus('Ошибка загрузки RFA')
+				} finally {
+					setUploadingRfa(false)
+				}
+			}
+
 			onSaved(updated)
 			onClose()
 		} catch (err: unknown) {
@@ -61,12 +98,14 @@ export default function EditProductModal({
 		}
 	}
 
+	const isUploading = uploadingGlb || uploadingRfa
+
 	if (!isOpen) return null
 
 	return (
 		<div className='fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50' onClick={onClose}>
 			<div
-				className='bg-white rounded-xl shadow-xl max-w-md w-full p-6'
+				className='bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto'
 				onClick={e => e.stopPropagation()}
 			>
 				<h2 className='text-xl font-bold text-black mb-4'>Редактировать товар</h2>
@@ -119,6 +158,91 @@ export default function EditProductModal({
 							/>
 						</div>
 					</div>
+
+					{/* GLB file upload */}
+					<div>
+						<label className='block text-sm font-medium text-black mb-1'>GLB модель</label>
+						{product.model_glb && (
+							<p className='text-xs text-gray mb-1 truncate' title={product.model_glb}>
+								Текущий: {product.model_glb.split('/').pop()}
+							</p>
+						)}
+						<div className='flex items-center gap-2'>
+							<input
+								ref={glbInputRef}
+								type='file'
+								accept='.glb'
+								className='hidden'
+								onChange={e => {
+									const f = e.target.files?.[0] || null
+									setGlbFile(f)
+									setGlbStatus(null)
+								}}
+							/>
+							<button
+								type='button'
+								onClick={() => glbInputRef.current?.click()}
+								disabled={uploadingGlb}
+								className='px-3 py-2 text-sm border border-gray2 rounded-lg hover:bg-gray-bg transition-colors flex-shrink-0'
+							>
+								{glbFile ? 'Заменить' : product.model_glb ? 'Заменить GLB' : 'Загрузить GLB'}
+							</button>
+							{glbFile && (
+								<span className='text-xs text-black truncate'>{glbFile.name}</span>
+							)}
+							{uploadingGlb && (
+								<span className='text-xs text-gray'>Загрузка…</span>
+							)}
+							{glbStatus && (
+								<span className={`text-xs ${glbStatus === 'Загружено' ? 'text-green-600' : 'text-red-500'}`}>
+									{glbStatus}
+								</span>
+							)}
+						</div>
+					</div>
+
+					{/* RFA file upload */}
+					<div>
+						<label className='block text-sm font-medium text-black mb-1'>RFA модель</label>
+						{product.model_rfa && (
+							<p className='text-xs text-gray mb-1 truncate' title={product.model_rfa}>
+								Текущий: {product.model_rfa.split('/').pop()}
+							</p>
+						)}
+						<div className='flex items-center gap-2'>
+							<input
+								ref={rfaInputRef}
+								type='file'
+								accept='.rfa'
+								className='hidden'
+								onChange={e => {
+									const f = e.target.files?.[0] || null
+									setRfaFile(f)
+									setRfaStatus(null)
+								}}
+							/>
+							<button
+								type='button'
+								onClick={() => rfaInputRef.current?.click()}
+								disabled={uploadingRfa}
+								className='px-3 py-2 text-sm border border-gray2 rounded-lg hover:bg-gray-bg transition-colors flex-shrink-0'
+							>
+								{rfaFile ? 'Заменить' : product.model_rfa ? 'Заменить RFA' : 'Загрузить RFA'}
+							</button>
+							{rfaFile && (
+								<span className='text-xs text-black truncate'>{rfaFile.name}</span>
+							)}
+							{uploadingRfa && (
+								<span className='text-xs text-gray'>Загрузка…</span>
+							)}
+							{rfaStatus && (
+								<span className={`text-xs ${rfaStatus === 'Загружено' ? 'text-green-600' : 'text-red-500'}`}>
+									{rfaStatus}
+								</span>
+							)}
+						</div>
+					</div>
+
 					{error && <p className='text-sm text-red-500'>{error}</p>}
 					<div className='flex gap-3 pt-2'>
 						<button
@@ -130,10 +254,10 @@ export default function EditProductModal({
 						</button>
 						<button
 							type='submit'
-							disabled={loading}
+							disabled={loading || isUploading}
 							className='flex-1 py-2 px-4 rounded-lg bg-main1 text-white hover:bg-main2 disabled:opacity-50'
 						>
-							{loading ? 'Сохранение…' : 'Сохранить'}
+							{loading || isUploading ? 'Сохранение…' : 'Сохранить'}
 						</button>
 					</div>
 				</form>

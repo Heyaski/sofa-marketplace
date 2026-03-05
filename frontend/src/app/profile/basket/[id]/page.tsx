@@ -246,9 +246,9 @@ export default function BasketDetailPage() {
 					alert('Изображение товара не найдено')
 				}
 			} else {
-				// Показываем ошибку от сервера
 				const errorMessage =
 					data.error ||
+					data.detail ||
 					data.message ||
 					'Ошибка при получении ссылки для скачивания'
 				alert(errorMessage)

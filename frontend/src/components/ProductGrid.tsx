@@ -7,12 +7,14 @@ interface ProductGridProps {
 	title: string
 	products: Product[]
 	onAddToCart: (productId: number, format: string) => void
+	onAuthRequired?: () => void
 }
 
 export default function ProductGrid({
 	title,
 	products,
 	onAddToCart,
+	onAuthRequired,
 }: ProductGridProps) {
 	return (
 		<section className='py-16 bg-gray-bg'>
@@ -34,6 +36,7 @@ export default function ProductGrid({
 								key={product.id}
 								product={product}
 								onAddToCart={onAddToCart}
+								onAuthRequired={onAuthRequired}
 							/>
 						))}
 					</div>

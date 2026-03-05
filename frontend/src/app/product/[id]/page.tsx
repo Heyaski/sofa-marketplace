@@ -25,6 +25,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 	const [isCartModalOpen, setIsCartModalOpen] = useState(false)
 	const selectedFormat = config.DEFAULT_FORMAT
 	const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+	const [isSuperuser, setIsSuperuser] = useState(false)
 	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
 	const [toastMessage, setToastMessage] = useState<string | null>(null)
 
@@ -42,7 +43,10 @@ export default function ProductPage({ params }: ProductPageProps) {
 		if (token) {
 			import('@/services/api').then(({ authService }) =>
 				authService.getCurrentUser()
-					.then(() => setIsAuthenticated(true))
+					.then((user) => {
+						setIsAuthenticated(true)
+						setIsSuperuser(!!user.is_superuser)
+					})
 					.catch(() => setIsAuthenticated(false))
 			)
 		} else {
@@ -136,7 +140,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 						{/* 3D модель или изображения товара — можно крутить */}
 						<div className='space-y-4'>
 							<div className='bg-gray-bg rounded-lg overflow-hidden relative'>
-								{product.model_3d_id && (
+								{isSuperuser && product.model_3d_id && (
 									<span className='absolute left-3 top-3 z-10 text-xs text-gray font-medium bg-white/80 px-2 py-1 rounded'>
 										{product.model_3d_id}
 									</span>
@@ -201,18 +205,21 @@ export default function ProductPage({ params }: ProductPageProps) {
 											setToastMessage('У этой модели отсутствует RFA-файл')
 											return
 										}
+										if (isAuthenticated === false) {
+											setIsAuthModalOpen(true)
+											return
+										}
 										try {
+											const token = localStorage.getItem('access_token')
 											const response = await fetch(
 												`${config.API_URL}/api/downloads/presign/`,
 												{
 													method: 'POST',
 													headers: {
 														'Content-Type': 'application/json',
-														Authorization:
-															typeof window !== 'undefined' &&
-															localStorage.getItem('access_token')
-																? `Bearer ${localStorage.getItem('access_token')}`
-																: '',
+														Authorization: token
+															? `Bearer ${token}`
+															: '',
 													},
 													body: JSON.stringify({
 														product_id: product.id,
@@ -229,8 +236,13 @@ export default function ProductPage({ params }: ProductPageProps) {
 											const data = isJson ? await response.json() : null
 
 											if (!response.ok) {
+												if (response.status === 401) {
+													setIsAuthModalOpen(true)
+													return
+												}
 												const message =
 													data?.error ||
+													data?.detail ||
 													data?.message ||
 													'Ошибка при получении ссылки для скачивания RFA'
 												alert(message)

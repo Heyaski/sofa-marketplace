@@ -105,6 +105,23 @@ export const productService = {
 	deleteProduct: async (id: number): Promise<void> => {
 		await apiClient.delete(`/api/products/${id}/`)
 	},
+
+	// Загрузить GLB или RFA файл для продукта (суперпользователь)
+	uploadProductModel: async (
+		id: number,
+		file: File,
+		format: 'glb' | 'rfa'
+	): Promise<Product> => {
+		const formData = new FormData()
+		formData.append('file', file)
+		formData.append('format', format)
+		const response = await apiClient.post(
+			`/api/products/${id}/upload-model/`,
+			formData,
+			{ headers: { 'Content-Type': 'multipart/form-data' } }
+		)
+		return response.data
+	},
 }
 
 // Сервис для работы с категориями

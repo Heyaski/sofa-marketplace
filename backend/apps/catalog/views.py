@@ -57,7 +57,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
 
     def get_permissions(self):
-        if self.action in ('update', 'partial_update', 'destroy'):
+        if self.action in ('update', 'partial_update', 'destroy', 'upload_model'):
             return [IsAuthenticated(), IsCatalogEditor()]
         return [AllowAny()]
 
@@ -214,6 +214,42 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     ordering_fields = ["price", "title"]
     ordering = ["price"]
+
+    @action(detail=True, methods=["post"], url_path="upload-model")
+    def upload_model(self, request, pk=None):
+        """Upload GLB or RFA file for a product (superuser only)."""
+        import os
+        from django.core.files.storage import default_storage
+
+        product = self.get_object()
+        file = request.FILES.get("file")
+        model_format = request.data.get("format", "").lower().strip()
+
+        if not file:
+            return Response({"error": "Файл не загружен"}, status=400)
+        if model_format not in ("glb", "rfa"):
+            return Response({"error": "Допустимые форматы: glb, rfa"}, status=400)
+
+        ext = os.path.splitext(file.name)[1].lower()
+        expected = f".{model_format}"
+        if ext != expected:
+            return Response(
+                {"error": f"Расширение файла ({ext}) не соответствует формату ({expected})"},
+                status=400,
+            )
+
+        dest = f"products/{product.id}/{file.name}"
+        saved_path = default_storage.save(dest, file)
+        saved_url = default_storage.url(saved_path)
+
+        if model_format == "glb":
+            product.model_glb = saved_url
+        else:
+            product.model_rfa = saved_url
+        product.save(update_fields=[f"model_{model_format}"])
+
+        serializer = self.get_serializer(product)
+        return Response(serializer.data)
 
     @action(detail=False, methods=["get"], permission_classes=[AllowAny])
     def filter_ranges(self, request):

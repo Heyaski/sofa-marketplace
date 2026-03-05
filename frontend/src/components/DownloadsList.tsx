@@ -130,9 +130,9 @@ export default function DownloadsList() {
 
 				// Обновляем список после скачивания
 				await fetchDownloads()
-			} else {
-				alert(data.error || 'Ошибка при скачивании')
-			}
+		} else {
+			alert(data.error || data.detail || 'Ошибка при скачивании')
+		}
 		} catch (error: any) {
 			console.error('Ошибка при скачивании:', error)
 			alert(error.message || 'Ошибка при скачивании')
