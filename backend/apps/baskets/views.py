@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db.models import Q
 from django.core.files.base import ContentFile
+from django.http import FileResponse, Http404
 
 from .models import Basket, BasketItem, BasketEditRequest, CommercialProposalRequest
 from .serializers import (
@@ -280,6 +281,46 @@ class BasketViewSet(viewsets.ModelViewSet):
                 {"error": f"Ошибка генерации КП: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=False, methods=["get"], url_path="commercial-proposals/(?P<proposal_id>[^/.]+)/download-pdf")
+    def download_proposal_pdf(self, request, proposal_id=None):
+        """Скачивание PDF КП с правильным именем файла."""
+        proposal = self._get_proposal_with_access(request, proposal_id)
+        if not proposal or not proposal.pdf_file:
+            raise Http404
+        f = proposal.pdf_file.open('rb')
+        resp = FileResponse(f, content_type='application/pdf')
+        resp['Content-Disposition'] = 'attachment; filename="КП.pdf"'
+        return resp
+
+    @action(detail=False, methods=["get"], url_path="commercial-proposals/(?P<proposal_id>[^/.]+)/download-docx")
+    def download_proposal_docx(self, request, proposal_id=None):
+        """Скачивание DOCX КП с правильным именем файла."""
+        proposal = self._get_proposal_with_access(request, proposal_id)
+        if not proposal or not proposal.docx_file:
+            raise Http404
+        f = proposal.docx_file.open('rb')
+        resp = FileResponse(f, content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        resp['Content-Disposition'] = 'attachment; filename="КП.docx"'
+        return resp
+
+    def _get_proposal_with_access(self, request, proposal_id):
+        """Проверяет доступ и возвращает proposal или None."""
+        try:
+            proposal = CommercialProposalRequest.objects.select_related('basket').get(pk=proposal_id)
+        except CommercialProposalRequest.DoesNotExist:
+            return None
+        basket = proposal.basket
+        if basket.user == request.user:
+            return proposal
+        has_shared = MessageBasket.objects.filter(
+            basket=basket,
+            message__chat__participant1=request.user
+        ).exists() or MessageBasket.objects.filter(
+            basket=basket,
+            message__chat__participant2=request.user
+        ).exists()
+        return proposal if has_shared else None
 
     # Получение корзины по публичной ссылке (без авторизации)
     @action(detail=False, methods=["get"], url_path="share/(?P<share_token>[^/.]+)", permission_classes=[AllowAny])

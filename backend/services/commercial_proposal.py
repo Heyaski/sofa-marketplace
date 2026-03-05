@@ -423,9 +423,13 @@ def generate_commercial_proposal_pdf(proposal_request):
         # Сумма
         item_sum = Paragraph(f'{item_total:,.0f}'.replace(',', ' '), cell_style)
         
-        # Ссылка — поиск по оригинальному названию (с брендом) для точных результатов
+        # Ссылка — поиск точной модели: ID + название + бренд (максимальная точность)
         original_title = product.title or display_title
-        search_query = quote_plus(f'{original_title} купить')
+        search_parts = [model_id, original_title]
+        if product.brand:
+            search_parts.append(product.brand)
+        search_parts.append('купить')
+        search_query = quote_plus(' '.join(search_parts))
         search_url = f'https://ya.ru/search/?text={search_query}'
         short_label = f'ya.ru: {display_title[:30]}...' if len(display_title) > 30 else f'ya.ru: {display_title}'
         item_shop = Paragraph(
@@ -579,13 +583,7 @@ def _add_hyperlink_to_cell(cell, url, text, font_name, font_size=8):
 
     paragraph = cell.paragraphs[0]
     paragraph.clear()
-    # Принудительно задаём выравнивание по центру через XML
-    pPr = paragraph._p.get_or_add_pPr()
-    for old in pPr.findall(qn('w:jc')):
-        pPr.remove(old)
-    jc = OxmlElement('w:jc')
-    jc.set(qn('w:val'), 'center')
-    pPr.append(jc)
+    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     try:
         part = paragraph.part
@@ -683,15 +681,8 @@ def generate_commercial_proposal_docx(proposal_request):
     def _cell_text(cell, text, bold=False, size=9, align=WD_ALIGN_PARAGRAPH.LEFT):
         para = cell.paragraphs[0]
         para.clear()
-        # Принудительно задаём выравнивание через XML (paragraph.alignment иногда не срабатывает в ячейках)
-        align_val = 'center' if align == WD_ALIGN_PARAGRAPH.CENTER else 'left'
-        pPr = para._p.get_or_add_pPr()
-        for old in pPr.findall(_qn('w:jc')):
-            pPr.remove(old)
-        jc = _OxmlElement('w:jc')
-        jc.set(_qn('w:val'), align_val)
-        pPr.append(jc)
         _set_run_font(para.add_run(text), docx_font, size, bold)
+        para.alignment = align
 
     def _cell_bg(cell, hex_color):
         """Серый/белый фон ячейки."""
@@ -830,9 +821,13 @@ def generate_commercial_proposal_docx(proposal_request):
         _cell_text(row_cells[4], f'{price:,.0f}'.replace(',', ' '), size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
         _cell_text(row_cells[5], f'{item_total:,.0f}'.replace(',', ' '), size=8, align=WD_ALIGN_PARAGRAPH.CENTER)
 
-        # Ссылка — поиск по полному оригинальному названию (с брендом = точные результаты)
+        # Ссылка — поиск точной модели: ID + название + бренд
         original_title = product.title or display_title
-        search_query = quote_plus(f'{original_title} купить')
+        search_parts = [model_id, original_title]
+        if getattr(product, 'brand', None):
+            search_parts.append(product.brand)
+        search_parts.append('купить')
+        search_query = quote_plus(' '.join(search_parts))
         search_url = f'https://ya.ru/search/?text={search_query}'
         link_label = f'ya.ru: {display_title[:30]}...' if len(display_title) > 30 else f'ya.ru: {display_title}'
         _add_hyperlink_to_cell(row_cells[6], search_url, link_label, docx_font, font_size=8)
