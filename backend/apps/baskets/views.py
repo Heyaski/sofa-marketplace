@@ -1,11 +1,10 @@
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db.models import Q
 from django.core.files.base import ContentFile
-from django.http import FileResponse, Http404
 
 from .models import Basket, BasketItem, BasketEditRequest, CommercialProposalRequest
 from .serializers import (
@@ -14,52 +13,6 @@ from .serializers import (
 )
 from apps.catalog.models import Product
 from apps.chats.models import MessageBasket
-
-
-def _proposal_has_access(proposal, user):
-    """Проверяет, есть ли у пользователя доступ к proposal."""
-    if not proposal:
-        return False
-    basket = proposal.basket
-    if basket.user == user:
-        return True
-    return MessageBasket.objects.filter(
-        basket=basket, message__chat__participant1=user
-    ).exists() or MessageBasket.objects.filter(
-        basket=basket, message__chat__participant2=user
-    ).exists()
-
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def download_proposal_pdf(request, proposal_id):
-    """Скачивание PDF КП с именем КП.pdf."""
-    try:
-        proposal = CommercialProposalRequest.objects.select_related("basket").get(pk=proposal_id)
-    except CommercialProposalRequest.DoesNotExist:
-        raise Http404
-    if not _proposal_has_access(proposal, request.user) or not proposal.pdf_file:
-        raise Http404
-    f = proposal.pdf_file.open("rb")
-    resp = FileResponse(f, content_type="application/pdf")
-    resp["Content-Disposition"] = 'attachment; filename="КП.pdf"'
-    return resp
-
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def download_proposal_docx(request, proposal_id):
-    """Скачивание DOCX КП с именем КП.docx."""
-    try:
-        proposal = CommercialProposalRequest.objects.select_related("basket").get(pk=proposal_id)
-    except CommercialProposalRequest.DoesNotExist:
-        raise Http404
-    if not _proposal_has_access(proposal, request.user) or not proposal.docx_file:
-        raise Http404
-    f = proposal.docx_file.open("rb")
-    resp = FileResponse(f, content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-    resp["Content-Disposition"] = 'attachment; filename="КП.docx"'
-    return resp
 
 
 class BasketViewSet(viewsets.ModelViewSet):

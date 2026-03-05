@@ -123,7 +123,6 @@ export default function CommercialProposalModal({
 							{pdfUrl && (
 								<a
 									href={pdfUrl}
-									download='КП.pdf'
 									target='_blank'
 									rel='noopener noreferrer'
 									className='inline-block bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main2 transition-colors font-medium'
@@ -134,7 +133,6 @@ export default function CommercialProposalModal({
 						{docxUrl && (
 							<a
 								href={docxUrl}
-								download='КП.docx'
 								target='_blank'
 								rel='noopener noreferrer'
 								className='inline-block bg-main1 text-white px-6 py-2 rounded-lg hover:bg-main2 transition-colors font-medium'
