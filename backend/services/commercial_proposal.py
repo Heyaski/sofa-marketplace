@@ -653,11 +653,11 @@ def generate_commercial_proposal_docx(proposal_request):
     section.top_margin = Cm(1.5)
     section.bottom_margin = Cm(2.5)
 
-    engineer_font = "ISOCPEUR"
-    fallback_font = "Courier New"
+    # Courier New — тот же инженерный шрифт, что и в PDF (доступен на Windows/Linux)
+    docx_font = "Courier New"
 
     normal_style = doc.styles["Normal"]
-    normal_style.font.name = fallback_font
+    normal_style.font.name = docx_font
     normal_style.font.size = Pt(9)
 
     # ---- хелперы ----
@@ -665,20 +665,20 @@ def generate_commercial_proposal_docx(proposal_request):
     def _par(text, bold=False, size=9, align=WD_ALIGN_PARAGRAPH.LEFT):
         p = doc.add_paragraph()
         p.alignment = align
-        _set_run_font(p.add_run(text), engineer_font, size, bold)
+        _set_run_font(p.add_run(text), docx_font, size, bold)
         return p
 
     def _par_labeled(label, value, size=10):
         p = doc.add_paragraph()
-        _set_run_font(p.add_run(f"{label}: "), engineer_font, size, bold=True)
-        _set_run_font(p.add_run(value), engineer_font, size, bold=False)
+        _set_run_font(p.add_run(f"{label}: "), docx_font, size, bold=True)
+        _set_run_font(p.add_run(value), docx_font, size, bold=False)
         return p
 
     def _cell_text(cell, text, bold=False, size=9, align=WD_ALIGN_PARAGRAPH.LEFT):
         para = cell.paragraphs[0]
         para.clear()
         para.alignment = align
-        _set_run_font(para.add_run(text), engineer_font, size, bold)
+        _set_run_font(para.add_run(text), docx_font, size, bold)
 
     def _cell_bg(cell, hex_color):
         """Серый/белый фон ячейки."""
@@ -716,7 +716,7 @@ def generate_commercial_proposal_docx(proposal_request):
     # ---- ЗАГОЛОВОК ----
     title_par = doc.add_paragraph()
     title_par.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    _set_run_font(title_par.add_run("КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ"), engineer_font, 16, bold=True)
+    _set_run_font(title_par.add_run("КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ"), docx_font, 16, bold=True)
     doc.add_paragraph()
 
     # ---- МЕТА (с жирными метками, как в PDF) ----
@@ -822,7 +822,7 @@ def generate_commercial_proposal_docx(proposal_request):
         search_query = quote_plus(f'{original_title} купить')
         search_url = f'https://ya.ru/search/?text={search_query}'
         link_label = f'ya.ru: {display_title[:30]}...' if len(display_title) > 30 else f'ya.ru: {display_title}'
-        _add_hyperlink_to_cell(row_cells[6], search_url, link_label, engineer_font, font_size=8)
+        _add_hyperlink_to_cell(row_cells[6], search_url, link_label, docx_font, font_size=8)
 
         # Примечание (габариты + производитель)
         notes_parts = []
@@ -841,13 +841,13 @@ def generate_commercial_proposal_docx(proposal_request):
     total_par.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     _set_run_font(
         total_par.add_run(f'ИТОГО: {total_sum:,.0f} руб.'.replace(',', ' ')),
-        engineer_font, 12, bold=True,
+        docx_font, 12, bold=True,
     )
 
     # ---- ПРИМЕЧАНИЯ ----
     doc.add_paragraph()
     notes_p = doc.add_paragraph()
-    _set_run_font(notes_p.add_run('Примечания:'), engineer_font, 9, bold=True)
+    _set_run_font(notes_p.add_run('Примечания:'), docx_font, 9, bold=True)
     _par('1. Смотреть совместно с планом расстановки мебели и развертками.')
     _par('2. Детальные чертежи для мебели индивидуального производства составлять совместно с поставщиками.')
     doc.add_paragraph()
