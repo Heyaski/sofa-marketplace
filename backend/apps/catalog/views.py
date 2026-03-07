@@ -21,6 +21,7 @@ def _rgb_to_scale(hue_deg: float, s: float, v: float) -> float:
     if 15 <= hue_deg <= 55 and 0.10 <= s <= 0.40 and v > 0.60:
         return 75.0 + ((hue_deg - 15.0) / 40.0) * 25.0
     return 100.0 + hue_deg
+from django.core.cache import cache
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
@@ -215,6 +216,47 @@ class ProductViewSet(viewsets.ModelViewSet):
     ordering_fields = ["price", "title"]
     ordering = ["price"]
 
+    def list(self, request, *args, **kwargs):
+        """Кэширование списка товаров (5 мин) — ускоряет загрузку страниц с 3D моделями."""
+        cache_key = f"products_list:{request.GET.urlencode()}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+        response = super().list(request, *args, **kwargs)
+        cache.set(cache_key, response.data, timeout=300)
+        return response
+
+    def retrieve(self, request, *args, **kwargs):
+        """Кэширование деталей товара (10 мин)."""
+        pk = kwargs.get("pk")
+        cache_key = f"product_detail:{pk}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+        response = super().retrieve(request, *args, **kwargs)
+        cache.set(cache_key, response.data, timeout=600)
+        return response
+
+    def _invalidate_product_cache(self, product):
+        """Инвалидация кэша при изменении товара."""
+        cache.delete(f"product_detail:{product.pk}")
+        try:
+            cache.delete_pattern("products_list*")
+        except AttributeError:
+            pass  # LocMemCache не поддерживает delete_pattern
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        self._invalidate_product_cache(serializer.instance)
+
+    def perform_destroy(self, instance):
+        self._invalidate_product_cache(instance)
+        super().perform_destroy(instance)
+
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        self._invalidate_product_cache(serializer.instance)
+
     @action(detail=True, methods=["post"], url_path="upload-model")
     def upload_model(self, request, pk=None):
         """Upload GLB or RFA file for a product (superuser only)."""
@@ -247,6 +289,8 @@ class ProductViewSet(viewsets.ModelViewSet):
         else:
             product.model_rfa = saved_url
         product.save(update_fields=[f"model_{model_format}"])
+
+        self._invalidate_product_cache(product)
 
         serializer = self.get_serializer(product)
         return Response(serializer.data)

@@ -5,7 +5,7 @@ import { Product } from '../types'
 
 const MODEL_VIEWER_FORMATS = ['glb', 'gltf', 'usdz']
 const GLB_CACHE_NAME = 'vizhub-glb-models'
-const MAX_CONCURRENT_LOADS = 6
+const MAX_CONCURRENT_LOADS = 3
 
 /** Ограничение параллельных загрузок — первые модели появляются за секунды, не 2 минуты */
 const loadQueue = {
@@ -96,7 +96,7 @@ export default function ProductModelViewer({
 		const el = containerRef.current
 		const io = new IntersectionObserver(
 			([e]) => setIsInView(e.isIntersecting),
-			{ rootMargin: '100px', threshold: 0.01 }
+			{ rootMargin: '50px', threshold: 0.1 }
 		)
 		io.observe(el)
 		return () => io.disconnect()
