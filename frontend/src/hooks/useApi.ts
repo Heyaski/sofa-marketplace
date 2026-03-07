@@ -32,7 +32,7 @@ export const useProducts = (filters?: ProductFilters, loadMore?: boolean) => {
 			if (filters && Object.keys(filters).length > 0) {
 				console.log('Применяемые фильтры:', filters)
 			}
-			const response = await productService.getProducts(filters, page, 20)
+			const response = await productService.getProducts(filters, page, 12)
 			
 			// Обрабатываем пагинированный ответ
 			let productsData: Product[] = []

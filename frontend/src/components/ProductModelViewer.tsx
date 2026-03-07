@@ -5,7 +5,7 @@ import { Product } from '../types'
 
 const MODEL_VIEWER_FORMATS = ['glb', 'gltf', 'usdz']
 const GLB_CACHE_NAME = 'vizhub-glb-models'
-const MAX_CONCURRENT_LOADS = 3
+const MAX_CONCURRENT_LOADS = 4
 
 /** Ограничение параллельных загрузок — первые модели появляются за секунды, не 2 минуты */
 const loadQueue = {
@@ -90,13 +90,13 @@ export default function ProductModelViewer({
 	const containerRef = useRef<HTMLDivElement>(null)
 	const modelViewerRef = useRef<any>(null)
 
-	// Загружаем 3D только когда карточка в зоне видимости; после загрузки — model-viewer остаётся навсегда
+	// Загружаем 3D только когда карточка в зоне видимости
 	useEffect(() => {
 		if (variant !== 'card' || !containerRef.current) return
 		const el = containerRef.current
 		const io = new IntersectionObserver(
 			([e]) => setIsInView(e.isIntersecting),
-			{ rootMargin: '50px', threshold: 0.1 }
+			{ rootMargin: '100px', threshold: 0.01 }
 		)
 		io.observe(el)
 		return () => io.disconnect()
@@ -116,13 +116,21 @@ export default function ProductModelViewer({
 		return () => { cancelled = true }
 	}, [modelUrl])
 
-	// Кэш: загружаем при появлении в зоне видимости; при выходе — НЕ сбрасываем resolvedSrc,
-	// 3D остаётся на экране при скролле, без перезагрузки.
+	// Выгружаем 3D при выходе из зоны — иначе «Загрузить ещё» даёт 40+ WebGL → чёрный экран, пустые карточки.
+	// При возврате — подгрузка из кэша браузера (~100 мс).
 	const blobUrlRef = useRef<string | null>(null)
 	const loadedForUrlRef = useRef<string | null>(null)
 	useEffect(() => {
 		if (!modelUrl || !scriptReady) return
-		if (variant === 'card' && !isInView) return
+		if (variant === 'card' && !isInView) {
+			if (blobUrlRef.current) {
+				URL.revokeObjectURL(blobUrlRef.current)
+				blobUrlRef.current = null
+			}
+			loadedForUrlRef.current = null
+			setResolvedSrc(null)
+			return
+		}
 		if (loadedForUrlRef.current === modelUrl) return
 		let cancelled = false
 		if (loadedForUrlRef.current && loadedForUrlRef.current !== modelUrl && blobUrlRef.current) {
@@ -158,7 +166,6 @@ export default function ProductModelViewer({
 
 	const containerClass = `overflow-hidden bg-gray-50 flex items-center justify-center ${variant === 'card' ? 'aspect-square' : 'aspect-square sm:min-h-[400px]'} ${className}`
 
-	// Пока грузится 3D — только загрузчик (никаких картинок)
 	if (!shouldShow3D) {
 		return (
 			<div ref={containerRef} className={`${containerClass} cursor-pointer flex flex-col items-center justify-center gap-2`} onClick={onClick}>
