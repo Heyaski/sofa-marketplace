@@ -5,9 +5,9 @@ import { Product } from '../types'
 
 const MODEL_VIEWER_FORMATS = ['glb', 'gltf', 'usdz']
 const GLB_CACHE_NAME = 'vizhub-glb-models'
-const MAX_CONCURRENT_LOADS = 4
+const MAX_CONCURRENT_LOADS = 8
 
-/** Ограничение параллельных загрузок — первые модели появляются за секунды, не 2 минуты */
+/** Ограничение параллельных загрузок. 8 — чтобы при фильтре/категории все видимые модели грузились сразу */
 const loadQueue = {
 	active: 0,
 	queue: [] as (() => void)[],
@@ -46,7 +46,7 @@ function isValidUrl(url: string | null | undefined): boolean {
 	return u.startsWith('http://') || u.startsWith('https://') || u.startsWith('/')
 }
 
-async function getCachedOrFetchModelUrl(url: string): Promise<string> {
+async function getCachedOrFetchModelUrl(url: string, signal?: AbortController['signal']): Promise<string> {
 	if (typeof caches === 'undefined') return url
 	try {
 		const cached = await caches.match(url)
@@ -56,7 +56,7 @@ async function getCachedOrFetchModelUrl(url: string): Promise<string> {
 		}
 		await loadQueue.acquire()
 		try {
-			const res = await fetch(url, { mode: 'cors' })
+			const res = await fetch(url, { mode: 'cors', signal })
 			if (!res.ok) return url
 			const cache = await caches.open(GLB_CACHE_NAME)
 			cache.put(url, res.clone())
@@ -116,8 +116,8 @@ export default function ProductModelViewer({
 		return () => { cancelled = true }
 	}, [modelUrl])
 
-	// Выгружаем 3D при выходе из зоны — иначе «Загрузить ещё» даёт 40+ WebGL → чёрный экран, пустые карточки.
-	// При возврате — подгрузка из кэша браузера (~100 мс).
+	// Выгружаем 3D при выходе из зоны — иначе «Загрузить ещё» даёт 40+ WebGL → чёрный экран.
+	// При смене фильтра/категории — отменяем старые загрузки, чтобы видимые модели грузились сразу.
 	const blobUrlRef = useRef<string | null>(null)
 	const loadedForUrlRef = useRef<string | null>(null)
 	useEffect(() => {
@@ -132,15 +132,15 @@ export default function ProductModelViewer({
 			return
 		}
 		if (loadedForUrlRef.current === modelUrl) return
-		let cancelled = false
+		const ac = new AbortController()
 		if (loadedForUrlRef.current && loadedForUrlRef.current !== modelUrl && blobUrlRef.current) {
 			URL.revokeObjectURL(blobUrlRef.current)
 			blobUrlRef.current = null
 			loadedForUrlRef.current = null
 			setResolvedSrc(null)
 		}
-		getCachedOrFetchModelUrl(modelUrl).then((src) => {
-			if (cancelled) {
+		getCachedOrFetchModelUrl(modelUrl, ac.signal).then((src) => {
+			if (ac.signal.aborted) {
 				if (src !== modelUrl && src.startsWith('blob:')) URL.revokeObjectURL(src)
 				return
 			}
@@ -148,7 +148,9 @@ export default function ProductModelViewer({
 			if (src !== modelUrl && src.startsWith('blob:')) blobUrlRef.current = src
 			setResolvedSrc(src)
 		})
-		return () => { cancelled = true }
+		return () => {
+			ac.abort()
+		}
 	}, [modelUrl, isInView, scriptReady, variant])
 	useEffect(() => () => {
 		if (blobUrlRef.current) {
