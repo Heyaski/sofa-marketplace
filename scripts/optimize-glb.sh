@@ -1,0 +1,67 @@
+#!/bin/bash
+# Оптимизация GLB моделей: 60 MB → ~20 MB
+# Использует gltfpack с -si 0.33 (упрощение до ~33% полигонов)
+# Требуется: npm install -g gltfpack
+
+set -e
+
+GLTFPACK="gltfpack"
+if ! command -v gltfpack &>/dev/null; then
+  if command -v npx &>/dev/null; then
+    GLTFPACK="npx gltfpack"
+  else
+    echo "Установите gltfpack: npm install -g gltfpack"
+    exit 1
+  fi
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+ASSETS_DIR="$PROJECT_ROOT/backend/media/assets"
+BACKUP_DIR="$PROJECT_ROOT/backend/media/assets-backup"
+SI_RATIO="${1:-0.33}"
+
+if [ ! -d "$ASSETS_DIR" ]; then
+  echo "Папка не найдена: $ASSETS_DIR"
+  exit 1
+fi
+
+echo "=== Оптимизация GLB (gltfpack -si $SI_RATIO) ==="
+echo "Папка: $ASSETS_DIR"
+echo ""
+
+# Бэкап при первом запуске
+if [ ! -d "$BACKUP_DIR" ]; then
+  echo "Создаю бэкап в $BACKUP_DIR ..."
+  cp -r "$ASSETS_DIR" "$BACKUP_DIR"
+  echo "Бэкап создан."
+  echo ""
+fi
+
+count=0
+for f in "$ASSETS_DIR"/*.glb "$ASSETS_DIR"/*.GLB; do
+  [ -f "$f" ] || continue
+  name=$(basename "$f")
+  size_before=$(stat -f%z "$f" 2>/dev/null || stat -c%s "$f" 2>/dev/null)
+  size_mb_before=$((size_before / 1024 / 1024))
+  
+  echo "[$((count+1))] $name (${size_mb_before} MB) ..."
+  
+  if $GLTFPACK -i "$f" -o "$f.tmp" -si "$SI_RATIO" 2>/dev/null; then
+    size_after=$(stat -f%z "$f.tmp" 2>/dev/null || stat -c%s "$f.tmp" 2>/dev/null)
+    size_mb_after=$((size_after / 1024 / 1024))
+    mv "$f.tmp" "$f"
+    echo "    → ${size_mb_after} MB (было ${size_mb_before} MB)"
+  else
+    rm -f "$f.tmp"
+    echo "    ОШИБКА: gltfpack не сработал"
+  fi
+  count=$((count+1))
+  echo ""
+done
+
+if [ $count -eq 0 ]; then
+  echo "GLB файлы не найдены."
+else
+  echo "Готово. Обработано файлов: $count"
+fi
