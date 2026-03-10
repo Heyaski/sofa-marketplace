@@ -82,8 +82,14 @@ def main():
         return 0
 
     print("=== Загрузка оптимизированных GLB в S3 (presigned PUT) ===")
+    print(f"Endpoint: {endpoint}")
     print(f"Бакет: {bucket}")
     print(f"Папка: {ASSETS_DIR}")
+    # Проверка: Django должен использовать тот же endpoint (s3.ru1 или s3.beget.com)
+    sample = next(ASSETS_DIR.glob("*.glb"), None)
+    if sample:
+        size_mb = sample.stat().st_size / (1024 * 1024)
+        print(f"Пример размера: {sample.name} = {size_mb:.1f} MB (оптимизированный ~20 MB)")
     print()
 
     ok = 0

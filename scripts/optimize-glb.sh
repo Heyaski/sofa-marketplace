@@ -25,7 +25,14 @@ fi
 
 ASSETS_DIR="$PROJECT_ROOT/backend/media/assets"
 BACKUP_DIR="$PROJECT_ROOT/backups/glb-assets-original"
-SI_RATIO="${1:-0.33}"
+SKIP_BACKUP=false
+SI_RATIO="0.33"
+for arg in "$@"; do
+  case "$arg" in
+    --no-backup) SKIP_BACKUP=true ;;
+    [0-9.]*) SI_RATIO="$arg" ;;
+  esac
+done
 
 if [ ! -d "$ASSETS_DIR" ]; then
   echo "Папка не найдена: $ASSETS_DIR"
@@ -37,13 +44,15 @@ echo "Используется: $GLTFPACK"
 echo "Папка: $ASSETS_DIR"
 echo ""
 
-# Бэкап при первом запуске (в отдельную папку backups/, не в media)
-mkdir -p "$PROJECT_ROOT/backups"
-if [ ! -d "$BACKUP_DIR" ]; then
-  echo "Создаю бэкап в $BACKUP_DIR ..."
-  cp -r "$ASSETS_DIR" "$BACKUP_DIR"
-  echo "Бэкап создан (отдельно от assets)."
-  echo ""
+# Бэкап при первом запуске (если не --no-backup и бэкапа ещё нет)
+if [ "$SKIP_BACKUP" = false ]; then
+  mkdir -p "$PROJECT_ROOT/backups"
+  if [ ! -d "$BACKUP_DIR" ]; then
+    echo "Создаю бэкап в $BACKUP_DIR ..."
+    cp -r "$ASSETS_DIR" "$BACKUP_DIR"
+    echo "Бэкап создан (отдельно от assets)."
+    echo ""
+  fi
 fi
 
 count=0
