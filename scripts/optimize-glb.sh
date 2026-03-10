@@ -54,13 +54,14 @@ for f in "$ASSETS_DIR"/*.glb "$ASSETS_DIR"/*.GLB; do
   
   echo "[$((count+1))] $name (${size_mb_before} MB) ..."
   
-  if $GLTFPACK -i "$f" -o "$f.tmp" -si "$SI_RATIO" 2>&1; then
-    size_after=$(stat -f%z "$f.tmp" 2>/dev/null || stat -c%s "$f.tmp" 2>/dev/null)
+  tmpfile="${f%.*}-opt.glb"
+  if $GLTFPACK -i "$f" -o "$tmpfile" -si "$SI_RATIO" 2>/dev/null; then
+    size_after=$(stat -f%z "$tmpfile" 2>/dev/null || stat -c%s "$tmpfile" 2>/dev/null)
     size_mb_after=$((size_after / 1024 / 1024))
-    mv "$f.tmp" "$f"
+    mv "$tmpfile" "$f"
     echo "    → ${size_mb_after} MB (было ${size_mb_before} MB)"
   else
-    rm -f "$f.tmp"
+    rm -f "$tmpfile"
     echo "    ОШИБКА: gltfpack не сработал"
   fi
   count=$((count+1))
