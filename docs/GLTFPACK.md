@@ -8,17 +8,19 @@ gltfpack уменьшает размер GLB и ускоряет рендер. �
 
 ## Установка
 
-**Вариант 1 — npx (рекомендуется, без прав root):**
-```bash
-npx gltfpack -i input.glb -o output.glb -si 0.33
-```
-Скрипты `optimize-glb.sh` и `optimize-glb.ps1` автоматически используют npx, если gltfpack не установлен глобально.
+**Для файлов 60+ MB обязателен нативный бинарник** — npm-версия (WASM) падает с ошибкой из‑за ограничения памяти.
 
-**Вариант 2 — глобальная установка:**
+**Нативный gltfpack (Linux/macOS):**
 ```bash
-npm install -g gltfpack
+chmod +x scripts/install-gltfpack-native.sh
+./scripts/install-gltfpack-native.sh
 ```
-При ошибке EACCES на сервере — используйте npx или настройте prefix: `npm config set prefix ~/.npm-global`
+Скачивает бинарник в `scripts/bin/`. Скрипт `optimize-glb.sh` автоматически использует его.
+
+**Альтернатива — npm (только для небольших файлов <20 MB):**
+```bash
+npm install -g gltfpack   # или: npx gltfpack ...
+```
 
 ## Использование
 
@@ -27,7 +29,12 @@ npm install -g gltfpack
 gltfpack -i model.glb -o model-opt.glb -si 0.33
 ```
 
-**Скрипт для всех GLB в папке** — см. `scripts/optimize-glb.sh` (Linux/macOS) или `scripts/optimize-glb.ps1` (Windows).
+**Скрипт для всех GLB в папке:**
+```bash
+./scripts/install-gltfpack-native.sh   # один раз, для файлов 60+ MB
+./scripts/optimize-glb.sh
+```
+Для Windows: `scripts/optimize-glb.ps1` (требует gltfpack в PATH или npx).
 
 **Ручная обработка (Linux/macOS):**
 ```bash

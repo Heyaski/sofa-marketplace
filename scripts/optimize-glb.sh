@@ -5,18 +5,24 @@
 
 set -e
 
-GLTFPACK="gltfpack"
-if ! command -v gltfpack &>/dev/null; then
-  if command -v npx &>/dev/null; then
-    GLTFPACK="npx gltfpack"
-  else
-    echo "Установите gltfpack: npm install -g gltfpack"
-    exit 1
-  fi
-fi
-
+# Нативный бинарник (для файлов 60+ MB) приоритетнее npm/WASM
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+NATIVE_GLTFPACK="$SCRIPT_DIR/bin/gltfpack"
+
+if [ -x "$NATIVE_GLTFPACK" ]; then
+  GLTFPACK="$NATIVE_GLTFPACK"
+elif command -v gltfpack &>/dev/null; then
+  GLTFPACK="gltfpack"
+elif command -v npx &>/dev/null; then
+  GLTFPACK="npx gltfpack"
+else
+  echo "gltfpack не найден. Для файлов 60+ MB нужен нативный бинарник:"
+  echo "  ./scripts/install-gltfpack-native.sh"
+  echo "Или: npm install -g gltfpack (может не работать с большими файлами)"
+  exit 1
+fi
+
 ASSETS_DIR="$PROJECT_ROOT/backend/media/assets"
 BACKUP_DIR="$PROJECT_ROOT/backend/media/assets-backup"
 SI_RATIO="${1:-0.33}"
