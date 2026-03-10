@@ -53,9 +53,13 @@ def main():
     try:
         import boto3
         from botocore.config import Config
+        from boto3.s3.transfer import TransferConfig
     except ImportError:
         print("Установите boto3: pip install boto3")
         return 1
+
+    # Beget S3 может некорректно обрабатывать multipart — используем PutObject для всех файлов
+    transfer_config = TransferConfig(multipart_threshold=200 * 1024 * 1024)  # 200 MB
 
     # Регион для подписи (Beget)
     region = os.environ.get("AWS_S3_REGION_NAME_FOR_SIGNING")
@@ -100,6 +104,7 @@ def main():
                     "ContentType": "model/gltf-binary",
                     "ACL": acl,
                 },
+                Config=transfer_config,
             )
             print(f"  OK: {fp.name}")
             ok += 1
