@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """
 Загрузка оптимизированных GLB в S3 (если USE_S3_STORAGE=1).
-Использует boto3 вместо aws cli — корректно обрабатывает кириллические имена файлов.
+Использует presigned PUT URL — обходит XAmzContentSHA256Mismatch в boto3 с Beget S3.
 Запускать ПОСЛЕ optimize-glb.sh
 """
 import os
 import sys
 from pathlib import Path
 
-# Добавляем backend в путь для импорта Django settings (опционально)
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 ASSETS_DIR = PROJECT_ROOT / "backend" / "media" / "assets"
@@ -53,22 +52,18 @@ def main():
     try:
         import boto3
         from botocore.config import Config
-        from boto3.s3.transfer import TransferConfig
-    except ImportError:
-        print("Установите boto3: pip install boto3")
+        import urllib.request
+    except ImportError as e:
+        print(f"Требуется boto3: pip install boto3. {e}")
         return 1
 
-    # Beget S3 может некорректно обрабатывать multipart — используем PutObject для всех файлов
-    transfer_config = TransferConfig(multipart_threshold=200 * 1024 * 1024)  # 200 MB
-
-    # Регион для подписи (Beget)
     region = os.environ.get("AWS_S3_REGION_NAME_FOR_SIGNING")
     if not region and "ru1" in endpoint.lower():
         region = "ru1"
     elif not region:
         region = "us-east-1"
 
-    config = Config(s3={"addressing_style": "path"})
+    config = Config(s3={"addressing_style": "path"}, signature_version="s3v4")
     client = boto3.client(
         "s3",
         endpoint_url=endpoint,
@@ -86,7 +81,7 @@ def main():
         print("GLB файлы не найдены в", ASSETS_DIR)
         return 0
 
-    print("=== Загрузка оптимизированных GLB в S3 ===")
+    print("=== Загрузка оптимизированных GLB в S3 (presigned PUT) ===")
     print(f"Бакет: {bucket}")
     print(f"Папка: {ASSETS_DIR}")
     print()
@@ -96,16 +91,30 @@ def main():
     for fp in glb_files:
         key = f"assets/{fp.name}"
         try:
-            client.upload_file(
-                str(fp),
-                bucket,
-                key,
-                ExtraArgs={
+            url = client.generate_presigned_url(
+                "put_object",
+                Params={
+                    "Bucket": bucket,
+                    "Key": key,
                     "ContentType": "model/gltf-binary",
                     "ACL": acl,
                 },
-                Config=transfer_config,
+                ExpiresIn=3600,
             )
+            with open(fp, "rb") as f:
+                body = f.read()
+            req = urllib.request.Request(
+                url,
+                data=body,
+                method="PUT",
+                headers={
+                    "Content-Type": "model/gltf-binary",
+                    "x-amz-acl": acl,
+                },
+            )
+            with urllib.request.urlopen(req) as resp:
+                if resp.status >= 400:
+                    raise RuntimeError(f"HTTP {resp.status}")
             print(f"  OK: {fp.name}")
             ok += 1
         except Exception as e:
