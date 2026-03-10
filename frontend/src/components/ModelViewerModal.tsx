@@ -13,6 +13,9 @@ interface ModelViewerModalProps {
 // Поддерживаемые форматы для model-viewer
 const SUPPORTED_FORMATS = ['.glb', '.gltf', '.usdz']
 const MODEL_VIEWER_FORMATS = ['glb', 'gltf', 'usdz']
+/** Cache-bust после оптимизации gltfpack */
+const GLB_VERSION = 'v=opt'
+const addCacheBust = (url: string) => url + (url.includes('?') ? '&' : '?') + GLB_VERSION
 
 export default function ModelViewerModal({
 	isOpen,
@@ -336,7 +339,7 @@ export default function ModelViewerModal({
 								<model-viewer
 									ref={setupModelViewer}
 									id={`model-viewer-${validIndex}`}
-									src={selectedModel.file_url}
+									src={addCacheBust(selectedModel.file_url)}
 									alt={
 										selectedModel.description ||
 										selectedModel.asset_id ||

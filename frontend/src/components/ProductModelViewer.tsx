@@ -5,6 +5,8 @@ import { Product } from '../types'
 
 const MODEL_VIEWER_FORMATS = ['glb', 'gltf', 'usdz']
 const GLB_CACHE_NAME = 'vizhub-glb-models'
+/** Cache-bust после оптимизации gltfpack (60→20 MB). Увеличьте при следующей оптимизации. */
+const GLB_VERSION = 'v=opt'
 const MAX_CONCURRENT_LOADS = 8
 
 /** Ограничение параллельных загрузок. 8 — чтобы при фильтре/категории все видимые модели грузились сразу */
@@ -28,16 +30,19 @@ const loadQueue = {
 
 function getModelUrl(product: Product): string | null {
 	if (!product) return null
-	if (product.model_glb) return product.model_glb
-	if (product.asset_3d_models && product.asset_3d_models.length > 0) {
+	let url: string | null = null
+	if (product.model_glb) url = product.model_glb
+	else if (product.asset_3d_models && product.asset_3d_models.length > 0) {
 		const first = product.asset_3d_models[0]
 		if (first?.file_url) {
-			const url = first.file_url.toLowerCase()
-			const ext = url.substring(url.lastIndexOf('.') + 1).split('?')[0]
-			if (MODEL_VIEWER_FORMATS.includes(ext)) return first.file_url
+			const u = first.file_url.toLowerCase()
+			const ext = u.substring(u.lastIndexOf('.') + 1).split('?')[0]
+			if (MODEL_VIEWER_FORMATS.includes(ext)) url = first.file_url
 		}
 	}
-	return null
+	if (!url) return null
+	// Cache-bust: после оптимизации gltfpack старый кэш (60 MB) невалиден
+	return url + (url.includes('?') ? '&' : '?') + GLB_VERSION
 }
 
 function isValidUrl(url: string | null | undefined): boolean {
@@ -85,22 +90,9 @@ export default function ProductModelViewer({
 }: ProductModelViewerProps) {
 	const modelUrl = getModelUrl(product)
 	const [scriptReady, setScriptReady] = useState(false)
-	const [isInView, setIsInView] = useState(variant === 'page')
 	const [resolvedSrc, setResolvedSrc] = useState<string | null>(null)
 	const containerRef = useRef<HTMLDivElement>(null)
 	const modelViewerRef = useRef<any>(null)
-
-	// Загружаем 3D только когда карточка в зоне видимости
-	useEffect(() => {
-		if (variant !== 'card' || !containerRef.current) return
-		const el = containerRef.current
-		const io = new IntersectionObserver(
-			([e]) => setIsInView(e.isIntersecting),
-			{ rootMargin: '100px', threshold: 0.01 }
-		)
-		io.observe(el)
-		return () => io.disconnect()
-	}, [variant])
 
 	// Ждём model-viewer: CDN в каталоге или import на других страницах
 	useEffect(() => {
@@ -116,21 +108,12 @@ export default function ProductModelViewer({
 		return () => { cancelled = true }
 	}, [modelUrl])
 
-	// Выгружаем 3D при выходе из зоны — иначе «Загрузить ещё» даёт 40+ WebGL → чёрный экран.
-	// При смене фильтра/категории — отменяем старые загрузки, чтобы видимые модели грузились сразу.
+	// Модели всегда загружаются и остаются на экране (не выгружаем при скролле).
+	// При смене фильтра/категории — отменяем старые загрузки.
 	const blobUrlRef = useRef<string | null>(null)
 	const loadedForUrlRef = useRef<string | null>(null)
 	useEffect(() => {
 		if (!modelUrl || !scriptReady) return
-		if (variant === 'card' && !isInView) {
-			if (blobUrlRef.current) {
-				URL.revokeObjectURL(blobUrlRef.current)
-				blobUrlRef.current = null
-			}
-			loadedForUrlRef.current = null
-			setResolvedSrc(null)
-			return
-		}
 		if (loadedForUrlRef.current === modelUrl) return
 		const ac = new AbortController()
 		if (loadedForUrlRef.current && loadedForUrlRef.current !== modelUrl && blobUrlRef.current) {
@@ -151,7 +134,7 @@ export default function ProductModelViewer({
 		return () => {
 			ac.abort()
 		}
-	}, [modelUrl, isInView, scriptReady, variant])
+	}, [modelUrl, scriptReady, variant])
 	useEffect(() => () => {
 		if (blobUrlRef.current) {
 			URL.revokeObjectURL(blobUrlRef.current)
