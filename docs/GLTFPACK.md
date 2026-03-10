@@ -39,7 +39,7 @@ gltfpack -i model.glb -o model-opt.glb -si 0.33
 ```bash
 ./scripts/upload-optimized-to-s3.sh
 ```
-Иначе сайт продолжит отдавать старые 60 MB из S3.
+Скрипт использует Python/boto3 (корректно обрабатывает кириллические имена). Иначе сайт продолжит отдавать старые 60 MB из S3.
 
 Бэкап сохраняется в `backups/glb-assets-original/` (не в media).
 
