@@ -19,8 +19,14 @@ backend/media/
 backups/
 backend/logs/
 backend/gunicorn.pid
-backend/**/__pycache__/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
 frontend/.next/
+frontend/.next/cache/
+frontend/.next/standalone/
 
 # Нативный gltfpack (скачивается install-gltfpack-native.sh)
 scripts/bin/
