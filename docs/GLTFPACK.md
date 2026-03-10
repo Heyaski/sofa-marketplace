@@ -34,7 +34,14 @@ gltfpack -i model.glb -o model-opt.glb -si 0.33
 ./scripts/install-gltfpack-native.sh   # один раз, для файлов 60+ MB
 ./scripts/optimize-glb.sh
 ```
-Для Windows: `scripts/optimize-glb.ps1` (требует gltfpack в PATH или npx).
+
+**Если используется S3** — после оптимизации загрузите файлы в бакет:
+```bash
+./scripts/upload-optimized-to-s3.sh
+```
+Иначе сайт продолжит отдавать старые 60 MB из S3.
+
+Бэкап сохраняется в `backups/glb-assets-original/` (не в media).
 
 **Ручная обработка (Linux/macOS):**
 ```bash
