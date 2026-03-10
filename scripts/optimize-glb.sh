@@ -33,6 +33,7 @@ if [ ! -d "$ASSETS_DIR" ]; then
 fi
 
 echo "=== Оптимизация GLB (gltfpack -si $SI_RATIO) ==="
+echo "Используется: $GLTFPACK"
 echo "Папка: $ASSETS_DIR"
 echo ""
 
@@ -53,7 +54,7 @@ for f in "$ASSETS_DIR"/*.glb "$ASSETS_DIR"/*.GLB; do
   
   echo "[$((count+1))] $name (${size_mb_before} MB) ..."
   
-  if $GLTFPACK -i "$f" -o "$f.tmp" -si "$SI_RATIO" 2>/dev/null; then
+  if $GLTFPACK -i "$f" -o "$f.tmp" -si "$SI_RATIO" 2>&1; then
     size_after=$(stat -f%z "$f.tmp" 2>/dev/null || stat -c%s "$f.tmp" 2>/dev/null)
     size_mb_after=$((size_after / 1024 / 1024))
     mv "$f.tmp" "$f"
