@@ -258,9 +258,9 @@ if USE_S3_STORAGE:
         
         # Используем S3 для медиа-файлов (3D модели, изображения)
         # В Django 5.2+ используется STORAGES вместо DEFAULT_FILE_STORAGE
-        # Используем кастомный storage для правильной поддержки path-style URLs
+        # GLBOptimizingS3Storage — оптимизирует GLB при сохранении (60→~27 MB)
         STORAGES["default"] = {
-            "BACKEND": "storage.BegetS3Storage",
+            "BACKEND": "storage.GLBOptimizingS3Storage",
         }
         
         # Настройка стиля адресации URL
