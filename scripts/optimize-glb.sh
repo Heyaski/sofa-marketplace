@@ -26,7 +26,7 @@ fi
 ASSETS_DIR="$PROJECT_ROOT/backend/media/assets"
 BACKUP_DIR="$PROJECT_ROOT/backups/glb-assets-original"
 SKIP_BACKUP=false
-SI_RATIO="0.33"
+SI_RATIO="${GLB_SI_RATIO:-0.2}"  # 0.2 → ~10–15 MB, 7–10 сек; 0.33 → ~30 MB
 for arg in "$@"; do
   case "$arg" in
     --no-backup) SKIP_BACKUP=true ;;

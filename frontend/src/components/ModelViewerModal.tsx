@@ -14,7 +14,7 @@ interface ModelViewerModalProps {
 const SUPPORTED_FORMATS = ['.glb', '.gltf', '.usdz']
 const MODEL_VIEWER_FORMATS = ['glb', 'gltf', 'usdz']
 /** Cache-bust после оптимизации gltfpack */
-const GLB_VERSION = 'v=opt'
+const GLB_VERSION = 'v=opt2'
 const addCacheBust = (url: string) => url + (url.includes('?') ? '&' : '?') + GLB_VERSION
 
 export default function ModelViewerModal({

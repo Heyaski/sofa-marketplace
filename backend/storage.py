@@ -30,9 +30,10 @@ def _optimize_glb(content: File) -> File | None:
     if len(data) < 5 * 1024 * 1024:  # < 5 MB — не оптимизируем
         return None
 
-    si_ratio = "0.33"
-    if len(data) > 40 * 1024 * 1024:  # > 40 MB — меньше упрощение для экономии памяти
-        si_ratio = "0.5"
+    # 0.2 → ~10–15 MB, загрузка 7–10 сек. 0.33 → ~30 MB, 30 сек.
+    si_ratio = str(getattr(settings, "GLB_SI_RATIO", 0.2))
+    if len(data) > 40 * 1024 * 1024:  # > 40 MB — меньше упрощение для экономии памяти gltfpack
+        si_ratio = str(getattr(settings, "GLB_SI_RATIO_LARGE", 0.25))
 
     with tempfile.NamedTemporaryFile(suffix=".glb", delete=False) as tmp_in:
         tmp_in.write(data)
