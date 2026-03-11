@@ -4,7 +4,7 @@
 
 set -e
 
-TARGET_MB="${GLB_TARGET_MB:-10}"
+TARGET_MB="${GLB_TARGET_MB:-20}"
 
 # Нативный бинарник (для файлов 60+ MB) приоритетнее npm/WASM
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -77,7 +77,7 @@ for f in "$ASSETS_DIR"/*.glb "$ASSETS_DIR"/*.GLB; do
   cp "$f" "$tmp_orig"
   best_size=$size_before
   best_file=""
-  for si_try in 0.25 0.2 0.15 0.12 0.1 0.08 0.05 0.03; do
+  for si_try in 0.33 0.25 0.2 0.15 0.12 0.1 0.08; do
     [ $size_mb_before -le 40 ] && [ "$si_try" = "0.25" ] && si_try="0.2"
     tmpfile=$(mktemp -u "${f%.*}-opt-XXXXXX.glb")
     if $GLTFPACK -i "$tmp_orig" -o "$tmpfile" -si "$si_try" 2>/dev/null; then

@@ -324,8 +324,8 @@ if USE_S3_STORAGE:
 else:
     print("ℹ️ Используется локальное хранилище (MEDIA_ROOT)")
 
-# gltfpack: целевой размер 10 MB (итеративно подбирает si до достижения)
-GLB_TARGET_MB = float(get_env("GLB_TARGET_MB", "10"))
+# gltfpack: целевой размер 20 MB (баланс качества и скорости)
+GLB_TARGET_MB = float(get_env("GLB_TARGET_MB", "20"))
 
 # Настройки для загрузки больших файлов (3D модели могут быть очень большими)
 # ВАЖНО: FILE_UPLOAD_MAX_MEMORY_SIZE должен быть НЕБОЛЬШИМ, чтобы файлы сразу писались на диск

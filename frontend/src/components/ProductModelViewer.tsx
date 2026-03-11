@@ -6,7 +6,7 @@ import { Product } from '../types'
 const MODEL_VIEWER_FORMATS = ['glb', 'gltf', 'usdz']
 const GLB_CACHE_NAME = 'vizhub-glb-models'
 /** Cache-bust после оптимизации gltfpack. Увеличьте при следующей оптимизации (v=opt2, v=opt3…). */
-const GLB_VERSION = 'v=opt3'
+const GLB_VERSION = 'v=opt4'
 const MAX_CONCURRENT_LOADS = 3
 
 /** Ограничение параллельных загрузок. 3 — каждая модель получает больше канала, грузится быстрее */
