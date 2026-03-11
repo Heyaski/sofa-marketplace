@@ -82,5 +82,5 @@ done
 
 **Настройка:** `GLB_TARGET_MB=20` в `.env`. `GLB_USE_TEXTURE_COMPRESSION=0` — отключить сжатие текстур (если тёмные модели).
 
-**Восстановление качества** (если модели стали угловатыми): нужны оригинальные файлы. Если есть бэкап в `backups/glb-assets-original/`, установите `GLB_TARGET_MB=30` и запустите `python manage.py optimize_glb_s3 --restore-backup`.
+**Восстановление качества** (если модели стали угловатыми): нужны оригинальные файлы. Бэкап создаётся при первом запуске `optimize-glb.sh` на локальных файлах. Имена в бэкапе могут быть без суффикса Django (Пуф1497.glb вместо Пуф1497_hsDp1Ve.glb) — скрипт ищет оба варианта. Проверить маппинг: `python manage.py optimize_glb_s3 --list-backup`. Восстановить: `GLB_TARGET_MB=30` в `.env`, затем `python manage.py optimize_glb_s3 --restore-backup`.
  
