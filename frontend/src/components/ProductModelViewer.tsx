@@ -5,11 +5,10 @@ import { Product } from '../types'
 
 const MODEL_VIEWER_FORMATS = ['glb', 'gltf', 'usdz']
 const GLB_CACHE_NAME = 'vizhub-glb-models'
-/** Cache-bust после оптимизации gltfpack. Увеличьте при следующей оптимизации (v=opt2, v=opt3…). */
+const GLB_CACHE_MAX_ENTRIES = 15
 const GLB_VERSION = 'v=opt4'
 const MAX_CONCURRENT_LOADS = 3
 
-/** Ограничение параллельных загрузок. 3 — каждая модель получает больше канала, грузится быстрее */
 const loadQueue = {
 	active: 0,
 	queue: [] as (() => void)[],
@@ -51,6 +50,19 @@ function isValidUrl(url: string | null | undefined): boolean {
 	return u.startsWith('http://') || u.startsWith('https://') || u.startsWith('/')
 }
 
+async function trimCacheIfNeeded(cache: Cache) {
+	try {
+		const keys = await cache.keys()
+		if (keys.length > GLB_CACHE_MAX_ENTRIES) {
+			for (let i = 0; i < keys.length - GLB_CACHE_MAX_ENTRIES; i++) {
+				await cache.delete(keys[i])
+			}
+		}
+	} catch {
+		/* ignore */
+	}
+}
+
 async function getCachedOrFetchModelUrl(url: string, signal?: AbortController['signal']): Promise<string> {
 	if (typeof caches === 'undefined') return url
 	try {
@@ -64,7 +76,8 @@ async function getCachedOrFetchModelUrl(url: string, signal?: AbortController['s
 			const res = await fetch(url, { mode: 'cors', signal })
 			if (!res.ok) return url
 			const cache = await caches.open(GLB_CACHE_NAME)
-			cache.put(url, res.clone())
+			await cache.put(url, res.clone())
+			trimCacheIfNeeded(cache)
 			const blob = await res.blob()
 			return URL.createObjectURL(blob)
 		} finally {
@@ -91,10 +104,22 @@ export default function ProductModelViewer({
 	const modelUrl = getModelUrl(product)
 	const [scriptReady, setScriptReady] = useState(false)
 	const [resolvedSrc, setResolvedSrc] = useState<string | null>(null)
+	const [inViewport, setInViewport] = useState(false)
 	const containerRef = useRef<HTMLDivElement>(null)
 	const modelViewerRef = useRef<any>(null)
 
-	// Ждём model-viewer: CDN в каталоге или import на других страницах
+	// Виртуализация: загружаем 3D только когда карточка в viewport
+	useEffect(() => {
+		if (!modelUrl || !containerRef.current) return
+		const el = containerRef.current
+		const observer = new IntersectionObserver(
+			([entry]) => setInViewport(entry.isIntersecting),
+			{ rootMargin: '100px', threshold: 0.01 }
+		)
+		observer.observe(el)
+		return () => observer.disconnect()
+	}, [modelUrl])
+
 	useEffect(() => {
 		if (!modelUrl) return
 		let cancelled = false
@@ -108,12 +133,18 @@ export default function ProductModelViewer({
 		return () => { cancelled = true }
 	}, [modelUrl])
 
-	// Модели всегда загружаются и остаются на экране (не выгружаем при скролле).
-	// При смене фильтра/категории — отменяем старые загрузки.
 	const blobUrlRef = useRef<string | null>(null)
 	const loadedForUrlRef = useRef<string | null>(null)
 	useEffect(() => {
-		if (!modelUrl || !scriptReady) return
+		if (!modelUrl || !scriptReady || !inViewport) {
+			if (!inViewport && blobUrlRef.current) {
+				URL.revokeObjectURL(blobUrlRef.current)
+				blobUrlRef.current = null
+				loadedForUrlRef.current = null
+				setResolvedSrc(null)
+			}
+			return
+		}
 		if (loadedForUrlRef.current === modelUrl) return
 		const ac = new AbortController()
 		if (loadedForUrlRef.current && loadedForUrlRef.current !== modelUrl && blobUrlRef.current) {
@@ -134,7 +165,7 @@ export default function ProductModelViewer({
 		return () => {
 			ac.abort()
 		}
-	}, [modelUrl, scriptReady, variant])
+	}, [modelUrl, scriptReady, inViewport, variant])
 	useEffect(() => () => {
 		if (blobUrlRef.current) {
 			URL.revokeObjectURL(blobUrlRef.current)
@@ -147,49 +178,52 @@ export default function ProductModelViewer({
 	}, [])
 
 	const TRANSPARENT_PIXEL = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjwvc3ZnPg=='
-	const shouldShow3D = !!modelUrl && isValidUrl(modelUrl) && scriptReady && resolvedSrc !== null
+	const shouldShow3D = !!modelUrl && isValidUrl(modelUrl) && scriptReady && inViewport && resolvedSrc !== null
 
 	const containerClass = `overflow-hidden bg-gray-50 flex items-center justify-center ${variant === 'card' ? 'aspect-square' : 'aspect-square sm:min-h-[400px]'} ${className}`
 
-	if (!shouldShow3D) {
-		return (
-			<div ref={containerRef} className={`${containerClass} cursor-pointer flex flex-col items-center justify-center gap-2`} onClick={onClick}>
-				<div className='animate-spin rounded-full h-8 w-8 border-2 border-main1 border-t-transparent' />
-				<span className='text-xs text-gray'>Загрузка 3D...</span>
-			</div>
-		)
-	}
+	if (!modelUrl || !isValidUrl(modelUrl)) return null
 
 	return (
-		<div
-			ref={containerRef}
-			className={`${containerClass} cursor-grab active:cursor-grabbing`}
-			onClick={(e) => e.stopPropagation()}
-			onDoubleClick={(e) => {
-				e.stopPropagation()
-				onClick?.()
-			}}
-			title={onClick ? 'Двойной щелчок — открыть карточку товара' : undefined}
-		>
-			<model-viewer
-				ref={setupRef}
-				src={resolvedSrc}
-				poster={TRANSPARENT_PIXEL}
-				alt={product.title || '3D модель'}
-				camera-controls
-				shadow-intensity='1'
-				loading='lazy'
-				reveal='auto'
-				interaction-policy='allow-when-focused'
-				disable-zoom={variant === 'card'}
-				style={{
-					width: '100%',
-					height: '100%',
-					minHeight: variant === 'page' ? 400 : 200,
-					display: 'block',
-					pointerEvents: 'auto',
-				}}
-			/>
+		<div ref={containerRef} className={containerClass}>
+			{!inViewport ? (
+				<div className="w-full h-full min-h-[200px] cursor-pointer" onClick={onClick} />
+			) : !shouldShow3D ? (
+				<div className="w-full h-full flex flex-col items-center justify-center gap-2 cursor-pointer" onClick={onClick}>
+					<div className='animate-spin rounded-full h-8 w-8 border-2 border-main1 border-t-transparent' />
+					<span className='text-xs text-gray'>Загрузка 3D...</span>
+				</div>
+			) : (
+				<div
+					className="w-full h-full cursor-grab active:cursor-grabbing"
+					onClick={(e) => e.stopPropagation()}
+					onDoubleClick={(e) => {
+						e.stopPropagation()
+						onClick?.()
+					}}
+					title={onClick ? 'Двойной щелчок — открыть карточку товара' : undefined}
+				>
+					<model-viewer
+						ref={setupRef}
+						src={resolvedSrc}
+						poster={TRANSPARENT_PIXEL}
+						alt={product.title || '3D модель'}
+						camera-controls
+						shadow-intensity='1'
+						loading='lazy'
+						reveal='auto'
+						interaction-policy='allow-when-focused'
+						disable-zoom={variant === 'card'}
+						style={{
+							width: '100%',
+							height: '100%',
+							minHeight: variant === 'page' ? 400 : 200,
+							display: 'block',
+							pointerEvents: 'auto',
+						}}
+					/>
+				</div>
+			)}
 		</div>
 	)
 }

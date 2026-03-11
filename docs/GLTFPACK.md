@@ -80,5 +80,7 @@ done
 | `-si 0.2 … 0.08` | Итеративно до ≤ 10 MB |
 | `-cc` | Доп. сжатие — требует meshopt decoder, не используется |
 
-**Настройка:** `GLB_TARGET_MB=10` в `.env` (целевой размер в MB).
+**Настройка:** `GLB_TARGET_MB=20` в `.env`. `GLB_USE_TEXTURE_COMPRESSION=0` — отключить сжатие текстур (если тёмные модели).
+
+**Восстановление качества** (если модели стали угловатыми): нужны оригинальные файлы. Если есть бэкап в `backups/glb-assets-original/`, установите `GLB_TARGET_MB=30` и запустите `python manage.py optimize_glb_s3 --restore-backup`.
  
