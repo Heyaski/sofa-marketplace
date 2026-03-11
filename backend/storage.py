@@ -1,9 +1,71 @@
 """
 Кастомный storage backend для S3 с правильной поддержкой path-style addressing
-для региональных endpoints Beget
+для региональных endpoints Beget.
+Оптимизация GLB при сохранении (60 MB → ~27 MB).
 """
-from storages.backends.s3boto3 import S3Boto3Storage
+import logging
+import os
+import subprocess
+import tempfile
+from pathlib import Path
+
 from django.conf import settings
+from django.core.files.base import ContentFile, File
+from storages.backends.s3boto3 import S3Boto3Storage
+
+logger = logging.getLogger(__name__)
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+GLTFPACK_PATH = PROJECT_ROOT / "scripts" / "bin" / "gltfpack"
+
+
+def _optimize_glb(content: File) -> File | None:
+    """Оптимизирует GLB через gltfpack. Возвращает ContentFile с оптимизированным содержимым или None."""
+    if not GLTFPACK_PATH.exists() or not os.access(GLTFPACK_PATH, os.X_OK):
+        logger.warning("gltfpack не найден: %s. Запустите scripts/install-gltfpack-native.sh", GLTFPACK_PATH)
+        return None
+
+    content.seek(0)
+    data = content.read()
+    if len(data) < 5 * 1024 * 1024:  # < 5 MB — не оптимизируем
+        return None
+
+    si_ratio = "0.33"
+    if len(data) > 40 * 1024 * 1024:  # > 40 MB — меньше упрощение для экономии памяти
+        si_ratio = "0.5"
+
+    with tempfile.NamedTemporaryFile(suffix=".glb", delete=False) as tmp_in:
+        tmp_in.write(data)
+        tmp_in_path = tmp_in.name
+
+    tmp_out_path = tmp_in_path + ".opt.glb"
+    try:
+        result = subprocess.run(
+            [str(GLTFPACK_PATH), "-i", tmp_in_path, "-o", tmp_out_path, "-si", si_ratio],
+            capture_output=True,
+            timeout=300,
+            cwd=str(PROJECT_ROOT),
+        )
+        if result.returncode != 0 or not os.path.exists(tmp_out_path):
+            logger.warning("gltfpack ошибка для %s: %s", tmp_in_path, result.stderr.decode(errors="replace"))
+            return None
+
+        with open(tmp_out_path, "rb") as f:
+            optimized = f.read()
+        return ContentFile(optimized)
+    except subprocess.TimeoutExpired:
+        logger.warning("gltfpack timeout для %s", tmp_in_path)
+        return None
+    except Exception as e:
+        logger.warning("gltfpack исключение: %s", e)
+        return None
+    finally:
+        for p in (tmp_in_path, tmp_out_path):
+            if p and os.path.exists(p):
+                try:
+                    os.unlink(p)
+                except OSError:
+                    pass
 
 
 class BegetS3Storage(S3Boto3Storage):
@@ -52,3 +114,21 @@ class BegetS3Storage(S3Boto3Storage):
         # Fallback на стандартное поведение
         return super().url(name)
 
+
+class GLBOptimizingS3Storage(BegetS3Storage):
+    """S3 storage с автоматической оптимизацией GLB при сохранении."""
+
+    def _save(self, name, content):
+        optimize = getattr(settings, "GLB_OPTIMIZE_ON_SAVE", True)
+        name_lower = name.lower()
+        if optimize and (name_lower.endswith(".glb") or name_lower.endswith(".gltf")):
+            if hasattr(content, "seek"):
+                content.seek(0)
+            file_obj = File(content) if not isinstance(content, File) else content
+            optimized = _optimize_glb(file_obj)
+            if optimized is not None:
+                content = optimized
+                logger.info("GLB оптимизирован при сохранении: %s", name)
+            elif hasattr(content, "seek"):
+                content.seek(0)
+        return super()._save(name, content)
