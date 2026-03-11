@@ -68,14 +68,29 @@ class Command(BaseCommand):
         restore_backup = options.get("restore_backup", False)
         list_backup = options.get("list_backup", False)
 
-        backup_dir = Path(settings.BASE_DIR).parent / "backups" / "glb-assets-original"
+        backup_dirs = [
+            Path(settings.BASE_DIR).parent / "backups" / "glb-assets-original",
+            Path(settings.BASE_DIR) / "media" / "assets-backup",
+            Path(settings.BASE_DIR) / "media" / "assets",
+        ]
+        backup_dir = next((d for d in backup_dirs if d.is_dir()), backup_dirs[0])
         if not backup_dir.is_dir():
             self.stdout.write(self.style.WARNING(f"Папка бэкапа: {backup_dir}"))
             if restore_backup or list_backup:
-                self.stdout.write(self.style.ERROR("Папка не найдена. Создайте бэкап: ./scripts/optimize-glb.sh (создаёт backups/ при первом запуске)"))
+                self.stdout.write(self.style.ERROR("Ни одна папка бэкапа не найдена. Проверьте: backups/glb-assets-original, media/assets-backup, media/assets"))
                 return
+        existing_backups = [d for d in backup_dirs if d.is_dir()]
+        if list_backup or restore_backup:
+            for d in existing_backups:
+                self.stdout.write(f"  Папка бэкапа: {d}")
         if list_backup:
-            backup_files = sorted(backup_dir.glob("*.glb")) + sorted(backup_dir.glob("*.GLB"))
+            by_name = {}
+            for d in existing_backups:
+                for p in d.glob("*.glb"):
+                    by_name.setdefault(p.name, p)
+                for p in d.glob("*.GLB"):
+                    by_name.setdefault(p.name, p)
+            backup_files = sorted(by_name.values(), key=lambda p: p.name)
             self.stdout.write(f"Файлов в бэкапе: {len(backup_files)}")
             for bf in backup_files[:20]:
                 self.stdout.write(f"  {bf.name}")
@@ -85,13 +100,13 @@ class Command(BaseCommand):
             for asset in glb_assets[:10]:
                 bn = os.path.basename(asset.file.name)
                 base_short = bn.rsplit("_", 1)[0] + ".glb" if "_" in bn and bn.lower().endswith((".glb", ".gltf")) else bn
-                found = (backup_dir / bn).is_file() or (backup_dir / base_short).is_file()
+                found = any((d / bn).is_file() or (d / base_short).is_file() for d in existing_backups)
                 self.stdout.write(f"  {bn} -> {'✓' if found else '✗'} (ищем {base_short})")
             return
 
         self.stdout.write(f"=== Оптимизация GLB в S3 (по путям из БД) ===")
         if restore_backup:
-            self.stdout.write(f"Источник: {backup_dir}")
+            self.stdout.write(f"Источники: {', '.join(str(d) for d in existing_backups)}")
         self.stdout.write(f"Бакет: {bucket}")
         self.stdout.write(f"Найдено: {len(glb_assets)} файлов\n")
 
@@ -104,21 +119,35 @@ class Command(BaseCommand):
             try:
                 if restore_backup:
                     basename = os.path.basename(key)
-                    backup_path = backup_dir / basename
-                    if not backup_path.is_file():
+                    backup_path = None
+                    for bdir in backup_dirs:
+                        if not bdir.is_dir():
+                            continue
+                        p = bdir / basename
+                        if p.is_file():
+                            backup_path = p
+                            break
+                    if not backup_path:
                         base_short = basename.rsplit("_", 1)[0] + basename[basename.rfind("."):] if "_" in basename and basename.lower().endswith((".glb", ".gltf")) else basename
-                        for candidate in [
-                            backup_dir / base_short,
-                            backup_dir / f"{asset.asset_id}.glb",
-                            backup_dir / f"{asset.asset_id}.GLB",
-                        ]:
-                            if candidate.is_file():
-                                backup_path = candidate
+                        for bdir in backup_dirs:
+                            if not bdir.is_dir():
+                                continue
+                            for candidate in [
+                                bdir / base_short,
+                                bdir / basename,
+                                bdir / f"{asset.asset_id}.glb",
+                                bdir / f"{asset.asset_id}.GLB",
+                            ]:
+                                if candidate.is_file():
+                                    backup_path = candidate
+                                    break
+                            if backup_path:
                                 break
-                        else:
                             stem = base_short.replace(".glb", "").replace(".GLB", "")
-                            candidates = list(backup_dir.glob(f"{stem}*.glb")) + list(backup_dir.glob(f"{stem}*.GLB"))
-                            backup_path = candidates[0] if len(candidates) == 1 else (candidates[0] if candidates else None)
+                            candidates = list(bdir.glob(f"{stem}*.glb")) + list(bdir.glob(f"{stem}*.GLB"))
+                            if len(candidates) == 1:
+                                backup_path = candidates[0]
+                                break
                         if not backup_path or not backup_path.is_file():
                             self.stdout.write(self.style.WARNING(f"  SKIP: {key} — нет в бэкапе"))
                             skip += 1
