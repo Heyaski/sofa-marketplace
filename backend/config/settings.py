@@ -324,9 +324,8 @@ if USE_S3_STORAGE:
 else:
     print("ℹ️ Используется локальное хранилище (MEDIA_ROOT)")
 
-# gltfpack: упрощение полигонов (0.2 → ~10–15 MB, загрузка 7–10 сек; 0.33 → ~30 MB)
-GLB_SI_RATIO = float(get_env("GLB_SI_RATIO", "0.2"))
-GLB_SI_RATIO_LARGE = float(get_env("GLB_SI_RATIO_LARGE", "0.25"))  # для файлов > 40 MB
+# gltfpack: целевой размер 10 MB (итеративно подбирает si до достижения)
+GLB_TARGET_MB = float(get_env("GLB_TARGET_MB", "10"))
 
 # Настройки для загрузки больших файлов (3D модели могут быть очень большими)
 # ВАЖНО: FILE_UPLOAD_MAX_MEMORY_SIZE должен быть НЕБОЛЬШИМ, чтобы файлы сразу писались на диск

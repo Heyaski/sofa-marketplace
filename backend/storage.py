@@ -1,7 +1,7 @@
 """
 Кастомный storage backend для S3 с правильной поддержкой path-style addressing
 для региональных endpoints Beget.
-Оптимизация GLB при сохранении (60 MB → ~27 MB).
+Оптимизация GLB при сохранении до 10 MB.
 """
 import logging
 import os
@@ -20,43 +20,51 @@ GLTFPACK_PATH = PROJECT_ROOT / "scripts" / "bin" / "gltfpack"
 
 
 def _optimize_glb(content: File) -> File | None:
-    """Оптимизирует GLB через gltfpack. Возвращает ContentFile с оптимизированным содержимым или None."""
+    """Оптимизирует GLB через gltfpack до целевого размера (по умолчанию 10 MB)."""
     if not GLTFPACK_PATH.exists() or not os.access(GLTFPACK_PATH, os.X_OK):
         logger.warning("gltfpack не найден: %s. Запустите scripts/install-gltfpack-native.sh", GLTFPACK_PATH)
         return None
 
     content.seek(0)
     data = content.read()
-    if len(data) < 5 * 1024 * 1024:  # < 5 MB — не оптимизируем
+    target_bytes = getattr(settings, "GLB_TARGET_MB", 10) * 1024 * 1024
+    if len(data) <= target_bytes:
         return None
 
-    # 0.2 → ~10–15 MB, загрузка 7–10 сек. 0.33 → ~30 MB, 30 сек.
-    si_ratio = str(getattr(settings, "GLB_SI_RATIO", 0.2))
-    if len(data) > 40 * 1024 * 1024:  # > 40 MB — меньше упрощение для экономии памяти gltfpack
-        si_ratio = str(getattr(settings, "GLB_SI_RATIO_LARGE", 0.25))
+    # Итеративно снижаем si до достижения целевого размера
+    si_values = [0.2, 0.15, 0.12, 0.1, 0.08]
+    if len(data) > 40 * 1024 * 1024:
+        si_values = [0.25, 0.2, 0.15, 0.12, 0.1]
 
     with tempfile.NamedTemporaryFile(suffix=".glb", delete=False) as tmp_in:
         tmp_in.write(data)
         tmp_in_path = tmp_in.name
 
     tmp_out_path = tmp_in_path + ".opt.glb"
+    best_result = None
     try:
-        result = subprocess.run(
-            [str(GLTFPACK_PATH), "-i", tmp_in_path, "-o", tmp_out_path, "-si", si_ratio],
-            capture_output=True,
-            timeout=300,
-            cwd=str(PROJECT_ROOT),
-        )
-        if result.returncode != 0 or not os.path.exists(tmp_out_path):
-            logger.warning("gltfpack ошибка для %s: %s", tmp_in_path, result.stderr.decode(errors="replace"))
-            return None
+        for si_ratio in si_values:
+            try:
+                result = subprocess.run(
+                    [str(GLTFPACK_PATH), "-i", tmp_in_path, "-o", tmp_out_path, "-si", str(si_ratio)],
+                    capture_output=True,
+                    timeout=300,
+                    cwd=str(PROJECT_ROOT),
+                )
+                if result.returncode != 0 or not os.path.exists(tmp_out_path):
+                    continue
+                with open(tmp_out_path, "rb") as f:
+                    optimized = f.read()
+                best_result = optimized
+                if len(optimized) <= target_bytes:
+                    break
+            except (subprocess.TimeoutExpired, OSError):
+                continue
 
-        with open(tmp_out_path, "rb") as f:
-            optimized = f.read()
-        return ContentFile(optimized)
-    except subprocess.TimeoutExpired:
-        logger.warning("gltfpack timeout для %s", tmp_in_path)
-        return None
+        if best_result is None:
+            logger.warning("gltfpack не сработал для %s", tmp_in_path)
+            return None
+        return ContentFile(best_result)
     except Exception as e:
         logger.warning("gltfpack исключение: %s", e)
         return None

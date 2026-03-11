@@ -66,11 +66,12 @@ class Command(BaseCommand):
                 resp = client.get_object(Bucket=bucket, Key=key)
                 data = resp["Body"].read()
 
-                size_mb = len(data) / (1024 * 1024)
-                if size_mb < 5:
-                    self.stdout.write(f"  SKIP: {key} ({size_mb:.1f} MB, < 5 MB)")
-                    skip += 1
-                    continue
+            size_mb = len(data) / (1024 * 1024)
+            target_mb = getattr(settings, "GLB_TARGET_MB", 10)
+            if size_mb <= target_mb:
+                self.stdout.write(f"  SKIP: {key} ({size_mb:.1f} MB, уже ≤ {target_mb} MB)")
+                skip += 1
+                continue
 
                 optimized = _optimize_glb(ContentFile(data))
                 if optimized is None:
