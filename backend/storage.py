@@ -31,10 +31,10 @@ def _optimize_glb(content: File) -> File | None:
     if len(data) <= target_bytes:
         return None
 
-    # Итеративно снижаем si до достижения целевого размера
-    si_values = [0.2, 0.15, 0.12, 0.1, 0.08]
+    # Итеративно снижаем si до достижения целевого размера (0.05, 0.03 — агрессивно)
+    si_values = [0.2, 0.15, 0.12, 0.1, 0.08, 0.05, 0.03]
     if len(data) > 40 * 1024 * 1024:
-        si_values = [0.25, 0.2, 0.15, 0.12, 0.1]
+        si_values = [0.25, 0.2, 0.15, 0.12, 0.1, 0.08, 0.05]
 
     with tempfile.NamedTemporaryFile(suffix=".glb", delete=False) as tmp_in:
         tmp_in.write(data)
