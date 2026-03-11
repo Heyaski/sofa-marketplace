@@ -1,8 +1,10 @@
 """
 Оптимизация GLB в S3 по путям из Django (FileAsset).
 Скачивает из S3, оптимизирует gltfpack, загружает обратно с тем же ключом.
-Использует точные пути из БД — Django может добавлять суффикс (Пуф1497.glb → Пуф1497_hsDp1Ve.glb).
+Использует presigned PUT — обходит XAmzContentSHA256Mismatch в Beget S3.
 """
+import urllib.request
+
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
@@ -79,13 +81,30 @@ class Command(BaseCommand):
                 opt_data = optimized.read()
                 opt_mb = len(opt_data) / (1024 * 1024)
 
-                client.put_object(
-                    Bucket=bucket,
-                    Key=key,
-                    Body=opt_data,
-                    ContentType="model/gltf-binary",
-                    ACL=acl,
+                # Presigned PUT обходит XAmzContentSHA256Mismatch в Beget S3
+                url = client.generate_presigned_url(
+                    "put_object",
+                    Params={
+                        "Bucket": bucket,
+                        "Key": key,
+                        "ContentType": "model/gltf-binary",
+                        "ACL": acl,
+                    },
+                    ExpiresIn=3600,
                 )
+                req = urllib.request.Request(
+                    url,
+                    data=opt_data,
+                    method="PUT",
+                    headers={
+                        "Content-Type": "model/gltf-binary",
+                        "x-amz-acl": acl,
+                    },
+                )
+                with urllib.request.urlopen(req) as resp:
+                    if resp.status >= 400:
+                        raise RuntimeError(f"HTTP {resp.status}")
+
                 self.stdout.write(f"  OK: {key} ({size_mb:.1f} → {opt_mb:.1f} MB)")
                 ok += 1
             except Exception as e:
