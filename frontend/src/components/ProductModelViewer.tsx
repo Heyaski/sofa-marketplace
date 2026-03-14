@@ -8,6 +8,7 @@ const GLB_CACHE_NAME = 'vizhub-glb-models'
 const GLB_CACHE_MAX_ENTRIES = 15
 const GLB_VERSION = 'v=opt4'
 const MAX_CONCURRENT_LOADS = 3
+const VIEWPORT_HYSTERESIS_MS = 400
 
 const loadQueue = {
 	active: 0,
@@ -108,16 +109,34 @@ export default function ProductModelViewer({
 	const containerRef = useRef<HTMLDivElement>(null)
 	const modelViewerRef = useRef<any>(null)
 
-	// Виртуализация: загружаем 3D только когда карточка в viewport
+	// Виртуализация: загружаем 3D когда карточка в viewport. Гистерезис — не скрываем при кратковременном выходе из viewport.
 	useEffect(() => {
 		if (!modelUrl || !containerRef.current) return
 		const el = containerRef.current
+		let hysteresisTimer: ReturnType<typeof setTimeout> | null = null
 		const observer = new IntersectionObserver(
-			([entry]) => setInViewport(entry.isIntersecting),
-			{ rootMargin: '100px', threshold: 0.01 }
+			([entry]) => {
+				if (entry.isIntersecting) {
+					if (hysteresisTimer) {
+						clearTimeout(hysteresisTimer)
+						hysteresisTimer = null
+					}
+					setInViewport(true)
+				} else {
+					if (hysteresisTimer) return
+					hysteresisTimer = setTimeout(() => {
+						hysteresisTimer = null
+						setInViewport(false)
+					}, VIEWPORT_HYSTERESIS_MS)
+				}
+			},
+			{ rootMargin: '200px', threshold: 0.01 }
 		)
 		observer.observe(el)
-		return () => observer.disconnect()
+		return () => {
+			if (hysteresisTimer) clearTimeout(hysteresisTimer)
+			observer.disconnect()
+		}
 	}, [modelUrl])
 
 	useEffect(() => {
@@ -136,15 +155,8 @@ export default function ProductModelViewer({
 	const blobUrlRef = useRef<string | null>(null)
 	const loadedForUrlRef = useRef<string | null>(null)
 	useEffect(() => {
-		if (!modelUrl || !scriptReady || !inViewport) {
-			if (!inViewport && blobUrlRef.current) {
-				URL.revokeObjectURL(blobUrlRef.current)
-				blobUrlRef.current = null
-				loadedForUrlRef.current = null
-				setResolvedSrc(null)
-			}
-			return
-		}
+		if (!modelUrl || !scriptReady || !inViewport) return
+		// Не выгружаем модель при выходе из viewport — оставляем blob, чтобы при возврате скролла модель появлялась мгновенно
 		if (loadedForUrlRef.current === modelUrl) return
 		const ac = new AbortController()
 		if (loadedForUrlRef.current && loadedForUrlRef.current !== modelUrl && blobUrlRef.current) {
@@ -165,7 +177,7 @@ export default function ProductModelViewer({
 		return () => {
 			ac.abort()
 		}
-	}, [modelUrl, scriptReady, inViewport, variant])
+	}, [modelUrl, scriptReady, inViewport])
 	useEffect(() => () => {
 		if (blobUrlRef.current) {
 			URL.revokeObjectURL(blobUrlRef.current)
