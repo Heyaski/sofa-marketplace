@@ -7,26 +7,7 @@ const MODEL_VIEWER_FORMATS = ['glb', 'gltf', 'usdz']
 const GLB_CACHE_NAME = 'vizhub-glb-models'
 const GLB_CACHE_MAX_ENTRIES = 15
 const GLB_VERSION = 'v=opt4'
-const MAX_CONCURRENT_LOADS = 3
 const VIEWPORT_HYSTERESIS_MS = 400
-
-const loadQueue = {
-	active: 0,
-	queue: [] as (() => void)[],
-	async acquire() {
-		if (this.active < MAX_CONCURRENT_LOADS) {
-			this.active++
-			return
-		}
-		await new Promise<void>(r => this.queue.push(r))
-		this.active++
-	},
-	release() {
-		this.active--
-		const next = this.queue.shift()
-		if (next) next()
-	},
-}
 
 function getModelUrl(product: Product): string | null {
 	if (!product) return null
@@ -72,18 +53,13 @@ async function getCachedOrFetchModelUrl(url: string, signal?: AbortController['s
 			const blob = await cached.blob()
 			return URL.createObjectURL(blob)
 		}
-		await loadQueue.acquire()
-		try {
-			const res = await fetch(url, { mode: 'cors', signal })
-			if (!res.ok) return url
-			const cache = await caches.open(GLB_CACHE_NAME)
-			await cache.put(url, res.clone())
-			trimCacheIfNeeded(cache)
-			const blob = await res.blob()
-			return URL.createObjectURL(blob)
-		} finally {
-			loadQueue.release()
-		}
+		const res = await fetch(url, { mode: 'cors', signal })
+		if (!res.ok) return url
+		const cache = await caches.open(GLB_CACHE_NAME)
+		await cache.put(url, res.clone())
+		trimCacheIfNeeded(cache)
+		const blob = await res.blob()
+		return URL.createObjectURL(blob)
 	} catch {
 		return url
 	}
@@ -173,6 +149,8 @@ export default function ProductModelViewer({
 			loadedForUrlRef.current = modelUrl
 			if (src !== modelUrl && src.startsWith('blob:')) blobUrlRef.current = src
 			setResolvedSrc(src)
+		}).catch(() => {
+			if (!ac.signal.aborted) setResolvedSrc(modelUrl)
 		})
 		return () => {
 			ac.abort()
@@ -190,22 +168,20 @@ export default function ProductModelViewer({
 	}, [])
 
 	const TRANSPARENT_PIXEL = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjwvc3ZnPg=='
-	const shouldShow3D = !!modelUrl && isValidUrl(modelUrl) && scriptReady && inViewport && resolvedSrc !== null
+	const hasModel = !!modelUrl && isValidUrl(modelUrl) && scriptReady && resolvedSrc !== null
+	const isLoading = inViewport && !resolvedSrc
 
 	const containerClass = `overflow-hidden bg-gray-50 flex items-center justify-center ${variant === 'card' ? 'aspect-square' : 'aspect-square sm:min-h-[400px]'} ${className}`
 
 	if (!modelUrl || !isValidUrl(modelUrl)) return null
 
 	return (
-		<div ref={containerRef} className={containerClass}>
-			{!inViewport ? (
-				<div className="w-full h-full min-h-[200px] cursor-pointer" onClick={onClick} />
-			) : !shouldShow3D ? (
-				<div className="w-full h-full flex flex-col items-center justify-center gap-2 cursor-pointer" onClick={onClick}>
-					<div className='animate-spin rounded-full h-8 w-8 border-2 border-main1 border-t-transparent' />
-					<span className='text-xs text-gray'>Загрузка 3D...</span>
-				</div>
-			) : (
+		<div
+			ref={containerRef}
+			className={containerClass}
+			style={{ contentVisibility: 'auto' } as React.CSSProperties}
+		>
+			{hasModel ? (
 				<div
 					className="w-full h-full cursor-grab active:cursor-grabbing"
 					onClick={(e) => e.stopPropagation()}
@@ -235,6 +211,13 @@ export default function ProductModelViewer({
 						}}
 					/>
 				</div>
+			) : isLoading ? (
+				<div className="w-full h-full flex flex-col items-center justify-center gap-2 cursor-pointer" onClick={onClick}>
+					<div className='animate-spin rounded-full h-8 w-8 border-2 border-main1 border-t-transparent' />
+					<span className='text-xs text-gray'>Загрузка 3D...</span>
+				</div>
+			) : (
+				<div className="w-full h-full min-h-[200px] cursor-pointer" onClick={onClick} />
 			)}
 		</div>
 	)

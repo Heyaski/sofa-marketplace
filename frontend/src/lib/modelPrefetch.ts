@@ -1,10 +1,10 @@
 import { productService } from '../services/api'
-import { Product } from '../types'
+import { Product, ProductFilters } from '../types'
 
 const MODEL_VIEWER_FORMATS = ['glb', 'gltf', 'usdz']
 const GLB_CACHE_NAME = 'vizhub-glb-models'
 const GLB_VERSION = 'v=opt4'
-const PREFETCH_COUNT = 3
+const PREFETCH_COUNT = 6
 
 function getModelUrl(product: Product): string | null {
 	if (!product) return null
@@ -35,12 +35,25 @@ async function prefetchUrl(url: string): Promise<void> {
 	}
 }
 
+async function prefetchModelsForProducts(results: Product[]): Promise<void> {
+	if (!results?.length) return
+	const urls = results.map(getModelUrl).filter((u): u is string => !!u)
+	await Promise.all(urls.slice(0, PREFETCH_COUNT).map(prefetchUrl))
+}
+
 export async function prefetchFirstModels(): Promise<void> {
 	try {
 		const { results } = await productService.getProducts(undefined, 1, PREFETCH_COUNT)
-		if (!results?.length) return
-		const urls = results.map(getModelUrl).filter((u): u is string => !!u)
-		await Promise.all(urls.slice(0, PREFETCH_COUNT).map(prefetchUrl))
+		await prefetchModelsForProducts(results || [])
+	} catch {
+		/* ignore */
+	}
+}
+
+export async function prefetchModelsForFilters(filters: ProductFilters): Promise<void> {
+	try {
+		const { results } = await productService.getProducts(filters, 1, PREFETCH_COUNT)
+		await prefetchModelsForProducts(results || [])
 	} catch {
 		/* ignore */
 	}
