@@ -7,7 +7,26 @@ const MODEL_VIEWER_FORMATS = ['glb', 'gltf', 'usdz']
 const GLB_CACHE_NAME = 'vizhub-glb-models'
 const GLB_CACHE_MAX_ENTRIES = 15
 const GLB_VERSION = 'v=opt4'
+const MAX_CONCURRENT_LOADS = 3
 const VIEWPORT_HYSTERESIS_MS = 400
+
+const loadQueue = {
+	active: 0,
+	queue: [] as (() => void)[],
+	async acquire() {
+		if (this.active < MAX_CONCURRENT_LOADS) {
+			this.active++
+			return
+		}
+		await new Promise<void>(r => this.queue.push(r))
+		this.active++
+	},
+	release() {
+		this.active--
+		const next = this.queue.shift()
+		if (next) next()
+	},
+}
 
 function getModelUrl(product: Product): string | null {
 	if (!product) return null
@@ -53,13 +72,18 @@ async function getCachedOrFetchModelUrl(url: string, signal?: AbortController['s
 			const blob = await cached.blob()
 			return URL.createObjectURL(blob)
 		}
-		const res = await fetch(url, { mode: 'cors', signal })
-		if (!res.ok) return url
-		const cache = await caches.open(GLB_CACHE_NAME)
-		await cache.put(url, res.clone())
-		trimCacheIfNeeded(cache)
-		const blob = await res.blob()
-		return URL.createObjectURL(blob)
+		await loadQueue.acquire()
+		try {
+			const res = await fetch(url, { mode: 'cors', signal })
+			if (!res.ok) return url
+			const cache = await caches.open(GLB_CACHE_NAME)
+			await cache.put(url, res.clone())
+			trimCacheIfNeeded(cache)
+			const blob = await res.blob()
+			return URL.createObjectURL(blob)
+		} finally {
+			loadQueue.release()
+		}
 	} catch {
 		return url
 	}
