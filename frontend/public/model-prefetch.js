@@ -29,14 +29,16 @@
 		});
 	}
 
-	fetch(apiUrl + '/api/products/?page=1&page_size=6')
+	fetch(apiUrl + '/api/products/?page=1&page_size=3')
 		.then(function (r) { return r.json(); })
 		.then(function (data) {
 			if (!data.results || !data.results.length) return;
-			data.results.slice(0, 6).forEach(function (p) {
+			var urls = [];
+			data.results.slice(0, 3).forEach(function (p) {
 				var url = getModelUrl(p);
-				if (url) prefetch(url);
+				if (url) urls.push(url);
 			});
+			urls.forEach(function (url) { prefetch(url); });
 		})
 		.catch(function () {});
 })();

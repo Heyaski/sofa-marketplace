@@ -10,7 +10,6 @@ import MultiSelectFilter from '@/components/MultiSelectFilter'
 import RGBRangeFilter from '@/components/RGBRangeFilter'
 import ProductCard from '@/components/ProductCard'
 import { useBaskets, useCategories, useProducts } from '@/hooks/useApi'
-import { prefetchModelsForFilters } from '@/lib/modelPrefetch'
 import { authService, productService } from '@/services/api'
 import { Category, Product, ProductFilters, User } from '@/types'
 import Script from 'next/script'
@@ -51,11 +50,6 @@ function CatalogContent() {
 			search: searchFromUrl || undefined,
 		}))
 	}, [searchFromUrl])
-
-	// Предзагрузка моделей при смене фильтров (категория и др.)
-	useEffect(() => {
-		prefetchModelsForFilters(filters)
-	}, [JSON.stringify(filters)])
 
 	// ✅ API хуки с пагинацией
 	const {
