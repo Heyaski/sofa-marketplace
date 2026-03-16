@@ -24,7 +24,14 @@ class UserMeView(generics.RetrieveUpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
-        return self.request.user
+        user = self.request.user
+        try:
+            profile = user.profile
+            if profile.ensure_license_key_hash():
+                profile.save(update_fields=['license_key_hash'])
+        except Exception:
+            pass
+        return user
 
 
 # ✅ Поиск пользователей для создания чата

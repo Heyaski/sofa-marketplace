@@ -16,6 +16,7 @@ class UserProfileInline(admin.StackedInline):
         'subscription_end_date',
         'auto_renewal',
         'yookassa_payment_id',
+        'license_key_hash',
         'card_number', 
         'card_holder', 
         'card_expiry', 
@@ -67,9 +68,10 @@ class UserProfileAdmin(ExportExcelMixin, admin.ModelAdmin):
                 'subscription_start_date',
                 'subscription_end_date',
                 'auto_renewal',
-                'yookassa_payment_id'
+                'yookassa_payment_id',
+                'license_key_hash'
             ),
-            'description': 'Управление подпиской пользователя. Можно редактировать даты начала и окончания подписки.'
+            'description': 'Управление подпиской пользователя. license_key_hash — ключ для плагина (показывается в профиле).'
         }),
         ('Данные карты', {
             'fields': ('card_number', 'card_holder', 'card_expiry', 'card_cvv'),

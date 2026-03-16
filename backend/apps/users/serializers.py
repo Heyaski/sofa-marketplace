@@ -14,10 +14,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             'subscription_type', 'subscription_type_display',
             'subscription_end_date', 'auto_renewal', 'yookassa_payment_id',
+            'license_key_hash',
             'card_number', 'card_holder', 'card_expiry', 'card_cvv',
             'chat_notifications', 'new_models_notifications'
         ]
-        read_only_fields = ['subscription_end_date', 'auto_renewal', 'yookassa_payment_id']
+        read_only_fields = ['subscription_end_date', 'auto_renewal', 'yookassa_payment_id', 'license_key_hash']
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -101,7 +102,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('password_confirm')
         user = User.objects.create_user(**validated_data)
-        # Создаем профиль пользователя с пробной подпиской
+        # Создаем профиль пользователя с пробной подпиской (лицензия только при оплате)
         UserProfile.objects.create(user=user, subscription_type='trial')
         return user
 

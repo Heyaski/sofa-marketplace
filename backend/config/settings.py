@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "apps.baskets",
     "apps.subscriptions",
     "apps.downloads",
+    "apps.plugin",
     "apps.orders",
     "apps.users",
     "apps.chats",

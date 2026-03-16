@@ -65,6 +65,17 @@ class UserProfile(models.Model):
     chat_notifications = models.BooleanField(default=True)
     new_models_notifications = models.BooleanField(default=False)
     
+    # Ключ лицензии для плагина (хеш, хранится в БД; отображается пользователю для копирования)
+    license_key_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        null=True,
+        unique=True,
+        db_index=True,
+        verbose_name='Хеш ключа лицензии',
+        help_text='SHA256 хеш ключа. Генерируется при активации подписки. Показывается пользователю в профиле.'
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -126,11 +137,24 @@ class UserProfile(models.Model):
         is_active = self.check_and_update_subscription_status()
         return is_active
     
+    def ensure_license_key_hash(self):
+        """Генерирует license_key_hash если его нет (только при оплате подписки: basic, pro, premium)."""
+        if self.license_key_hash:
+            return False
+        if self.subscription_type not in ('basic', 'pro', 'premium'):
+            return False
+        import hashlib
+        import secrets
+        plain_key = secrets.token_hex(32)
+        self.license_key_hash = hashlib.sha256(plain_key.encode()).hexdigest()
+        return True
+
     def activate_subscription(self, subscription_type, duration_days=30):
         """Активирует подписку на указанное количество дней"""
         self.subscription_type = subscription_type
         self.subscription_start_date = now()
         self.subscription_end_date = now() + timedelta(days=duration_days)
+        self.ensure_license_key_hash()
         self.save()
     
     def __str__(self):
