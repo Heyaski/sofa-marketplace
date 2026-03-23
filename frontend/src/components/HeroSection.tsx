@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { authService } from '../services/api'
+import PluginAccessBanner from './PluginAccessBanner'
 
 interface HeroSectionProps {
 	onOpenAuth?: () => void
@@ -82,6 +83,8 @@ export default function HeroSection({ onOpenAuth }: HeroSectionProps) {
 								<li>Полная сохранность параметризации Revit (размеры, материалы, типы)</li>
 							</ul>
 						</div>
+
+						<PluginAccessBanner />
 
 						{!loading && !isAuthenticated && (
 							<div className='pt-2 sm:pt-4'>

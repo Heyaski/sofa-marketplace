@@ -3,6 +3,7 @@ API для плагина (Revit и др.).
 Авторизация: заголовок X-License-Hash (хеш ключа лицензии из профиля пользователя).
 """
 import logging
+import hashlib
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -11,23 +12,53 @@ from apps.users.models import UserProfile
 from apps.catalog.models import Product
 from apps.downloads.models import Download
 
-from .utils import resolve_product_file_url
+from django.http import HttpResponseRedirect
+from .utils import resolve_product_file_url, resolve_file_by_name
 
 logger = logging.getLogger(__name__)
 
 LICENSE_HEADER = 'X-License-Hash'
 
 
+def resolve_profile_by_license_value(license_value):
+    """
+    Ищет профиль по ключу/хешу лицензии.
+    Поддержка:
+    1) прямое совпадение (новый API),
+    2) legacy-плагин, который повторно хеширует введённый ключ.
+    """
+    if not license_value:
+        return None
+
+    value = license_value.strip()
+    if not value:
+        return None
+
+    # 1) Прямое совпадение по сохраненному hash
+    profile = UserProfile.objects.filter(license_key_hash=value).first()
+    if profile:
+        return profile
+
+    # 2) Legacy-совместимость: плагин шлёт sha256(введённое_значение),
+    # а в поле license_key_hash может храниться уже hash.
+    # Тогда сравниваем value с sha256(license_key_hash) по профилям.
+    candidate_profiles = UserProfile.objects.exclude(
+        license_key_hash__isnull=True
+    ).exclude(
+        license_key_hash=''
+    )
+    for candidate in candidate_profiles.only('id', 'license_key_hash'):
+        candidate_hash = hashlib.sha256(candidate.license_key_hash.encode('utf-8')).hexdigest()
+        if candidate_hash == value:
+            return candidate
+
+    return None
+
+
 def get_profile_from_request(request):
     """Возвращает UserProfile по заголовку X-License-Hash или None."""
     license_hash = request.headers.get(LICENSE_HEADER) or request.META.get(f'HTTP_{LICENSE_HEADER.upper().replace("-", "_")}')
-    if not license_hash or not license_hash.strip():
-        return None
-    license_hash = license_hash.strip()
-    try:
-        return UserProfile.objects.get(license_key_hash=license_hash)
-    except UserProfile.DoesNotExist:
-        return None
+    return resolve_profile_by_license_value(license_hash)
 
 
 def license_required(view_method):
@@ -78,6 +109,77 @@ class PluginActivateView(APIView):
             "download_limit": limit,
             "user_id": profile.user_id,
         }, status=status.HTTP_200_OK)
+
+
+class PluginLegacyLicenseView(APIView):
+    """
+    Legacy-совместимость с готовым плагином:
+    POST /api/license.php
+    Body: { license_hash, hardware_id, plugin_version, feature }
+    """
+    permission_classes = []
+    authentication_classes = []
+
+    def post(self, request):
+        license_hash = (request.data.get('license_hash') or '').strip()
+        feature = (request.data.get('feature') or '').strip()
+
+        if not license_hash:
+            return Response(
+                {
+                    "valid": False,
+                    "message": "license_hash is required",
+                    "error_code": "LICENSE_MISSING",
+                    "features": [],
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        profile = resolve_profile_by_license_value(license_hash)
+        if not profile:
+            return Response(
+                {
+                    "valid": False,
+                    "message": "invalid license key",
+                    "error_code": "LICENSE_INVALID",
+                    "features": [],
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        if not profile.is_subscription_active():
+            return Response(
+                {
+                    "valid": False,
+                    "message": "subscription expired or inactive",
+                    "error_code": "SUBSCRIPTION_INACTIVE",
+                    "features": [],
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        enabled_features = ["download_fbx", "plugin_api"]
+        if feature and feature not in enabled_features:
+            return Response(
+                {
+                    "valid": False,
+                    "message": f"feature '{feature}' is not available",
+                    "error_code": "FEATURE_NOT_AVAILABLE",
+                    "features": enabled_features,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(
+            {
+                "valid": True,
+                "message": "license is valid",
+                "expires_at": profile.subscription_end_date.isoformat() if profile.subscription_end_date else None,
+                "error_code": None,
+                "features": enabled_features,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class PluginProductListView(APIView):
@@ -199,3 +301,55 @@ class PluginDownloadView(APIView):
             "remaining_downloads": remaining,
             "suggested_filename": suggested_filename,
         }, status=status.HTTP_200_OK)
+
+
+class PluginAssetDirectView(APIView):
+    """
+    GET /api/assets/{fileName}.{ext}
+    Совместимость с fbx_receiver: прямой GET с X-License-Hash.
+    fileName: артикул (IMR-980756ORG), product_id (2602) или asset_id (Пуф1586_QOVNVbx).
+    ext: glb, rfa, rvt (rvt → rfa).
+    Редирект на файл.
+    """
+    permission_classes = []
+    authentication_classes = []
+
+    def get(self, request, file_path):
+        profile = get_profile_from_request(request)
+        if not profile:
+            return Response(
+                {"error": "Неверный или отсутствующий ключ лицензии"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        if not profile.is_subscription_active():
+            return Response(
+                {"error": "Подписка не активна или истекла"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        parts = file_path.rsplit('.', 1)
+        if len(parts) != 2:
+            return Response({"error": "Формат: имя.расширение (glb, rfa, rvt)"}, status=status.HTTP_400_BAD_REQUEST)
+        file_base, ext = parts
+
+        product, file_url = resolve_file_by_name(file_base, ext, request)
+        if not file_url:
+            return Response(
+                {"error": f"Файл не найден: {file_path}"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Проверка лимитов (если есть product)
+        if product:
+            user = profile.user
+            downloads_count = Download.objects.filter(user=user).values('product').distinct().count()
+            if not profile.can_download(downloads_count):
+                limit = profile.get_download_limit()
+                sub_name = dict(UserProfile.SUBSCRIPTION_CHOICES).get(profile.subscription_type, 'Пробная')
+                return Response(
+                    {"error": f"Достигнут лимит скачиваний ({sub_name})"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            Download.objects.get_or_create(user=user, product=product)
+
+        return HttpResponseRedirect(file_url, status=302)

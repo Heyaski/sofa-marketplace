@@ -1,6 +1,3 @@
-// Пример интеграции плагина с API сайта
-// Замените BtnDownload_Click и добавьте вызовы API
-
 // Константы
 private const string ApiBaseUrl = "https://your-domain.com/api";  // или http://localhost:8000/api
 

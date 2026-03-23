@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from apps.users.views import CustomTokenObtainPairView
+from apps.plugin.views import PluginLegacyLicenseView
 
 # подключаем наш сервис оплаты
 from services.payment_views import pay_order
@@ -12,6 +13,8 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # Legacy alias for ready-made plugin (when base URL is set to domain root)
+    path("license.php", PluginLegacyLicenseView.as_view(), name="plugin-license-legacy-root"),
 
     # JWT
     path("api/auth/login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),

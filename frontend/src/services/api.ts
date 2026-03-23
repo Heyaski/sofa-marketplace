@@ -20,6 +20,15 @@ import {
 	User,
 } from '../types'
 
+type PluginActivationResponse = {
+	valid: boolean
+	error?: string
+	subscription_type?: string
+	subscription_type_display?: string
+	download_limit?: number | null
+	user_id?: number
+}
+
 // Сервис для работы с продуктами
 export const productService = {
 	// Получить все продукты с фильтрацией и пагинацией
@@ -366,6 +375,22 @@ export const subscriptionService = {
 		const response = await apiClient.post('/api/subscriptions/check_payment_status/', {
 			payment_id: paymentId,
 		})
+		return response.data
+	},
+}
+
+// Сервис для активации плагина по ключу лицензии
+export const pluginService = {
+	activate: async (licenseHash: string): Promise<PluginActivationResponse> => {
+		const response = await apiClient.post(
+			'/api/plugin/activate/',
+			{},
+			{
+				headers: {
+					'X-License-Hash': licenseHash,
+				},
+			}
+		)
 		return response.data
 	},
 }

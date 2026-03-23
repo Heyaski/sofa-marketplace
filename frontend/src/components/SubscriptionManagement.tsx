@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import PaymentModal from './PaymentModal'
 import TariffDetailsModal from './TariffDetailsModal'
+import PluginAccessBanner from './PluginAccessBanner'
 
 interface SubscriptionPlan {
 	id: string
@@ -255,6 +256,10 @@ export default function SubscriptionManagement() {
 				>
 					Подробное описание
 				</button>
+			</div>
+
+			<div className='mb-6'>
+				<PluginAccessBanner />
 			</div>
 
 			{loading ? (

@@ -95,3 +95,62 @@ def resolve_product_file_url(product, fmt, request):
             return get_file_asset_url(asset, request)
 
     return None
+
+
+def resolve_file_by_name(file_base, ext, request):
+    """
+    Находит URL файла по имени (артикул, product_id или asset_id).
+    ext: '.glb', '.rfa', '.rvt' (.rvt → RFA для совместимости).
+    Возвращает (product, file_url) или (None, None).
+    """
+    from apps.catalog.models import Product, FileAsset
+
+    ext = ext.lower() if ext.startswith('.') else f'.{ext}'.lower()
+    if ext == '.rvt':
+        ext = '.rfa'
+
+    if ext not in ('.glb', '.rfa'):
+        return None, None
+
+    # 1. По product_id (число)
+    if file_base.isdigit():
+        try:
+            product = Product.objects.get(id=int(file_base), is_active=True)
+            url = resolve_product_file_url(product, ext, request)
+            return (product, url) if url else (None, None)
+        except Product.DoesNotExist:
+            return None, None
+
+    # 2. По артикулу
+    product = Product.objects.filter(article=file_base, is_active=True).first()
+    if product:
+        url = resolve_product_file_url(product, ext, request)
+        if url:
+            return product, url
+
+    # 3. По asset_id (FileAsset)
+    asset = FileAsset.objects.filter(
+        asset_id__iexact=file_base,
+        file_type='3d_model',
+        file__isnull=False
+    ).exclude(file='').first()
+    if asset and asset.file and asset.file.name:
+        name_lower = asset.file.name.lower()
+        if ext == '.rfa' and name_lower.endswith('.rfa'):
+            return None, get_file_asset_url(asset, request)
+        if ext == '.glb' and (name_lower.endswith('.glb') or name_lower.endswith('.gltf')):
+            return None, get_file_asset_url(asset, request)
+
+    # 4. По имени файла в storage (например Пуф1586_QOVNVbx)
+    for a in FileAsset.objects.filter(file_type='3d_model').exclude(file=''):
+        if not a.file or not a.file.name:
+            continue
+        base = a.file.name.rsplit('.', 1)[0].rsplit('/', 1)[-1]
+        if base.lower() == file_base.lower():
+            nl = a.file.name.lower()
+            if ext == '.rfa' and nl.endswith('.rfa'):
+                return None, get_file_asset_url(a, request)
+            if ext == '.glb' and (nl.endswith('.glb') or nl.endswith('.gltf')):
+                return None, get_file_asset_url(a, request)
+
+    return None, None

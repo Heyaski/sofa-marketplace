@@ -75,7 +75,6 @@ class UserProfile(models.Model):
         verbose_name='Хеш ключа лицензии',
         help_text='SHA256 хеш ключа. Генерируется при активации подписки. Показывается пользователю в профиле.'
     )
-    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

@@ -2,6 +2,8 @@
 export const config = {
 	// URL API бэкенда
 	API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+	// Прямая ссылка на установщик плагина (zip/msi/exe)
+	PLUGIN_DOWNLOAD_URL: process.env.NEXT_PUBLIC_PLUGIN_DOWNLOAD_URL || '',
 
 	// Настройки приложения
 	APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || 'Sofa Marketplace',

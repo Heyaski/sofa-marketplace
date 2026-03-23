@@ -2,7 +2,7 @@
 
 Плагин подключается к сайту через REST API. Авторизация — заголовок `X-License-Hash` (ключ лицензии из профиля пользователя на сайте).
 
-**Base URL:** `https://your-domain.com/api/` (или `http://localhost:8000/api/` для разработки)
+**Base URL:** `https://api.vizhub.pro/api`
 
 ---
 
@@ -43,6 +43,40 @@ Content-Type: application/json
   "error": "Подписка не активна или истекла"
 }
 ```
+
+---
+
+## Legacy-совместимость (готовый плагин без изменений)
+
+Для совместимости с уже собранным плагином поддерживается endpoint:
+
+**POST** `/api/license.php`
+и алиасы:
+- `POST /api/license`
+- `POST /license.php` (если в плагине base URL задан как корневой домен без `/api`)
+
+**Тело запроса (как в плагине):**
+```json
+{
+  "license_hash": "....",
+  "hardware_id": "....",
+  "plugin_version": "1.0.0",
+  "feature": "download_fbx"
+}
+```
+
+**Ответ:**
+```json
+{
+  "valid": true,
+  "message": "license is valid",
+  "expires_at": "2026-04-01T12:00:00+00:00",
+  "error_code": null,
+  "features": ["download_fbx", "plugin_api"]
+}
+```
+
+Таким образом готовый плагин можно подключить к текущему проекту без правок кода плагина.
 
 ---
 
@@ -112,11 +146,22 @@ Content-Type: application/json
 
 ---
 
-## Логика плагина
-
-1. **Активация:** пользователь вставляет ключ (хеш) из профиля на сайте → `POST /api/plugin/activate/` с `X-License-Hash`. Если `valid: true` — лицензия активна.
+1. **Активация:** пользователь вставляет ключ (хеш) из профиля → `POST /api/plugin/activate/` с `X-License-Hash`. Если `valid: true` — лицензия активна.
 2. **Список:** `GET /api/plugin/products/` — показать товары с `has_glb` / `has_rfa`.
 3. **Скачивание:** пользователь выбирает товар и формат → `POST /api/plugin/download/` с `product_id` и `format`. Получить `url` и скачать файл по этому URL (GET, без доп. заголовков — URL уже подписан при необходимости).
+
+---
+
+## UI на сайте (главная страница)
+
+Для пользователей с активной платной подпиской (`basic`, `pro`, `premium`) на главной странице отображается плашка доступа к плагину:
+
+1. Кнопка **«Активировать плагин»**.
+2. После нажатия показывается ячейка с ключом `license_key_hash` из профиля пользователя.
+3. Сайт отправляет `POST /api/plugin/activate/` с заголовком `X-License-Hash: <license_key_hash>`.
+4. При `valid: true` пользователь получает подтверждение, что доступ к API плагина активен.
+
+Ключ хранится в БД в хэшированном виде и в плагин передается как есть (без повторного хэширования).
 
 ---
 
@@ -155,6 +200,25 @@ using (var fileClient = new WebClient())
     fileClient.DownloadFile(fileUrl, Path.Combine(savePath, suggestedName));
 }
 ```
+
+---
+
+## 4. Прямое скачивание (совместимость с fbx_receiver)
+
+**GET** `/api/assets/{fileName}.{ext}`
+
+Для плагинов, которые делают прямой GET (без POST /download/). Заголовок `X-License-Hash` обязателен.
+
+**Примеры:**
+- `/api/assets/2602.glb` — по product_id
+- `/api/assets/IMR-980756ORG.glb` — по артикулу
+- `/api/assets/Пуф1586_QOVNVbx.glb` — по имени файла в storage
+
+**Расширения:** `glb`, `rfa`, `rvt` (rvt → rfa).
+
+**Ответ:** редирект 302 на URL файла. WebClient/HttpClient следует редиректу и скачивает файл.
+
+**Настройка плагина:** `ApiBaseUrl = "https://api.vizhub.pro/api"`, тогда URL загрузки: `{ApiBaseUrl}/assets/{fileName}.glb`
 
 ---
 
