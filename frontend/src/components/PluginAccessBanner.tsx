@@ -38,12 +38,6 @@ export default function PluginAccessBanner() {
 		loadUser()
 	}, [])
 
-	useEffect(() => {
-		if (licenseKeyHash) {
-			setManualLicenseKey(licenseKeyHash)
-		}
-	}, [licenseKeyHash])
-
 	const subscriptionType = user?.profile?.subscription_type || 'free'
 	const isAuthenticated = Boolean(user)
 	const canUsePlugin = useMemo(
@@ -53,6 +47,12 @@ export default function PluginAccessBanner() {
 	const licenseKeyHash = user?.profile?.license_key_hash || ''
 	const serverUrl = config.API_URL.replace(/\/+$/, '')
 	const pluginDownloadUrl = config.PLUGIN_DOWNLOAD_URL.trim()
+
+	useEffect(() => {
+		if (licenseKeyHash) {
+			setManualLicenseKey(licenseKeyHash)
+		}
+	}, [licenseKeyHash])
 
 	const copyToClipboard = async (value: string, field: 'url' | 'key') => {
 		if (!value.trim()) return
