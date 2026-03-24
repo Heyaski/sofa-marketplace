@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { authService, pluginService } from '@/services/api'
 import { User } from '@/types'
@@ -199,7 +198,7 @@ export default function PluginAccessBanner() {
 							<p className='text-sm text-yellow-800 mb-2'>
 								Чтобы скачать плагин, приобретите подписку.
 							</p>
-							<Link
+							<a
 								href={
 									isAuthenticated
 										? '/profile?tab=subscription'
@@ -208,7 +207,7 @@ export default function PluginAccessBanner() {
 								className='w-full sm:w-auto inline-flex justify-center items-center border border-main1 text-main1 px-4 py-2 rounded-lg hover:bg-main1 hover:text-white transition-colors'
 							>
 								Купить подписку
-							</Link>
+							</a>
 						</div>
 					)}
 
