@@ -16,6 +16,7 @@ export default function PluginAccessBanner() {
 	const [isActivating, setIsActivating] = useState(false)
 	const [showActivationCell, setShowActivationCell] = useState(false)
 	const [showVersions, setShowVersions] = useState(false)
+	const [showSubscriptionHint, setShowSubscriptionHint] = useState(false)
 	const [manualLicenseKey, setManualLicenseKey] = useState('')
 	const [copiedField, setCopiedField] = useState<'url' | 'key' | null>(null)
 
@@ -99,6 +100,10 @@ export default function PluginAccessBanner() {
 	}
 
 	const handleDownloadClick = () => {
+		if (!canUsePlugin) {
+			setShowSubscriptionHint(true)
+			return
+		}
 		setShowActivationCell(true)
 		if (!pluginDownloadUrl) {
 			setActivationError('Ссылка на файл плагина пока не настроена. Обратитесь к администратору.')
@@ -177,6 +182,10 @@ export default function PluginAccessBanner() {
 					<p className='text-sm text-black'>Скачать плагин:</p>
 					<button
 						onClick={() => {
+							if (!canUsePlugin) {
+								setShowSubscriptionHint(true)
+								return
+							}
 							setShowVersions(prev => !prev)
 							setShowActivationCell(true)
 						}}
@@ -185,7 +194,25 @@ export default function PluginAccessBanner() {
 						Скачать плагин
 					</button>
 
-					{showVersions && (
+					{showSubscriptionHint && !canUsePlugin && (
+						<div className='rounded-lg bg-yellow-50 border border-yellow-200 p-3'>
+							<p className='text-sm text-yellow-800 mb-2'>
+								Чтобы скачать плагин, приобретите подписку.
+							</p>
+							<Link
+								href={
+									isAuthenticated
+										? '/profile?tab=subscription'
+										: '/?auth=register&next=%2Fprofile%3Ftab%3Dsubscription'
+								}
+								className='w-full sm:w-auto inline-flex justify-center items-center border border-main1 text-main1 px-4 py-2 rounded-lg hover:bg-main1 hover:text-white transition-colors'
+							>
+								Купить подписку
+							</Link>
+						</div>
+					)}
+
+					{showVersions && canUsePlugin && (
 						<div className='rounded-lg bg-white border border-gray2 p-3'>
 							<p className='text-sm text-gray mb-2'>Выберите версию Revit:</p>
 							<div className='flex flex-col sm:flex-row gap-2'>
@@ -217,21 +244,14 @@ export default function PluginAccessBanner() {
 						</div>
 					)}
 
-					<button
-						onClick={handleActivate}
-						disabled={isActivating}
-						className='w-full sm:w-auto bg-main1 text-white px-5 py-2.5 rounded-lg hover:bg-main2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed'
-					>
-						{isActivating ? 'Активация...' : 'Активировать плагин'}
-					</button>
-
-					{!loading && (
-						<Link
-							href={isAuthenticated ? '/profile?tab=subscription' : '/register'}
-							className='w-full sm:w-auto inline-flex justify-center items-center border border-main1 text-main1 px-5 py-2.5 rounded-lg hover:bg-main1 hover:text-white transition-colors'
+					{canUsePlugin && (
+						<button
+							onClick={handleActivate}
+							disabled={isActivating}
+							className='w-full sm:w-auto bg-main1 text-white px-5 py-2.5 rounded-lg hover:bg-main2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed'
 						>
-							{canUsePlugin ? 'Открыть профиль' : 'Купить подписку'}
-						</Link>
+							{isActivating ? 'Активация...' : 'Активировать плагин'}
+						</button>
 					)}
 				</div>
 

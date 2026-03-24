@@ -1,26 +1,35 @@
 'use client'
 
 import { XMarkIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { authService } from '../services/api'
 
 interface AuthModalProps {
 	isOpen: boolean
 	onClose: () => void
 	onSuccess?: () => void
+	initialMode?: 'login' | 'register'
+	redirectAfterAuth?: string
 }
 
 export default function AuthModal({
 	isOpen,
 	onClose,
 	onSuccess,
+	initialMode = 'login',
+	redirectAfterAuth,
 }: AuthModalProps) {
-	const [isLoginMode, setIsLoginMode] = useState(true)
+	const [isLoginMode, setIsLoginMode] = useState(initialMode === 'login')
 	const [isResetMode, setIsResetMode] = useState(false)
 	const [showPassword, setShowPassword] = useState(false)
 	const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState<string | null>(null)
+
+	// Позволяет открыть модалку сразу в режиме регистрации/входа.
+	useEffect(() => {
+		setIsLoginMode(initialMode === 'login')
+	}, [initialMode, isOpen])
 
 	// Поля для входа
 	const [loginEmail, setLoginEmail] = useState('')
@@ -90,6 +99,10 @@ export default function AuthModal({
 			localStorage.setItem('refresh_token', tokens.refresh)
 			onSuccess?.()
 			onClose()
+			if (redirectAfterAuth) {
+				window.location.href = redirectAfterAuth
+				return
+			}
 			resetForm()
 		} catch (err: any) {
 			console.error('Login error:', err)
@@ -149,6 +162,10 @@ export default function AuthModal({
 			localStorage.setItem('refresh_token', tokens.refresh)
 			onSuccess?.()
 			onClose()
+			if (redirectAfterAuth) {
+				window.location.href = redirectAfterAuth
+				return
+			}
 			resetForm()
 		} catch (err: any) {
 			console.error('Register error:', err)
