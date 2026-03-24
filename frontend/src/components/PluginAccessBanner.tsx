@@ -116,10 +116,10 @@ export default function PluginAccessBanner() {
 
 	return (
 		<>
-			<div className='rounded-xl border border-main1/20 bg-main1/5 p-4 sm:p-5'>
+			<div className='rounded-xl border border-main1/20 bg-main1/5 p-3 sm:p-4 max-w-md'>
 				<button
 					onClick={openDownloadModal}
-					className='w-full sm:w-auto inline-flex justify-center items-center bg-main1 text-white px-5 py-2.5 rounded-lg hover:bg-main2 transition-colors'
+					className='w-full inline-flex justify-center items-center bg-main1 text-white px-5 py-3 rounded-lg hover:bg-main2 transition-colors font-medium'
 				>
 					Скачать плагин
 				</button>
