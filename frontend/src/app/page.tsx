@@ -5,25 +5,25 @@ import BottomNav from '@/components/BottomNav'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import HeroSection from '@/components/HeroSection'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 export default function Home() {
 	const router = useRouter()
-	const searchParams = useSearchParams()
 	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
 	const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
 	const [redirectAfterAuth, setRedirectAfterAuth] = useState<string | undefined>(undefined)
 
 	useEffect(() => {
-		const modeParam = searchParams.get('auth')
-		const nextParam = searchParams.get('next')
+		const params = new URLSearchParams(window.location.search)
+		const modeParam = params.get('auth')
+		const nextParam = params.get('next')
 		if (modeParam === 'register' || modeParam === 'login') {
 			setAuthMode(modeParam)
 			setRedirectAfterAuth(nextParam || undefined)
 			setIsAuthModalOpen(true)
 		}
-	}, [searchParams])
+	}, [])
 
 	const handleAuthSuccess = () => {
 		setIsAuthModalOpen(false)
