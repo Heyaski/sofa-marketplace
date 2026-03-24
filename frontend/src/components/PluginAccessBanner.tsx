@@ -13,9 +13,7 @@ export default function PluginAccessBanner() {
 	const [isActivated, setIsActivated] = useState(false)
 	const [activationError, setActivationError] = useState<string | null>(null)
 	const [isActivating, setIsActivating] = useState(false)
-	const [showActivationCell, setShowActivationCell] = useState(false)
-	const [showVersions, setShowVersions] = useState(false)
-	const [showSubscriptionHint, setShowSubscriptionHint] = useState(false)
+	const [isModalOpen, setIsModalOpen] = useState(false)
 	const [manualLicenseKey, setManualLicenseKey] = useState('')
 	const [copiedField, setCopiedField] = useState<'url' | 'key' | null>(null)
 
@@ -98,186 +96,140 @@ export default function PluginAccessBanner() {
 		}
 	}
 
-	const handleDownloadClick = () => {
-		if (!canUsePlugin) {
-			setShowSubscriptionHint(true)
-			return
-		}
-		setShowActivationCell(true)
+	const openDownloadModal = () => {
+		setIsModalOpen(true)
+		setActivationError(null)
+		setIsActivated(false)
 		if (!pluginDownloadUrl) {
 			setActivationError('Ссылка на файл плагина пока не настроена. Обратитесь к администратору.')
 		}
 	}
 
+	const openRegisterModal = () => {
+		window.dispatchEvent(
+			new CustomEvent('open-auth-modal', {
+				detail: { mode: 'register', next: '/profile?tab=subscription' },
+			})
+		)
+		setIsModalOpen(false)
+	}
+
 	return (
-		<div className='rounded-xl border border-main1/20 bg-main1/5 p-4 sm:p-5'>
-			<div className='flex flex-col gap-3'>
-				<div>
-					<h3 className='text-lg font-semibold text-black'>Доступ к плагину</h3>
-					{loading ? (
-						<p className='text-sm text-gray mt-1'>Проверяем статус аккаунта...</p>
-					) : !isAuthenticated ? (
-						<p className='text-sm text-gray mt-1'>
-							Попробуйте активацию ключа и доступ к библиотеке через плагин. После покупки подписки ключ появится в профиле.
-						</p>
-					) : !canUsePlugin ? (
-						<p className='text-sm text-gray mt-1'>
-							Плагин доступен на платных тарифах. Купите подписку, чтобы получить ключ и открыть загрузку моделей из плагина.
-						</p>
-					) : (
-						<p className='text-sm text-gray mt-1'>
-							Нажмите «Скачать плагин», вставьте ключ в ячейку и активируйте доступ.
-						</p>
-					)}
-				</div>
+		<>
+			<div className='rounded-xl border border-main1/20 bg-main1/5 p-4 sm:p-5'>
+				<button
+					onClick={openDownloadModal}
+					className='w-full sm:w-auto inline-flex justify-center items-center bg-main1 text-white px-5 py-2.5 rounded-lg hover:bg-main2 transition-colors'
+				>
+					Скачать плагин
+				</button>
+			</div>
 
-				<div className='rounded-lg bg-white border border-gray2 p-3'>
-					<p className='text-sm text-gray mb-2'>URL сервера для плагина</p>
-					<p className='text-xs sm:text-sm text-black mb-2'>
-						В плагине в поле <span className='font-semibold'>Server URL / ApiBaseUrl</span> вставьте этот адрес:
-					</p>
-					<div className='flex flex-col sm:flex-row gap-2'>
-						<input
-							readOnly
-							value={serverUrl}
-							className='w-full px-3 py-2 rounded-lg bg-gray-bg text-black font-mono text-xs sm:text-sm'
-						/>
-						<button
-							onClick={() => copyToClipboard(serverUrl, 'url')}
-							className='w-full sm:w-auto px-4 py-2 rounded-lg border border-main1 text-main1 hover:bg-main1 hover:text-white transition-colors'
-						>
-							{copiedField === 'url' ? 'Скопировано' : 'Скопировать URL'}
-						</button>
-					</div>
-				</div>
-
-				<div className='rounded-lg bg-white border border-gray2 p-3'>
-					<p className='text-sm text-gray mb-2'>Ключ доступа (license key)</p>
-					<div className='flex flex-col sm:flex-row gap-2'>
-						<input
-							readOnly
-							value={licenseKeyHash}
-							placeholder='Ключ появится после покупки подписки'
-							className='w-full px-3 py-2 rounded-lg bg-gray-bg text-black font-mono text-xs sm:text-sm'
-						/>
-						<button
-							onClick={() => copyToClipboard(licenseKeyHash, 'key')}
-							disabled={!licenseKeyHash}
-							className='w-full sm:w-auto px-4 py-2 rounded-lg border border-main1 text-main1 hover:bg-main1 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
-						>
-							{copiedField === 'key' ? 'Скопировано' : 'Скопировать ключ'}
-						</button>
-					</div>
-				</div>
-
-				<div className='rounded-lg border border-dashed border-main1/40 p-3 bg-white/80'>
-					<p className='text-sm font-medium text-black mb-1'>Как подключить плагин за 1 минуту:</p>
-					<p className='text-sm text-gray'>1) Скопируйте URL и вставьте в настройки плагина.</p>
-					<p className='text-sm text-gray'>2) Выберите и скачайте версию плагина для вашего Revit.</p>
-					<p className='text-sm text-gray'>3) Вставьте ключ, активируйте и работайте по сценарию плагина.</p>
-				</div>
-
-				<div className='flex flex-col gap-2'>
-					<p className='text-sm text-black'>Скачать плагин:</p>
-					<button
-						onClick={() => {
-							if (!canUsePlugin) {
-								setShowSubscriptionHint(true)
-								return
-							}
-							setShowVersions(prev => !prev)
-							setShowActivationCell(true)
-						}}
-						className='w-full sm:w-auto inline-flex justify-center items-center bg-main1 text-white px-5 py-2.5 rounded-lg hover:bg-main2 transition-colors'
-					>
-						Скачать плагин
-					</button>
-
-					{showSubscriptionHint && !canUsePlugin && (
-						<div className='rounded-lg bg-yellow-50 border border-yellow-200 p-3'>
-							<p className='text-sm text-yellow-800 mb-2'>
-								Чтобы скачать плагин, приобретите подписку.
-							</p>
-							<a
-								href={
-									isAuthenticated
-										? '/profile?tab=subscription'
-										: '/?auth=register&next=%2Fprofile%3Ftab%3Dsubscription'
-								}
-								className='w-full sm:w-auto inline-flex justify-center items-center border border-main1 text-main1 px-4 py-2 rounded-lg hover:bg-main1 hover:text-white transition-colors'
+			{isModalOpen && (
+				<div className='fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4'>
+					<div className='w-full max-w-md bg-white rounded-xl p-4 sm:p-5 shadow-xl'>
+						<div className='flex items-center justify-between mb-3'>
+							<h3 className='text-lg font-semibold text-black'>Скачивание и активация</h3>
+							<button
+								onClick={() => setIsModalOpen(false)}
+								className='text-gray hover:text-black transition-colors'
+								aria-label='Закрыть'
 							>
-								Купить подписку
-							</a>
+								✕
+							</button>
 						</div>
-					)}
 
-					{showVersions && canUsePlugin && (
-						<div className='rounded-lg bg-white border border-gray2 p-3'>
-							<p className='text-sm text-gray mb-2'>Выберите версию Revit:</p>
-							<div className='flex flex-col sm:flex-row gap-2'>
-								{pluginDownloadUrls.length > 0 ? (
-									pluginDownloadUrls.map(item => (
-										<a
-											key={item.version}
-											href={item.url}
-											target='_blank'
-											rel='noopener noreferrer'
-											onClick={handleDownloadClick}
-											className='w-full sm:w-auto inline-flex justify-center items-center border border-main1 text-main1 px-4 py-2 rounded-lg hover:bg-main1 hover:text-white transition-colors'
-										>
-											{item.version}
-										</a>
-									))
-								) : (
+						{!canUsePlugin ? (
+							<div className='space-y-3'>
+								<p className='text-sm text-gray'>
+									Чтобы скачать плагин, приобретите подписку.
+								</p>
+								{isAuthenticated ? (
 									<a
-										href={pluginDownloadUrl || undefined}
-										target='_blank'
-										rel='noopener noreferrer'
-										onClick={handleDownloadClick}
-										className='w-full sm:w-auto inline-flex justify-center items-center border border-main1 text-main1 px-4 py-2 rounded-lg hover:bg-main1 hover:text-white transition-colors'
+										href='/profile?tab=subscription'
+										className='w-full inline-flex justify-center items-center border border-main1 text-main1 px-4 py-2 rounded-lg hover:bg-main1 hover:text-white transition-colors'
 									>
-										Открыть ссылку скачивания
+										Купить подписку
 									</a>
+								) : (
+									<button
+										onClick={openRegisterModal}
+										className='w-full inline-flex justify-center items-center border border-main1 text-main1 px-4 py-2 rounded-lg hover:bg-main1 hover:text-white transition-colors'
+									>
+										Купить подписку
+									</button>
 								)}
 							</div>
-						</div>
-					)}
+						) : (
+							<div className='space-y-3'>
+								<div className='text-xs text-gray'>
+									URL для плагина: <span className='font-mono text-black'>{serverUrl}</span>
+								</div>
+								<div className='flex gap-2'>
+									<input
+										value={manualLicenseKey}
+										onChange={e => setManualLicenseKey(e.target.value)}
+										placeholder='Вставьте ключ из профиля'
+										className='w-full px-3 py-2 rounded-lg bg-gray-bg text-black font-mono text-xs sm:text-sm'
+									/>
+									<button
+										onClick={() => copyToClipboard(licenseKeyHash, 'key')}
+										disabled={!licenseKeyHash}
+										className='px-3 py-2 rounded-lg border border-main1 text-main1 hover:bg-main1 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+									>
+										{copiedField === 'key' ? 'OK' : 'Ключ'}
+									</button>
+								</div>
 
-					{canUsePlugin && (
-						<button
-							onClick={handleActivate}
-							disabled={isActivating}
-							className='w-full sm:w-auto bg-main1 text-white px-5 py-2.5 rounded-lg hover:bg-main2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed'
-						>
-							{isActivating ? 'Активация...' : 'Активировать плагин'}
-						</button>
-					)}
+								<div className='flex flex-wrap gap-2'>
+									{pluginDownloadUrls.length > 0 ? (
+										pluginDownloadUrls.map(item => (
+											<a
+												key={item.version}
+												href={item.url}
+												target='_blank'
+												rel='noopener noreferrer'
+												className='inline-flex justify-center items-center border border-main1 text-main1 px-3 py-1.5 rounded-lg hover:bg-main1 hover:text-white transition-colors text-sm'
+											>
+												{item.version}
+											</a>
+										))
+									) : (
+										<a
+											href={pluginDownloadUrl || undefined}
+											target='_blank'
+											rel='noopener noreferrer'
+											className='inline-flex justify-center items-center border border-main1 text-main1 px-3 py-1.5 rounded-lg hover:bg-main1 hover:text-white transition-colors text-sm'
+										>
+											Скачать файл
+										</a>
+									)}
+								</div>
+
+								<button
+									onClick={handleActivate}
+									disabled={isActivating}
+									className='w-full bg-main1 text-white px-5 py-2.5 rounded-lg hover:bg-main2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed'
+								>
+									{isActivating ? 'Активация...' : 'Активировать плагин'}
+								</button>
+
+								{isActivated && (
+									<div className='rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-sm text-green-700'>
+										Ключ подтвержден. Доступ открыт.
+									</div>
+								)}
+							</div>
+						)}
+
+						{activationError && (
+							<div className='rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700 mt-3'>
+								{activationError}
+							</div>
+						)}
+					</div>
 				</div>
-
-				{showActivationCell && (
-					<div className='rounded-lg bg-white border border-gray2 p-3'>
-						<label className='block text-sm text-gray mb-2'>Ячейка активации ключа</label>
-						<input
-							value={manualLicenseKey}
-							onChange={e => setManualLicenseKey(e.target.value)}
-							placeholder='Вставьте ключ из профиля'
-							className='w-full px-3 py-2 rounded-lg bg-gray-bg text-black font-mono text-xs sm:text-sm'
-						/>
-					</div>
-				)}
-
-				{isActivated && (
-					<div className='rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-sm text-green-700'>
-						Ключ подтвержден. Доступ к сценарию плагина открыт.
-					</div>
-				)}
-
-				{activationError && (
-					<div className='rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700'>
-						{activationError}
-					</div>
-				)}
-			</div>
-		</div>
+			)}
+		</>
 	)
 }

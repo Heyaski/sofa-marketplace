@@ -25,6 +25,22 @@ export default function Home() {
 		}
 	}, [])
 
+	useEffect(() => {
+		const handler = (event: Event) => {
+			const customEvent = event as CustomEvent<{ mode?: 'login' | 'register'; next?: string }>
+			const mode = customEvent.detail?.mode
+			const next = customEvent.detail?.next
+			if (mode === 'register' || mode === 'login') {
+				setAuthMode(mode)
+			}
+			setRedirectAfterAuth(next || undefined)
+			setIsAuthModalOpen(true)
+		}
+
+		window.addEventListener('open-auth-modal', handler as EventListener)
+		return () => window.removeEventListener('open-auth-modal', handler as EventListener)
+	}, [])
+
 	const handleAuthSuccess = () => {
 		setIsAuthModalOpen(false)
 		router.push('/catalog')
