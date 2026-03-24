@@ -15,6 +15,7 @@ export default function PluginAccessBanner() {
 	const [activationError, setActivationError] = useState<string | null>(null)
 	const [isActivating, setIsActivating] = useState(false)
 	const [showActivationCell, setShowActivationCell] = useState(false)
+	const [showVersions, setShowVersions] = useState(false)
 	const [manualLicenseKey, setManualLicenseKey] = useState('')
 	const [copiedField, setCopiedField] = useState<'url' | 'key' | null>(null)
 
@@ -47,6 +48,11 @@ export default function PluginAccessBanner() {
 	const licenseKeyHash = user?.profile?.license_key_hash || ''
 	const serverUrl = config.API_URL.replace(/\/+$/, '')
 	const pluginDownloadUrl = config.PLUGIN_DOWNLOAD_URL.trim()
+	const pluginDownloadUrls = [
+		{ version: 'Revit 2022', url: config.PLUGIN_DOWNLOAD_URL_2022.trim() },
+		{ version: 'Revit 2023', url: config.PLUGIN_DOWNLOAD_URL_2023.trim() },
+		{ version: 'Revit 2024', url: config.PLUGIN_DOWNLOAD_URL_2024.trim() },
+	].filter(item => item.url)
 
 	useEffect(() => {
 		if (licenseKeyHash) {
@@ -163,20 +169,53 @@ export default function PluginAccessBanner() {
 				<div className='rounded-lg border border-dashed border-main1/40 p-3 bg-white/80'>
 					<p className='text-sm font-medium text-black mb-1'>Как подключить плагин за 1 минуту:</p>
 					<p className='text-sm text-gray'>1) Скопируйте URL и вставьте в настройки плагина.</p>
-					<p className='text-sm text-gray'>2) Нажмите «Скачать плагин» — откроется ячейка активации.</p>
+					<p className='text-sm text-gray'>2) Выберите и скачайте версию плагина для вашего Revit.</p>
 					<p className='text-sm text-gray'>3) Вставьте ключ, активируйте и работайте по сценарию плагина.</p>
 				</div>
 
-				<div className='flex flex-col sm:flex-row gap-2'>
-					<a
-						href={pluginDownloadUrl || undefined}
-						target='_blank'
-						rel='noopener noreferrer'
-						onClick={handleDownloadClick}
+				<div className='flex flex-col gap-2'>
+					<p className='text-sm text-black'>Скачать плагин:</p>
+					<button
+						onClick={() => {
+							setShowVersions(prev => !prev)
+							setShowActivationCell(true)
+						}}
 						className='w-full sm:w-auto inline-flex justify-center items-center bg-main1 text-white px-5 py-2.5 rounded-lg hover:bg-main2 transition-colors'
 					>
 						Скачать плагин
-					</a>
+					</button>
+
+					{showVersions && (
+						<div className='rounded-lg bg-white border border-gray2 p-3'>
+							<p className='text-sm text-gray mb-2'>Выберите версию Revit:</p>
+							<div className='flex flex-col sm:flex-row gap-2'>
+								{pluginDownloadUrls.length > 0 ? (
+									pluginDownloadUrls.map(item => (
+										<a
+											key={item.version}
+											href={item.url}
+											target='_blank'
+											rel='noopener noreferrer'
+											onClick={handleDownloadClick}
+											className='w-full sm:w-auto inline-flex justify-center items-center border border-main1 text-main1 px-4 py-2 rounded-lg hover:bg-main1 hover:text-white transition-colors'
+										>
+											{item.version}
+										</a>
+									))
+								) : (
+									<a
+										href={pluginDownloadUrl || undefined}
+										target='_blank'
+										rel='noopener noreferrer'
+										onClick={handleDownloadClick}
+										className='w-full sm:w-auto inline-flex justify-center items-center border border-main1 text-main1 px-4 py-2 rounded-lg hover:bg-main1 hover:text-white transition-colors'
+									>
+										Открыть ссылку скачивания
+									</a>
+								)}
+							</div>
+						</div>
+					)}
 
 					<button
 						onClick={handleActivate}

@@ -4,6 +4,9 @@ export const config = {
 	API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
 	// Прямая ссылка на установщик плагина (zip/msi/exe)
 	PLUGIN_DOWNLOAD_URL: process.env.NEXT_PUBLIC_PLUGIN_DOWNLOAD_URL || '',
+	PLUGIN_DOWNLOAD_URL_2022: process.env.NEXT_PUBLIC_PLUGIN_DOWNLOAD_URL_2022 || '',
+	PLUGIN_DOWNLOAD_URL_2023: process.env.NEXT_PUBLIC_PLUGIN_DOWNLOAD_URL_2023 || '',
+	PLUGIN_DOWNLOAD_URL_2024: process.env.NEXT_PUBLIC_PLUGIN_DOWNLOAD_URL_2024 || '',
 
 	// Настройки приложения
 	APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || 'Sofa Marketplace',
