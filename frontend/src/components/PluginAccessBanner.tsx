@@ -129,7 +129,7 @@ export default function PluginAccessBanner() {
 							<div className='space-y-3'>
 								<div className='rounded-lg bg-gray-bg p-3'>
 									<p className='text-xs text-gray mb-1'>
-										Вставьте этот адрес в плагин (домен скрыт, при копировании вставится полный адрес):
+										Вставьте этот адрес в плагин:
 									</p>
 									<div className='flex flex-col sm:flex-row gap-2'>
 										<input
@@ -146,9 +146,6 @@ export default function PluginAccessBanner() {
 											{copiedField === 'pluginUrl' ? 'OK' : 'Копировать'}
 										</button>
 									</div>
-									<p className='mt-2 text-[11px] text-gray'>
-										Полный адрес, который копируется: <span className='font-mono text-black'>{pluginApiUrl}</span>
-									</p>
 								</div>
 
 								<div className='flex flex-wrap gap-2'>
