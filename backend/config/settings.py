@@ -1,6 +1,7 @@
 from pathlib import Path
 import os
 from datetime import timedelta
+from corsheaders.defaults import default_headers
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -74,6 +75,11 @@ CORS_ALLOWED_ORIGINS = [
     "https://vizhub.org",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+]
+
+# Разрешаем кастомный заголовок лицензии для API плагина
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "x-license-hash",
 ]
 
 ROOT_URLCONF = "config.urls"
