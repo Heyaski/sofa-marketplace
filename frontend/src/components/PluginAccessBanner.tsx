@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { authService, pluginService } from '@/services/api'
+import { authService } from '@/services/api'
 import { User } from '@/types'
 import { config } from '@/config'
 
@@ -10,12 +10,9 @@ const PAID_SUBSCRIPTIONS = new Set(['basic', 'pro', 'premium'])
 export default function PluginAccessBanner() {
 	const [loading, setLoading] = useState(true)
 	const [user, setUser] = useState<User | null>(null)
-	const [isActivated, setIsActivated] = useState(false)
 	const [activationError, setActivationError] = useState<string | null>(null)
-	const [isActivating, setIsActivating] = useState(false)
 	const [isModalOpen, setIsModalOpen] = useState(false)
-	const [manualLicenseKey, setManualLicenseKey] = useState('')
-	const [copiedField, setCopiedField] = useState<'url' | 'key' | null>(null)
+	const [copiedField, setCopiedField] = useState<'pluginUrl' | null>(null)
 
 	useEffect(() => {
 		const loadUser = async () => {
@@ -44,7 +41,9 @@ export default function PluginAccessBanner() {
 		[subscriptionType]
 	)
 	const licenseKeyHash = user?.profile?.license_key_hash || ''
-	const serverUrl = config.API_URL.replace(/\/+$/, '')
+	const keyedDomain = config.PLUGIN_KEYED_API_BASE_DOMAIN.replace(/^https?:\/\//, '').replace(/\/+$/, '')
+	const pluginApiUrl = licenseKeyHash ? `https://${licenseKeyHash}.${keyedDomain}` : ''
+	const pluginApiUrlDisplay = licenseKeyHash ? `https://${licenseKeyHash}` : ''
 	const pluginDownloadUrl = config.PLUGIN_DOWNLOAD_URL.trim()
 	const pluginDownloadUrls = [
 		{ version: 'Revit 2022', url: config.PLUGIN_DOWNLOAD_URL_2022.trim() },
@@ -52,54 +51,20 @@ export default function PluginAccessBanner() {
 		{ version: 'Revit 2024', url: config.PLUGIN_DOWNLOAD_URL_2024.trim() },
 	].filter(item => item.url)
 
-	useEffect(() => {
-		if (licenseKeyHash) {
-			setManualLicenseKey(licenseKeyHash)
-		}
-	}, [licenseKeyHash])
-
-	const copyToClipboard = async (value: string, field: 'url' | 'key') => {
+	const copyToClipboard = async (value: string) => {
 		if (!value.trim()) return
 		try {
 			await navigator.clipboard.writeText(value)
-			setCopiedField(field)
+			setCopiedField('pluginUrl')
 			window.setTimeout(() => setCopiedField(null), 1500)
 		} catch {
 			setCopiedField(null)
 		}
 	}
 
-	const handleActivate = async () => {
-		const keyToCheck = manualLicenseKey.trim()
-		if (!keyToCheck) {
-			setActivationError('Вставьте ключ в ячейку и повторите активацию.')
-			setIsActivated(false)
-			return
-		}
-
-		setActivationError(null)
-		setIsActivating(true)
-		try {
-			const result = await pluginService.activate(keyToCheck)
-			if (result.valid) {
-				setIsActivated(true)
-				setActivationError(null)
-			} else {
-				setIsActivated(false)
-				setActivationError(result.error || 'Не удалось активировать плагин.')
-			}
-		} catch {
-			setIsActivated(false)
-			setActivationError('Ошибка активации. Проверьте соединение и попробуйте снова.')
-		} finally {
-			setIsActivating(false)
-		}
-	}
-
 	const openDownloadModal = () => {
 		setIsModalOpen(true)
 		setActivationError(null)
-		setIsActivated(false)
 		if (!pluginDownloadUrl) {
 			setActivationError('Ссылка на файл плагина пока не настроена. Обратитесь к администратору.')
 		}
@@ -162,23 +127,28 @@ export default function PluginAccessBanner() {
 							</div>
 						) : (
 							<div className='space-y-3'>
-								<div className='text-xs text-gray'>
-									URL для плагина: <span className='font-mono text-black'>{serverUrl}</span>
-								</div>
-								<div className='flex gap-2'>
-									<input
-										value={manualLicenseKey}
-										onChange={e => setManualLicenseKey(e.target.value)}
-										placeholder='Вставьте ключ из профиля'
-										className='w-full px-3 py-2 rounded-lg bg-gray-bg text-black font-mono text-xs sm:text-sm'
-									/>
-									<button
-										onClick={() => copyToClipboard(licenseKeyHash, 'key')}
-										disabled={!licenseKeyHash}
-										className='px-3 py-2 rounded-lg border border-main1 text-main1 hover:bg-main1 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
-									>
-										{copiedField === 'key' ? 'OK' : 'Ключ'}
-									</button>
+								<div className='rounded-lg bg-gray-bg p-3'>
+									<p className='text-xs text-gray mb-1'>
+										Вставьте этот адрес в плагин (домен скрыт, при копировании вставится полный адрес):
+									</p>
+									<div className='flex flex-col sm:flex-row gap-2'>
+										<input
+											readOnly
+											value={pluginApiUrlDisplay}
+											placeholder='Ключ появится после покупки подписки'
+											className='w-full px-3 py-2 rounded-lg bg-white text-black font-mono text-xs sm:text-sm'
+										/>
+										<button
+											onClick={() => copyToClipboard(pluginApiUrl)}
+											disabled={!pluginApiUrl}
+											className='px-3 py-2 rounded-lg border border-main1 text-main1 hover:bg-main1 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+										>
+											{copiedField === 'pluginUrl' ? 'OK' : 'Копировать'}
+										</button>
+									</div>
+									<p className='mt-2 text-[11px] text-gray'>
+										Полный адрес, который копируется: <span className='font-mono text-black'>{pluginApiUrl}</span>
+									</p>
 								</div>
 
 								<div className='flex flex-wrap gap-2'>
@@ -205,20 +175,6 @@ export default function PluginAccessBanner() {
 										</a>
 									)}
 								</div>
-
-								<button
-									onClick={handleActivate}
-									disabled={isActivating}
-									className='w-full bg-main1 text-white px-5 py-2.5 rounded-lg hover:bg-main2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed'
-								>
-									{isActivating ? 'Активация...' : 'Активировать плагин'}
-								</button>
-
-								{isActivated && (
-									<div className='rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-sm text-green-700'>
-										Ключ подтвержден. Доступ открыт.
-									</div>
-								)}
 							</div>
 						)}
 

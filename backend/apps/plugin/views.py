@@ -4,6 +4,7 @@ API для плагина (Revit и др.).
 """
 import logging
 import hashlib
+import re
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -18,6 +19,7 @@ from .utils import resolve_product_file_url, resolve_file_by_name
 logger = logging.getLogger(__name__)
 
 LICENSE_HEADER = 'X-License-Hash'
+LICENSE_RE = re.compile(r'^[a-f0-9]{64}$')
 
 
 def resolve_profile_by_license_value(license_value):
@@ -55,10 +57,33 @@ def resolve_profile_by_license_value(license_value):
     return None
 
 
+def resolve_license_from_host(request):
+    """
+    Поддержка "URL с ключом": https://<license>.<domain>
+    Извлекаем <license> из subdomain и используем как license_value.
+    """
+    try:
+        host = (request.get_host() or '').split(':', 1)[0].lower().strip()
+    except Exception:
+        host = ''
+
+    if not host or '.' not in host:
+        return None
+
+    first_label = host.split('.', 1)[0]
+    if LICENSE_RE.match(first_label):
+        return first_label
+    return None
+
+
 def get_profile_from_request(request):
     """Возвращает UserProfile по заголовку X-License-Hash или None."""
     license_hash = request.headers.get(LICENSE_HEADER) or request.META.get(f'HTTP_{LICENSE_HEADER.upper().replace("-", "_")}')
-    return resolve_profile_by_license_value(license_hash)
+    profile = resolve_profile_by_license_value(license_hash)
+    if profile:
+        return profile
+    host_license = resolve_license_from_host(request)
+    return resolve_profile_by_license_value(host_license)
 
 
 def license_required(view_method):
@@ -122,6 +147,9 @@ class PluginLegacyLicenseView(APIView):
 
     def post(self, request):
         license_hash = (request.data.get('license_hash') or '').strip()
+        if not license_hash:
+            # если ключ передан в URL, а не в теле
+            license_hash = (resolve_license_from_host(request) or '').strip()
         feature = (request.data.get('feature') or '').strip()
 
         if not license_hash:
