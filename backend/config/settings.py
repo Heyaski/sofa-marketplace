@@ -27,6 +27,12 @@ ALLOWED_HOSTS = get_env("ALLOWED_HOSTS", "*").split(",")
 # URL фронтенда (для ссылок в КП и email-ах)
 FRONTEND_URL = get_env("FRONTEND_URL", "https://vizhub.pro")
 
+# Офлайн-активация плагина (окно «код запроса» → «код активации»).
+# Режимы: sha256_rl, sha256_lr, sha256_pipe, sha256_colon, hmac_sha256_rl, hmac_sha256_lr, multi
+# Для hmac_* задайте PLUGIN_OFFLINE_ACTIVATION_SECRET (должен совпадать с тем, что зашито в плагине, если используется HMAC).
+PLUGIN_OFFLINE_ACTIVATION_MODE = get_env("PLUGIN_OFFLINE_ACTIVATION_MODE", "sha256_rl")
+PLUGIN_OFFLINE_ACTIVATION_SECRET = get_env("PLUGIN_OFFLINE_ACTIVATION_SECRET", "")
+
 INSTALLED_APPS = [
     "jazzmin",  # Должен быть перед django.contrib.admin
     "adminsortable2",  # drag-and-drop сортировка в админке

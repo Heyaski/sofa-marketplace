@@ -4,7 +4,11 @@ API для плагина (Revit и др.).
 """
 import logging
 import hashlib
+import hmac
 import re
+from typing import Tuple
+
+from django.conf import settings
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -20,6 +24,45 @@ logger = logging.getLogger(__name__)
 
 LICENSE_HEADER = 'X-License-Hash'
 LICENSE_RE = re.compile(r'^[a-f0-9]{64}$')
+REQUEST_CODE_RE = re.compile(r'^[a-fA-F0-9]{64}$')
+LICENSE_INPUT_RE = re.compile(r'^[a-fA-F0-9]{64}$')
+
+
+def compute_offline_activation_variants(request_code: str, license_hash: str) -> dict:
+    """
+    Варианты «кода активации» из кода запроса и хеша лицензии.
+    Реальный плагин использует ровно одну формулу — режим подбирают (см. multi).
+    """
+    rc = request_code.strip().lower()
+    lh = license_hash.strip().lower()
+    base = {
+        'sha256_rl': hashlib.sha256((rc + lh).encode('utf-8')).hexdigest(),
+        'sha256_lr': hashlib.sha256((lh + rc).encode('utf-8')).hexdigest(),
+        'sha256_pipe': hashlib.sha256(f'{rc}|{lh}'.encode('utf-8')).hexdigest(),
+        'sha256_colon': hashlib.sha256(f'{rc}:{lh}'.encode('utf-8')).hexdigest(),
+    }
+    secret = (getattr(settings, 'PLUGIN_OFFLINE_ACTIVATION_SECRET', None) or '').strip()
+    if secret:
+        base['hmac_sha256_rl'] = hmac.new(
+            secret.encode('utf-8'), (rc + lh).encode('utf-8'), hashlib.sha256
+        ).hexdigest()
+        base['hmac_sha256_lr'] = hmac.new(
+            secret.encode('utf-8'), (lh + rc).encode('utf-8'), hashlib.sha256
+        ).hexdigest()
+    return base
+
+
+def single_offline_activation_code(request_code: str, license_hash: str) -> Tuple[str, str]:
+    """Возвращает (activation_code, mode_used)."""
+    mode = (getattr(settings, 'PLUGIN_OFFLINE_ACTIVATION_MODE', None) or 'sha256_rl').strip().lower()
+    variants = compute_offline_activation_variants(request_code, license_hash)
+    if mode == 'multi':
+        raise ValueError('multi')
+    if mode.startswith('hmac_') and mode not in variants:
+        raise ValueError('PLUGIN_OFFLINE_ACTIVATION_SECRET is required for HMAC modes')
+    if mode not in variants:
+        mode = 'sha256_rl'
+    return variants[mode], mode
 
 
 def resolve_profile_by_license_value(license_value):
@@ -205,6 +248,102 @@ class PluginLegacyLicenseView(APIView):
                 "expires_at": profile.subscription_end_date.isoformat() if profile.subscription_end_date else None,
                 "error_code": None,
                 "features": enabled_features,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class PluginOfflineActivationView(APIView):
+    """
+    Офлайн-активация (окно «код запроса» → «код активации» в плагине).
+
+    POST /api/plugin/offline-activation/
+    Body: { "request_code": "<64 hex>", "license_hash": "<64 hex>" }
+    Поле license_hash — тот же хеш подписки, что в профиле на сайте.
+
+    Режим вычисления задаётся PLUGIN_OFFLINE_ACTIVATION_MODE (см. settings).
+    Значение multi возвращает все варианты — по очереди пробуют в поле «Код активации».
+    """
+    permission_classes = []
+    authentication_classes = []
+
+    def post(self, request):
+        request_code = (request.data.get('request_code') or '').strip()
+        license_raw = (request.data.get('license_hash') or request.data.get('license_key') or '').strip()
+
+        if not REQUEST_CODE_RE.match(request_code):
+            return Response(
+                {
+                    'valid': False,
+                    'error': 'request_code must be 64 hexadecimal characters',
+                    'error_code': 'REQUEST_CODE_INVALID',
+                },
+                status=status.HTTP_200_OK,
+            )
+        if not LICENSE_INPUT_RE.match(license_raw):
+            return Response(
+                {
+                    'valid': False,
+                    'error': 'license_hash must be 64 hexadecimal characters (ключ из профиля)',
+                    'error_code': 'LICENSE_INVALID_FORMAT',
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        license_hash = license_raw.lower()
+        profile = resolve_profile_by_license_value(license_hash)
+        if not profile:
+            return Response(
+                {
+                    'valid': False,
+                    'error': 'Лицензия не найдена',
+                    'error_code': 'LICENSE_UNKNOWN',
+                },
+                status=status.HTTP_200_OK,
+            )
+        if not profile.is_subscription_active():
+            return Response(
+                {
+                    'valid': False,
+                    'error': 'Подписка не активна или истекла',
+                    'error_code': 'SUBSCRIPTION_INACTIVE',
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        mode_setting = (getattr(settings, 'PLUGIN_OFFLINE_ACTIVATION_MODE', None) or 'sha256_rl').strip().lower()
+
+        if mode_setting == 'multi':
+            variants = compute_offline_activation_variants(request_code, license_hash)
+            return Response(
+                {
+                    'valid': True,
+                    'mode': 'multi',
+                    'activation_codes': variants,
+                    'hint': 'Вставьте в плагин по очереди значения из activation_codes. '
+                    'Когда одно подойдёт — на сервере задайте PLUGIN_OFFLINE_ACTIVATION_MODE '
+                    'равным имени этого ключа.',
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        try:
+            code, used_mode = single_offline_activation_code(request_code, license_hash)
+        except ValueError as exc:
+            return Response(
+                {
+                    'valid': False,
+                    'error': str(exc),
+                    'error_code': 'SERVER_CONFIG',
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(
+            {
+                'valid': True,
+                'activation_code': code,
+                'mode': used_mode,
             },
             status=status.HTTP_200_OK,
         )

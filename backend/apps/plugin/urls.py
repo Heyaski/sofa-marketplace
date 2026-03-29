@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import (
     PluginActivateView,
+    PluginOfflineActivationView,
     PluginProductListView,
     PluginDownloadView,
     PluginAssetDirectView,
@@ -9,6 +10,7 @@ from .views import (
 
 urlpatterns = [
     path("plugin/activate/", PluginActivateView.as_view(), name="plugin-activate"),
+    path("plugin/offline-activation/", PluginOfflineActivationView.as_view(), name="plugin-offline-activation"),
     # Legacy endpoint for ready-made plugin compatibility
     path("license.php", PluginLegacyLicenseView.as_view(), name="plugin-license-legacy"),
     path("license", PluginLegacyLicenseView.as_view(), name="plugin-license-legacy-no-ext"),
