@@ -42,13 +42,14 @@ export default function PluginAccessBanner() {
 	)
 	const licenseKeyHash = user?.profile?.license_key_hash || ''
 	const keyedDomain = config.PLUGIN_KEYED_API_BASE_DOMAIN.replace(/^https?:\/\//, '').replace(/\/+$/, '')
-	const pluginApiUrl = licenseKeyHash ? `https://${licenseKeyHash}.${keyedDomain}` : ''
+	const pluginApiUrlForClipboard = licenseKeyHash ? `https://${licenseKeyHash}.${keyedDomain}` : ''
 	const pluginApiUrlDisplay = licenseKeyHash ? `https://${licenseKeyHash}` : ''
 	const pluginDownloadUrl = config.PLUGIN_DOWNLOAD_URL.trim()
 	const pluginDownloadUrls = [
 		{ version: 'Revit 2022', url: config.PLUGIN_DOWNLOAD_URL_2022.trim() },
 		{ version: 'Revit 2023', url: config.PLUGIN_DOWNLOAD_URL_2023.trim() },
 		{ version: 'Revit 2024', url: config.PLUGIN_DOWNLOAD_URL_2024.trim() },
+		{ version: '3ds Max 2023', url: config.PLUGIN_DOWNLOAD_URL_3DSMAX.trim() },
 	].filter(item => item.url)
 
 	const copyToClipboard = async (value: string) => {
@@ -65,7 +66,7 @@ export default function PluginAccessBanner() {
 	const openDownloadModal = () => {
 		setIsModalOpen(true)
 		setActivationError(null)
-		if (!pluginDownloadUrl) {
+		if (!pluginDownloadUrl && pluginDownloadUrls.length === 0) {
 			setActivationError('Ссылка на файл плагина пока не настроена. Обратитесь к администратору.')
 		}
 	}
@@ -139,8 +140,8 @@ export default function PluginAccessBanner() {
 											className='w-full px-3 py-2 rounded-lg bg-white text-black font-mono text-xs sm:text-sm'
 										/>
 										<button
-											onClick={() => copyToClipboard(pluginApiUrl)}
-											disabled={!pluginApiUrl}
+											onClick={() => copyToClipboard(pluginApiUrlForClipboard)}
+											disabled={!pluginApiUrlForClipboard}
 											className='px-3 py-2 rounded-lg border border-main1 text-main1 hover:bg-main1 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
 										>
 											{copiedField === 'pluginUrl' ? 'OK' : 'Копировать'}
