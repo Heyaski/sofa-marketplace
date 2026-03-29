@@ -40,7 +40,25 @@ def compute_offline_activation_variants(request_code: str, license_hash: str) ->
         'sha256_lr': hashlib.sha256((lh + rc).encode('utf-8')).hexdigest(),
         'sha256_pipe': hashlib.sha256(f'{rc}|{lh}'.encode('utf-8')).hexdigest(),
         'sha256_colon': hashlib.sha256(f'{rc}:{lh}'.encode('utf-8')).hexdigest(),
+        'sha256_utf16le_rl': hashlib.sha256((rc + lh).encode('utf-16-le')).hexdigest(),
+        'sha256_utf16be_rl': hashlib.sha256((rc + lh).encode('utf-16-be')).hexdigest(),
     }
+    try:
+        brc = bytes.fromhex(rc)
+        blh = bytes.fromhex(lh)
+    except ValueError:
+        brc = blh = None
+    if brc is not None and blh is not None and len(brc) == 32 and len(blh) == 32:
+        # Как часто в C#: склейка байтов, не строк hex
+        base['sha256_bytes_rl'] = hashlib.sha256(brc + blh).hexdigest()
+        base['sha256_bytes_lr'] = hashlib.sha256(blh + brc).hexdigest()
+        base['sha512_bytes_rl'] = hashlib.sha512(brc + blh).hexdigest()
+        # HMAC: ключ = байты лицензии / кода запроса (без общего секрета)
+        base['hmac_key_license_bytes_msg_request'] = hmac.new(blh, brc, hashlib.sha256).hexdigest()
+        base['hmac_key_request_bytes_msg_license'] = hmac.new(brc, blh, hashlib.sha256).hexdigest()
+        # MD5 — у части старых плагинов 32 hex в поле активации
+        base['md5_bytes_rl'] = hashlib.md5(brc + blh).hexdigest()
+        base['md5_bytes_lr'] = hashlib.md5(blh + brc).hexdigest()
     secret = (getattr(settings, 'PLUGIN_OFFLINE_ACTIVATION_SECRET', None) or '').strip()
     if secret:
         base['hmac_sha256_rl'] = hmac.new(

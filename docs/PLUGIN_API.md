@@ -105,10 +105,10 @@ Content-Type: application/json
 
 На сервере переменные окружения:
 
-- `PLUGIN_OFFLINE_ACTIVATION_MODE` — алгоритм: `sha256_rl` (по умолчанию), `sha256_lr`, `sha256_pipe`, `sha256_colon`, `hmac_sha256_rl`, `hmac_sha256_lr`, или **`multi`**.
-- `PLUGIN_OFFLINE_ACTIVATION_SECRET` — обязателен для режимов `hmac_*`, если в плагине используется HMAC с тем же секретом.
+- `PLUGIN_OFFLINE_ACTIVATION_MODE` — алгоритм: `sha256_rl` (по умолчанию), `sha256_lr`, `sha256_pipe`, `sha256_colon`, `sha256_utf16le_rl`, `sha256_utf16be_rl`, `sha256_bytes_rl`, `sha256_bytes_lr`, `sha512_bytes_rl`, `hmac_key_license_bytes_msg_request`, `hmac_key_request_bytes_msg_license`, `md5_bytes_rl`, `md5_bytes_lr` (32 символа), `hmac_sha256_rl`, `hmac_sha256_lr`, или **`multi`**.
+- `PLUGIN_OFFLINE_ACTIVATION_SECRET` — обязателен для режимов `hmac_sha256_*`, если в плагине используется HMAC с тем же секретом.
 
-Режим **`multi`** возвращает все поддерживаемые варианты в поле `activation_codes` (словарь имя → hex). Пользователь по очереди вставляет значения в поле «Код активации» в плагине; когда сработает — в `.env` задают `PLUGIN_OFFLINE_ACTIVATION_MODE` равным **ключу** этого варианта (например `sha256_pipe`).
+Режим **`multi`** возвращает все поддерживаемые варианты в поле `activation_codes` (словарь имя → hex). Пользователь по очереди вставляет значения в поле «Код активации» в плагине; когда сработает — в `.env` задают `PLUGIN_OFFLINE_ACTIVATION_MODE` равным **ключу** этого варианта (например `sha256_bytes_rl`). Для вариантов **`md5_*`** длина кода **32** hex-символа — если поле плагина принимает только короткий код, проверьте их в первую очередь.
 
 Если **ни один** вариант не принимается плагином, формула в DLL отличается от перечисленных — нужна спецификация у автора плагина или обновление плагина.
 
