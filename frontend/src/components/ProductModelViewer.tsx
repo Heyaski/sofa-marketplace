@@ -28,20 +28,7 @@ const loadQueue = {
 	},
 }
 
-function getModelUrl(product: Product): string | null {
-	if (!product) return null
-	let url: string | null = null
-	if (product.model_glb) url = product.model_glb
-	else if (product.asset_3d_models && product.asset_3d_models.length > 0) {
-		const first = product.asset_3d_models[0]
-		if (first?.file_url) {
-			const u = first.file_url.toLowerCase()
-			const ext = u.substring(u.lastIndexOf('.') + 1).split('?')[0]
-			if (MODEL_VIEWER_FORMATS.includes(ext)) url = first.file_url
-		}
-	}
-	if (!url) return null
-	// Cache-bust: после оптимизации gltfpack старый кэш (60 MB) невалиден
+function withGlbVersion(url: string): string {
 	return url + (url.includes('?') ? '&' : '?') + GLB_VERSION
 }
 
@@ -49,6 +36,39 @@ function isValidUrl(url: string | null | undefined): boolean {
 	if (!url) return false
 	const u = url.toLowerCase()
 	return u.startsWith('http://') || u.startsWith('https://') || u.startsWith('/')
+}
+
+function collectGlbUrls(product: Product): string[] {
+	if (!product) return []
+	const seen = new Set<string>()
+	const out: string[] = []
+	const push = (raw: string | null | undefined) => {
+		if (!raw || !isValidUrl(raw)) return
+		const u = raw.toLowerCase()
+		const ext = u.substring(u.lastIndexOf('.') + 1).split('?')[0]
+		if (!MODEL_VIEWER_FORMATS.includes(ext)) return
+		const base = raw.split('?')[0]
+		if (seen.has(base)) return
+		seen.add(base)
+		out.push(withGlbVersion(raw))
+	}
+	if (product.model_glb) push(product.model_glb)
+	if (product.asset_3d_models?.length) {
+		for (const a of product.asset_3d_models) {
+			push(a.file_url)
+		}
+	}
+	return out
+}
+
+/** URL n-й 3D-модели (0 — основная). Для страницы товара: два вьюера. */
+export function getProductModelUrlAt(product: Product, index: number): string | null {
+	const urls = collectGlbUrls(product)
+	return urls[index] ?? null
+}
+
+function getModelUrl(product: Product, index: number = 0): string | null {
+	return getProductModelUrlAt(product, index)
 }
 
 async function trimCacheIfNeeded(cache: Cache) {
@@ -92,6 +112,10 @@ async function getCachedOrFetchModelUrl(url: string, signal?: AbortController['s
 interface ProductModelViewerProps {
 	product: Product
 	variant?: 'card' | 'page'
+	/** Индекс модели в списке GLB (вторая модель на странице товара). */
+	modelIndex?: number
+	/** Уменьшенная высота для страницы товара (два вьюера в ряд). */
+	compact?: boolean
 	className?: string
 	onClick?: () => void
 }
@@ -99,10 +123,12 @@ interface ProductModelViewerProps {
 export default function ProductModelViewer({
 	product,
 	variant = 'card',
+	modelIndex = 0,
+	compact = false,
 	className = '',
 	onClick,
 }: ProductModelViewerProps) {
-	const modelUrl = getModelUrl(product)
+	const modelUrl = getModelUrl(product, modelIndex)
 	const [scriptReady, setScriptReady] = useState(false)
 	const [resolvedSrc, setResolvedSrc] = useState<string | null>(null)
 	const [inViewport, setInViewport] = useState(false)
@@ -195,7 +221,10 @@ export default function ProductModelViewer({
 	const hasModel = !!modelUrl && isValidUrl(modelUrl) && scriptReady && resolvedSrc !== null
 	const isLoading = inViewport && !resolvedSrc
 
-	const containerClass = `overflow-hidden bg-gray-50 flex items-center justify-center ${variant === 'card' ? 'aspect-square' : 'aspect-square sm:min-h-[400px]'} ${className}`
+	const pageSizeClass = compact
+		? 'aspect-square min-h-[180px] max-h-[280px] sm:max-h-[300px]'
+		: 'aspect-square sm:min-h-[280px] sm:max-h-[360px]'
+	const containerClass = `overflow-hidden bg-gray-50 flex items-center justify-center ${variant === 'card' ? 'aspect-square' : pageSizeClass} ${className}`
 
 	if (!modelUrl || !isValidUrl(modelUrl)) return null
 
@@ -229,7 +258,7 @@ export default function ProductModelViewer({
 						style={{
 							width: '100%',
 							height: '100%',
-							minHeight: variant === 'page' ? 400 : 200,
+							minHeight: variant === 'page' ? (compact ? 180 : 280) : 200,
 							display: 'block',
 							pointerEvents: 'auto',
 						}}

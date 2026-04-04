@@ -5,7 +5,9 @@ import BottomNav from '@/components/BottomNav'
 import CartModal from '@/components/CartModal'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
-import ProductModelViewer from '@/components/ProductModelViewer'
+import EstimatedPriceButton from '@/components/EstimatedPriceButton'
+import ProductModelViewer, { getProductModelUrlAt } from '@/components/ProductModelViewer'
+import { getProductPrimaryImageUrl } from '@/utils/productImage'
 import { config } from '@/config'
 import { formatDimension } from '@/utils/format'
 import { getTitleWithoutBrand } from '@/utils/productTitle'
@@ -109,6 +111,8 @@ export default function ProductPage({ params }: ProductPageProps) {
 		)
 	}
 
+	const productImageUrl = getProductPrimaryImageUrl(product)
+
 	return (
 		<div className='min-h-screen bg-gray-bg'>
 			<Header />
@@ -136,29 +140,71 @@ export default function ProductPage({ params }: ProductPageProps) {
 				</div>
 
 				<div className='bg-white rounded-xl p-4 sm:p-6 lg:p-8 shadow-card'>
-					<div className='grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12'>
-						{/* 3D модель или изображения товара — можно крутить */}
-						<div className='space-y-4'>
-							<div className='bg-gray-bg rounded-lg overflow-hidden relative'>
-								{isSuperuser && product.model_3d_id && (
-									<span className='absolute left-3 top-3 z-10 text-xs text-gray font-medium bg-white/80 px-2 py-1 rounded'>
-										{product.model_3d_id}
-									</span>
-								)}
-								<ProductModelViewer product={product} variant='page' />
+					<div className='grid lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8'>
+						<div className='space-y-3'>
+							<div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+								<div className='bg-gray-bg rounded-lg overflow-hidden relative min-h-[180px] max-h-[300px]'>
+									{isSuperuser && product.model_3d_id && getProductModelUrlAt(product, 0) && (
+										<span className='absolute left-2 top-2 z-10 text-xs text-gray font-medium bg-white/80 px-2 py-1 rounded'>
+											{product.model_3d_id}
+										</span>
+									)}
+									{getProductModelUrlAt(product, 0) ? (
+										<ProductModelViewer
+											product={product}
+											variant='page'
+											modelIndex={0}
+											compact
+										/>
+									) : productImageUrl ? (
+										// eslint-disable-next-line @next/next/no-img-element
+										<img
+											src={productImageUrl}
+											alt={product.title_display ?? getTitleWithoutBrand(product.title || '', product.brand)}
+											className='w-full h-full object-cover min-h-[180px] max-h-[300px]'
+										/>
+									) : (
+										<div className='min-h-[180px] flex items-center justify-center text-xs text-gray px-2 text-center'>
+											Нет 3D-модели
+										</div>
+									)}
+								</div>
+								<div className='bg-gray-bg rounded-lg overflow-hidden relative min-h-[180px] max-h-[300px]'>
+									{getProductModelUrlAt(product, 1) ? (
+										<ProductModelViewer
+											product={product}
+											variant='page'
+											modelIndex={1}
+											compact
+										/>
+									) : productImageUrl ? (
+										// eslint-disable-next-line @next/next/no-img-element
+										<img
+											src={productImageUrl}
+											alt={product.title_display ?? getTitleWithoutBrand(product.title || '', product.brand)}
+											className='w-full h-full object-cover min-h-[180px] max-h-[300px]'
+										/>
+									) : (
+										<div className='min-h-[180px] flex items-center justify-center text-xs text-gray px-2 text-center'>
+											Дополнительная модель не указана
+										</div>
+									)}
+								</div>
 							</div>
 						</div>
 
 			{/* Информация о товаре */}
-			<div className='space-y-4 sm:space-y-6'>
-							<h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-black'>
+			<div className='space-y-3 sm:space-y-4'>
+							<h1 className='text-lg sm:text-xl lg:text-2xl font-bold text-black'>
 								{product.title_display ?? getTitleWithoutBrand(product.title || '', product.brand)}
 							</h1>
 
+							<EstimatedPriceButton product={product} className='max-w-full sm:max-w-xs' />
+
 							{/* Описание */}
 							{product.description && (
-								<div className='prose max-w-none'>
-									<p className='text-black leading-relaxed text-sm'>
+								<div className='prose max-w-none max-h-[min(40vh,280px)] overflow-y-auto pr-1'>
+									<p className='text-black leading-relaxed text-xs sm:text-sm'>
 										{product.description}
 									</p>
 								</div>

@@ -7,8 +7,10 @@ import { config } from '../config'
 import { Product } from '../types'
 import { formatDimension } from '../utils/format'
 import { getTitleWithoutBrand } from '../utils/productTitle'
-import ProductModelViewer from './ProductModelViewer'
+import { getProductPrimaryImageUrl } from '@/utils/productImage'
+import ProductModelViewer, { getProductModelUrlAt } from './ProductModelViewer'
 import EditProductModal from './EditProductModal'
+import EstimatedPriceButton from './EstimatedPriceButton'
 import { productService } from '../services/api'
 
 interface ProductCardProps {
@@ -18,6 +20,8 @@ interface ProductCardProps {
 	onProductUpdated?: (product: Product) => void
 	onProductDeleted?: (productId: number) => void
 	onAuthRequired?: () => void
+	/** Режим каталога: 2D — фото, 3D — model-viewer */
+	catalogDisplayMode?: '2d' | '3d'
 }
 
 export default function ProductCard({
@@ -27,6 +31,7 @@ export default function ProductCard({
 	onProductUpdated,
 	onProductDeleted,
 	onAuthRequired,
+	catalogDisplayMode = '3d',
 }: ProductCardProps) {
 	const router = useRouter()
 	const [toastMessage, setToastMessage] = useState<string | null>(null)
@@ -56,6 +61,7 @@ export default function ProductCard({
 	}
 
 	const displayTitle = product.title_display ?? getTitleWithoutBrand(product.title || '', product.brand)
+	const catalogThumbUrl = getProductPrimaryImageUrl(product)
 
 	const getCategoryName = () => {
 		if (!displayTitle) return ''
@@ -203,14 +209,50 @@ export default function ProductCard({
 					)}
 				</div>
 			)}
-			{/* 3D модель или изображение товара — можно крутить в каталоге */}
-			<div className='rounded-lg mb-3 sm:mb-4 overflow-hidden relative'>
-			{isSuperuser && product.model_3d_id && (
-				<span className='absolute left-2 top-2 z-10 text-xs text-gray font-medium bg-white/80 px-1.5 py-0.5 rounded'>
-					{product.model_3d_id}
-				</span>
-			)}
-				<ProductModelViewer product={product} variant='card' onClick={handleCardClick} />
+			{/* Каталог: 2D — фото, 3D — интерактивная модель */}
+			<div className='rounded-lg mb-3 sm:mb-4 overflow-hidden relative aspect-square bg-gray-50'>
+				{isSuperuser && product.model_3d_id && catalogDisplayMode === '3d' && (
+					<span className='absolute left-2 top-2 z-10 text-xs text-gray font-medium bg-white/80 px-1.5 py-0.5 rounded'>
+						{product.model_3d_id}
+					</span>
+				)}
+				{catalogDisplayMode === '2d' ? (
+					catalogThumbUrl ? (
+						// eslint-disable-next-line @next/next/no-img-element -- внешние URL с API
+						<img
+							src={catalogThumbUrl}
+							alt={displayTitle || 'Товар'}
+							className='w-full h-full object-cover cursor-pointer'
+							onClick={handleCardClick}
+						/>
+					) : (
+						<button
+							type='button'
+							onClick={handleCardClick}
+							className='w-full h-full flex items-center justify-center text-xs text-gray px-2 text-center'
+						>
+							Нет фото
+						</button>
+					)
+				) : getProductModelUrlAt(product, 0) ? (
+					<ProductModelViewer product={product} variant='card' onClick={handleCardClick} />
+				) : (
+					<button
+						type='button'
+						onClick={handleCardClick}
+						className='w-full h-full flex flex-col items-center justify-center text-xs text-gray px-2 text-center gap-1'
+					>
+						<span>Нет 3D</span>
+						{catalogThumbUrl && (
+							// eslint-disable-next-line @next/next/no-img-element
+							<img
+								src={catalogThumbUrl}
+								alt=''
+								className='max-h-[70%] max-w-full object-contain rounded'
+							/>
+						)}
+					</button>
+				)}
 			</div>
 
 			{/* Описание: категория + цвет + размеры — клик открывает карточку */}
@@ -227,10 +269,12 @@ export default function ProductCard({
 			<button
 				type='button'
 				onClick={handleCardClick}
-				className='text-xs text-main1 hover:text-main2 mb-3 text-left w-full'
+				className='text-xs text-main1 hover:text-main2 mb-2 text-left w-full'
 			>
 				Подробнее →
 			</button>
+
+			<EstimatedPriceButton product={product} className='mb-2' />
 
 			{/* Действия */}
 			<div className='flex flex-col gap-2 relative'>

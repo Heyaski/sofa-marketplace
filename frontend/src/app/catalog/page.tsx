@@ -16,6 +16,8 @@ import Script from 'next/script'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useMemo, useState } from 'react'
 
+type CatalogViewMode = '2d' | '3d'
+
 function CatalogContent() {
 	const searchParams = useSearchParams()
 	const searchFromUrl = searchParams.get('search') || ''
@@ -30,6 +32,7 @@ function CatalogContent() {
 	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
 	const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
 	const [currentUser, setCurrentUser] = useState<User | null>(null)
+	const [catalogView, setCatalogView] = useState<CatalogViewMode>('3d')
 
 	useEffect(() => {
 		authService.getCurrentUser()
@@ -51,16 +54,21 @@ function CatalogContent() {
 		}))
 	}, [searchFromUrl])
 
-	// ✅ API хуки с пагинацией
 	const {
 		products,
 		loading: productsLoading,
 		loadingMore,
 		error: productsError,
 		hasMore,
+		hasPrev,
+		currentPage,
 		loadMore,
+		loadNextPage,
+		loadPrevPage,
 		refetch: refetchProducts,
-	} = useProducts(filters)
+	} = useProducts(filters, {
+		paginationMode: catalogView === '2d' ? 'infinite' : 'paged',
+	})
 	
 	// Получаем все продукты без фильтров для вычисления диапазонов
 	const [filterRangesData, setFilterRangesData] = useState<{
@@ -190,12 +198,13 @@ function CatalogContent() {
 
 	return (
 		<div className='min-h-screen bg-gray-bg pb-20 lg:pb-0'>
-			{/* model-viewer — загружаем сразу, чтобы первые 3D появились за секунды */}
-			<Script
-				src='https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer.min.js'
-				strategy='beforeInteractive'
-				type='module'
-			/>
+			{catalogView === '3d' && (
+				<Script
+					src='https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer.min.js'
+					strategy='beforeInteractive'
+					type='module'
+				/>
+			)}
 			<Header />
 
 			<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8'>
@@ -293,7 +302,37 @@ function CatalogContent() {
 
 					{/* 📦 Правая колонка: Каталог товаров */}
 					<div className='flex-1 bg-white rounded-xl p-4 sm:p-6 lg:p-8'>
-					<h1 className='text-2xl sm:text-3xl font-bold text-black mb-4 sm:mb-6 lg:mb-8'>Каталог</h1>
+					<div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6 lg:mb-8'>
+						<h1 className='text-2xl sm:text-3xl font-bold text-black'>Каталог</h1>
+						<div
+							className='inline-flex rounded-lg border border-gray2 p-0.5 bg-gray-bg self-start sm:self-auto'
+							role='group'
+							aria-label='Режим отображения каталога'
+						>
+							<button
+								type='button'
+								onClick={() => setCatalogView('2d')}
+								className={`px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
+									catalogView === '2d'
+										? 'bg-main1 text-white'
+										: 'text-black hover:bg-white/80'
+								}`}
+							>
+								2D
+							</button>
+							<button
+								type='button'
+								onClick={() => setCatalogView('3d')}
+								className={`px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
+									catalogView === '3d'
+										? 'bg-main1 text-white'
+										: 'text-black hover:bg-white/80'
+								}`}
+							>
+								3D
+							</button>
+						</div>
+					</div>
 
 					{/* ⚙️ Фильтры */}
 					<div className='mb-4 sm:mb-6'>
@@ -441,6 +480,7 @@ function CatalogContent() {
 								<ProductCard
 									key={product.id}
 									product={product}
+									catalogDisplayMode={catalogView}
 									onAddToCart={handleAddToCart}
 									isSuperuser={!!(currentUser?.is_superuser)}
 									onProductUpdated={() => refetchProducts()}
@@ -449,14 +489,38 @@ function CatalogContent() {
 								/>
 								))}
 							</div>
-							{hasMore && (
+							{catalogView === '2d' && hasMore && (
 								<div className='mt-6 sm:mt-8 flex justify-center'>
 									<button
+										type='button'
 										onClick={loadMore}
 										disabled={loadingMore}
 										className='bg-main1 text-white px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg hover:bg-main2 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base w-full sm:w-auto'
 									>
-										{loadingMore ? 'Загрузка...' : 'Загрузить еще'}
+										{loadingMore ? 'Загрузка...' : 'Загрузить ещё'}
+									</button>
+								</div>
+							)}
+							{catalogView === '3d' && (hasMore || hasPrev) && (
+								<div className='mt-6 sm:mt-8 flex flex-col sm:flex-row items-center justify-center gap-3'>
+									<button
+										type='button'
+										onClick={loadPrevPage}
+										disabled={!hasPrev || loadingMore || productsLoading}
+										className='w-full sm:w-auto px-6 py-2.5 rounded-lg border border-gray2 text-black bg-white hover:bg-gray-bg font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed'
+									>
+										Предыдущая страница
+									</button>
+									<span className='text-sm text-gray tabular-nums'>
+										Страница {currentPage}
+									</span>
+									<button
+										type='button'
+										onClick={loadNextPage}
+										disabled={!hasMore || loadingMore || productsLoading}
+										className='w-full sm:w-auto bg-main1 text-white px-6 sm:px-8 py-2.5 rounded-lg hover:bg-main2 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm'
+									>
+										{loadingMore ? 'Загрузка...' : 'Следующая страница'}
 									</button>
 								</div>
 							)}
