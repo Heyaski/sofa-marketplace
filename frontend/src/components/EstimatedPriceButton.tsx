@@ -52,26 +52,32 @@ export default function EstimatedPriceButton({ product, className = '' }: Estima
 			</button>
 			{open && (
 				<div
-					className='absolute left-0 right-0 top-full mt-2 z-50 bg-white rounded-lg shadow-lg border border-gray2 p-3 sm:p-4 text-left'
+					className='absolute left-1/2 top-full z-[60] mt-2 w-[min(calc(100vw-1.5rem),380px)] min-w-[280px] -translate-x-1/2 rounded-xl border border-gray2 bg-white p-4 text-left shadow-lg'
 					onClick={e => e.stopPropagation()}
 				>
-					<p className='text-xs text-gray mb-2'>Ориентировочная цена товара</p>
-					<p className='text-sm font-semibold text-black mb-3'>
+					<p className='mb-1.5 text-xs text-gray'>Ориентировочная цена товара</p>
+					<p className='mb-4 text-base font-semibold leading-snug text-black whitespace-normal sm:whitespace-nowrap'>
 						от {formatRub(min)} до {formatRub(max)}
 					</p>
 					{min < max ? (
 						<>
-							<label className='block text-xs text-gray mb-1'>Уточнить по шкале</label>
-							<input
-								type='range'
-								min={min}
-								max={max}
-								step={Math.max(1, Math.round((max - min) / 100))}
-								value={sliderValue}
-								onChange={e => setSliderValue(Number(e.target.value))}
-								className='w-full accent-main1 h-2'
-							/>
-							<p className='text-sm text-black mt-2'>
+							<label className='mb-3 block text-xs text-gray'>Уточнить по шкале</label>
+							<div className='relative flex w-full items-center py-1'>
+								<div
+									className='pointer-events-none absolute left-2 right-2 top-1/2 h-2.5 -translate-y-1/2 rounded-full bg-gray2'
+									aria-hidden
+								/>
+								<input
+									type='range'
+									min={min}
+									max={max}
+									step={Math.max(1, Math.round((max - min) / 100))}
+									value={sliderValue}
+									onChange={e => setSliderValue(Number(e.target.value))}
+									className='relative z-10 h-10 w-full cursor-pointer bg-transparent'
+								/>
+							</div>
+							<p className='mt-4 text-sm text-black'>
 								Выбрано:{' '}
 								<span className='font-medium text-main1'>{formatRub(sliderValue)}</span>
 							</p>

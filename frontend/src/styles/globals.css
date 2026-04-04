@@ -91,6 +91,7 @@
 	input[type='range']::-webkit-slider-runnable-track {
 		height: 8px;
 		border-radius: 4px;
+		background: #d6d5d4;
 	}
 
 	input[type='range']::-moz-range-track {
