@@ -56,11 +56,11 @@
 		display: none;
 	}
 
-	/* Range input styles */
+	/* Range: общие стили (фильтры цены и др.). Дорожка одна — без второй «плашки» в разметке. */
 	input[type='range'] {
 		-webkit-appearance: none;
 		appearance: none;
-		height: 8px;
+		width: 100%;
 		background: transparent;
 		outline: none;
 	}
@@ -71,10 +71,10 @@
 		width: 18px;
 		height: 18px;
 		border-radius: 50%;
-		background: #1976D2;
+		background: #1976d2;
 		cursor: pointer;
-		border: 3px solid #FFFFFF;
-		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+		border: 3px solid #ffffff;
+		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 		margin-top: -5px;
 	}
 
@@ -82,21 +82,43 @@
 		width: 18px;
 		height: 18px;
 		border-radius: 50%;
-		background: #1976D2;
+		background: #1976d2;
 		cursor: pointer;
-		border: 3px solid #FFFFFF;
-		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+		border: 3px solid #ffffff;
+		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+		box-sizing: border-box;
 	}
 
 	input[type='range']::-webkit-slider-runnable-track {
 		height: 8px;
-		border-radius: 4px;
+		border-radius: 9999px;
 		background: #d6d5d4;
+		border: none;
+		box-shadow: none;
 	}
 
 	input[type='range']::-moz-range-track {
 		height: 8px;
-		border-radius: 4px;
-		background: #D6D5D4;
+		border-radius: 9999px;
+		background: #d6d5d4;
+		border: none;
+		box-shadow: none;
+	}
+
+	/* Чуть выше дорожка + бегунок — блок «ориентировочная цена» */
+	input[type='range'].range-pill {
+		height: 10px;
+	}
+
+	input[type='range'].range-pill::-webkit-slider-thumb {
+		margin-top: -4px;
+	}
+
+	input[type='range'].range-pill::-webkit-slider-runnable-track {
+		height: 10px;
+	}
+
+	input[type='range'].range-pill::-moz-range-track {
+		height: 10px;
 	}
 }

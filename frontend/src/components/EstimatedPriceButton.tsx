@@ -62,11 +62,7 @@ export default function EstimatedPriceButton({ product, className = '' }: Estima
 					{min < max ? (
 						<>
 							<label className='mb-3 block text-xs text-gray'>Уточнить по шкале</label>
-							<div className='relative flex w-full items-center py-1'>
-								<div
-									className='pointer-events-none absolute left-2 right-2 top-1/2 h-2.5 -translate-y-1/2 rounded-full bg-gray2'
-									aria-hidden
-								/>
+							<div className='flex min-h-[44px] w-full items-center'>
 								<input
 									type='range'
 									min={min}
@@ -74,7 +70,7 @@ export default function EstimatedPriceButton({ product, className = '' }: Estima
 									step={Math.max(1, Math.round((max - min) / 100))}
 									value={sliderValue}
 									onChange={e => setSliderValue(Number(e.target.value))}
-									className='relative z-10 h-10 w-full cursor-pointer bg-transparent'
+									className='range-pill w-full max-w-full cursor-pointer bg-transparent'
 								/>
 							</div>
 							<p className='mt-4 text-sm text-black'>
