@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { authService } from '@/services/api'
+import { authService, pluginService } from '@/services/api'
 import { User } from '@/types'
 import { config } from '@/config'
 
@@ -11,8 +11,11 @@ export default function PluginAccessBanner() {
 	const [loading, setLoading] = useState(true)
 	const [user, setUser] = useState<User | null>(null)
 	const [activationError, setActivationError] = useState<string | null>(null)
+	const [offlineRequestCode, setOfflineRequestCode] = useState('')
+	const [offlineActivationCode, setOfflineActivationCode] = useState('')
+	const [offlineLoading, setOfflineLoading] = useState(false)
 	const [isModalOpen, setIsModalOpen] = useState(false)
-	const [copiedField, setCopiedField] = useState<'pluginUrl' | null>(null)
+	const [copiedField, setCopiedField] = useState<'pluginUrl' | 'offlineCode' | null>(null)
 
 	useEffect(() => {
 		const loadUser = async () => {
@@ -43,7 +46,7 @@ export default function PluginAccessBanner() {
 	const licenseKeyHash = user?.profile?.license_key_hash || ''
 	const keyedDomain = config.PLUGIN_KEYED_API_BASE_DOMAIN.replace(/^https?:\/\//, '').replace(/\/+$/, '')
 	const pluginApiUrlForClipboard = licenseKeyHash ? `https://${licenseKeyHash}.${keyedDomain}` : ''
-	const pluginApiUrlDisplay = licenseKeyHash ? `https://${licenseKeyHash}` : ''
+	const pluginApiUrlDisplay = pluginApiUrlForClipboard
 	const pluginDownloadUrl = config.PLUGIN_DOWNLOAD_URL.trim()
 	const pluginDownloadUrls = [
 		{ version: 'Revit 2022', url: config.PLUGIN_DOWNLOAD_URL_2022.trim() },
@@ -52,11 +55,11 @@ export default function PluginAccessBanner() {
 		{ version: '3ds Max 2023', url: config.PLUGIN_DOWNLOAD_URL_3DSMAX.trim() },
 	].filter(item => item.url)
 
-	const copyToClipboard = async (value: string) => {
+	const copyToClipboard = async (value: string, field: 'pluginUrl' | 'offlineCode') => {
 		if (!value.trim()) return
 		try {
 			await navigator.clipboard.writeText(value)
-			setCopiedField('pluginUrl')
+			setCopiedField(field)
 			window.setTimeout(() => setCopiedField(null), 1500)
 		} catch {
 			setCopiedField(null)
@@ -66,8 +69,41 @@ export default function PluginAccessBanner() {
 	const openDownloadModal = () => {
 		setIsModalOpen(true)
 		setActivationError(null)
+		setOfflineRequestCode('')
+		setOfflineActivationCode('')
 		if (!pluginDownloadUrl && pluginDownloadUrls.length === 0) {
 			setActivationError('Ссылка на файл плагина пока не настроена. Обратитесь к администратору.')
+		}
+	}
+
+	const handleGenerateOfflineCode = async () => {
+		const requestCode = offlineRequestCode.trim().toLowerCase()
+		if (!/^[a-f0-9]{64}$/.test(requestCode)) {
+			setActivationError('Код запроса должен содержать 64 hex-символа.')
+			setOfflineActivationCode('')
+			return
+		}
+		if (!licenseKeyHash || !/^[a-f0-9]{64}$/.test(licenseKeyHash)) {
+			setActivationError('Ключ подписки отсутствует или имеет неверный формат.')
+			setOfflineActivationCode('')
+			return
+		}
+
+		try {
+			setOfflineLoading(true)
+			setActivationError(null)
+			const result = await pluginService.offlineActivation(requestCode, licenseKeyHash)
+			if (!result.valid || !result.activation_code) {
+				setOfflineActivationCode('')
+				setActivationError(result.error || 'Не удалось вычислить код активации.')
+				return
+			}
+			setOfflineActivationCode(result.activation_code)
+		} catch {
+			setOfflineActivationCode('')
+			setActivationError('Ошибка запроса к серверу активации.')
+		} finally {
+			setOfflineLoading(false)
 		}
 	}
 
@@ -140,12 +176,49 @@ export default function PluginAccessBanner() {
 											className='w-full px-3 py-2 rounded-lg bg-white text-black font-mono text-xs sm:text-sm'
 										/>
 										<button
-											onClick={() => copyToClipboard(pluginApiUrlForClipboard)}
+											onClick={() => copyToClipboard(pluginApiUrlForClipboard, 'pluginUrl')}
 											disabled={!pluginApiUrlForClipboard}
 											className='px-3 py-2 rounded-lg border border-main1 text-main1 hover:bg-main1 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
 										>
 											{copiedField === 'pluginUrl' ? 'OK' : 'Копировать'}
 										</button>
+									</div>
+								</div>
+
+								<div className='rounded-lg bg-gray-bg p-3'>
+									<p className='text-xs text-gray mb-1'>
+										Для 3ds Max (офлайн-активатор): вставьте «Код запроса» и получите «Код активации»
+									</p>
+									<div className='space-y-2'>
+										<input
+											value={offlineRequestCode}
+											onChange={e => setOfflineRequestCode(e.target.value)}
+											placeholder='Код запроса (64 hex)'
+											className='w-full px-3 py-2 rounded-lg bg-white text-black font-mono text-xs sm:text-sm'
+										/>
+										<div className='flex flex-col sm:flex-row gap-2'>
+											<button
+												onClick={handleGenerateOfflineCode}
+												disabled={offlineLoading || !licenseKeyHash}
+												className='px-3 py-2 rounded-lg border border-main1 text-main1 hover:bg-main1 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+											>
+												{offlineLoading ? 'Генерация...' : 'Получить код активации'}
+											</button>
+											{offlineActivationCode && (
+												<button
+													onClick={() => copyToClipboard(offlineActivationCode, 'offlineCode')}
+													className='px-3 py-2 rounded-lg border border-main1 text-main1 hover:bg-main1 hover:text-white transition-colors'
+												>
+													{copiedField === 'offlineCode' ? 'OK' : 'Копировать код'}
+												</button>
+											)}
+										</div>
+										<input
+											readOnly
+											value={offlineActivationCode}
+											placeholder='Код активации появится здесь'
+											className='w-full px-3 py-2 rounded-lg bg-white text-black font-mono text-xs sm:text-sm'
+										/>
 									</div>
 								</div>
 

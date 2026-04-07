@@ -29,6 +29,15 @@ type PluginActivationResponse = {
 	user_id?: number
 }
 
+type PluginOfflineActivationResponse = {
+	valid: boolean
+	activation_code?: string
+	mode?: string
+	error?: string
+	error_code?: string
+	activation_codes?: Record<string, string>
+}
+
 // Сервис для работы с продуктами
 export const productService = {
 	// Получить все продукты с фильтрацией и пагинацией
@@ -391,6 +400,16 @@ export const pluginService = {
 				},
 			}
 		)
+		return response.data
+	},
+	offlineActivation: async (
+		requestCode: string,
+		licenseHash: string
+	): Promise<PluginOfflineActivationResponse> => {
+		const response = await apiClient.post('/api/plugin/offline-activation/', {
+			request_code: requestCode,
+			license_hash: licenseHash,
+		})
 		return response.data
 	},
 }
