@@ -61,6 +61,14 @@ def compute_offline_activation_variants(request_code: str, license_hash: str) ->
         base['md5_bytes_lr'] = hashlib.md5(blh + brc).hexdigest()
     secret = (getattr(settings, 'PLUGIN_OFFLINE_ACTIVATION_SECRET', None) or '').strip()
     if secret:
+        # Формула из ActivationManager.cs (3ds Max): sha256(request_code + secretKey)
+        base['sha256_request_secret'] = hashlib.sha256(
+            (rc + secret).encode('utf-8')
+        ).hexdigest()
+        # Запасной обратный порядок (на случай другой сборки)
+        base['sha256_secret_request'] = hashlib.sha256(
+            (secret + rc).encode('utf-8')
+        ).hexdigest()
         base['hmac_sha256_rl'] = hmac.new(
             secret.encode('utf-8'), (rc + lh).encode('utf-8'), hashlib.sha256
         ).hexdigest()
