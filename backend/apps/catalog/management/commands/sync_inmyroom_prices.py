@@ -76,15 +76,32 @@ class Command(BaseCommand):
         if article_filter:
             qs = qs.filter(article__iexact=article_filter)
 
+        total = qs.count()
+        if total == 0:
+            self.stdout.write(self.style.WARNING("Нет товаров в выборке (проверьте фильтры)."))
+            return
+
+        self.stdout.write(
+            f"Товаров в выборке: {total}. Пауза между запросами: {sleep_s}s — при большом "
+            "числе карточек с INMYROOM прогон может занять несколько минут."
+        )
+        self.stdout.write("Подключаюсь к INMYROOM (разогрев сессии)…")
+        self.stdout.flush()
+
         session = create_inmyroom_session()
         warm_up_inmyroom_session(session)
+        self.stdout.write("Сессия готова, обхожу каталог…")
+        self.stdout.flush()
 
         updated = []
         skipped = []
         errors = []
 
         try:
-            for product in qs.iterator(chunk_size=100):
+            for n, product in enumerate(qs.iterator(chunk_size=100), start=1):
+                if n == 1 or n % 10 == 0 or n == total:
+                    self.stdout.write(f"  … позиция {n}/{total}")
+                    self.stdout.flush()
                 url = resolve_inmyroom_url(product)
                 if not url:
                     skipped.append((product, inmyroom_skip_reason(product)))
