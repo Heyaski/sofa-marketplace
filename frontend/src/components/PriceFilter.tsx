@@ -7,7 +7,6 @@ interface PriceFilterProps {
 	maxPrice: number
 	value: { min: number; max: number } | undefined
 	onChange: (value: { min: number; max: number } | undefined) => void
-	onApply?: () => void
 }
 
 export default function PriceFilter({
@@ -15,65 +14,62 @@ export default function PriceFilter({
 	maxPrice,
 	value,
 	onChange,
-	onApply,
 }: PriceFilterProps) {
-	const [localMin, setLocalMin] = useState(value?.min ?? minPrice)
-	const [localMax, setLocalMax] = useState(value?.max ?? maxPrice)
+	const rangeMin = 0
+	const rangeMax = Math.max(maxPrice, 0)
+	const [localMin, setLocalMin] = useState(value?.min ?? 0)
+	const [localMax, setLocalMax] = useState(value?.max ?? 0)
 
 	useEffect(() => {
 		if (value) {
 			setLocalMin(value.min)
 			setLocalMax(value.max)
 		} else {
-			setLocalMin(minPrice)
-			setLocalMax(maxPrice)
+			setLocalMin(0)
+			setLocalMax(0)
 		}
-	}, [value, minPrice, maxPrice])
+	}, [value])
+
+	const emitChange = (nextMin: number, nextMax: number) => {
+		if (nextMin === 0 && nextMax === 0) {
+			onChange(undefined)
+			return
+		}
+		onChange({ min: nextMin, max: nextMax })
+	}
 
 	const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		// Ограничиваем минимальное значение, но не больше максимального
-		const newMin = Math.min(Math.max(val, minPrice), localMax)
+		const newMin = Math.min(Math.max(val, rangeMin), localMax)
 		setLocalMin(newMin)
+		emitChange(newMin, localMax)
 	}
 
 	const handleMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		// Ограничиваем максимальное значение, но не меньше минимального
-		const newMax = Math.max(Math.min(val, maxPrice), localMin)
+		const newMax = Math.max(Math.min(val, rangeMax), localMin)
 		setLocalMax(newMax)
+		emitChange(localMin, newMax)
 	}
 	
 	const handleRangeMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		// Ограничиваем минимальное значение, но не меньше максимального
-		const newMin = Math.min(Math.max(val, minPrice), localMax)
+		const newMin = Math.min(Math.max(val, rangeMin), localMax)
 		setLocalMin(newMin)
+		emitChange(newMin, localMax)
 	}
 
 	const handleRangeMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		// Ограничиваем максимальное значение, но не меньше минимального
-		const newMax = Math.max(Math.min(val, maxPrice), localMin)
+		const newMax = Math.max(Math.min(val, rangeMax), localMin)
 		setLocalMax(newMax)
+		emitChange(localMin, newMax)
 	}
 
 	const handleReset = () => {
-		setLocalMin(minPrice)
-		setLocalMax(maxPrice)
+		setLocalMin(0)
+		setLocalMax(0)
 		onChange(undefined)
-	}
-
-	const handleApply = () => {
-		if (localMin !== minPrice || localMax !== maxPrice) {
-			onChange({ min: localMin, max: localMax })
-		} else {
-			onChange(undefined)
-		}
-		// Закрываем фильтр после применения
-		if (onApply) {
-			onApply()
-		}
 	}
 
 	return (
@@ -81,7 +77,7 @@ export default function PriceFilter({
 			<div className='flex items-center justify-between mb-4'>
 				<h3 className='text-sm font-bold text-black'>Цена</h3>
 				<div className='flex items-center gap-3'>
-					{(localMin !== minPrice || localMax !== maxPrice) && (
+					{(localMin !== 0 || localMax !== 0) && (
 						<button
 							onClick={handleReset}
 							className='text-xs text-gray hover:text-black font-medium'
@@ -89,12 +85,6 @@ export default function PriceFilter({
 							Сбросить
 						</button>
 					)}
-					<button
-						onClick={handleApply}
-						className='px-3 py-1.5 bg-main1 text-white rounded-lg text-xs font-medium hover:bg-main2 transition-colors'
-					>
-						Применить
-					</button>
 				</div>
 			</div>
 
@@ -107,29 +97,29 @@ export default function PriceFilter({
 					<div 
 						className='absolute h-2 bg-main1 rounded-lg'
 						style={{
-							left: `${((localMin - minPrice) / (maxPrice - minPrice)) * 100}%`,
-							width: `${((localMax - localMin) / (maxPrice - minPrice)) * 100}%`,
+							left: `${((localMin - rangeMin) / Math.max(rangeMax - rangeMin, 1)) * 100}%`,
+							width: `${((localMax - localMin) / Math.max(rangeMax - rangeMin, 1)) * 100}%`,
 							zIndex: 5,
 						}}
 					></div>
 					{/* Минимальный ползунок */}
 					<input
 						type='range'
-						min={minPrice}
-						max={maxPrice}
+						min={rangeMin}
+						max={rangeMax}
 						value={localMin}
 						onChange={handleRangeMinChange}
-						className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer'
+						className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer price-range'
 						style={{ zIndex: 10 }}
 					/>
 					{/* Максимальный ползунок */}
 					<input
 						type='range'
-						min={minPrice}
-						max={maxPrice}
+						min={rangeMin}
+						max={rangeMax}
 						value={localMax}
 						onChange={handleRangeMaxChange}
-						className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer'
+						className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer price-range'
 						style={{ zIndex: 20 }}
 					/>
 				</div>
@@ -140,8 +130,8 @@ export default function PriceFilter({
 						<label className='block text-sm text-gray mb-1'>От</label>
 						<input
 							type='number'
-							min={minPrice}
-							max={maxPrice}
+							min={rangeMin}
+							max={rangeMax}
 							value={localMin}
 							onChange={handleMinChange}
 							className='w-full px-3 py-2 rounded-lg border border-gray2 bg-white text-black text-sm focus:outline-none focus:ring-2 focus:ring-main1'
@@ -151,8 +141,8 @@ export default function PriceFilter({
 						<label className='block text-sm text-gray mb-1'>До</label>
 						<input
 							type='number'
-							min={minPrice}
-							max={maxPrice}
+							min={rangeMin}
+							max={rangeMax}
 							value={localMax}
 							onChange={handleMaxChange}
 							className='w-full px-3 py-2 rounded-lg border border-gray2 bg-white text-black text-sm focus:outline-none focus:ring-2 focus:ring-main1'

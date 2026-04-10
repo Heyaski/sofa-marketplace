@@ -172,11 +172,6 @@ function CatalogContent() {
 		}
 	}
 	
-	const handleDimensionsApply = () => {
-		// Фильтр уже применен в handleDimensionsChange, просто закрываем
-		setOpenFilter(null)
-	}
-
 	const handlePriceChange = (value: { min: number; max: number } | undefined) => {
 		if (value) {
 			setFilters(prev => ({
@@ -190,10 +185,6 @@ function CatalogContent() {
 				return rest
 			})
 		}
-	}
-
-	const handlePriceApply = () => {
-		setOpenFilter(null)
 	}
 
 	const handleFurnitureTypeChange = (ids: number[]) => {
@@ -406,7 +397,6 @@ function CatalogContent() {
 														: undefined
 												}
 												onChange={handleDimensionsChange}
-												onApply={handleDimensionsApply}
 											/>
 										</div>
 									)}
@@ -438,7 +428,6 @@ function CatalogContent() {
 														: undefined
 												}
 												onChange={handlePriceChange}
-												onApply={handlePriceApply}
 											/>
 										</div>
 									)}

@@ -121,4 +121,32 @@
 	input[type='range'].range-pill::-moz-range-track {
 		height: 10px;
 	}
+
+	/* Для оверлейного двухползункового диапазона цены используем только кастомную дорожку из разметки */
+	input[type='range'].price-range::-webkit-slider-runnable-track {
+		background: transparent;
+	}
+
+	input[type='range'].price-range::-moz-range-track {
+		background: transparent;
+	}
+
+	input[type='range'].price-range::-webkit-slider-thumb {
+		position: relative;
+		z-index: 30;
+	}
+
+	/* Аналогично для фильтра габаритов */
+	input[type='range'].dimensions-range::-webkit-slider-runnable-track {
+		background: transparent;
+	}
+
+	input[type='range'].dimensions-range::-moz-range-track {
+		background: transparent;
+	}
+
+	input[type='range'].dimensions-range::-webkit-slider-thumb {
+		position: relative;
+		z-index: 30;
+	}
 }

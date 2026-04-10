@@ -9,7 +9,6 @@ interface DimensionsFilterProps {
 	maxDepth: number
 	value: { width: { min: number; max: number }; depth: { min: number; max: number } } | undefined
 	onChange: (value: { width: { min: number; max: number }; depth: { min: number; max: number } } | undefined) => void
-	onApply?: () => void
 }
 
 export default function DimensionsFilter({
@@ -19,12 +18,13 @@ export default function DimensionsFilter({
 	maxDepth,
 	value,
 	onChange,
-	onApply,
 }: DimensionsFilterProps) {
 	const [localWidthMin, setLocalWidthMin] = useState(value?.width.min ?? minWidth)
 	const [localWidthMax, setLocalWidthMax] = useState(value?.width.max ?? maxWidth)
 	const [localDepthMin, setLocalDepthMin] = useState(value?.depth.min ?? minDepth)
 	const [localDepthMax, setLocalDepthMax] = useState(value?.depth.max ?? maxDepth)
+	const [activeWidthThumb, setActiveWidthThumb] = useState<'min' | 'max'>('min')
+	const [activeDepthThumb, setActiveDepthThumb] = useState<'min' | 'max'>('min')
 
 	useEffect(() => {
 		if (value) {
@@ -40,60 +40,81 @@ export default function DimensionsFilter({
 		}
 	}, [value, minWidth, maxWidth, minDepth, maxDepth])
 
+	const emitChange = (
+		nextWidthMin: number,
+		nextWidthMax: number,
+		nextDepthMin: number,
+		nextDepthMax: number
+	) => {
+		if (
+			nextWidthMin === minWidth &&
+			nextWidthMax === maxWidth &&
+			nextDepthMin === minDepth &&
+			nextDepthMax === maxDepth
+		) {
+			onChange(undefined)
+			return
+		}
+		onChange({
+			width: { min: nextWidthMin, max: nextWidthMax },
+			depth: { min: nextDepthMin, max: nextDepthMax },
+		})
+	}
+
 	const handleWidthMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		// Ограничиваем минимальное значение, но не больше максимального
 		const newMin = Math.min(Math.max(val, minWidth), localWidthMax)
 		setLocalWidthMin(newMin)
+		emitChange(newMin, localWidthMax, localDepthMin, localDepthMax)
 	}
 
 	const handleWidthMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		// Ограничиваем максимальное значение, но не меньше минимального
 		const newMax = Math.max(Math.min(val, maxWidth), localWidthMin)
 		setLocalWidthMax(newMax)
+		emitChange(localWidthMin, newMax, localDepthMin, localDepthMax)
 	}
 
 	const handleDepthMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		// Ограничиваем минимальное значение, но не больше максимального
 		const newMin = Math.min(Math.max(val, minDepth), localDepthMax)
 		setLocalDepthMin(newMin)
+		emitChange(localWidthMin, localWidthMax, newMin, localDepthMax)
 	}
 
 	const handleDepthMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		// Ограничиваем максимальное значение, но не меньше минимального
 		const newMax = Math.max(Math.min(val, maxDepth), localDepthMin)
 		setLocalDepthMax(newMax)
+		emitChange(localWidthMin, localWidthMax, localDepthMin, newMax)
 	}
 
 	const handleWidthRangeMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		// Ограничиваем минимальное значение, но не больше максимального
 		const newMin = Math.min(Math.max(val, minWidth), localWidthMax)
 		setLocalWidthMin(newMin)
+		emitChange(newMin, localWidthMax, localDepthMin, localDepthMax)
 	}
 
 	const handleWidthRangeMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		// Ограничиваем максимальное значение, но не меньше минимального
 		const newMax = Math.max(Math.min(val, maxWidth), localWidthMin)
 		setLocalWidthMax(newMax)
+		emitChange(localWidthMin, newMax, localDepthMin, localDepthMax)
 	}
 
 	const handleDepthRangeMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		// Ограничиваем минимальное значение, но не больше максимального
 		const newMin = Math.min(Math.max(val, minDepth), localDepthMax)
 		setLocalDepthMin(newMin)
+		emitChange(localWidthMin, localWidthMax, newMin, localDepthMax)
 	}
 
 	const handleDepthRangeMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		// Ограничиваем максимальное значение, но не меньше минимального
 		const newMax = Math.max(Math.min(val, maxDepth), localDepthMin)
 		setLocalDepthMax(newMax)
+		emitChange(localWidthMin, localWidthMax, localDepthMin, newMax)
 	}
 
 	const handleReset = () => {
@@ -102,22 +123,6 @@ export default function DimensionsFilter({
 		setLocalDepthMin(minDepth)
 		setLocalDepthMax(maxDepth)
 		onChange(undefined)
-	}
-
-	const handleApply = () => {
-		if (localWidthMin !== minWidth || localWidthMax !== maxWidth || 
-		    localDepthMin !== minDepth || localDepthMax !== maxDepth) {
-			onChange({
-				width: { min: localWidthMin, max: localWidthMax },
-				depth: { min: localDepthMin, max: localDepthMax },
-			})
-		} else {
-			onChange(undefined)
-		}
-		// Закрываем фильтр после применения
-		if (onApply) {
-			onApply()
-		}
 	}
 
 	const isDefault =
@@ -139,12 +144,6 @@ export default function DimensionsFilter({
 							Сбросить
 						</button>
 					)}
-					<button
-						onClick={handleApply}
-						className='px-3 py-1.5 bg-main1 text-white rounded-lg text-xs font-medium hover:bg-main2 transition-colors'
-					>
-						Применить
-					</button>
 				</div>
 			</div>
 
@@ -172,8 +171,10 @@ export default function DimensionsFilter({
 								max={maxWidth}
 								value={localWidthMin}
 								onChange={handleWidthRangeMinChange}
-								className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer'
-								style={{ zIndex: 10 }}
+								onMouseDown={() => setActiveWidthThumb('min')}
+								onTouchStart={() => setActiveWidthThumb('min')}
+								className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer dimensions-range'
+								style={{ zIndex: activeWidthThumb === 'min' ? 25 : 15 }}
 							/>
 							{/* Максимальный ползунок */}
 							<input
@@ -182,8 +183,10 @@ export default function DimensionsFilter({
 								max={maxWidth}
 								value={localWidthMax}
 								onChange={handleWidthRangeMaxChange}
-								className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer'
-								style={{ zIndex: 20 }}
+								onMouseDown={() => setActiveWidthThumb('max')}
+								onTouchStart={() => setActiveWidthThumb('max')}
+								className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer dimensions-range'
+								style={{ zIndex: activeWidthThumb === 'max' ? 25 : 15 }}
 							/>
 						</div>
 						<div className='flex items-center justify-between gap-2 sm:gap-4'>
@@ -235,8 +238,10 @@ export default function DimensionsFilter({
 								max={maxDepth}
 								value={localDepthMin}
 								onChange={handleDepthRangeMinChange}
-								className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer'
-								style={{ zIndex: 10 }}
+								onMouseDown={() => setActiveDepthThumb('min')}
+								onTouchStart={() => setActiveDepthThumb('min')}
+								className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer dimensions-range'
+								style={{ zIndex: activeDepthThumb === 'min' ? 25 : 15 }}
 							/>
 							{/* Максимальный ползунок */}
 							<input
@@ -245,8 +250,10 @@ export default function DimensionsFilter({
 								max={maxDepth}
 								value={localDepthMax}
 								onChange={handleDepthRangeMaxChange}
-								className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer'
-								style={{ zIndex: 20 }}
+								onMouseDown={() => setActiveDepthThumb('max')}
+								onTouchStart={() => setActiveDepthThumb('max')}
+								className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer dimensions-range'
+								style={{ zIndex: activeDepthThumb === 'max' ? 25 : 15 }}
 							/>
 						</div>
 						<div className='flex items-center justify-between gap-2 sm:gap-4'>
