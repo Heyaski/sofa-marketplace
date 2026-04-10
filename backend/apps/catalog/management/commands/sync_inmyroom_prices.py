@@ -1,0 +1,133 @@
+"""
+Обновить поле price у товаров по актуальным ценам с INMYROOM.ru.
+
+Для каждого товара URL страницы берётся из shop_url (если это ссылка на карточку inmyroom),
+иначе строится из артикула IMR-XXXXXXXX: https://www.inmyroom.ru/products/<цифры>-
+
+Запуск из каталога backend:
+  python manage.py sync_inmyroom_prices
+  python manage.py sync_inmyroom_prices --dry-run
+  python manage.py sync_inmyroom_prices --sleep 2 --article IMR-556065
+"""
+import time
+
+from django.core.management.base import BaseCommand
+from django.db import transaction
+
+from apps.catalog.inmyroom_price import (
+    create_inmyroom_session,
+    resolve_inmyroom_url,
+    warm_up_inmyroom_session,
+    fetch_inmyroom_price_rub,
+    is_inmyroom_product_url,
+    build_inmyroom_url_from_article,
+)
+from apps.catalog.models import Product
+
+
+class Command(BaseCommand):
+    help = "Подтянуть цены с INMYROOM.ru по shop_url или артикулу IMR-*"
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Только показать, что бы изменилось, без сохранения",
+        )
+        parser.add_argument(
+            "--sleep",
+            type=float,
+            default=1.0,
+            help="Пауза между HTTP-запросами, сек (по умолчанию 1)",
+        )
+        parser.add_argument(
+            "--article",
+            type=str,
+            default="",
+            help="Обработать только товар с этим артикулом",
+        )
+        parser.add_argument(
+            "--set-shop-url",
+            action="store_true",
+            help="Если shop_url пустой, записать вычисленную ссылку на INMYROOM",
+        )
+
+    def handle(self, *args, **options):
+        dry = options["dry_run"]
+        sleep_s = max(0.0, options["sleep"])
+        article_filter = (options["article"] or "").strip()
+        set_shop_url = options["set_shop_url"]
+
+        qs = Product.objects.all().order_by("id")
+        if article_filter:
+            qs = qs.filter(article__iexact=article_filter)
+
+        session = create_inmyroom_session()
+        warm_up_inmyroom_session(session)
+
+        updated = []
+        skipped = []
+        errors = []
+
+        try:
+            for product in qs.iterator(chunk_size=100):
+                url = resolve_inmyroom_url(product)
+                if not url:
+                    skipped.append((product.pk, "нет IMR-артукула и подходящего shop_url"))
+                    continue
+
+                new_shop = None
+                if set_shop_url and not (product.shop_url and is_inmyroom_product_url(product.shop_url)):
+                    new_shop = build_inmyroom_url_from_article(product.article) if product.article else None
+
+                try:
+                    price = fetch_inmyroom_price_rub(url, session=session)
+                except Exception as e:
+                    errors.append((product.pk, product.article or "", str(e)))
+                    if sleep_s:
+                        time.sleep(sleep_s)
+                    continue
+
+                old_price = product.price
+                changed = old_price != price
+                if new_shop and not product.shop_url:
+                    changed = changed or True
+
+                if dry:
+                    line = (
+                        f"id={product.pk} article={product.article!r} url={url} "
+                        f"price {old_price} -> {price}"
+                    )
+                    if new_shop and not product.shop_url:
+                        line += f" | shop_url -> {new_shop}"
+                    self.stdout.write(line)
+                else:
+                    if changed:
+                        product.price = price
+                        if new_shop and not product.shop_url:
+                            product.shop_url = new_shop
+                        updated.append(product)
+
+                if sleep_s:
+                    time.sleep(sleep_s)
+
+            if not dry and updated:
+                with transaction.atomic():
+                    Product.objects.bulk_update(
+                        updated,
+                        ["price", "shop_url"],
+                        batch_size=100,
+                    )
+
+        finally:
+            session.close()
+
+        self.stdout.write(self.style.SUCCESS(f"Готово. Обновлено: {len(updated) if not dry else 0}."))
+        if skipped:
+            self.stdout.write(self.style.WARNING(f"Пропущено (нет URL): {len(skipped)}"))
+        if errors:
+            self.stdout.write(self.style.ERROR(f"Ошибок: {len(errors)}"))
+            for pid, art, msg in errors[:30]:
+                self.stdout.write(f"  id={pid} article={art!r}: {msg}")
+            if len(errors) > 30:
+                self.stdout.write(f"  ... ещё {len(errors) - 30}")
