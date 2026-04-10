@@ -46,11 +46,25 @@ def base_imr_article(article: str) -> str:
 
 
 def imr_catalog_numeric_id(article: str) -> int | None:
-    base = base_imr_article(article)
-    m = re.match(r"^IMR-(\d+)\s*$", base.upper().replace(" ", ""))
-    if not m:
+    """
+    Числовой id карточки на inmyroom.ru.
+    Поддержка: IMR-556065, IMR556065, IMR 556065, imr_556065; после base_imr_article — суффиксы цвета.
+    """
+    if not article or not str(article).strip():
         return None
-    return int(m.group(1))
+    base = base_imr_article(str(article).strip())
+    normalized = re.sub(r"\s+", "", base.upper().replace("_", "-"))
+    m = re.match(r"^IMR-?(\d{4,12})$", normalized)
+    if m:
+        return int(m.group(1))
+    # Явный фрагмент IMR… в строке (если в ячейке мусор)
+    m = re.search(r"IMR[\s_-]?(\d{4,12})", base.upper())
+    if m:
+        return int(m.group(1))
+    # Только цифры — типичный id витрины (уменьшаем ложные срабатывания: от 6 знаков)
+    if re.fullmatch(r"\d{6,12}", normalized):
+        return int(normalized)
+    return None
 
 
 def is_inmyroom_product_url(url: str) -> bool:
@@ -82,6 +96,24 @@ def resolve_inmyroom_url(product: Product) -> str | None:
     if product.article:
         return build_inmyroom_url_from_article(product.article)
     return None
+
+
+def inmyroom_skip_reason(product: Product) -> str:
+    """Человекочитаемая причина, почему resolve_inmyroom_url вернул None."""
+    su = (product.shop_url or "").strip()
+    if su and not is_inmyroom_product_url(su):
+        return (
+            "shop_url задан, но это не карточка товара INMYROOM (/products/<id>-...); "
+            f"первые 80 символов: {su[:80]}"
+        )
+    if not (product.article or "").strip():
+        return "пустой артикул и нет подходящего shop_url"
+    if build_inmyroom_url_from_article(product.article) is None:
+        return (
+            "артикул не похож на IMR / id витрины; задайте shop_url на карточку или артикул вида IMR-123456 "
+            f"(сейчас: {product.article!r})"
+        )
+    return "неизвестно"
 
 
 def _normalize_rub_amount(raw: str) -> Decimal | None:

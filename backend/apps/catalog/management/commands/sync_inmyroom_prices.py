@@ -17,6 +17,7 @@ from django.db import transaction
 from apps.catalog.inmyroom_price import (
     create_inmyroom_session,
     resolve_inmyroom_url,
+    inmyroom_skip_reason,
     warm_up_inmyroom_session,
     fetch_inmyroom_price_rub,
     is_inmyroom_product_url,
@@ -51,12 +52,25 @@ class Command(BaseCommand):
             action="store_true",
             help="Если shop_url пустой, записать вычисленную ссылку на INMYROOM",
         )
+        parser.add_argument(
+            "--verbose",
+            action="store_true",
+            help="Вывести примеры пропущенных товаров (почему нет URL)",
+        )
+        parser.add_argument(
+            "--verbose-limit",
+            type=int,
+            default=25,
+            help="Сколько строк показать с --verbose (по умолчанию 25)",
+        )
 
     def handle(self, *args, **options):
         dry = options["dry_run"]
         sleep_s = max(0.0, options["sleep"])
         article_filter = (options["article"] or "").strip()
         set_shop_url = options["set_shop_url"]
+        verbose = options["verbose"]
+        verbose_limit = max(1, options["verbose_limit"])
 
         qs = Product.objects.all().order_by("id")
         if article_filter:
@@ -73,7 +87,7 @@ class Command(BaseCommand):
             for product in qs.iterator(chunk_size=100):
                 url = resolve_inmyroom_url(product)
                 if not url:
-                    skipped.append((product.pk, "нет IMR-артукула и подходящего shop_url"))
+                    skipped.append((product, inmyroom_skip_reason(product)))
                     continue
 
                 new_shop = None
@@ -124,7 +138,15 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f"Готово. Обновлено: {len(updated) if not dry else 0}."))
         if skipped:
-            self.stdout.write(self.style.WARNING(f"Пропущено (нет URL): {len(skipped)}"))
+            self.stdout.write(self.style.WARNING(f"Пропущено (нет URL для парсинга): {len(skipped)}"))
+            if verbose:
+                self.stdout.write("Примеры (id, title, article, причина):")
+                for prod, reason in skipped[:verbose_limit]:
+                    self.stdout.write(
+                        f"  id={prod.pk} article={prod.article!r} title={prod.title[:60]!r} | {reason}"
+                    )
+                if len(skipped) > verbose_limit:
+                    self.stdout.write(f"  ... ещё {len(skipped) - verbose_limit}")
         if errors:
             self.stdout.write(self.style.ERROR(f"Ошибок: {len(errors)}"))
             for pid, art, msg in errors[:30]:
