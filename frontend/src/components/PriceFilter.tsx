@@ -30,15 +30,13 @@ export default function PriceFilter({
 		if (value) {
 			setLocalMin(value.min)
 			setLocalMax(value.max)
+			setPendingValue({ min: value.min, max: value.max })
 		} else {
 			setLocalMin(0)
 			setLocalMax(0)
+			setPendingValue(undefined)
 		}
-	}, [value])
-
-	useEffect(() => {
-		setPendingValue(value)
-	}, [value])
+	}, [value?.min, value?.max])
 
 	useEffect(() => {
 		const id = window.setTimeout(() => {

@@ -38,17 +38,18 @@ export default function DimensionsFilter({
 			setLocalWidthMax(value.width.max)
 			setLocalDepthMin(value.depth.min)
 			setLocalDepthMax(value.depth.max)
+			setPendingValue({
+				width: { min: value.width.min, max: value.width.max },
+				depth: { min: value.depth.min, max: value.depth.max },
+			})
 		} else {
 			setLocalWidthMin(minWidth)
 			setLocalWidthMax(maxWidth)
 			setLocalDepthMin(minDepth)
 			setLocalDepthMax(maxDepth)
+			setPendingValue(undefined)
 		}
-	}, [value, minWidth, maxWidth, minDepth, maxDepth])
-
-	useEffect(() => {
-		setPendingValue(value)
-	}, [value])
+	}, [value?.width.min, value?.width.max, value?.depth.min, value?.depth.max, minWidth, maxWidth, minDepth, maxDepth])
 
 	useEffect(() => {
 		const id = window.setTimeout(() => {
