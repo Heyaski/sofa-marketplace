@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 interface PriceFilterProps {
 	minPrice: number
@@ -15,10 +15,16 @@ export default function PriceFilter({
 	value,
 	onChange,
 }: PriceFilterProps) {
+	const THUMB_SIZE = 18
+	const TRACK_HEIGHT = 8
+	const DRAG_AREA_HEIGHT = 36
 	const rangeMin = 0
 	const rangeMax = Math.max(maxPrice, 0)
 	const [localMin, setLocalMin] = useState(value?.min ?? 0)
 	const [localMax, setLocalMax] = useState(value?.max ?? 0)
+	const [pendingValue, setPendingValue] = useState<{ min: number; max: number } | undefined>(value)
+	const activeThumbRef = useRef<'min' | 'max' | null>(null)
+	const trackRef = useRef<HTMLDivElement>(null)
 
 	useEffect(() => {
 		if (value) {
@@ -30,12 +36,23 @@ export default function PriceFilter({
 		}
 	}, [value])
 
+	useEffect(() => {
+		setPendingValue(value)
+	}, [value])
+
+	useEffect(() => {
+		const id = window.setTimeout(() => {
+			onChange(pendingValue)
+		}, 180)
+		return () => window.clearTimeout(id)
+	}, [pendingValue, onChange])
+
 	const emitChange = (nextMin: number, nextMax: number) => {
 		if (nextMin === 0 && nextMax === 0) {
-			onChange(undefined)
+			setPendingValue(undefined)
 			return
 		}
-		onChange({ min: nextMin, max: nextMax })
+		setPendingValue({ min: nextMin, max: nextMax })
 	}
 
 	const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,25 +69,64 @@ export default function PriceFilter({
 		emitChange(localMin, newMax)
 	}
 	
-	const handleRangeMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const val = Number(e.target.value)
-		const newMin = Math.min(Math.max(val, rangeMin), localMax)
-		setLocalMin(newMin)
-		emitChange(newMin, localMax)
-	}
-
-	const handleRangeMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const val = Number(e.target.value)
-		const newMax = Math.max(Math.min(val, rangeMax), localMin)
-		setLocalMax(newMax)
-		emitChange(localMin, newMax)
-	}
-
 	const handleReset = () => {
 		setLocalMin(0)
 		setLocalMax(0)
-		onChange(undefined)
+		setPendingValue(undefined)
 	}
+
+	const valueFromX = (clientX: number): number => {
+		const track = trackRef.current
+		if (!track) return 0
+		const rect = track.getBoundingClientRect()
+		const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+		return Math.round(x * Math.max(rangeMax - rangeMin, 1) + rangeMin)
+	}
+
+	const updateByPointer = (thumb: 'min' | 'max', clientX: number) => {
+		const raw = valueFromX(clientX)
+		if (thumb === 'min') {
+			const nextMin = Math.min(Math.max(raw, rangeMin), localMax)
+			setLocalMin(nextMin)
+			emitChange(nextMin, localMax)
+			return
+		}
+		const nextMax = Math.max(Math.min(raw, rangeMax), localMin)
+		setLocalMax(nextMax)
+		emitChange(localMin, nextMax)
+	}
+
+	const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+		const track = trackRef.current
+		if (!track) return
+		const rect = track.getBoundingClientRect()
+		const x = (e.clientX - rect.left) / rect.width
+		const minX = (localMin - rangeMin) / Math.max(rangeMax - rangeMin, 1)
+		const maxX = (localMax - rangeMin) / Math.max(rangeMax - rangeMin, 1)
+		const mid = (minX + maxX) / 2
+		const thumb: 'min' | 'max' = x <= mid ? 'min' : 'max'
+		activeThumbRef.current = thumb
+		updateByPointer(thumb, e.clientX)
+		e.currentTarget.setPointerCapture(e.pointerId)
+		e.preventDefault()
+	}
+
+	const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+		const thumb = activeThumbRef.current
+		if (!thumb) return
+		updateByPointer(thumb, e.clientX)
+		e.preventDefault()
+	}
+
+	const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+		activeThumbRef.current = null
+		if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+			e.currentTarget.releasePointerCapture(e.pointerId)
+		}
+	}
+
+	const minPercent = ((localMin - rangeMin) / Math.max(rangeMax - rangeMin, 1)) * 100
+	const maxPercent = ((localMax - rangeMin) / Math.max(rangeMax - rangeMin, 1)) * 100
 
 	return (
 		<div className='bg-white rounded-lg shadow-lg border border-gray2 p-4' onClick={(e) => e.stopPropagation()}>
@@ -89,38 +145,51 @@ export default function PriceFilter({
 			</div>
 
 			<div className='space-y-4'>
-				{/* Ползунки */}
-				<div className='relative h-2'>
-					{/* Фон ползунка */}
-					<div className='absolute w-full h-2 bg-gray2 rounded-lg' style={{ zIndex: 0 }}></div>
-					{/* Выбранный диапазон */}
-					<div 
-						className='absolute h-2 bg-main1 rounded-lg'
+				<div
+					ref={trackRef}
+					className='relative select-none touch-none'
+					style={{ height: DRAG_AREA_HEIGHT, minHeight: DRAG_AREA_HEIGHT }}
+					onPointerDown={handlePointerDown}
+					onPointerMove={handlePointerMove}
+					onPointerUp={handlePointerUp}
+					onPointerCancel={handlePointerUp}
+					onPointerLeave={handlePointerUp}
+				>
+					<div
+						className='absolute w-full bg-gray2 rounded-lg'
 						style={{
-							left: `${((localMin - rangeMin) / Math.max(rangeMax - rangeMin, 1)) * 100}%`,
-							width: `${((localMax - localMin) / Math.max(rangeMax - rangeMin, 1)) * 100}%`,
-							zIndex: 5,
+							top: (DRAG_AREA_HEIGHT - TRACK_HEIGHT) / 2,
+							height: TRACK_HEIGHT,
 						}}
-					></div>
-					{/* Минимальный ползунок */}
-					<input
-						type='range'
-						min={rangeMin}
-						max={rangeMax}
-						value={localMin}
-						onChange={handleRangeMinChange}
-						className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer price-range'
-						style={{ zIndex: 10 }}
 					/>
-					{/* Максимальный ползунок */}
-					<input
-						type='range'
-						min={rangeMin}
-						max={rangeMax}
-						value={localMax}
-						onChange={handleRangeMaxChange}
-						className='absolute w-full h-2 bg-transparent appearance-none cursor-pointer price-range'
-						style={{ zIndex: 20 }}
+					<div
+						className='absolute bg-main1 rounded-lg'
+						style={{
+							left: `${minPercent}%`,
+							width: `${Math.max(maxPercent - minPercent, 0)}%`,
+							top: (DRAG_AREA_HEIGHT - TRACK_HEIGHT) / 2,
+							height: TRACK_HEIGHT,
+						}}
+					/>
+					<div
+						className='absolute rounded-full border-[3px] border-white shadow-[0_1px_4px_rgba(0,0,0,0.2)] pointer-events-none'
+						style={{
+							width: THUMB_SIZE,
+							height: THUMB_SIZE,
+							left: `calc(${minPercent}% - ${THUMB_SIZE / 2}px)`,
+							top: (DRAG_AREA_HEIGHT - THUMB_SIZE) / 2,
+							background: '#1976d2',
+						}}
+					/>
+					<div
+						className='absolute rounded-full border-[3px] border-white shadow-[0_1px_4px_rgba(0,0,0,0.2)] pointer-events-none'
+						style={{
+							width: THUMB_SIZE,
+							height: THUMB_SIZE,
+							left: `calc(${maxPercent}% - ${THUMB_SIZE / 2}px)`,
+							top: (DRAG_AREA_HEIGHT - THUMB_SIZE) / 2,
+							background: '#1976d2',
+						}}
 					/>
 				</div>
 
