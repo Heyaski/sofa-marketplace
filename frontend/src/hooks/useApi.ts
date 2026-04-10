@@ -26,6 +26,7 @@ export const useProducts = (
 	const [nextPage, setNextPage] = useState<number | null>(2)
 	const [displayedPage, setDisplayedPage] = useState(1)
 	const [hasMore, setHasMore] = useState(true)
+	const [totalPages, setTotalPages] = useState(1)
 
 	const filtersKey = JSON.stringify(filters || {})
 
@@ -49,6 +50,9 @@ export const useProducts = (
 
 				if (response && Array.isArray(response.results)) {
 					productsData = response.results
+					const count = typeof response.count === 'number' ? response.count : 0
+					const pageSizeValue = 12
+					setTotalPages(Math.max(1, Math.ceil(count / pageSizeValue)))
 					const hasNext =
 						response.next !== null &&
 						response.next !== undefined &&
@@ -57,9 +61,11 @@ export const useProducts = (
 					next = hasNext ? page + 1 : null
 				} else if (Array.isArray(response)) {
 					productsData = response
+					setTotalPages(1)
 					setHasMore(false)
 				} else {
 					productsData = extractResults(response)
+					setTotalPages(1)
 					setHasMore(false)
 				}
 
@@ -87,6 +93,7 @@ export const useProducts = (
 	useEffect(() => {
 		setDisplayedPage(1)
 		setNextPage(2)
+		setTotalPages(1)
 		fetchProducts(1, false)
 	}, [fetchProducts])
 
@@ -119,6 +126,7 @@ export const useProducts = (
 		hasMore,
 		hasPrev,
 		currentPage: displayedPage,
+		totalPages,
 		loadMore,
 		loadNextPage,
 		loadPrevPage,

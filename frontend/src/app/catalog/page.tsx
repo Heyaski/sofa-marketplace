@@ -7,6 +7,7 @@ import DimensionsFilter from '@/components/DimensionsFilter'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import MultiSelectFilter from '@/components/MultiSelectFilter'
+import PriceFilter from '@/components/PriceFilter'
 import RGBRangeFilter from '@/components/RGBRangeFilter'
 import ProductCard from '@/components/ProductCard'
 import { useBaskets, useCategories, useProducts } from '@/hooks/useApi'
@@ -62,6 +63,7 @@ function CatalogContent() {
 		hasMore,
 		hasPrev,
 		currentPage,
+		totalPages,
 		loadMore,
 		loadNextPage,
 		loadPrevPage,
@@ -155,16 +157,18 @@ function CatalogContent() {
 
 	const handleDimensionsChange = (value: { width: { min: number; max: number }; depth: { min: number; max: number } } | undefined) => {
 		if (value) {
-			setFilters({ 
-				...filters, 
+			setFilters(prev => ({ 
+				...prev, 
 				width_min: value.width.min, 
 				width_max: value.width.max,
 				depth_min: value.depth.min,
 				depth_max: value.depth.max
-			})
+			}))
 		} else {
-			const { width_min, width_max, depth_min, depth_max, ...rest } = filters
-			setFilters(rest)
+			setFilters(prev => {
+				const { width_min, width_max, depth_min, depth_max, ...rest } = prev
+				return rest
+			})
 		}
 	}
 	
@@ -173,22 +177,45 @@ function CatalogContent() {
 		setOpenFilter(null)
 	}
 
+	const handlePriceChange = (value: { min: number; max: number } | undefined) => {
+		if (value) {
+			setFilters(prev => ({
+				...prev,
+				price_min: value.min,
+				price_max: value.max,
+			}))
+		} else {
+			setFilters(prev => {
+				const { price_min, price_max, ...rest } = prev
+				return rest
+			})
+		}
+	}
+
+	const handlePriceApply = () => {
+		setOpenFilter(null)
+	}
+
 	const handleFurnitureTypeChange = (ids: number[]) => {
 		if (ids.length > 0) {
-			setFilters({ ...filters, category: ids.join(',') })
+			setFilters(prev => ({ ...prev, category: ids.join(',') }))
 		} else {
-			const { category: _, ...rest } = filters
-			setFilters(rest)
+			setFilters(prev => {
+				const { category: _, ...rest } = prev
+				return rest
+			})
 		}
 	}
 
 	const handleMultiSelectChange = (field: 'material' | 'style' | 'color') => {
 		return (values: string[] | undefined) => {
 			if (values && values.length > 0) {
-				setFilters({ ...filters, [field]: values.join(',') })
+				setFilters(prev => ({ ...prev, [field]: values.join(',') }))
 			} else {
-				const { [field]: _, ...rest } = filters
-				setFilters(rest)
+				setFilters(prev => {
+					const { [field]: _, ...rest } = prev
+					return rest
+				})
 			}
 		}
 	}
@@ -237,7 +264,12 @@ function CatalogContent() {
 									<div className='space-y-1'>
 										{/* Кнопка "Все категории" для сброса фильтра */}
 										<button
-											onClick={() => setFilters({ ...filters, category: undefined })}
+											onClick={() =>
+												setFilters(prev => {
+													const { category: _, ...rest } = prev
+													return rest
+												})
+											}
 											className={`w-full text-left px-4 py-2 rounded-lg transition-all flex items-center ${
 												!filters.category
 													? 'bg-main1 text-white'
@@ -380,6 +412,38 @@ function CatalogContent() {
 									)}
 								</div>
 
+								{/* Кнопка фильтра цены */}
+								<div className='relative'>
+									<button
+										onClick={() => setOpenFilter(openFilter === 'price' ? null : 'price')}
+										className={`min-w-[88px] px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors text-center ${
+											filters.price_min !== undefined || filters.price_max !== undefined
+												? 'bg-main1 text-white'
+												: 'bg-gray-bg text-black hover:bg-gray2'
+										}`}
+									>
+										Цена
+									</button>
+									{openFilter === 'price' && (
+										<div className='fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 sm:absolute sm:left-0 sm:top-full sm:translate-x-0 sm:translate-y-0 sm:mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-[100] w-[calc(100vw-2rem)] max-w-[340px] overflow-hidden sm:w-auto sm:min-w-[320px] sm:max-w-sm'>
+											<PriceFilter
+												minPrice={filterRanges.price.min}
+												maxPrice={filterRanges.price.max}
+												value={
+													filters.price_min !== undefined || filters.price_max !== undefined
+														? {
+																min: filters.price_min ?? filterRanges.price.min,
+																max: filters.price_max ?? filterRanges.price.max,
+															}
+														: undefined
+												}
+												onChange={handlePriceChange}
+												onApply={handlePriceApply}
+											/>
+										</div>
+									)}
+								</div>
+
 								{/* Кнопка фильтра стиля */}
 								{filterRanges.styles.length > 0 && (
 									<div className='relative'>
@@ -451,10 +515,12 @@ function CatalogContent() {
 						value={filters.color_hue}
 						onChange={v => {
 							if (v) {
-								setFilters({ ...filters, color_hue: v })
+								setFilters(prev => ({ ...prev, color_hue: v }))
 							} else {
-								const { color_hue: _removed, ...rest } = filters
-								setFilters(rest)
+								setFilters(prev => {
+									const { color_hue: _removed, ...rest } = prev
+									return rest
+								})
 							}
 						}}
 					/>
@@ -512,7 +578,7 @@ function CatalogContent() {
 										Предыдущая страница
 									</button>
 									<span className='text-sm text-gray tabular-nums'>
-										Страница {currentPage}
+										Страница {currentPage} из {totalPages}
 									</span>
 									<button
 										type='button'
