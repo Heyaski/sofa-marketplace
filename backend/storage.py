@@ -4,11 +4,13 @@
 Оптимизация GLB при сохранении до 10 MB.
 """
 import logging
+import mimetypes
 import os
 import subprocess
 import tempfile
 from pathlib import Path
 
+import requests
 from django.conf import settings
 from django.core.files.base import ContentFile, File
 from storages.backends.s3boto3 import S3Boto3Storage
@@ -122,6 +124,66 @@ class BegetS3Storage(S3Boto3Storage):
         
         # Fallback на стандартное поведение
         return super().url(name)
+
+    @staticmethod
+    def _is_sha_mismatch_error(exc: Exception) -> bool:
+        text = str(exc or "")
+        return (
+            "XAmzContentSHA256Mismatch" in text
+            or "X-Amz-Content-SHA256" in text
+            or "content sha256 mismatch" in text.lower()
+        )
+
+    def _save_via_presigned_put(self, name, content):
+        """
+        Fallback для Beget S3: загружаем через presigned PUT, если обычный PutObject
+        падает с XAmzContentSHA256Mismatch.
+        """
+        if hasattr(content, "seek"):
+            content.seek(0)
+
+        content_type = getattr(content, "content_type", None) or mimetypes.guess_type(name)[0] or "application/octet-stream"
+        params = {
+            "Bucket": self.bucket_name,
+            "Key": name,
+            "ContentType": content_type,
+        }
+        if self.default_acl:
+            params["ACL"] = self.default_acl
+
+        url = self.connection.meta.client.generate_presigned_url(
+            "put_object",
+            Params=params,
+            ExpiresIn=900,
+            HttpMethod="PUT",
+        )
+
+        headers = {"Content-Type": content_type}
+        if self.default_acl:
+            headers["x-amz-acl"] = self.default_acl
+
+        size = getattr(content, "size", None)
+        if size is not None:
+            headers["Content-Length"] = str(size)
+
+        response = requests.put(url, data=content, headers=headers, timeout=900)
+        response.raise_for_status()
+        return name
+
+    def _save(self, name, content):
+        cleaned_name = self._normalize_name(self._clean_name(name))
+        if not self.file_overwrite:
+            cleaned_name = self.get_available_name(cleaned_name, max_length=getattr(content, "max_length", None))
+        try:
+            return super()._save(cleaned_name, content)
+        except Exception as exc:
+            if not self._is_sha_mismatch_error(exc):
+                raise
+            logger.warning(
+                "S3 PutObject SHA256 mismatch для '%s'. Переключаемся на presigned PUT fallback.",
+                cleaned_name,
+            )
+            return self._save_via_presigned_put(cleaned_name, content)
 
 
 class GLBOptimizingS3Storage(BegetS3Storage):
