@@ -171,19 +171,16 @@ class BegetS3Storage(S3Boto3Storage):
         return name
 
     def _save(self, name, content):
-        cleaned_name = self._normalize_name(self._clean_name(name))
-        if not self.file_overwrite:
-            cleaned_name = self.get_available_name(cleaned_name, max_length=getattr(content, "max_length", None))
         try:
-            return super()._save(cleaned_name, content)
+            return super()._save(name, content)
         except Exception as exc:
             if not self._is_sha_mismatch_error(exc):
                 raise
             logger.warning(
                 "S3 PutObject SHA256 mismatch для '%s'. Переключаемся на presigned PUT fallback.",
-                cleaned_name,
+                name,
             )
-            return self._save_via_presigned_put(cleaned_name, content)
+            return self._save_via_presigned_put(name, content)
 
 
 class GLBOptimizingS3Storage(BegetS3Storage):
