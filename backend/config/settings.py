@@ -126,6 +126,12 @@ RFA_TO_GLB_COMMAND = get_env("RFA_TO_GLB_COMMAND", "")
 RFA_CONVERT_TIMEOUT_SEC = int(get_env("RFA_CONVERT_TIMEOUT_SEC", "900"))
 RFA_CONVERT_ENABLED = bool(int(get_env("RFA_CONVERT_ENABLED", "1")))
 
+# Команда конвертации GLB -> RFA.
+# Обязательные placeholders: {input} и {output}
+# Пример: python C:/tools/glb2rfa.py --input {input} --output {output}
+GLB_TO_RFA_COMMAND = get_env("GLB_TO_RFA_COMMAND", "")
+GLB_TO_RFA_TIMEOUT_SEC = int(get_env("GLB_TO_RFA_TIMEOUT_SEC", "900"))
+
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
