@@ -7,6 +7,7 @@ import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import EstimatedPriceButton from '@/components/EstimatedPriceButton'
 import ProductModelViewer, { getProductModelUrlAt } from '@/components/ProductModelViewer'
+import RfaModelViewer from '@/components/RfaModelViewer'
 import { getProductPrimaryImageUrl } from '@/utils/productImage'
 import { config } from '@/config'
 import { formatDimension } from '@/utils/format'
@@ -87,6 +88,61 @@ export default function ProductPage({ params }: ProductPageProps) {
 		setIsCartModalOpen(false)
 	}
 
+	const handleDownloadRfa = async () => {
+		if (!product.model_rfa) {
+			setToastMessage('У этой модели отсутствует RFA-файл')
+			return
+		}
+		if (isAuthenticated === false) {
+			setIsAuthModalOpen(true)
+			return
+		}
+		try {
+			const token = localStorage.getItem('access_token')
+			const response = await fetch(
+				`${config.API_URL}/api/downloads/presign/`,
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						Authorization: token ? `Bearer ${token}` : '',
+					},
+					body: JSON.stringify({
+						product_id: product.id,
+						format: '.rfa',
+					}),
+				}
+			)
+
+			const contentType = response.headers.get('content-type')
+			const isJson = contentType && contentType.includes('application/json')
+			const data = isJson ? await response.json() : null
+
+			if (!response.ok) {
+				if (response.status === 401) {
+					setIsAuthModalOpen(true)
+					return
+				}
+				const message =
+					data?.error ||
+					data?.detail ||
+					data?.message ||
+					'Ошибка при получении ссылки для скачивания RFA'
+				alert(message)
+				return
+			}
+
+			if (data?.url) {
+				window.location.href = data.url
+			} else {
+				setToastMessage('RFA-файл недоступен для этого товара')
+			}
+		} catch (error) {
+			console.error('Ошибка при скачивании RFA:', error)
+			alert('Ошибка при скачивании RFA-файла')
+		}
+	}
+
 	if (loading) {
 		return (
 			<div className='min-h-screen bg-gray-bg'>
@@ -112,6 +168,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 	}
 
 	const productImageUrl = getProductPrimaryImageUrl(product)
+	const firstModelUrl = getProductModelUrlAt(product, 0)
 
 	return (
 		<div className='min-h-screen bg-gray-bg'>
@@ -144,12 +201,12 @@ export default function ProductPage({ params }: ProductPageProps) {
 						<div className='space-y-3'>
 							<div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
 								<div className='bg-gray-bg rounded-lg overflow-hidden relative min-h-[180px] max-h-[300px]'>
-									{isSuperuser && product.model_3d_id && getProductModelUrlAt(product, 0) && (
+									{isSuperuser && product.model_3d_id && firstModelUrl && (
 										<span className='absolute left-2 top-2 z-10 text-xs text-gray font-medium bg-white/80 px-2 py-1 rounded'>
 											{product.model_3d_id}
 										</span>
 									)}
-									{getProductModelUrlAt(product, 0) ? (
+									{firstModelUrl ? (
 										<ProductModelViewer
 											product={product}
 											variant='page'
@@ -169,27 +226,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 										</div>
 									)}
 								</div>
-								<div className='bg-gray-bg rounded-lg overflow-hidden relative min-h-[180px] max-h-[300px]'>
-									{getProductModelUrlAt(product, 1) ? (
-										<ProductModelViewer
-											product={product}
-											variant='page'
-											modelIndex={1}
-											compact
-										/>
-									) : productImageUrl ? (
-										// eslint-disable-next-line @next/next/no-img-element
-										<img
-											src={productImageUrl}
-											alt={product.title_display ?? getTitleWithoutBrand(product.title || '', product.brand)}
-											className='w-full h-full object-cover min-h-[180px] max-h-[300px]'
-										/>
-									) : (
-										<div className='min-h-[180px] flex items-center justify-center text-xs text-gray px-2 text-center'>
-											Дополнительная модель не указана
-										</div>
-									)}
-								</div>
+								<RfaModelViewer product={product} onDownload={handleDownloadRfa} />
 							</div>
 						</div>
 
@@ -246,70 +283,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 									.rfa в корзину
 								</button>
 								<button
-									onClick={async () => {
-										if (!product.model_rfa) {
-											setToastMessage('У этой модели отсутствует RFA-файл')
-											return
-										}
-										if (isAuthenticated === false) {
-											setIsAuthModalOpen(true)
-											return
-										}
-										try {
-											const token = localStorage.getItem('access_token')
-											const response = await fetch(
-												`${config.API_URL}/api/downloads/presign/`,
-												{
-													method: 'POST',
-													headers: {
-														'Content-Type': 'application/json',
-														Authorization: token
-															? `Bearer ${token}`
-															: '',
-													},
-													body: JSON.stringify({
-														product_id: product.id,
-														format: '.rfa',
-													}),
-												}
-											)
-
-											const contentType =
-												response.headers.get('content-type')
-											const isJson =
-												contentType &&
-												contentType.includes('application/json')
-											const data = isJson ? await response.json() : null
-
-											if (!response.ok) {
-												if (response.status === 401) {
-													setIsAuthModalOpen(true)
-													return
-												}
-												const message =
-													data?.error ||
-													data?.detail ||
-													data?.message ||
-													'Ошибка при получении ссылки для скачивания RFA'
-												alert(message)
-												return
-											}
-
-											if (data?.url) {
-												window.location.href = data.url
-											} else {
-												setToastMessage('RFA-файл недоступен для этого товара')
-											}
-										} catch (error) {
-											console.error(
-												'Ошибка при скачивании RFA:',
-												error
-											)
-											alert(
-												'Ошибка при скачивании RFA-файла'
-											)
-										}
-									}}
+									onClick={handleDownloadRfa}
 									className='border-2 border-main1 bg-white text-main1 py-2.5 sm:py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors text-sm sm:text-base'
 								>
 									Скачать RFA

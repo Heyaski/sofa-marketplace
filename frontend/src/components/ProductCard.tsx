@@ -211,6 +211,20 @@ export default function ProductCard({
 			)}
 			{/* Каталог: 2D — фото, 3D — интерактивная модель */}
 			<div className='rounded-lg mb-3 sm:mb-4 overflow-hidden relative aspect-square bg-gray-50'>
+				<div className='absolute right-2 bottom-2 z-10 flex gap-1'>
+					<span
+						className={`text-[10px] px-1.5 py-0.5 rounded ${getProductModelUrlAt(product, 0) ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}
+						title={getProductModelUrlAt(product, 0) ? '3D доступен' : '3D не добавлен'}
+					>
+						3D
+					</span>
+					<span
+						className={`text-[10px] px-1.5 py-0.5 rounded ${product.model_rfa ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600'}`}
+						title={product.model_rfa ? 'RFA доступен' : 'RFA не добавлен'}
+					>
+						RFA
+					</span>
+				</div>
 				{isSuperuser && product.model_3d_id && catalogDisplayMode === '3d' && (
 					<span className='absolute left-2 top-2 z-10 text-xs text-gray font-medium bg-white/80 px-1.5 py-0.5 rounded'>
 						{product.model_3d_id}

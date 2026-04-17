@@ -8,6 +8,7 @@ import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import MultiSelectFilter from '@/components/MultiSelectFilter'
 import PriceFilter from '@/components/PriceFilter'
+import { getProductModelUrlAt } from '@/components/ProductModelViewer'
 import RGBRangeFilter from '@/components/RGBRangeFilter'
 import ProductCard from '@/components/ProductCard'
 import { useBaskets, useCategories, useProducts } from '@/hooks/useApi'
@@ -213,6 +214,20 @@ function CatalogContent() {
 
 	const visibleCategories = categories?.slice(0, visibleCategoriesCount) || []
 	const hasMoreCategories = categories && categories.length > visibleCategoriesCount
+	const isSuperuser = !!currentUser?.is_superuser
+	const hasGlbModel = (product: Product) => !!getProductModelUrlAt(product, 0)
+	const hasRfaModel = (product: Product) => !!product.model_rfa
+
+	const visibleProducts = useMemo(() => {
+		if (!products) return []
+		return products.filter((product) => {
+			const hasGlb = hasGlbModel(product)
+			const hasRfa = hasRfaModel(product)
+			// Обычный пользователь: нужны оба файла (GLB и RFA)
+			// Суперпользователь: достаточно хотя бы одного файла
+			return isSuperuser ? (hasGlb || hasRfa) : (hasGlb && hasRfa)
+		})
+	}, [products, isSuperuser])
 
 	return (
 		<div className='min-h-screen bg-gray-bg pb-20 lg:pb-0'>
@@ -524,20 +539,20 @@ function CatalogContent() {
 						<div className='text-center py-8 text-red-500 text-sm sm:text-base'>
 							Ошибка загрузки продуктов: {productsError}
 						</div>
-					) : !products || products.length === 0 ? (
+					) : !visibleProducts || visibleProducts.length === 0 ? (
 						<div className='text-center py-8 text-gray-500 text-sm sm:text-base'>
-							Продукты не найдены
+							Подходящие товары не найдены
 						</div>
 					) : (
 						<>
 							<div className='grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6'>
-								{products.map(product => (
+								{visibleProducts.map(product => (
 								<ProductCard
 									key={product.id}
 									product={product}
 									catalogDisplayMode={catalogView}
 									onAddToCart={handleAddToCart}
-									isSuperuser={!!(currentUser?.is_superuser)}
+									isSuperuser={isSuperuser}
 									onProductUpdated={() => refetchProducts()}
 									onProductDeleted={() => refetchProducts()}
 									onAuthRequired={() => setIsAuthModalOpen(true)}
