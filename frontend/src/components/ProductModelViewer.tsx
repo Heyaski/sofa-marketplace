@@ -53,6 +53,7 @@ function collectGlbUrls(product: Product): string[] {
 		out.push(withGlbVersion(raw))
 	}
 	if (product.model_glb) push(product.model_glb)
+	if (product.model_rfa_glb_preview) push(product.model_rfa_glb_preview)
 	if (product.asset_3d_models?.length) {
 		for (const a of product.asset_3d_models) {
 			push(a.file_url)
@@ -65,6 +66,11 @@ function collectGlbUrls(product: Product): string[] {
 export function getProductModelUrlAt(product: Product, index: number): string | null {
 	const urls = collectGlbUrls(product)
 	return urls[index] ?? null
+}
+
+export function getRfaPreviewModelUrl(product: Product): string | null {
+	const url = product.model_rfa_glb_preview
+	return url && isValidUrl(url) ? withGlbVersion(url) : null
 }
 
 function getModelUrl(product: Product, index: number = 0): string | null {
@@ -114,6 +120,8 @@ interface ProductModelViewerProps {
 	variant?: 'card' | 'page'
 	/** Индекс модели в списке GLB (вторая модель на странице товара). */
 	modelIndex?: number
+	/** Явный URL модели (если нужно показать конкретный источник, например RFA preview GLB). */
+	modelUrlOverride?: string | null
 	/** Уменьшенная высота для страницы товара (два вьюера в ряд). */
 	compact?: boolean
 	className?: string
@@ -124,11 +132,12 @@ export default function ProductModelViewer({
 	product,
 	variant = 'card',
 	modelIndex = 0,
+	modelUrlOverride = null,
 	compact = false,
 	className = '',
 	onClick,
 }: ProductModelViewerProps) {
-	const modelUrl = getModelUrl(product, modelIndex)
+	const modelUrl = modelUrlOverride || getModelUrl(product, modelIndex)
 	const [scriptReady, setScriptReady] = useState(false)
 	const [resolvedSrc, setResolvedSrc] = useState<string | null>(null)
 	const [inViewport, setInViewport] = useState(false)

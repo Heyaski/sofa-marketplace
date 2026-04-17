@@ -83,6 +83,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         model_files = (self.request.query_params.get('model_files') or '').strip().lower()
         has_glb_q = (
             (models.Q(model_glb__isnull=False) & ~models.Q(model_glb=''))
+            | (models.Q(model_rfa_glb_preview__isnull=False) & ~models.Q(model_rfa_glb_preview=''))
             | (models.Q(model_3d_asset_ids__isnull=False) & ~models.Q(model_3d_asset_ids=''))
         )
         has_rfa_q = models.Q(model_rfa__isnull=False) & ~models.Q(model_rfa='')

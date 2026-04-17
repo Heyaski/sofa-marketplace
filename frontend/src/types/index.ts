@@ -58,6 +58,9 @@ export interface Product {
 	model_glb?: string
 	model_fbx?: string
 	model_rfa?: string
+	model_rfa_glb_preview?: string
+	model_rfa_convert_status?: 'idle' | 'queued' | 'processing' | 'ready' | 'failed'
+	model_rfa_convert_error?: string
 	model_usdz?: string
 	model_ar_glb?: string
 }

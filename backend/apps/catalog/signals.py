@@ -1,0 +1,33 @@
+from django.conf import settings
+from django.db.models.signals import pre_save, post_save
+from django.dispatch import receiver
+
+from apps.catalog.models import Product
+from apps.catalog.tasks import convert_rfa_to_glb_task
+
+
+@receiver(pre_save, sender=Product)
+def remember_old_rfa(sender, instance: Product, **kwargs):
+    if not instance.pk:
+        instance._old_model_rfa = None
+        return
+    old = Product.objects.filter(pk=instance.pk).only("model_rfa").first()
+    instance._old_model_rfa = old.model_rfa if old else None
+
+
+@receiver(post_save, sender=Product)
+def queue_rfa_conversion(sender, instance: Product, created: bool, **kwargs):
+    if not getattr(settings, "RFA_CONVERT_ENABLED", True):
+        return
+    if not instance.model_rfa:
+        return
+    old_rfa = getattr(instance, "_old_model_rfa", None)
+    if not created and old_rfa == instance.model_rfa:
+        return
+
+    Product.objects.filter(pk=instance.pk).update(
+        model_rfa_convert_status="queued",
+        model_rfa_convert_error="",
+    )
+    convert_rfa_to_glb_task.delay(instance.pk)
+

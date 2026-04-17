@@ -204,7 +204,9 @@ class ProductSerializer(serializers.ModelSerializer):
             "width", "height", "depth", "weight", "availability",
             "is_active", "is_trending", "photo_url",
             "image_asset_ids", "model_3d_asset_ids", "model_3d_id", "title_display",
-            "model_glb", "model_fbx", "model_rfa", "model_usdz", "model_ar_glb",
+            "model_glb", "model_fbx", "model_rfa", "model_rfa_glb_preview",
+            "model_rfa_convert_status", "model_rfa_convert_error",
+            "model_usdz", "model_ar_glb",
             "shop_url", "cp_notes",
             "image", "images", "asset_images", "asset_3d_models",
         )
@@ -338,6 +340,13 @@ class ProductSerializer(serializers.ModelSerializer):
                 'file_type': '3d_model',
                 'file_url': obj.model_rfa,
                 'description': 'RFA модель (Revit, не поддерживается для просмотра)'
+            })
+        if obj.model_rfa_glb_preview and is_valid_url(obj.model_rfa_glb_preview):
+            models.append({
+                'asset_id': 'rfa_preview_glb',
+                'file_type': '3d_model',
+                'file_url': obj.model_rfa_glb_preview,
+                'description': 'GLB превью, сгенерированное из RFA'
             })
         if obj.model_ar_glb and is_valid_url(obj.model_ar_glb):
             models.append({

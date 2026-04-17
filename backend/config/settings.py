@@ -46,7 +46,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
 
-    "apps.catalog",
+    "apps.catalog.apps.CatalogConfig",
     "apps.baskets",
     "apps.subscriptions",
     "apps.downloads",
@@ -110,6 +110,21 @@ DATABASES = {
 
 # Redis для кэширования API (список товаров, детали — ускоряет загрузку 3D моделей)
 REDIS_URL = get_env("REDIS_URL", "redis://127.0.0.1:6379/0")
+
+# Celery (фоновые задачи: конвертация RFA -> GLB)
+CELERY_BROKER_URL = get_env("CELERY_BROKER_URL", REDIS_URL)
+CELERY_RESULT_BACKEND = get_env("CELERY_RESULT_BACKEND", REDIS_URL)
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+
+# Команда конвертации RFA -> GLB.
+# Обязательные placeholders: {input} и {output}
+# Пример: python /opt/tools/rfa2glb.py --input {input} --output {output}
+RFA_TO_GLB_COMMAND = get_env("RFA_TO_GLB_COMMAND", "")
+RFA_CONVERT_TIMEOUT_SEC = int(get_env("RFA_CONVERT_TIMEOUT_SEC", "900"))
+RFA_CONVERT_ENABLED = bool(int(get_env("RFA_CONVERT_ENABLED", "1")))
 
 CACHES = {
     "default": {

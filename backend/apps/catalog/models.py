@@ -96,6 +96,22 @@ class Product(models.Model):
     model_fbx = models.CharField(max_length=500, blank=True, verbose_name="FBX файл")
     model_glb = models.CharField(max_length=500, blank=True, verbose_name="GLB файл")
     model_rfa = models.CharField(max_length=500, blank=True, verbose_name="RFA файл")
+    model_rfa_glb_preview = models.CharField(
+        max_length=500,
+        blank=True,
+        verbose_name="GLB-превью для RFA",
+        help_text="Автоматически создается конвертацией RFA -> GLB",
+    )
+    model_rfa_convert_status = models.CharField(
+        max_length=20,
+        default="idle",
+        verbose_name="Статус конвертации RFA",
+        help_text="idle, queued, processing, ready, failed",
+    )
+    model_rfa_convert_error = models.TextField(
+        blank=True,
+        verbose_name="Ошибка конвертации RFA",
+    )
     model_usdz = models.CharField(max_length=500, blank=True, verbose_name="USDZ файл")
     model_ar_glb = models.CharField(max_length=500, blank=True, verbose_name="AR-GLB файл")
     
