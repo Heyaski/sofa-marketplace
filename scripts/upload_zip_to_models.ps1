@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$ZipPath,
 
-    [string]$Host = "45.12.74.57",
+    [string]$ServerHost = "45.12.74.57",
     [int]$Port = 22,
     [string]$User = "upload3d",
     [string]$RemoteDir = "/models",
@@ -63,8 +63,8 @@ try {
 
     Set-Content -LiteralPath $batchPath -Value $batchLines -Encoding UTF8
 
-    Write-Host "Uploading files to $User@$Host:$RemoteDir ..."
-    & sftp -i $KeyPath -P $Port -b $batchPath "$User@$Host"
+    Write-Host ("Uploading files to {0}@{1}:{2} ..." -f $User, $ServerHost, $RemoteDir)
+    & sftp -i $KeyPath -P $Port -b $batchPath "$User@$ServerHost"
     if ($LASTEXITCODE -ne 0) {
         throw "SFTP upload failed with exit code $LASTEXITCODE."
     }
