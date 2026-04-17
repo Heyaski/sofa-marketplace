@@ -8,20 +8,8 @@ interface RfaModelViewerProps {
 	onDownload?: () => void
 }
 
-function getFileName(url?: string | null): string | null {
-	if (!url) return null
-	try {
-		const clean = url.split('?')[0]
-		const name = clean.substring(clean.lastIndexOf('/') + 1)
-		return name || null
-	} catch {
-		return null
-	}
-}
-
 export default function RfaModelViewer({ product, className = '', onDownload }: RfaModelViewerProps) {
 	const hasRfa = !!product.model_rfa
-	const fileName = getFileName(product.model_rfa)
 
 	return (
 		<div className={`bg-gray-bg rounded-lg overflow-hidden min-h-[180px] max-h-[300px] p-4 flex flex-col ${className}`}>
@@ -30,14 +18,7 @@ export default function RfaModelViewer({ product, className = '', onDownload }: 
 				<div className='text-4xl leading-none'>🧩</div>
 				<div className='text-sm font-medium text-black'>Revit Family (.rfa)</div>
 				{hasRfa ? (
-					<>
-						<div className='text-xs text-gray break-all'>
-							{fileName || 'Файл доступен'}
-						</div>
-						<div className='text-xs text-gray px-2'>
-							RFA не рендерится в браузере как 3D. Файл доступен для скачивания и открытия в Revit.
-						</div>
-					</>
+					<div className='text-xs text-gray px-2'>Файл доступен для скачивания</div>
 				) : (
 					<div className='text-xs text-gray'>RFA-файл для этого товара не добавлен</div>
 				)}

@@ -62,7 +62,6 @@ export default function ProductCard({
 
 	const displayTitle = product.title_display ?? getTitleWithoutBrand(product.title || '', product.brand)
 	const catalogThumbUrl = getProductPrimaryImageUrl(product)
-	const rfaFileName = product.model_rfa?.split('?')[0].split('/').pop()
 
 	const getCategoryName = () => {
 		if (!displayTitle) return ''
@@ -306,9 +305,6 @@ export default function ProductCard({
 				>
 					Скачать RFA
 				</button>
-				<div className='text-[11px] text-gray px-1 truncate' title={rfaFileName || ''}>
-					{rfaFileName ? `RFA: ${rfaFileName}` : 'RFA: файл не добавлен'}
-				</div>
 
 				{toastMessage && (
 					<div className='fixed left-1/2 bottom-8 -translate-x-1/2 px-4 py-3 text-sm rounded-lg shadow-xl z-[9999]' style={{ backgroundColor: '#1a1a1a', color: '#ffffff' }}>
