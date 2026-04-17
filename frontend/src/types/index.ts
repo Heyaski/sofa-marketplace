@@ -219,6 +219,7 @@ export interface ProductFilters {
 	depth_max?: number
 	is_active?: boolean
 	is_trending?: boolean
+	model_files?: 'both' | 'any'
 	search?: string
 	ordering?: string
 }

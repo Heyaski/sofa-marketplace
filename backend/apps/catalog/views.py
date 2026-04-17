@@ -76,6 +76,20 @@ class ProductViewSet(viewsets.ModelViewSet):
         """
         # Получаем базовый queryset (уже отфильтрованный по is_active=True)
         queryset = Product.objects.filter(is_active=True)
+
+        # Фильтрация по наличию файлов моделей:
+        # model_files=both -> только товары с GLB(или id 3D) И RFA
+        # model_files=any  -> хотя бы один из файлов (GLB/3D id или RFA)
+        model_files = (self.request.query_params.get('model_files') or '').strip().lower()
+        has_glb_q = (
+            (models.Q(model_glb__isnull=False) & ~models.Q(model_glb=''))
+            | (models.Q(model_3d_asset_ids__isnull=False) & ~models.Q(model_3d_asset_ids=''))
+        )
+        has_rfa_q = models.Q(model_rfa__isnull=False) & ~models.Q(model_rfa='')
+        if model_files == 'both':
+            queryset = queryset.filter(has_glb_q & has_rfa_q)
+        elif model_files == 'any':
+            queryset = queryset.filter(has_glb_q | has_rfa_q)
         
         # Фильтрация по категории (поддержка нескольких: category=1,2,3)
         category_param = self.request.query_params.get('category', None)
