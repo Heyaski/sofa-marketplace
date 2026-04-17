@@ -89,6 +89,10 @@ export default function ProductPage({ params }: ProductPageProps) {
 	}
 
 	const handleDownloadRfa = async () => {
+		if (!product) {
+			setToastMessage('Товар еще загружается')
+			return
+		}
 		if (!product.model_rfa) {
 			setToastMessage('У этой модели отсутствует RFA-файл')
 			return
