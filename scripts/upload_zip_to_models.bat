@@ -1,21 +1,28 @@
 @echo off
 setlocal
 
+set "SCRIPT_DIR=%~dp0"
+set "PS_SCRIPT=%SCRIPT_DIR%upload_zip_to_models.ps1"
+set "DEFAULT_ZIP=%SCRIPT_DIR%2GLB.zip"
+
 if "%~1"=="" (
-  echo Drag-and-drop a ZIP file onto this .bat file.
-  echo.
-  echo Example:
-  echo   upload_zip_to_models.bat "C:\Users\You\Downloads\models.zip"
+  set "ZIP_PATH=%DEFAULT_ZIP%"
+) else (
+  set "ZIP_PATH=%~1"
+)
+
+if not exist "%PS_SCRIPT%" (
+  echo PowerShell script not found: "%PS_SCRIPT%"
   pause
   exit /b 1
 )
 
-set "ZIP_PATH=%~1"
-set "SCRIPT_DIR=%~dp0"
-set "PS_SCRIPT=%SCRIPT_DIR%upload_zip_to_models.ps1"
-
-if not exist "%PS_SCRIPT%" (
-  echo PowerShell script not found: "%PS_SCRIPT%"
+if not exist "%ZIP_PATH%" (
+  echo ZIP file not found: "%ZIP_PATH%"
+  echo.
+  echo Put ZIP here: "%DEFAULT_ZIP%"
+  echo or run with explicit path:
+  echo   upload_zip_to_models.bat "C:\path\to\models.zip"
   pause
   exit /b 1
 )
