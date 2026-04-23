@@ -362,7 +362,12 @@ class ProductSerializer(serializers.ModelSerializer):
             # Проверяем, что это HTTP URL или относительный путь
             return url_lower.startswith('http://') or url_lower.startswith('https://') or url_lower.startswith('/')
         
-        # Добавляем прямые URL моделей (из Excel импорта) только если это валидные HTTP URL
+        # Для каталога и карточек используем только FileAsset-модели,
+        # чтобы соответствие всегда было строго по ID файла.
+        if view_action in ('list', 'retrieve'):
+            return models
+
+        # Для прочих сценариев (админские/внутренние) оставляем legacy fallback.
         if obj.model_glb and is_valid_url(obj.model_glb):
             models.append({
                 'asset_id': 'glb_direct',
@@ -370,8 +375,7 @@ class ProductSerializer(serializers.ModelSerializer):
                 'file_url': obj.model_glb,
                 'description': 'GLB модель'
             })
-        # Не добавляем FBX/RFA в asset_3d_models: это поле используется для viewer-а,
-        # а не для скачивания, и такие форматы лишь ухудшают время ответа.
+        # Не добавляем FBX/RFA в asset_3d_models: это поле используется для viewer-а.
         if obj.model_usdz and is_valid_url(obj.model_usdz):
             models.append({
                 'asset_id': 'usdz_direct',

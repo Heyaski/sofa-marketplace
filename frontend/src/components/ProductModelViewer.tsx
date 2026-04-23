@@ -77,11 +77,11 @@ function collectGlbUrls(product: Product): string[] {
 		for (const a of scored) push(a.file_url, a.file_ext)
 	}
 
-	// 2) Прямые поля — как fallback.
-	if (product.model_glb) push(product.model_glb)
-	if (product.model_rfa_glb_preview) push(product.model_rfa_glb_preview)
-	if (product.asset_3d_models?.length) {
-		for (const a of product.asset_3d_models) push(a.file_url, a.file_ext)
+	// 2) Прямые поля — fallback только если нет привязанных FileAsset-моделей.
+	// Это исключает подмену "чужой" 3D при устаревшем model_glb.
+	if (!product.asset_3d_models?.length) {
+		if (product.model_glb) push(product.model_glb)
+		if (product.model_rfa_glb_preview) push(product.model_rfa_glb_preview)
 	}
 	return out
 }

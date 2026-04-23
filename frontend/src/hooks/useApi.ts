@@ -10,6 +10,11 @@ const extractResults = (response: any) => {
 }
 
 export type ProductsPaginationMode = 'infinite' | 'paged'
+const PRODUCTS_CACHE_TTL_MS = 60_000
+const firstPageProductsCache = new Map<
+	string,
+	{ products: Product[]; hasMore: boolean; totalPages: number; cachedAt: number }
+>()
 
 // ---------------------------
 // 🛍️ useProducts (пагинация: «загрузить ещё» или постранично)
@@ -29,6 +34,7 @@ export const useProducts = (
 	const [totalPages, setTotalPages] = useState(1)
 
 	const filtersKey = JSON.stringify(filters || {})
+	const firstPageCacheKey = `${paginationMode}:${filtersKey}`
 
 	const fetchProducts = useCallback(
 		async (page: number = 1, append: boolean = false) => {
@@ -37,7 +43,9 @@ export const useProducts = (
 				if (useAppend) {
 					setLoadingMore(true)
 				} else {
-					setLoading(true)
+					// Не блокируем сетку повторно, если карточки уже есть:
+					// пользователь должен видеть товары сразу, а 3D догружаются отдельно.
+					setLoading(products.length === 0)
 				}
 				setError(null)
 				if (filters && Object.keys(filters).length > 0) {
@@ -52,7 +60,8 @@ export const useProducts = (
 					productsData = response.results
 					const count = typeof response.count === 'number' ? response.count : 0
 					const pageSizeValue = 12
-					setTotalPages(Math.max(1, Math.ceil(count / pageSizeValue)))
+					const computedTotalPages = Math.max(1, Math.ceil(count / pageSizeValue))
+					setTotalPages(computedTotalPages)
 					const hasNext =
 						response.next !== null &&
 						response.next !== undefined &&
@@ -73,6 +82,17 @@ export const useProducts = (
 					setProducts(prev => [...prev, ...productsData])
 				} else {
 					setProducts(productsData)
+					if (page === 1) {
+						firstPageProductsCache.set(firstPageCacheKey, {
+							products: productsData,
+							hasMore: next !== null,
+							totalPages:
+								response && Array.isArray(response.results)
+									? Math.max(1, Math.ceil((typeof response.count === 'number' ? response.count : 0) / 12))
+									: 1,
+							cachedAt: Date.now(),
+						})
+					}
 				}
 
 				setNextPage(next)
@@ -87,15 +107,24 @@ export const useProducts = (
 			}
 		},
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- фильтры через filtersKey
-		[filtersKey, paginationMode]
+		[filtersKey, paginationMode, products.length, firstPageCacheKey]
 	)
 
 	useEffect(() => {
 		setDisplayedPage(1)
 		setNextPage(2)
 		setTotalPages(1)
+
+		const cached = firstPageProductsCache.get(firstPageCacheKey)
+		if (cached && Date.now() - cached.cachedAt < PRODUCTS_CACHE_TTL_MS) {
+			setProducts(cached.products)
+			setHasMore(cached.hasMore)
+			setTotalPages(cached.totalPages)
+			setLoading(false)
+		}
+
 		fetchProducts(1, false)
-	}, [fetchProducts])
+	}, [fetchProducts, firstPageCacheKey])
 
 	const loadMore = useCallback(() => {
 		if (paginationMode !== 'infinite') return

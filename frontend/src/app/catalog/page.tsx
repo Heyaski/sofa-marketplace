@@ -527,7 +527,7 @@ function CatalogContent() {
 					<div className='border-t border-gray2 mb-4 sm:mb-6 lg:mb-8'></div>
 
 					{/* 🛋️ Сетка товаров */}
-					{productsLoading ? (
+					{productsLoading && (!products || products.length === 0) ? (
 						<div className='text-center py-8 text-sm sm:text-base'>Загрузка продуктов...</div>
 					) : productsError ? (
 						<div className='text-center py-8 text-red-500 text-sm sm:text-base'>
@@ -553,6 +553,11 @@ function CatalogContent() {
 								/>
 								))}
 							</div>
+							{productsLoading && (
+								<div className='text-center mt-4 text-xs sm:text-sm text-gray'>
+									Обновляем список...
+								</div>
+							)}
 							{catalogView === '2d' && hasMore && (
 								<div className='mt-6 sm:mt-8 flex justify-center'>
 									<button
