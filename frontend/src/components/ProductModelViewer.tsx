@@ -280,7 +280,12 @@ export default function ProductModelViewer({
 					<span className='text-xs text-gray'>Загрузка 3D...</span>
 				</div>
 			) : (
-				<div className="w-full h-full min-h-[200px] cursor-pointer" onClick={onClick} />
+				<div
+					className="w-full h-full min-h-[200px] cursor-pointer flex items-center justify-center text-xs text-gray px-2 text-center"
+					onClick={onClick}
+				>
+					3D недоступно
+				</div>
 			)}
 		</div>
 	)

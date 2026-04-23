@@ -126,51 +126,43 @@ class Product(models.Model):
     
     def __str__(self):
         return self.title
+
+    def _get_assets_by_article_fallback(self, file_type: str):
+        """
+        Более точный fallback по артикулу:
+        - точное совпадение asset_id == article
+        - article + разделитель (_ или -), чтобы не цеплять чужие префиксы
+        """
+        article = (self.article or '').strip()
+        if not article:
+            return FileAsset.objects.none()
+        from django.db.models import Q
+        return FileAsset.objects.filter(
+            Q(asset_id__iexact=article)
+            | Q(asset_id__istartswith=f"{article}_")
+            | Q(asset_id__istartswith=f"{article}-"),
+            file_type=file_type
+        ).order_by('asset_id')
     
     def get_image_assets(self):
         """Получить все изображения по ID, с fallback по артикулу."""
         if not self.image_asset_ids:
-            if self.article:
-                return FileAsset.objects.filter(
-                    asset_id__istartswith=self.article.strip(),
-                    file_type='image'
-                ).order_by('asset_id')
-            return FileAsset.objects.none()  # Возвращаем пустой QuerySet, а не список
+            return self._get_assets_by_article_fallback('image')
         ids = [id.strip() for id in self.image_asset_ids.split(',') if id.strip()]
         if not ids:
-            if self.article:
-                return FileAsset.objects.filter(
-                    asset_id__istartswith=self.article.strip(),
-                    file_type='image'
-                ).order_by('asset_id')
-            return FileAsset.objects.none()
+            return self._get_assets_by_article_fallback('image')
         qs = FileAsset.objects.filter(asset_id__in=ids, file_type='image')
         if qs.exists():
             return qs
-        if self.article:
-            return FileAsset.objects.filter(
-                asset_id__istartswith=self.article.strip(),
-                file_type='image'
-            ).order_by('asset_id')
-        return qs
+        return self._get_assets_by_article_fallback('image')
     
     def get_3d_model_assets(self):
         """Получить все 3D модели по ID, с fallback по артикулу."""
         if not self.model_3d_asset_ids:
-            if self.article:
-                return FileAsset.objects.filter(
-                    asset_id__istartswith=self.article.strip(),
-                    file_type='3d_model'
-                ).order_by('asset_id')
-            return FileAsset.objects.none()
+            return self._get_assets_by_article_fallback('3d_model')
         ids = [id.strip() for id in self.model_3d_asset_ids.split(',') if id.strip()]
         if not ids:
-            if self.article:
-                return FileAsset.objects.filter(
-                    asset_id__istartswith=self.article.strip(),
-                    file_type='3d_model'
-                ).order_by('asset_id')
-            return FileAsset.objects.none()
+            return self._get_assets_by_article_fallback('3d_model')
         # Собираем все варианты для поиска: точный id + вариант с пробелом (ДиванП7682 → Диван П7682)
         import re
         all_ids = set(ids)
@@ -191,12 +183,7 @@ class Product(models.Model):
         prefixed = FileAsset.objects.filter(prefix_conditions).distinct()
         if prefixed.exists():
             return prefixed
-        if self.article:
-            return FileAsset.objects.filter(
-                asset_id__istartswith=self.article.strip(),
-                file_type='3d_model'
-            ).order_by('asset_id')
-        return prefixed
+        return self._get_assets_by_article_fallback('3d_model')
     
     def get_glb_url(self):
         """Получить URL GLB модели (приоритет: model_glb, затем FileAsset)"""
