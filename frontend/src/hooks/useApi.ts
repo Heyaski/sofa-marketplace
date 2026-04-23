@@ -51,7 +51,8 @@ export const useProducts = (
 				if (filters && Object.keys(filters).length > 0) {
 					console.log('Применяемые фильтры:', filters)
 				}
-				const response = await productService.getProducts(filters, page, 12)
+				const pageSizeValue = 20
+				const response = await productService.getProducts(filters, page, pageSizeValue)
 
 				let productsData: Product[] = []
 				let next: number | null = null
@@ -59,7 +60,6 @@ export const useProducts = (
 				if (response && Array.isArray(response.results)) {
 					productsData = response.results
 					const count = typeof response.count === 'number' ? response.count : 0
-					const pageSizeValue = 12
 					const computedTotalPages = Math.max(1, Math.ceil(count / pageSizeValue))
 					setTotalPages(computedTotalPages)
 					const hasNext =
@@ -88,7 +88,7 @@ export const useProducts = (
 							hasMore: next !== null,
 							totalPages:
 								response && Array.isArray(response.results)
-									? Math.max(1, Math.ceil((typeof response.count === 'number' ? response.count : 0) / 12))
+									? Math.max(1, Math.ceil((typeof response.count === 'number' ? response.count : 0) / pageSizeValue))
 									: 1,
 							cachedAt: Date.now(),
 						})
