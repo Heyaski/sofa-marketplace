@@ -59,8 +59,8 @@ function CatalogContent() {
 	const effectiveFilters = useMemo<ProductFilters>(
 		() => ({
 			...filters,
-			// Не скрываем товары для обычных пользователей: достаточно наличия любого файла модели.
-			model_files: 'any',
+			// Показываем в каталоге только товары с изображением и 3D-моделью.
+			model_files: 'both',
 		}),
 		[filters]
 	)

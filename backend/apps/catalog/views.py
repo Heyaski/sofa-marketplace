@@ -77,20 +77,25 @@ class ProductViewSet(viewsets.ModelViewSet):
         # Получаем базовый queryset (уже отфильтрованный по is_active=True)
         queryset = Product.objects.filter(is_active=True)
 
-        # Фильтрация по наличию файлов моделей:
-        # model_files=both -> только товары с GLB(или id 3D) И RFA
-        # model_files=any  -> хотя бы один из файлов (GLB/3D id или RFA)
+        # Фильтрация по наличию файлов:
+        # model_files=both -> только товары с изображением И GLB (для каталога 3D)
+        # model_files=any  -> хотя бы один из файлов модели (GLB/3D id или model file)
         model_files = (self.request.query_params.get('model_files') or '').strip().lower()
         has_glb_q = (
             (models.Q(model_glb__isnull=False) & ~models.Q(model_glb=''))
             | (models.Q(model_rfa_glb_preview__isnull=False) & ~models.Q(model_rfa_glb_preview=''))
             | (models.Q(model_3d_asset_ids__isnull=False) & ~models.Q(model_3d_asset_ids=''))
         )
-        has_rfa_q = models.Q(model_rfa__isnull=False) & ~models.Q(model_rfa='')
+        has_model_file_q = models.Q(model_rfa__isnull=False) & ~models.Q(model_rfa='')
+        has_image_q = (
+            models.Q(image__isnull=False)
+            | (models.Q(photo_url__isnull=False) & ~models.Q(photo_url=''))
+            | (models.Q(image_asset_ids__isnull=False) & ~models.Q(image_asset_ids=''))
+        )
         if model_files == 'both':
-            queryset = queryset.filter(has_glb_q & has_rfa_q)
+            queryset = queryset.filter(has_glb_q & has_image_q)
         elif model_files == 'any':
-            queryset = queryset.filter(has_glb_q | has_rfa_q)
+            queryset = queryset.filter(has_glb_q | has_model_file_q)
         
         # Фильтрация по категории (поддержка нескольких: category=1,2,3)
         category_param = self.request.query_params.get('category', None)
