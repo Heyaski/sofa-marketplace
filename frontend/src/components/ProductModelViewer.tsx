@@ -29,6 +29,15 @@ const loadQueue = {
 }
 
 function withGlbVersion(url: string): string {
+	// Нельзя менять query-параметры подписанных URL (S3/совместимые),
+	// иначе подпись становится невалидной и хранилище возвращает 403.
+	const lower = url.toLowerCase()
+	const hasSignature =
+		lower.includes('x-amz-signature=') ||
+		lower.includes('x-amz-credential=') ||
+		lower.includes('x-amz-algorithm=') ||
+		lower.includes('signature=')
+	if (hasSignature) return url
 	return url + (url.includes('?') ? '&' : '?') + GLB_VERSION
 }
 
