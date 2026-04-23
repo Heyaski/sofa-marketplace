@@ -19,8 +19,8 @@ export const config = {
 	// Настройки пагинации
 	DEFAULT_PAGE_SIZE: 20,
 
-	// Настройки форматов файлов (по умолчанию только .rfa)
-	DEFAULT_FORMAT: '.rfa',
+	// Настройки форматов файлов (по умолчанию .ofc)
+	DEFAULT_FORMAT: '.ofc',
 
 	// Настройки валюты
 	CURRENCY: 'RUB',

@@ -52,7 +52,7 @@ try {
     foreach ($file in $files) {
         # Upload only explicitly allowed model/preview formats.
         $ext = $file.Extension.ToLowerInvariant()
-        if ($ext -in @(".glb", ".rfa", ".png", ".jpg", ".jpeg")) {
+        if ($ext -in @(".glb", ".rfa", ".ofc", ".png", ".jpg", ".jpeg")) {
             $batchLines.Add("put `"$($file.FullName)`"")
         }
     }

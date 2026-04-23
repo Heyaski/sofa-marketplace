@@ -379,7 +379,7 @@ class PluginProductListView(APIView):
     """
     GET /api/plugin/products/
     Header: X-License-Hash
-    Список товаров с GLB/RFA для выбора в плагине.
+    Список товаров с GLB/RFA/OFC для выбора в плагине.
     """
     permission_classes = []
     authentication_classes = []
@@ -394,7 +394,7 @@ class PluginProductListView(APIView):
                 for a in p.get_3d_model_assets()
             ))
             has_rfa = bool(p.model_rfa or any(
-                a.file and a.file.name.lower().endswith('.rfa')
+                a.file and a.file.name.lower().endswith(('.rfa', '.ofc'))
                 for a in p.get_3d_model_assets()
             ))
             if has_glb or has_rfa:
@@ -412,7 +412,7 @@ class PluginDownloadView(APIView):
     """
     POST /api/plugin/download/
     Header: X-License-Hash
-    Body: { "product_id": 123, "format": "glb" }  // format: "glb" или "rfa"
+    Body: { "product_id": 123, "format": "glb" }  // format: "glb", "rfa" или "ofc"
     Возвращает url для скачивания. Лимиты как на сайте.
     """
     permission_classes = []
@@ -431,9 +431,9 @@ class PluginDownloadView(APIView):
             )
 
         fmt = fmt.lower().strip()
-        if fmt not in ('glb', 'rfa'):
+        if fmt not in ('glb', 'rfa', 'ofc'):
             return Response(
-                {"error": "format должен быть glb или rfa"},
+                {"error": "format должен быть glb, rfa или ofc"},
                 status=status.HTTP_400_BAD_REQUEST
             )
         fmt_ext = f'.{fmt}'
@@ -501,7 +501,7 @@ class PluginAssetDirectView(APIView):
     GET /api/assets/{fileName}.{ext}
     Совместимость с fbx_receiver: прямой GET с X-License-Hash.
     fileName: артикул (IMR-980756ORG), product_id (2602) или asset_id (Пуф1586_QOVNVbx).
-    ext: glb, rfa, rvt (rvt → rfa).
+    ext: glb, rfa, ofc, rvt (rvt → rfa).
     Редирект на файл.
     """
     permission_classes = []
@@ -522,7 +522,7 @@ class PluginAssetDirectView(APIView):
 
         parts = file_path.rsplit('.', 1)
         if len(parts) != 2:
-            return Response({"error": "Формат: имя.расширение (glb, rfa, rvt)"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Формат: имя.расширение (glb, rfa, ofc, rvt)"}, status=status.HTTP_400_BAD_REQUEST)
         file_base, ext = parts
 
         product, file_url = resolve_file_by_name(file_base, ext, request)

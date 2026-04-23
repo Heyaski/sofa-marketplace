@@ -5,7 +5,6 @@ import BottomNav from '@/components/BottomNav'
 import CartModal from '@/components/CartModal'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
-import EstimatedPriceButton from '@/components/EstimatedPriceButton'
 import ProductModelViewer, { getProductModelUrlAt } from '@/components/ProductModelViewer'
 import RfaModelViewer from '@/components/RfaModelViewer'
 import { getProductPrimaryImageUrl } from '@/utils/productImage'
@@ -88,13 +87,13 @@ export default function ProductPage({ params }: ProductPageProps) {
 		setIsCartModalOpen(false)
 	}
 
-	const handleDownloadRfa = async () => {
+	const handleDownloadModel = async () => {
 		if (!product) {
 			setToastMessage('Товар еще загружается')
 			return
 		}
 		if (!product.model_rfa) {
-			setToastMessage('У этой модели отсутствует RFA-файл')
+			setToastMessage('У этой модели отсутствует файл модели')
 			return
 		}
 		if (isAuthenticated === false) {
@@ -113,7 +112,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 					},
 					body: JSON.stringify({
 						product_id: product.id,
-						format: '.rfa',
+						format: '.ofc',
 					}),
 				}
 			)
@@ -131,7 +130,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 					data?.error ||
 					data?.detail ||
 					data?.message ||
-					'Ошибка при получении ссылки для скачивания RFA'
+					'Ошибка при получении ссылки для скачивания файла'
 				alert(message)
 				return
 			}
@@ -139,11 +138,11 @@ export default function ProductPage({ params }: ProductPageProps) {
 			if (data?.url) {
 				window.location.href = data.url
 			} else {
-				setToastMessage('RFA-файл недоступен для этого товара')
+				setToastMessage('Файл модели недоступен для этого товара')
 			}
 		} catch (error) {
-			console.error('Ошибка при скачивании RFA:', error)
-			alert('Ошибка при скачивании RFA-файла')
+			console.error('Ошибка при скачивании файла модели:', error)
+			alert('Ошибка при скачивании файла модели')
 		}
 	}
 
@@ -230,7 +229,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 										</div>
 									)}
 								</div>
-								<RfaModelViewer product={product} onDownload={handleDownloadRfa} />
+								<RfaModelViewer product={product} onDownload={handleDownloadModel} />
 							</div>
 						</div>
 
@@ -239,8 +238,6 @@ export default function ProductPage({ params }: ProductPageProps) {
 							<h1 className='text-lg sm:text-xl lg:text-2xl font-bold text-black'>
 								{product.title_display ?? getTitleWithoutBrand(product.title || '', product.brand)}
 							</h1>
-
-							<EstimatedPriceButton product={product} className='max-w-full sm:max-w-xs' />
 
 							{/* Описание */}
 							{product.description && (
@@ -284,13 +281,13 @@ export default function ProductPage({ params }: ProductPageProps) {
 									onClick={handleAddToCart}
 									className='bg-main1 text-white py-2.5 sm:py-3 rounded-lg hover:bg-main1/90 transition-colors font-medium text-sm sm:text-base'
 								>
-									.rfa в корзину
+									В корзину
 								</button>
 								<button
-									onClick={handleDownloadRfa}
+									onClick={handleDownloadModel}
 									className='border-2 border-main1 bg-white text-main1 py-2.5 sm:py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors text-sm sm:text-base'
 								>
-									Скачать RFA
+									Скачать файл
 								</button>
 								{toastMessage && (
 									<div className='fixed left-1/2 bottom-8 -translate-x-1/2 px-4 py-3 text-sm rounded-lg shadow-xl z-[9999]' style={{ backgroundColor: '#1a1a1a', color: '#ffffff' }}>

@@ -25,13 +25,13 @@ export default function EditProductModal({
 	const [error, setError] = useState<string | null>(null)
 
 	const [glbFile, setGlbFile] = useState<File | null>(null)
-	const [rfaFile, setRfaFile] = useState<File | null>(null)
+	const [ofcFile, setOfcFile] = useState<File | null>(null)
 	const [uploadingGlb, setUploadingGlb] = useState(false)
-	const [uploadingRfa, setUploadingRfa] = useState(false)
+	const [uploadingOfc, setUploadingOfc] = useState(false)
 	const [glbStatus, setGlbStatus] = useState<string | null>(null)
-	const [rfaStatus, setRfaStatus] = useState<string | null>(null)
+	const [ofcStatus, setOfcStatus] = useState<string | null>(null)
 	const glbInputRef = useRef<HTMLInputElement>(null)
-	const rfaInputRef = useRef<HTMLInputElement>(null)
+	const ofcInputRef = useRef<HTMLInputElement>(null)
 
 	useEffect(() => {
 		if (isOpen) {
@@ -41,9 +41,9 @@ export default function EditProductModal({
 			setDepth(product.depth != null ? String(product.depth) : '')
 			setError(null)
 			setGlbFile(null)
-			setRfaFile(null)
+			setOfcFile(null)
 			setGlbStatus(null)
-			setRfaStatus(null)
+			setOfcStatus(null)
 		}
 	}, [isOpen, product])
 
@@ -74,15 +74,15 @@ export default function EditProductModal({
 					setUploadingGlb(false)
 				}
 			}
-			if (rfaFile) {
-				setUploadingRfa(true)
+			if (ofcFile) {
+				setUploadingOfc(true)
 				try {
-					updated = await productService.uploadProductModel(product.id, rfaFile, 'rfa')
-					setRfaStatus('Загружено')
+					updated = await productService.uploadProductModel(product.id, ofcFile, 'ofc')
+					setOfcStatus('Загружено')
 				} catch {
-					setRfaStatus('Ошибка загрузки RFA')
+					setOfcStatus('Ошибка загрузки файла')
 				} finally {
-					setUploadingRfa(false)
+					setUploadingOfc(false)
 				}
 			}
 
@@ -98,7 +98,7 @@ export default function EditProductModal({
 		}
 	}
 
-	const isUploading = uploadingGlb || uploadingRfa
+	const isUploading = uploadingGlb || uploadingOfc
 
 	if (!isOpen) return null
 
@@ -201,9 +201,9 @@ export default function EditProductModal({
 						</div>
 					</div>
 
-					{/* RFA file upload */}
+					{/* Secondary model file upload */}
 					<div>
-						<label className='block text-sm font-medium text-black mb-1'>RFA модель</label>
+						<label className='block text-sm font-medium text-black mb-1'>Файл модели</label>
 						{product.model_rfa && (
 							<p className='text-xs text-gray mb-1 truncate' title={product.model_rfa}>
 								Текущий: {product.model_rfa.split('/').pop()}
@@ -211,33 +211,33 @@ export default function EditProductModal({
 						)}
 						<div className='flex items-center gap-2'>
 							<input
-								ref={rfaInputRef}
+								ref={ofcInputRef}
 								type='file'
-								accept='.rfa'
+								accept='.ofc,.rfa'
 								className='hidden'
 								onChange={e => {
 									const f = e.target.files?.[0] || null
-									setRfaFile(f)
-									setRfaStatus(null)
+									setOfcFile(f)
+									setOfcStatus(null)
 								}}
 							/>
 							<button
 								type='button'
-								onClick={() => rfaInputRef.current?.click()}
-								disabled={uploadingRfa}
+								onClick={() => ofcInputRef.current?.click()}
+								disabled={uploadingOfc}
 								className='px-3 py-2 text-sm border border-gray2 rounded-lg hover:bg-gray-bg transition-colors flex-shrink-0'
 							>
-								{rfaFile ? 'Заменить' : product.model_rfa ? 'Заменить RFA' : 'Загрузить RFA'}
+								{ofcFile ? 'Заменить' : product.model_rfa ? 'Заменить файл' : 'Загрузить файл'}
 							</button>
-							{rfaFile && (
-								<span className='text-xs text-black truncate'>{rfaFile.name}</span>
+							{ofcFile && (
+								<span className='text-xs text-black truncate'>{ofcFile.name}</span>
 							)}
-							{uploadingRfa && (
+							{uploadingOfc && (
 								<span className='text-xs text-gray'>Загрузка…</span>
 							)}
-							{rfaStatus && (
-								<span className={`text-xs ${rfaStatus === 'Загружено' ? 'text-green-600' : 'text-red-500'}`}>
-									{rfaStatus}
+							{ofcStatus && (
+								<span className={`text-xs ${ofcStatus === 'Загружено' ? 'text-green-600' : 'text-red-500'}`}>
+									{ofcStatus}
 								</span>
 							)}
 						</div>

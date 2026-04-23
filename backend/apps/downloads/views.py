@@ -35,7 +35,7 @@ class PresignView(APIView):
 
     def _resolve_file_url(self, request, product, fmt):
         """Возвращает URL файла нужного формата или None."""
-        if fmt == '.rfa' and product.model_rfa:
+        if fmt in ('.rfa', '.ofc') and product.model_rfa:
             url = product.model_rfa
             if url.startswith('http'):
                 return url

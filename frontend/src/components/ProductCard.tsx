@@ -10,7 +10,6 @@ import { getTitleWithoutBrand } from '../utils/productTitle'
 import { getProductPrimaryImageUrl } from '@/utils/productImage'
 import ProductModelViewer, { getProductModelUrlAt } from './ProductModelViewer'
 import EditProductModal from './EditProductModal'
-import EstimatedPriceButton from './EstimatedPriceButton'
 import { productService } from '../services/api'
 
 interface ProductCardProps {
@@ -83,9 +82,9 @@ export default function ProductCard({
 		return line.trim()
 	}
 
-	const handleDownloadRfa = async () => {
+	const handleDownloadModel = async () => {
 		if (!product.model_rfa) {
-			setToastMessage('У этой модели отсутствует RFA-файл')
+			setToastMessage('У этой модели отсутствует файл модели')
 			return
 		}
 
@@ -108,7 +107,7 @@ export default function ProductCard({
 				},
 				body: JSON.stringify({
 					product_id: product.id,
-					format: '.rfa',
+					format: '.ofc',
 				}),
 			})
 
@@ -129,7 +128,7 @@ export default function ProductCard({
 					data?.error ||
 					data?.detail ||
 					data?.message ||
-					'Ошибка при получении ссылки для скачивания RFA'
+					'Ошибка при получении ссылки для скачивания файла'
 				alert(message)
 				return
 			}
@@ -137,11 +136,11 @@ export default function ProductCard({
 			if (data?.url) {
 				window.location.href = data.url
 			} else {
-				alert('RFA-файл недоступен для этого товара')
+				alert('Файл модели недоступен для этого товара')
 			}
 		} catch (error) {
-			console.error('Ошибка при скачивании RFA:', error)
-			alert('Ошибка при скачивании RFA-файла')
+			console.error('Ошибка при скачивании файла модели:', error)
+			alert('Ошибка при скачивании файла модели')
 		}
 	}
 
@@ -218,12 +217,6 @@ export default function ProductCard({
 					>
 						3D
 					</span>
-					<span
-						className={`text-[10px] px-1.5 py-0.5 rounded ${product.model_rfa ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600'}`}
-						title={product.model_rfa ? 'RFA доступен' : 'RFA не добавлен'}
-					>
-						RFA
-					</span>
 				</div>
 				{isSuperuser && product.model_3d_id && catalogDisplayMode === '3d' && (
 					<span className='absolute left-2 top-2 z-10 text-xs text-gray font-medium bg-white/80 px-1.5 py-0.5 rounded'>
@@ -288,22 +281,20 @@ export default function ProductCard({
 				Подробнее →
 			</button>
 
-			<EstimatedPriceButton product={product} className='mb-2' />
-
 			{/* Действия */}
 			<div className='flex flex-col gap-2 relative'>
 				<button
 					onClick={() => onAddToCart(product.id, config.DEFAULT_FORMAT)}
 					className='btn-primary py-2 px-3 w-full text-sm font-medium whitespace-nowrap rounded-lg'
 				>
-					.rfa в корзину
+					В корзину
 				</button>
 
 				<button
-					onClick={handleDownloadRfa}
+					onClick={handleDownloadModel}
 					className='py-2 px-3 w-full text-sm font-medium whitespace-nowrap rounded-lg border border-gray2 text-black bg-white hover:bg-gray-bg hover:border-main1 hover:text-main1 transition-colors'
 				>
-					Скачать RFA
+					Скачать файл
 				</button>
 
 				{toastMessage && (
