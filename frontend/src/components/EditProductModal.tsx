@@ -25,13 +25,13 @@ export default function EditProductModal({
 	const [error, setError] = useState<string | null>(null)
 
 	const [glbFile, setGlbFile] = useState<File | null>(null)
-	const [ofcFile, setOfcFile] = useState<File | null>(null)
+	const [modelFile, setModelFile] = useState<File | null>(null)
 	const [uploadingGlb, setUploadingGlb] = useState(false)
-	const [uploadingOfc, setUploadingOfc] = useState(false)
+	const [uploadingModel, setUploadingModel] = useState(false)
 	const [glbStatus, setGlbStatus] = useState<string | null>(null)
-	const [ofcStatus, setOfcStatus] = useState<string | null>(null)
+	const [modelStatus, setModelStatus] = useState<string | null>(null)
 	const glbInputRef = useRef<HTMLInputElement>(null)
-	const ofcInputRef = useRef<HTMLInputElement>(null)
+	const modelInputRef = useRef<HTMLInputElement>(null)
 
 	useEffect(() => {
 		if (isOpen) {
@@ -41,9 +41,9 @@ export default function EditProductModal({
 			setDepth(product.depth != null ? String(product.depth) : '')
 			setError(null)
 			setGlbFile(null)
-			setOfcFile(null)
+			setModelFile(null)
 			setGlbStatus(null)
-			setOfcStatus(null)
+			setModelStatus(null)
 		}
 	}, [isOpen, product])
 
@@ -74,15 +74,15 @@ export default function EditProductModal({
 					setUploadingGlb(false)
 				}
 			}
-			if (ofcFile) {
-				setUploadingOfc(true)
+			if (modelFile) {
+				setUploadingModel(true)
 				try {
-					updated = await productService.uploadProductModel(product.id, ofcFile, 'ofc')
-					setOfcStatus('Загружено')
+					updated = await productService.uploadProductModel(product.id, modelFile, 'ifc')
+					setModelStatus('Загружено')
 				} catch {
-					setOfcStatus('Ошибка загрузки файла')
+					setModelStatus('Ошибка загрузки файла')
 				} finally {
-					setUploadingOfc(false)
+					setUploadingModel(false)
 				}
 			}
 
@@ -98,7 +98,7 @@ export default function EditProductModal({
 		}
 	}
 
-	const isUploading = uploadingGlb || uploadingOfc
+	const isUploading = uploadingGlb || uploadingModel
 
 	if (!isOpen) return null
 
@@ -211,33 +211,33 @@ export default function EditProductModal({
 						)}
 						<div className='flex items-center gap-2'>
 							<input
-								ref={ofcInputRef}
+								ref={modelInputRef}
 								type='file'
-								accept='.ofc,.rfa'
+								accept='.ifc,.rfa'
 								className='hidden'
 								onChange={e => {
 									const f = e.target.files?.[0] || null
-									setOfcFile(f)
-									setOfcStatus(null)
+									setModelFile(f)
+									setModelStatus(null)
 								}}
 							/>
 							<button
 								type='button'
-								onClick={() => ofcInputRef.current?.click()}
-								disabled={uploadingOfc}
+								onClick={() => modelInputRef.current?.click()}
+								disabled={uploadingModel}
 								className='px-3 py-2 text-sm border border-gray2 rounded-lg hover:bg-gray-bg transition-colors flex-shrink-0'
 							>
-								{ofcFile ? 'Заменить' : product.model_rfa ? 'Заменить файл' : 'Загрузить файл'}
+								{modelFile ? 'Заменить' : product.model_rfa ? 'Заменить файл' : 'Загрузить файл'}
 							</button>
-							{ofcFile && (
-								<span className='text-xs text-black truncate'>{ofcFile.name}</span>
+							{modelFile && (
+								<span className='text-xs text-black truncate'>{modelFile.name}</span>
 							)}
-							{uploadingOfc && (
+							{uploadingModel && (
 								<span className='text-xs text-gray'>Загрузка…</span>
 							)}
-							{ofcStatus && (
-								<span className={`text-xs ${ofcStatus === 'Загружено' ? 'text-green-600' : 'text-red-500'}`}>
-									{ofcStatus}
+							{modelStatus && (
+								<span className={`text-xs ${modelStatus === 'Загружено' ? 'text-green-600' : 'text-red-500'}`}>
+									{modelStatus}
 								</span>
 							)}
 						</div>

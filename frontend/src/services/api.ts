@@ -124,11 +124,11 @@ export const productService = {
 		await apiClient.delete(`/api/products/${id}/`)
 	},
 
-	// Загрузить GLB или OFC файл для продукта (суперпользователь)
+	// Загрузить GLB или IFC/RFA файл для продукта (суперпользователь)
 	uploadProductModel: async (
 		id: number,
 		file: File,
-		format: 'glb' | 'rfa' | 'ofc'
+		format: 'glb' | 'rfa' | 'ifc'
 	): Promise<Product> => {
 		const formData = new FormData()
 		formData.append('file', file)

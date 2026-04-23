@@ -274,7 +274,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="upload-model")
     def upload_model(self, request, pk=None):
-        """Upload GLB or OFC/RFA file for a product (superuser only)."""
+        """Upload GLB or model file (RFA/IFC) for a product (superuser only)."""
         import os
         from django.core.files.storage import default_storage
 
@@ -284,14 +284,14 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         if not file:
             return Response({"error": "Файл не загружен"}, status=400)
-        if model_format not in ("glb", "rfa", "ofc"):
-            return Response({"error": "Допустимые форматы: glb, rfa, ofc"}, status=400)
+        if model_format not in ("glb", "rfa", "ifc"):
+            return Response({"error": "Допустимые форматы: glb, rfa, ifc"}, status=400)
 
         ext = os.path.splitext(file.name)[1].lower()
         allowed_exts = {
             "glb": {".glb"},
-            "rfa": {".rfa", ".ofc"},
-            "ofc": {".ofc", ".rfa"},
+            "rfa": {".rfa", ".ifc"},
+            "ifc": {".ifc", ".rfa"},
         }
         if ext not in allowed_exts[model_format]:
             return Response(

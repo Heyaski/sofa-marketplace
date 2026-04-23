@@ -81,7 +81,7 @@ class FileExtensionFilter(admin.SimpleListFilter):
         image_extensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.svg']
         
         # Все поддерживаемые расширения 3D моделей
-        model_extensions = ['.glb', '.gltf', '.fbx', '.obj', '.usdz', '.rfa', '.ofc', '.dae', '.3ds', '.ar-glb']
+        model_extensions = ['.glb', '.gltf', '.fbx', '.obj', '.usdz', '.rfa', '.ifc', '.dae', '.3ds', '.ar-glb']
         
         # Начинаем с поддерживаемых расширений
         all_extensions = set(image_extensions + model_extensions)
@@ -228,7 +228,7 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
                     
                     # Расширения файлов для определения типа
                     image_extensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.svg']
-                    model_extensions = ['.glb', '.gltf', '.fbx', '.obj', '.usdz', '.rfa', '.ofc', '.dae', '.3ds']
+                    model_extensions = ['.glb', '.gltf', '.fbx', '.obj', '.usdz', '.rfa', '.ifc', '.dae', '.3ds']
                     
                     # Функция для извлечения базового артикула из asset_id (столбец A -> столбец N)
                     def extract_base_article(asset_id):
@@ -423,7 +423,7 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
                                                     product.model_fbx = file_url
                                                 elif file_ext == '.usdz' and not product.model_usdz:
                                                     product.model_usdz = file_url
-                                                elif file_ext in ('.rfa', '.ofc') and not product.model_rfa:
+                                                elif file_ext in ('.rfa', '.ifc') and not product.model_rfa:
                                                     product.model_rfa = file_url
                                         except Exception:
                                             pass
@@ -601,7 +601,7 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
                                                 product.model_fbx = file_url
                                             elif file_ext == '.usdz' and not product.model_usdz:
                                                 product.model_usdz = file_url
-                                            elif file_ext in ('.rfa', '.ofc') and not product.model_rfa:
+                                            elif file_ext in ('.rfa', '.ifc') and not product.model_rfa:
                                                 product.model_rfa = file_url
                                     except Exception:
                                         pass
@@ -1203,7 +1203,7 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                     
                     # Определяем расширения в зависимости от типа
                     image_exts = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.svg']
-                    model_exts = ['.glb', '.gltf', '.fbx', '.obj', '.usdz', '.rfa', '.ofc', '.dae', '.3ds']
+                    model_exts = ['.glb', '.gltf', '.fbx', '.obj', '.usdz', '.rfa', '.ifc', '.dae', '.3ds']
                     
                     if file_type == 'image':
                         allowed_extensions = image_exts
@@ -1597,7 +1597,7 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                                                     product.model_fbx = file_url
                                                 elif file_ext == '.usdz' and not product.model_usdz:
                                                     product.model_usdz = file_url
-                                                elif file_ext in ('.rfa', '.ofc') and not product.model_rfa:
+                                                elif file_ext in ('.rfa', '.ifc') and not product.model_rfa:
                                                     product.model_rfa = file_url
                                             
                                         except Exception as model_error:

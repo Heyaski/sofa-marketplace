@@ -1,4 +1,4 @@
-"""Утилиты для API плагина: разрешение URL файлов GLB/RFA/OFC."""
+"""Утилиты для API плагина: разрешение URL файлов GLB/RFA/IFC."""
 from django.conf import settings
 
 
@@ -65,13 +65,13 @@ def get_file_asset_url(asset, request=None):
 
 def resolve_product_file_url(product, fmt, request):
     """
-    Возвращает URL файла GLB или RFA/OFC для товара.
-    fmt: '.glb', '.rfa' или '.ofc'
+    Возвращает URL файла GLB или RFA/IFC для товара.
+    fmt: '.glb', '.rfa' или '.ifc'
     """
     ext = fmt.lower() if fmt.startswith('.') else f'.{fmt}'.lower()
 
     # 1. Прямые URL в Product
-    if ext in ('.rfa', '.ofc') and product.model_rfa:
+    if ext in ('.rfa', '.ifc') and product.model_rfa:
         url = product.model_rfa
         if url.startswith(('http://', 'https://')):
             return url
@@ -89,7 +89,7 @@ def resolve_product_file_url(product, fmt, request):
         if not asset.file or not asset.file.name:
             continue
         name_lower = asset.file.name.lower()
-        if ext in ('.rfa', '.ofc') and name_lower.endswith(('.rfa', '.ofc')):
+        if ext in ('.rfa', '.ifc') and name_lower.endswith(('.rfa', '.ifc')):
             return get_file_asset_url(asset, request)
         if ext == '.glb' and (name_lower.endswith('.glb') or name_lower.endswith('.gltf')):
             return get_file_asset_url(asset, request)
@@ -100,7 +100,7 @@ def resolve_product_file_url(product, fmt, request):
 def resolve_file_by_name(file_base, ext, request):
     """
     Находит URL файла по имени (артикул, product_id или asset_id).
-    ext: '.glb', '.rfa', '.ofc', '.rvt' (.rvt → RFA для совместимости).
+    ext: '.glb', '.rfa', '.ifc', '.rvt' (.rvt → RFA для совместимости).
     Возвращает (product, file_url) или (None, None).
     """
     from apps.catalog.models import Product, FileAsset
@@ -109,7 +109,7 @@ def resolve_file_by_name(file_base, ext, request):
     if ext == '.rvt':
         ext = '.rfa'
 
-    if ext not in ('.glb', '.rfa', '.ofc'):
+    if ext not in ('.glb', '.rfa', '.ifc'):
         return None, None
 
     # 1. По product_id (число)
@@ -136,7 +136,7 @@ def resolve_file_by_name(file_base, ext, request):
     ).exclude(file='').first()
     if asset and asset.file and asset.file.name:
         name_lower = asset.file.name.lower()
-        if ext in ('.rfa', '.ofc') and name_lower.endswith(('.rfa', '.ofc')):
+        if ext in ('.rfa', '.ifc') and name_lower.endswith(('.rfa', '.ifc')):
             return None, get_file_asset_url(asset, request)
         if ext == '.glb' and (name_lower.endswith('.glb') or name_lower.endswith('.gltf')):
             return None, get_file_asset_url(asset, request)
@@ -148,7 +148,7 @@ def resolve_file_by_name(file_base, ext, request):
         base = a.file.name.rsplit('.', 1)[0].rsplit('/', 1)[-1]
         if base.lower() == file_base.lower():
             nl = a.file.name.lower()
-            if ext in ('.rfa', '.ofc') and nl.endswith(('.rfa', '.ofc')):
+            if ext in ('.rfa', '.ifc') and nl.endswith(('.rfa', '.ifc')):
                 return None, get_file_asset_url(a, request)
             if ext == '.glb' and (nl.endswith('.glb') or nl.endswith('.gltf')):
                 return None, get_file_asset_url(a, request)

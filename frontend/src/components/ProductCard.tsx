@@ -107,7 +107,7 @@ export default function ProductCard({
 				},
 				body: JSON.stringify({
 					product_id: product.id,
-					format: '.ofc',
+					format: '.ifc',
 				}),
 			})
 

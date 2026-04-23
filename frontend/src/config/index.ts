@@ -19,8 +19,8 @@ export const config = {
 	// Настройки пагинации
 	DEFAULT_PAGE_SIZE: 20,
 
-	// Настройки форматов файлов (по умолчанию .ofc)
-	DEFAULT_FORMAT: '.ofc',
+	// Настройки форматов файлов (по умолчанию .ifc)
+	DEFAULT_FORMAT: '.ifc',
 
 	// Настройки валюты
 	CURRENCY: 'RUB',

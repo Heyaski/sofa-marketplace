@@ -112,7 +112,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 					},
 					body: JSON.stringify({
 						product_id: product.id,
-						format: '.ofc',
+						format: '.ifc',
 					}),
 				}
 			)
