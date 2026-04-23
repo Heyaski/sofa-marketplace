@@ -87,13 +87,6 @@ class ProductViewSet(viewsets.ModelViewSet):
             | models.Q(file__iendswith='.gltf')
             | models.Q(file__iendswith='.usdz')
         )
-        has_glb_asset_by_article_q = models.Exists(
-            FileAsset.objects.filter(file_type='3d_model').filter(glb_ext_q).filter(
-                models.Q(asset_id__iexact=models.OuterRef('article'))
-                | models.Q(asset_id__istartswith=Concat(models.OuterRef('article'), models.Value('_')))
-                | models.Q(asset_id__istartswith=Concat(models.OuterRef('article'), models.Value('-')))
-            )
-        )
         has_glb_asset_by_model_id_q = models.Exists(
             FileAsset.objects.filter(file_type='3d_model').filter(glb_ext_q).filter(
                 models.Q(asset_id__iexact=models.OuterRef('model_3d_asset_ids'))
@@ -104,7 +97,6 @@ class ProductViewSet(viewsets.ModelViewSet):
         has_glb_q = (
             (models.Q(model_glb__isnull=False) & ~models.Q(model_glb=''))
             | (models.Q(model_rfa_glb_preview__isnull=False) & ~models.Q(model_rfa_glb_preview=''))
-            | has_glb_asset_by_article_q
             | has_glb_asset_by_model_id_q
         )
         has_model_file_q = models.Q(model_rfa__isnull=False) & ~models.Q(model_rfa='')
@@ -261,7 +253,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         """Кэширование списка товаров (5 мин) — ускоряет загрузку страниц с 3D моделями."""
-        cache_key = f"products_list:{request.GET.urlencode()}"
+        cache_key = f"products_list:v2:{request.GET.urlencode()}"
         cached = cache.get(cache_key)
         if cached is not None:
             return Response(cached)
@@ -272,7 +264,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         """Кэширование деталей товара (10 мин)."""
         pk = kwargs.get("pk")
-        cache_key = f"product_detail:{pk}"
+        cache_key = f"product_detail:v2:{pk}"
         cached = cache.get(cache_key)
         if cached is not None:
             return Response(cached)
@@ -282,7 +274,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def _invalidate_product_cache(self, product):
         """Инвалидация кэша при изменении товара."""
-        cache.delete(f"product_detail:{product.pk}")
+        cache.delete(f"product_detail:v2:{product.pk}")
         try:
             cache.delete_pattern("products_list*")
         except AttributeError:
