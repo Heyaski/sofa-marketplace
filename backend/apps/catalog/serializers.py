@@ -332,11 +332,26 @@ class ProductSerializer(serializers.ModelSerializer):
     def get_asset_3d_models(self, obj):
         """Получить все 3D модели (FileAsset + прямые URL) для отображения в каталоге и на странице товара."""
         request = self.context.get("request")
+        view_action = self.context.get("view_action")
         models = []
         
-        # Добавляем модели из FileAsset
+        # Добавляем модели из FileAsset.
+        # Для list-ответа ограничиваемся первыми GLB-подобными файлами:
+        # это сильно ускоряет каталог и убирает "зависание" на генерации URL для всех ассетов.
         model_assets = obj.get_3d_model_assets()
-        models.extend(FileAssetSerializer(model_assets, many=True, context={'request': request}).data)
+        if view_action == 'list':
+            glb_like_assets = []
+            for asset in model_assets:
+                name = (getattr(asset.file, "name", "") or "").lower()
+                if name.endswith((".glb", ".gltf", ".usdz")):
+                    glb_like_assets.append(asset)
+                if len(glb_like_assets) >= 2:
+                    break
+            models.extend(
+                FileAssetSerializer(glb_like_assets, many=True, context={'request': request}).data
+            )
+        else:
+            models.extend(FileAssetSerializer(model_assets, many=True, context={'request': request}).data)
         
         # Функция для проверки валидности URL
         def is_valid_url(url):
@@ -355,28 +370,14 @@ class ProductSerializer(serializers.ModelSerializer):
                 'file_url': obj.model_glb,
                 'description': 'GLB модель'
             })
-        # FBX не поддерживается для просмотра в браузере, но оставляем для скачивания
-        if obj.model_fbx and is_valid_url(obj.model_fbx):
-            models.append({
-                'asset_id': 'fbx_direct',
-                'file_type': '3d_model',
-                'file_url': obj.model_fbx,
-                'description': 'FBX модель (не поддерживается для просмотра)'
-            })
+        # Не добавляем FBX/RFA в asset_3d_models: это поле используется для viewer-а,
+        # а не для скачивания, и такие форматы лишь ухудшают время ответа.
         if obj.model_usdz and is_valid_url(obj.model_usdz):
             models.append({
                 'asset_id': 'usdz_direct',
                 'file_type': '3d_model',
                 'file_url': obj.model_usdz,
                 'description': 'USDZ модель (iOS AR)'
-            })
-        # RFA не поддерживается для просмотра в браузере, но оставляем для скачивания
-        if obj.model_rfa and is_valid_url(obj.model_rfa):
-            models.append({
-                'asset_id': 'rfa_direct',
-                'file_type': '3d_model',
-                'file_url': obj.model_rfa,
-                'description': 'RFA модель (Revit, не поддерживается для просмотра)'
             })
         if obj.model_rfa_glb_preview and is_valid_url(obj.model_rfa_glb_preview):
             models.append({

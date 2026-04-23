@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q, Case, When, IntegerField
 
 
 class FileAsset(models.Model):
@@ -163,30 +164,56 @@ class Product(models.Model):
         ids = [id.strip() for id in self.model_3d_asset_ids.split(',') if id.strip()]
         if not ids:
             return self._get_assets_by_article_fallback('3d_model')
-        # Собираем все варианты для поиска: точный id + вариант с пробелом (ДиванП7682 → Диван П7682)
+        # Собираем все варианты для поиска: точный id + вариант с пробелом (ДиванП7682 -> Диван П7682)
         import re
-        all_ids = set(ids)
+        ordered_keys = []
         for aid in ids:
-            # Вставляем пробел перед заглавной буквой после строчной: "ДиванП7682" → "Диван П7682"
+            ordered_keys.append(aid)
             variant = re.sub(r'([а-яёa-z])([А-ЯЁA-Z])', r'\1 \2', aid)
             if variant != aid:
-                all_ids.add(variant)
-        # Сначала точное совпадение
-        qs = FileAsset.objects.filter(asset_id__in=all_ids, file_type='3d_model')
-        if qs.exists():
-            return qs
-        # Префикс только с разделителем:
-        # model_3d_asset_ids="Пуф1506" найдёт asset_id="Пуф1506_IVVatOj",
-        # но не зацепит "Пуф15067..." (чужой товар).
-        from django.db.models import Q
-        prefix_conditions = Q()
-        for aid in all_ids:
-            prefix_conditions |= Q(asset_id__iexact=aid, file_type='3d_model')
-            prefix_conditions |= Q(asset_id__istartswith=f"{aid}_", file_type='3d_model')
-            prefix_conditions |= Q(asset_id__istartswith=f"{aid}-", file_type='3d_model')
-        prefixed = FileAsset.objects.filter(prefix_conditions).distinct()
-        if prefixed.exists():
-            return prefixed
+                ordered_keys.append(variant)
+
+        # Строгое и предсказуемое сопоставление:
+        # 1) exact по каждому id (в порядке из model_3d_asset_ids),
+        # 2) затем префиксы с "_" / "-" (тоже в том же порядке).
+        exact_q = Q()
+        prefixed_q = Q()
+        for key in ordered_keys:
+            exact_q |= Q(asset_id__iexact=key)
+            prefixed_q |= Q(asset_id__istartswith=f"{key}_") | Q(asset_id__istartswith=f"{key}-")
+
+        exact_assets = list(
+            FileAsset.objects.filter(file_type='3d_model').filter(exact_q).order_by('asset_id')
+        )
+        prefixed_assets = list(
+            FileAsset.objects.filter(file_type='3d_model').filter(prefixed_q).order_by('asset_id')
+        )
+
+        if exact_assets or prefixed_assets:
+            # Сохраняем стабильный порядок: сначала ключи из model_3d_asset_ids, затем алфавит внутри группы.
+            rank_map = {k.lower(): idx for idx, k in enumerate(ordered_keys)}
+
+            def _asset_rank(asset):
+                asset_id_lower = (asset.asset_id or '').lower()
+                best = len(rank_map) + 10
+                for k, idx in rank_map.items():
+                    if asset_id_lower == k or asset_id_lower.startswith(f"{k}_") or asset_id_lower.startswith(f"{k}-"):
+                        best = min(best, idx)
+                return (best, asset_id_lower)
+
+            combined = []
+            seen = set()
+            for asset in sorted(exact_assets + prefixed_assets, key=_asset_rank):
+                if asset.pk in seen:
+                    continue
+                seen.add(asset.pk)
+                combined.append(asset.pk)
+
+            order_clauses = [When(pk=pk, then=pos) for pos, pk in enumerate(combined)]
+            return FileAsset.objects.filter(pk__in=combined).order_by(
+                Case(*order_clauses, default=len(combined), output_field=IntegerField())
+            )
+
         return self._get_assets_by_article_fallback('3d_model')
     
     def get_glb_url(self):
