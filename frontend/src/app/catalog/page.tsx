@@ -59,9 +59,10 @@ function CatalogContent() {
 	const effectiveFilters = useMemo<ProductFilters>(
 		() => ({
 			...filters,
-			model_files: isSuperuser ? 'any' : 'both',
+			// Не скрываем товары для обычных пользователей: достаточно наличия любого файла модели.
+			model_files: 'any',
 		}),
-		[filters, isSuperuser]
+		[filters]
 	)
 
 	const {
