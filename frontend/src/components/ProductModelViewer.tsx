@@ -51,6 +51,7 @@ function collectGlbUrls(product: Product): string[] {
 	if (!product) return []
 	const seen = new Set<string>()
 	const out: string[] = []
+	const modelId = (product.model_3d_id || '').trim().toLowerCase()
 	const push = (raw: string | null | undefined, extHint?: string | null) => {
 		if (!raw || !isValidUrl(raw)) return
 		const u = raw.toLowerCase()
@@ -62,12 +63,25 @@ function collectGlbUrls(product: Product): string[] {
 		seen.add(base)
 		out.push(withGlbVersion(raw))
 	}
+
+	// 1) В каталоге приоритет за ассетами, привязанными к товару (наиболее точное соответствие карточке).
+	if (product.asset_3d_models?.length) {
+		const scored = [...product.asset_3d_models].sort((a, b) => {
+			const aId = (a.asset_id || '').toLowerCase()
+			const bId = (b.asset_id || '').toLowerCase()
+			const aMatch = modelId && (aId === modelId || aId.startsWith(`${modelId}_`) || aId.startsWith(`${modelId}-`))
+			const bMatch = modelId && (bId === modelId || bId.startsWith(`${modelId}_`) || bId.startsWith(`${modelId}-`))
+			if (aMatch === bMatch) return aId.localeCompare(bId)
+			return aMatch ? -1 : 1
+		})
+		for (const a of scored) push(a.file_url, a.file_ext)
+	}
+
+	// 2) Прямые поля — как fallback.
 	if (product.model_glb) push(product.model_glb)
 	if (product.model_rfa_glb_preview) push(product.model_rfa_glb_preview)
 	if (product.asset_3d_models?.length) {
-		for (const a of product.asset_3d_models) {
-			push(a.file_url, a.file_ext)
-		}
+		for (const a of product.asset_3d_models) push(a.file_url, a.file_ext)
 	}
 	return out
 }
