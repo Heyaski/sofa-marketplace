@@ -42,10 +42,11 @@ function collectGlbUrls(product: Product): string[] {
 	if (!product) return []
 	const seen = new Set<string>()
 	const out: string[] = []
-	const push = (raw: string | null | undefined) => {
+	const push = (raw: string | null | undefined, extHint?: string | null) => {
 		if (!raw || !isValidUrl(raw)) return
 		const u = raw.toLowerCase()
-		const ext = u.substring(u.lastIndexOf('.') + 1).split('?')[0]
+		const extFromUrl = u.substring(u.lastIndexOf('.') + 1).split('?')[0]
+		const ext = (extHint || extFromUrl || '').toLowerCase().replace('.', '')
 		if (!MODEL_VIEWER_FORMATS.includes(ext)) return
 		const base = raw.split('?')[0]
 		if (seen.has(base)) return
@@ -56,7 +57,7 @@ function collectGlbUrls(product: Product): string[] {
 	if (product.model_rfa_glb_preview) push(product.model_rfa_glb_preview)
 	if (product.asset_3d_models?.length) {
 		for (const a of product.asset_3d_models) {
-			push(a.file_url)
+			push(a.file_url, a.file_ext)
 		}
 	}
 	return out

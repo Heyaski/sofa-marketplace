@@ -78,7 +78,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         queryset = Product.objects.filter(is_active=True)
 
         # Фильтрация по наличию файлов:
-        # model_files=both -> только товары с изображением И GLB (для каталога 3D)
+        # model_files=both -> только товары с изображением И реально доступной браузерной 3D-моделью
         # model_files=any  -> хотя бы один из файлов модели (GLB/3D id или model file)
         model_files = (self.request.query_params.get('model_files') or '').strip().lower()
         has_glb_q = (
@@ -93,7 +93,16 @@ class ProductViewSet(viewsets.ModelViewSet):
             | (models.Q(image_asset_ids__isnull=False) & ~models.Q(image_asset_ids=''))
         )
         if model_files == 'both':
-            queryset = queryset.filter(has_glb_q & has_image_q)
+            queryset = queryset.filter(has_image_q)
+            valid_ids = []
+            for product in queryset.iterator(chunk_size=200):
+                glb_url = product.get_glb_url() or product.model_rfa_glb_preview
+                if not glb_url:
+                    continue
+                glb_url_str = str(glb_url).lower().split('?', 1)[0]
+                if glb_url_str.endswith(('.glb', '.gltf', '.usdz')):
+                    valid_ids.append(product.id)
+            queryset = queryset.filter(id__in=valid_ids) if valid_ids else queryset.none()
         elif model_files == 'any':
             queryset = queryset.filter(has_glb_q | has_model_file_q)
         

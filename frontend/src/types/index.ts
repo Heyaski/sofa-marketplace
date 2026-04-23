@@ -10,6 +10,7 @@ export interface FileAsset {
 	asset_id: string
 	file_type: 'image' | '3d_model'
 	file_url: string
+	file_ext?: string
 	description?: string
 }
 

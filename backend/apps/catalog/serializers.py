@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Product, Category, ProductImage, FileAsset
+import os
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -66,10 +67,11 @@ class ProductImageSerializer(serializers.ModelSerializer):
 class FileAssetSerializer(serializers.ModelSerializer):
     """Сериализатор для файловых ресурсов"""
     file_url = serializers.SerializerMethodField()
+    file_ext = serializers.SerializerMethodField()
     
     class Meta:
         model = FileAsset
-        fields = ['asset_id', 'file_type', 'file_url', 'description']
+        fields = ['asset_id', 'file_type', 'file_url', 'file_ext', 'description']
     
     def get_file_url(self, obj):
         request = self.context.get("request")
@@ -183,6 +185,14 @@ class FileAssetSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(file_url) if request else file_url
         return None
 
+    def get_file_ext(self, obj):
+        """Расширение файла без точки (например glb)."""
+        name = (getattr(obj.file, "name", "") or "").lower()
+        if not name:
+            return None
+        ext = os.path.splitext(name)[1].lstrip(".")
+        return ext or None
+
 
 class ProductSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
@@ -190,6 +200,7 @@ class ProductSerializer(serializers.ModelSerializer):
     images = serializers.SerializerMethodField()
     model_3d_id = serializers.SerializerMethodField()
     title_display = serializers.SerializerMethodField()
+    model_glb = serializers.SerializerMethodField()
 
     # Новые поля для файловых ресурсов (обязательно включаем — __all__ только модель)
     asset_images = serializers.SerializerMethodField()
@@ -285,6 +296,32 @@ class ProductSerializer(serializers.ModelSerializer):
             color_part = m_color.group(1).strip()
             return f"{item_type} {color_part}".strip()
         return base
+
+    def get_model_glb(self, obj):
+        """Вернуть URL браузерной 3D-модели, даже если она хранится только в FileAsset."""
+        request = self.context.get("request")
+
+        def is_valid_url(url):
+            if not url:
+                return False
+            low = str(url).lower().strip()
+            return low.startswith("http://") or low.startswith("https://") or low.startswith("/")
+
+        if obj.model_glb and is_valid_url(obj.model_glb):
+            return obj.model_glb
+
+        for asset in obj.get_3d_model_assets():
+            name = (getattr(asset.file, "name", "") or "").lower()
+            if not name.endswith((".glb", ".gltf", ".usdz")):
+                continue
+            data = FileAssetSerializer(asset, context={'request': request}).data
+            file_url = data.get("file_url")
+            if is_valid_url(file_url):
+                return file_url
+
+        if obj.model_rfa_glb_preview and is_valid_url(obj.model_rfa_glb_preview):
+            return obj.model_rfa_glb_preview
+        return None
 
     def get_asset_images(self, obj):
         """Получить все изображения из FileAsset"""
