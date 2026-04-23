@@ -10,9 +10,11 @@ import MultiSelectFilter from '@/components/MultiSelectFilter'
 import PriceFilter from '@/components/PriceFilter'
 import RGBRangeFilter from '@/components/RGBRangeFilter'
 import ProductCard from '@/components/ProductCard'
+import { getProductModelUrlAt } from '@/components/ProductModelViewer'
 import { useBaskets, useCategories, useProducts } from '@/hooks/useApi'
 import { authService, productService } from '@/services/api'
 import { Category, ProductFilters, User } from '@/types'
+import { getProductPrimaryImageUrl } from '@/utils/productImage'
 import Script from 'next/script'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useMemo, useState } from 'react'
@@ -223,6 +225,15 @@ function CatalogContent() {
 
 	const visibleCategories = categories?.slice(0, visibleCategoriesCount) || []
 	const hasMoreCategories = categories && categories.length > visibleCategoriesCount
+	const catalogProducts = useMemo(
+		() =>
+			(products || []).filter((product) => {
+				const hasImage = !!getProductPrimaryImageUrl(product)
+				const has3D = !!getProductModelUrlAt(product, 0)
+				return hasImage && has3D
+			}),
+		[products]
+	)
 	return (
 		<div className='min-h-screen bg-gray-bg pb-20 lg:pb-0'>
 			{catalogView === '3d' && (
@@ -527,20 +538,20 @@ function CatalogContent() {
 					<div className='border-t border-gray2 mb-4 sm:mb-6 lg:mb-8'></div>
 
 					{/* 🛋️ Сетка товаров */}
-					{productsLoading && (!products || products.length === 0) ? (
+					{productsLoading && (!catalogProducts || catalogProducts.length === 0) ? (
 						<div className='text-center py-8 text-sm sm:text-base'>Загрузка продуктов...</div>
 					) : productsError ? (
 						<div className='text-center py-8 text-red-500 text-sm sm:text-base'>
 							Ошибка загрузки продуктов: {productsError}
 						</div>
-					) : !products || products.length === 0 ? (
+					) : !catalogProducts || catalogProducts.length === 0 ? (
 						<div className='text-center py-8 text-gray-500 text-sm sm:text-base'>
 							Подходящие товары не найдены
 						</div>
 					) : (
 						<>
 							<div className='grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6'>
-								{products.map(product => (
+								{catalogProducts.map(product => (
 								<ProductCard
 									key={product.id}
 									product={product}
