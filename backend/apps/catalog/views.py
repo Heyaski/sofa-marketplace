@@ -93,16 +93,9 @@ class ProductViewSet(viewsets.ModelViewSet):
             | (models.Q(image_asset_ids__isnull=False) & ~models.Q(image_asset_ids=''))
         )
         if model_files == 'both':
-            queryset = queryset.filter(has_image_q)
-            valid_ids = []
-            for product in queryset.iterator(chunk_size=200):
-                glb_url = product.get_glb_url() or product.model_rfa_glb_preview
-                if not glb_url:
-                    continue
-                glb_url_str = str(glb_url).lower().split('?', 1)[0]
-                if glb_url_str.endswith(('.glb', '.gltf', '.usdz')):
-                    valid_ids.append(product.id)
-            queryset = queryset.filter(id__in=valid_ids) if valid_ids else queryset.none()
+            # Только быстрый SQL-фильтр без Python-итерации по всем товарам,
+            # иначе каталог в 3D режиме может долго "висеть" на загрузке.
+            queryset = queryset.filter(has_glb_q & has_image_q)
         elif model_files == 'any':
             queryset = queryset.filter(has_glb_q | has_model_file_q)
         

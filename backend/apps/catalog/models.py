@@ -175,11 +175,15 @@ class Product(models.Model):
         qs = FileAsset.objects.filter(asset_id__in=all_ids, file_type='3d_model')
         if qs.exists():
             return qs
-        # Префикс: model_3d_asset_ids="Пуф1506" найдёт asset_id="Пуф1506_IVVatOj"
+        # Префикс только с разделителем:
+        # model_3d_asset_ids="Пуф1506" найдёт asset_id="Пуф1506_IVVatOj",
+        # но не зацепит "Пуф15067..." (чужой товар).
         from django.db.models import Q
         prefix_conditions = Q()
         for aid in all_ids:
-            prefix_conditions |= Q(asset_id__startswith=aid, file_type='3d_model')
+            prefix_conditions |= Q(asset_id__iexact=aid, file_type='3d_model')
+            prefix_conditions |= Q(asset_id__istartswith=f"{aid}_", file_type='3d_model')
+            prefix_conditions |= Q(asset_id__istartswith=f"{aid}-", file_type='3d_model')
         prefixed = FileAsset.objects.filter(prefix_conditions).distinct()
         if prefixed.exists():
             return prefixed
