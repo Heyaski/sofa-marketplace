@@ -33,18 +33,35 @@ class DownloadDeleteView(generics.DestroyAPIView):
 class PresignView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    def _as_absolute(self, request, url: str | None):
+        if not url:
+            return None
+        if url.startswith('http://') or url.startswith('https://'):
+            return url
+        return request.build_absolute_uri(url)
+
     def _resolve_file_url(self, request, product, fmt):
         """Возвращает URL файла нужного формата или None."""
-        if fmt in ('.rfa', '.ifc') and product.model_rfa:
-            url = product.model_rfa
-            if url.startswith('http'):
-                return url
-            return request.build_absolute_uri(url)
-        if fmt == '.glb' and product.model_glb:
-            url = product.model_glb
-            if url.startswith('http'):
-                return url
-            return request.build_absolute_uri(url)
+        if fmt in ('.rfa', '.ifc'):
+            # 1) Приоритет: legacy поле модели у продукта
+            if product.model_rfa:
+                return self._as_absolute(request, product.model_rfa)
+            # 2) Fallback: файл в FileAsset, привязанный к товару
+            for asset in product.get_3d_model_assets():
+                name = (getattr(asset.file, 'name', '') or '').lower()
+                if name.endswith(('.rfa', '.ifc')):
+                    file_url = getattr(asset.file, 'url', None)
+                    if file_url:
+                        return self._as_absolute(request, file_url)
+        if fmt == '.glb':
+            if product.model_glb:
+                return self._as_absolute(request, product.model_glb)
+            for asset in product.get_3d_model_assets():
+                name = (getattr(asset.file, 'name', '') or '').lower()
+                if name.endswith(('.glb', '.gltf', '.usdz')):
+                    file_url = getattr(asset.file, 'url', None)
+                    if file_url:
+                        return self._as_absolute(request, file_url)
         if product.image and hasattr(product.image, 'url'):
             return request.build_absolute_uri(product.image.url)
         return None

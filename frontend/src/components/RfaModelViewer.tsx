@@ -10,7 +10,15 @@ interface RfaModelViewerProps {
 }
 
 export default function RfaModelViewer({ product, className = '', onDownload }: RfaModelViewerProps) {
-	const hasModelFile = !!product.model_rfa
+	const modelFileFromAsset = product.asset_3d_models?.find((asset) => {
+		const ext = (asset.file_ext || '').toLowerCase()
+		if (ext === 'ifc' || ext === 'rfa') return true
+		const url = (asset.file_url || '').toLowerCase()
+		return url.endsWith('.ifc') || url.endsWith('.rfa') || url.includes('.ifc?') || url.includes('.rfa?')
+	})
+	const hasModelFile = !!product.model_rfa || !!modelFileFromAsset
+	const modelFileUrl = (product.model_rfa || modelFileFromAsset?.file_url || '').toLowerCase()
+	const fileFormatLabel = modelFileUrl.includes('.ifc') ? '.ifc' : modelFileUrl.includes('.rfa') ? '.rfa' : 'файл'
 	const modelPreviewUrl = getRfaPreviewModelUrl(product)
 
 	return (
@@ -32,7 +40,7 @@ export default function RfaModelViewer({ product, className = '', onDownload }: 
 					</>
 				)}
 				{hasModelFile && !modelPreviewUrl ? (
-					<div className='text-xs text-gray px-2'>Файл доступен для скачивания</div>
+					<div className='text-xs text-gray px-2'>Доступен формат {fileFormatLabel}</div>
 				) : (
 					!hasModelFile && <div className='text-xs text-gray'>Файл модели для этого товара не добавлен</div>
 				)}
@@ -43,7 +51,7 @@ export default function RfaModelViewer({ product, className = '', onDownload }: 
 				disabled={!hasModelFile}
 				className='mt-3 py-2 px-3 text-sm rounded-lg border border-gray2 text-black bg-white hover:bg-gray-bg hover:border-main1 hover:text-main1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
 			>
-				{hasModelFile ? 'Скачать файл' : 'Файл недоступен'}
+				{hasModelFile ? `Скачать ${fileFormatLabel}` : 'Файл недоступен'}
 			</button>
 		</div>
 	)

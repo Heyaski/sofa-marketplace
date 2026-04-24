@@ -38,8 +38,7 @@ class IsCatalogEditor(BasePermission):
             getattr(request.user, 'is_superuser', False)
         )
 from django.db import models
-from django.db.models.functions import Concat
-from .models import Product, Category, FileAsset
+from .models import Product, Category
 from .serializers import ProductSerializer, CategorySerializer
 
 
@@ -82,22 +81,11 @@ class ProductViewSet(viewsets.ModelViewSet):
         # model_files=both -> только товары с изображением И реально доступной браузерной 3D-моделью
         # model_files=any  -> хотя бы один из файлов модели (GLB/3D id или model file)
         model_files = (self.request.query_params.get('model_files') or '').strip().lower()
-        glb_ext_q = (
-            models.Q(file__iendswith='.glb')
-            | models.Q(file__iendswith='.gltf')
-            | models.Q(file__iendswith='.usdz')
-        )
-        has_glb_asset_by_model_id_q = models.Exists(
-            FileAsset.objects.filter(file_type='3d_model').filter(glb_ext_q).filter(
-                models.Q(asset_id__iexact=models.OuterRef('model_3d_asset_ids'))
-                | models.Q(asset_id__istartswith=Concat(models.OuterRef('model_3d_asset_ids'), models.Value('_')))
-                | models.Q(asset_id__istartswith=Concat(models.OuterRef('model_3d_asset_ids'), models.Value('-')))
-            )
-        )
+        has_asset_id_link_q = models.Q(model_3d_asset_ids__isnull=False) & ~models.Q(model_3d_asset_ids='')
         has_glb_q = (
-            (models.Q(model_glb__isnull=False) & ~models.Q(model_glb=''))
+            has_asset_id_link_q
+            | (models.Q(model_glb__isnull=False) & ~models.Q(model_glb=''))
             | (models.Q(model_rfa_glb_preview__isnull=False) & ~models.Q(model_rfa_glb_preview=''))
-            | has_glb_asset_by_model_id_q
         )
         has_model_file_q = models.Q(model_rfa__isnull=False) & ~models.Q(model_rfa='')
         has_image_q = (
@@ -253,7 +241,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         """Кэширование списка товаров (5 мин) — ускоряет загрузку страниц с 3D моделями."""
-        cache_key = f"products_list:v2:{request.GET.urlencode()}"
+        cache_key = f"products_list:v3:{request.GET.urlencode()}"
         cached = cache.get(cache_key)
         if cached is not None:
             return Response(cached)
@@ -264,7 +252,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         """Кэширование деталей товара (10 мин)."""
         pk = kwargs.get("pk")
-        cache_key = f"product_detail:v2:{pk}"
+        cache_key = f"product_detail:v3:{pk}"
         cached = cache.get(cache_key)
         if cached is not None:
             return Response(cached)
