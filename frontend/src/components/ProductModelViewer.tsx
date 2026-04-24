@@ -165,6 +165,8 @@ export default function ProductModelViewer({
 	const [scriptReady, setScriptReady] = useState(false)
 	const [resolvedSrc, setResolvedSrc] = useState<string | null>(null)
 	const [inViewport, setInViewport] = useState(false)
+	const [modelLoadFailed, setModelLoadFailed] = useState(false)
+	const [modelLoaded, setModelLoaded] = useState(false)
 	const containerRef = useRef<HTMLDivElement>(null)
 	const modelViewerRef = useRef<any>(null)
 
@@ -215,6 +217,8 @@ export default function ProductModelViewer({
 	const loadedForUrlRef = useRef<string | null>(null)
 	useEffect(() => {
 		if (!modelUrl || !scriptReady || !inViewport) return
+		setModelLoadFailed(false)
+		setModelLoaded(false)
 		// Не выгружаем модель при выходе из viewport — оставляем blob, чтобы при возврате скролла модель появлялась мгновенно
 		if (loadedForUrlRef.current === modelUrl) return
 		const ac = new AbortController()
@@ -239,6 +243,26 @@ export default function ProductModelViewer({
 			ac.abort()
 		}
 	}, [modelUrl, scriptReady, inViewport])
+
+	useEffect(() => {
+		const el = modelViewerRef.current as HTMLElement | null
+		if (!el || !resolvedSrc) return
+		const onLoad = () => {
+			setModelLoaded(true)
+			setModelLoadFailed(false)
+		}
+		const onError = () => {
+			setModelLoaded(false)
+			setModelLoadFailed(true)
+		}
+		el.addEventListener('load', onLoad)
+		el.addEventListener('error', onError)
+		return () => {
+			el.removeEventListener('load', onLoad)
+			el.removeEventListener('error', onError)
+		}
+	}, [resolvedSrc])
+
 	useEffect(() => () => {
 		if (blobUrlRef.current) {
 			URL.revokeObjectURL(blobUrlRef.current)
@@ -251,8 +275,14 @@ export default function ProductModelViewer({
 	}, [])
 
 	const TRANSPARENT_PIXEL = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjwvc3ZnPg=='
-	const hasModel = !!modelUrl && isValidUrl(modelUrl) && scriptReady && resolvedSrc !== null
+	const hasModel =
+		!!modelUrl &&
+		isValidUrl(modelUrl) &&
+		scriptReady &&
+		resolvedSrc !== null &&
+		!modelLoadFailed
 	const isLoading = inViewport && !resolvedSrc
+	const isViewerLoading = hasModel && !modelLoaded
 
 	const pageSizeClass = compact
 		? 'aspect-square min-h-[180px] max-h-[280px] sm:max-h-[300px]'
@@ -269,7 +299,7 @@ export default function ProductModelViewer({
 		>
 			{hasModel ? (
 				<div
-					className="w-full h-full cursor-grab active:cursor-grabbing"
+					className="relative w-full h-full cursor-grab active:cursor-grabbing"
 					onClick={(e) => e.stopPropagation()}
 					onDoubleClick={(e) => {
 						e.stopPropagation()
@@ -296,6 +326,12 @@ export default function ProductModelViewer({
 							pointerEvents: 'auto',
 						}}
 					/>
+					{isViewerLoading && (
+						<div className='pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gray-50/80'>
+							<div className='animate-spin rounded-full h-8 w-8 border-2 border-main1 border-t-transparent' />
+							<span className='text-xs text-gray'>Загрузка 3D...</span>
+						</div>
+					)}
 				</div>
 			) : isLoading ? (
 				<div className="w-full h-full flex flex-col items-center justify-center gap-2 cursor-pointer" onClick={onClick}>
