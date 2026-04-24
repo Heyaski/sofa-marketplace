@@ -59,10 +59,11 @@ function CatalogContent() {
 	const effectiveFilters = useMemo<ProductFilters>(
 		() => ({
 			...filters,
-			// Показываем в каталоге только товары с изображением и 3D-моделью.
-			model_files: 'both',
+			// Для обычных пользователей скрываем товары без 3D и изображения.
+			// Суперадмин видит все товары, включая неполные карточки.
+			...(!isSuperuser ? { model_files: 'both' as const } : {}),
 		}),
-		[filters]
+		[filters, isSuperuser]
 	)
 
 	const {
