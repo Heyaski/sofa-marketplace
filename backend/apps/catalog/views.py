@@ -38,7 +38,8 @@ class IsCatalogEditor(BasePermission):
             getattr(request.user, 'is_superuser', False)
         )
 from django.db import models
-from .models import Product, Category
+from django.db.models.functions import Concat
+from .models import Product, Category, FileAsset
 from .serializers import ProductSerializer, CategorySerializer
 
 
@@ -81,11 +82,22 @@ class ProductViewSet(viewsets.ModelViewSet):
         # model_files=both -> только товары с изображением И реально доступной браузерной 3D-моделью
         # model_files=any  -> хотя бы один из файлов модели (GLB/3D id или model file)
         model_files = (self.request.query_params.get('model_files') or '').strip().lower()
-        has_asset_id_link_q = models.Q(model_3d_asset_ids__isnull=False) & ~models.Q(model_3d_asset_ids='')
+        glb_ext_q = (
+            models.Q(file__iendswith='.glb')
+            | models.Q(file__iendswith='.gltf')
+            | models.Q(file__iendswith='.usdz')
+        )
+        has_glb_asset_by_model_id_q = models.Exists(
+            FileAsset.objects.filter(file_type='3d_model').filter(glb_ext_q).filter(
+                models.Q(asset_id__iexact=models.OuterRef('model_3d_asset_ids'))
+                | models.Q(asset_id__istartswith=Concat(models.OuterRef('model_3d_asset_ids'), models.Value('_')))
+                | models.Q(asset_id__istartswith=Concat(models.OuterRef('model_3d_asset_ids'), models.Value('-')))
+            )
+        )
         has_glb_q = (
-            has_asset_id_link_q
-            | (models.Q(model_glb__isnull=False) & ~models.Q(model_glb=''))
+            (models.Q(model_glb__isnull=False) & ~models.Q(model_glb=''))
             | (models.Q(model_rfa_glb_preview__isnull=False) & ~models.Q(model_rfa_glb_preview=''))
+            | has_glb_asset_by_model_id_q
         )
         has_model_file_q = models.Q(model_rfa__isnull=False) & ~models.Q(model_rfa='')
         has_image_q = (
