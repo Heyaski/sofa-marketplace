@@ -8,6 +8,7 @@ import { Product } from '../types'
 import { formatDimension } from '../utils/format'
 import { getTitleWithoutBrand } from '../utils/productTitle'
 import { getProductPrimaryImageUrl } from '@/utils/productImage'
+import { hasDownloadableRfa } from '@/utils/productModelFiles'
 import ProductModelViewer, { getProductModelUrlAt } from './ProductModelViewer'
 import EditProductModal from './EditProductModal'
 import { productService } from '../services/api'
@@ -83,8 +84,8 @@ export default function ProductCard({
 	}
 
 	const handleDownloadModel = async () => {
-		if (!product.model_rfa) {
-			setToastMessage('У этой модели отсутствует файл модели')
+		if (!hasDownloadableRfa(product)) {
+			setToastMessage('У этой модели нет файла .rfa')
 			return
 		}
 
@@ -107,7 +108,7 @@ export default function ProductCard({
 				},
 				body: JSON.stringify({
 					product_id: product.id,
-					format: '.ifc',
+					format: '.rfa',
 				}),
 			})
 
@@ -242,7 +243,12 @@ export default function ProductCard({
 						</button>
 					)
 				) : getProductModelUrlAt(product, 0) ? (
-					<ProductModelViewer product={product} variant='card' onClick={handleCardClick} />
+					<ProductModelViewer
+						product={product}
+						variant='card'
+						fallbackPosterUrl={catalogThumbUrl}
+						onClick={handleCardClick}
+					/>
 				) : (
 					<button
 						type='button'

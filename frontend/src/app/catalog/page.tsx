@@ -59,8 +59,8 @@ function CatalogContent() {
 	const effectiveFilters = useMemo<ProductFilters>(
 		() => ({
 			...filters,
-			// Для обычных пользователей скрываем товары без 3D и изображения.
-			// Суперадмин видит все товары, включая неполные карточки.
+			// Обычные пользователи — только полные карточки (картинка + GLB в БД).
+			// Суперадмин видит весь каталог без этого ограничения.
 			...(!isSuperuser ? { model_files: 'both' as const } : {}),
 		}),
 		[filters, isSuperuser]

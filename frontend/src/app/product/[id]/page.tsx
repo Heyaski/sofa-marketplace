@@ -8,6 +8,7 @@ import Header from '@/components/Header'
 import ProductModelViewer, { getProductModelUrlAt } from '@/components/ProductModelViewer'
 import RfaModelViewer from '@/components/RfaModelViewer'
 import { getProductPrimaryImageUrl } from '@/utils/productImage'
+import { hasDownloadableRfa } from '@/utils/productModelFiles'
 import { config } from '@/config'
 import { formatDimension } from '@/utils/format'
 import { getTitleWithoutBrand } from '@/utils/productTitle'
@@ -92,8 +93,8 @@ export default function ProductPage({ params }: ProductPageProps) {
 			setToastMessage('Товар еще загружается')
 			return
 		}
-		if (!product.model_rfa) {
-			setToastMessage('У этой модели отсутствует файл модели')
+		if (!hasDownloadableRfa(product)) {
+			setToastMessage('У этой модели нет файла .rfa')
 			return
 		}
 		if (isAuthenticated === false) {
@@ -112,7 +113,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 					},
 					body: JSON.stringify({
 						product_id: product.id,
-						format: '.ifc',
+						format: '.rfa',
 					}),
 				}
 			)

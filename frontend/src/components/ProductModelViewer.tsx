@@ -146,6 +146,8 @@ interface ProductModelViewerProps {
 	modelIndex?: number
 	/** Явный URL модели (если нужно показать конкретный источник, например RFA preview GLB). */
 	modelUrlOverride?: string | null
+	/** Если GLB не загрузился, показываем фото каталога (битые ссылки, CORS и т.д.). */
+	fallbackPosterUrl?: string | null
 	/** Уменьшенная высота для страницы товара (два вьюера в ряд). */
 	compact?: boolean
 	className?: string
@@ -157,6 +159,7 @@ export default function ProductModelViewer({
 	variant = 'card',
 	modelIndex = 0,
 	modelUrlOverride = null,
+	fallbackPosterUrl = null,
 	compact = false,
 	className = '',
 	onClick,
@@ -338,6 +341,24 @@ export default function ProductModelViewer({
 					<div className='animate-spin rounded-full h-8 w-8 border-2 border-main1 border-t-transparent' />
 					<span className='text-xs text-gray'>Загрузка 3D...</span>
 				</div>
+			) : fallbackPosterUrl ? (
+				<button
+					type='button'
+					className='relative w-full h-full min-h-[200px] cursor-pointer'
+					onClick={onClick}
+				>
+					{/* eslint-disable-next-line @next/next/no-img-element -- внешние URL с API */}
+					<img
+						src={fallbackPosterUrl}
+						alt=''
+						className='absolute inset-0 w-full h-full object-cover'
+					/>
+					<div className='absolute inset-0 flex items-center justify-center bg-black/35 px-2'>
+						<span className='text-xs text-white drop-shadow'>
+							3D недоступно — показано фото
+						</span>
+					</div>
+				</button>
 			) : (
 				<div
 					className="w-full h-full min-h-[200px] cursor-pointer flex items-center justify-center text-xs text-gray px-2 text-center"

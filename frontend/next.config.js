@@ -3,6 +3,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 const nextConfig = {
 	output: 'standalone',
+	transpilePackages: ['three', 'web-ifc-three', 'three-mesh-bvh'],
 	// Проксируем /media/* на API — GLB/изображения отдаются бэкендом, браузер идёт на www
 	async rewrites() {
 		return [

@@ -19,8 +19,8 @@ export const config = {
 	// Настройки пагинации
 	DEFAULT_PAGE_SIZE: 20,
 
-	// Настройки форматов файлов (по умолчанию .ifc)
-	DEFAULT_FORMAT: '.ifc',
+	// Корзина / скачивание BIM: только Revit (.rfa)
+	DEFAULT_FORMAT: '.rfa',
 
 	// Настройки валюты
 	CURRENCY: 'RUB',

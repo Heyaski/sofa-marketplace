@@ -1,1 +1,13 @@
-{}
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/basket/share/[token]/page": "app/basket/share/[token]/page.js",
+  "/catalog/page": "app/catalog/page.js",
+  "/login/page": "app/login/page.js",
+  "/offer/page": "app/offer/page.js",
+  "/page": "app/page.js",
+  "/product/[id]/page": "app/product/[id]/page.js",
+  "/privacy/page": "app/privacy/page.js",
+  "/profile/basket/[id]/page": "app/profile/basket/[id]/page.js",
+  "/register/page": "app/register/page.js",
+  "/profile/page": "app/profile/page.js"
+}

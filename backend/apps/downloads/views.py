@@ -42,14 +42,31 @@ class PresignView(APIView):
 
     def _resolve_file_url(self, request, product, fmt):
         """Возвращает URL файла нужного формата или None."""
-        if fmt in ('.rfa', '.ifc'):
-            # 1) Приоритет: legacy поле модели у продукта
-            if product.model_rfa:
+
+        def _name_is_rfa(name: str) -> bool:
+            n = (name or '').lower().strip()
+            base = n.split('?')[0]
+            return base.endswith('.rfa')
+
+        if fmt == '.rfa':
+            # Только Revit (.rfa), не IFC
+            mr = getattr(product, 'model_rfa', '') or ''
+            if mr and _name_is_rfa(mr):
                 return self._as_absolute(request, product.model_rfa)
-            # 2) Fallback: файл в FileAsset, привязанный к товару
+            for asset in product.get_3d_model_assets():
+                name = (getattr(asset.file, 'name', '') or '')
+                if _name_is_rfa(name):
+                    file_url = getattr(asset.file, 'url', None)
+                    if file_url:
+                        return self._as_absolute(request, file_url)
+        # Устарело: клиентские сценарии скачивают только .rfa
+        if fmt in ('.ifc',):
+            mr = getattr(product, 'model_rfa', '') or ''
+            if mr and (mr.lower().split('?')[0].endswith('.ifc') or '.ifc?' in mr.lower()):
+                return self._as_absolute(request, product.model_rfa)
             for asset in product.get_3d_model_assets():
                 name = (getattr(asset.file, 'name', '') or '').lower()
-                if name.endswith(('.rfa', '.ifc')):
+                if name.endswith('.ifc'):
                     file_url = getattr(asset.file, 'url', None)
                     if file_url:
                         return self._as_absolute(request, file_url)
