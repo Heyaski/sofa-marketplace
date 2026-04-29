@@ -1,6 +1,7 @@
 from pathlib import Path
 import os
 from datetime import timedelta
+from urllib.parse import urlparse, unquote
 from corsheaders.defaults import default_headers
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -101,12 +102,63 @@ TEMPLATES = [{
 }]
 WSGI_APPLICATION = "config.wsgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+def _db_from_database_url(url: str):
+    """Минимальный парсер DATABASE_URL без внешних зависимостей."""
+    parsed = urlparse(url)
+    scheme = (parsed.scheme or "").lower()
+    engine_map = {
+        "postgres": "django.db.backends.postgresql",
+        "postgresql": "django.db.backends.postgresql",
+        "pgsql": "django.db.backends.postgresql",
+        "mysql": "django.db.backends.mysql",
+        "sqlite": "django.db.backends.sqlite3",
     }
-}
+    engine = engine_map.get(scheme)
+    if not engine:
+        raise ValueError(f"Unsupported DATABASE_URL scheme: {scheme}")
+
+    if engine == "django.db.backends.sqlite3":
+        sqlite_name = unquote(parsed.path.lstrip("/")) if parsed.path else ""
+        if not sqlite_name:
+            sqlite_name = str(BASE_DIR / "db.sqlite3")
+        return {
+            "ENGINE": engine,
+            "NAME": sqlite_name,
+        }
+
+    return {
+        "ENGINE": engine,
+        "NAME": unquote((parsed.path or "").lstrip("/")),
+        "USER": unquote(parsed.username or ""),
+        "PASSWORD": unquote(parsed.password or ""),
+        "HOST": parsed.hostname or "",
+        "PORT": str(parsed.port or ""),
+    }
+
+
+DATABASE_URL = get_env("DATABASE_URL", "")
+if DATABASE_URL:
+    DATABASES = {"default": _db_from_database_url(DATABASE_URL)}
+else:
+    DB_ENGINE = get_env("DB_ENGINE", "django.db.backends.sqlite3")
+    if DB_ENGINE == "django.db.backends.sqlite3":
+        DATABASES = {
+            "default": {
+                "ENGINE": DB_ENGINE,
+                "NAME": get_env("DB_NAME", str(BASE_DIR / "db.sqlite3")),
+            }
+        }
+    else:
+        DATABASES = {
+            "default": {
+                "ENGINE": DB_ENGINE,
+                "NAME": get_env("DB_NAME", ""),
+                "USER": get_env("DB_USER", ""),
+                "PASSWORD": get_env("DB_PASSWORD", ""),
+                "HOST": get_env("DB_HOST", ""),
+                "PORT": get_env("DB_PORT", ""),
+            }
+        }
 
 # Redis для кэширования API (список товаров, детали — ускоряет загрузку 3D моделей)
 REDIS_URL = get_env("REDIS_URL", "redis://127.0.0.1:6379/0")

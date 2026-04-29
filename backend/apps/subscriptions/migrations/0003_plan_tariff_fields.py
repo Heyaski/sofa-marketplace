@@ -50,7 +50,7 @@ class Migration(migrations.Migration):
             name='price',
             field=models.DecimalField(decimal_places=2, default=0, max_digits=10, verbose_name='Цена помесячно (руб.)'),
         ),
-        migrations.AlterField(
+        migrations.AddField(
             model_name='plan',
             name='subscription_type',
             field=models.CharField(blank=True, choices=[('free', 'Free'), ('trial', 'Trial'), ('basic', 'Базовый'), ('pro', 'Pro'), ('premium', 'Pro (legacy)')], help_text='free, trial, basic, pro', max_length=10, null=True, unique=True, verbose_name='Тип подписки'),
