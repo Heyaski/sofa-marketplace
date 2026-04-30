@@ -4,29 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Product } from '../types'
 
 const MODEL_VIEWER_FORMATS = ['glb', 'gltf', 'usdz']
-const GLB_CACHE_NAME = 'vizhub-glb-models'
-const GLB_CACHE_MAX_ENTRIES = 15
 const GLB_VERSION = 'v=opt4'
-const MAX_CONCURRENT_LOADS = 3
 const VIEWPORT_HYSTERESIS_MS = 400
-
-const loadQueue = {
-	active: 0,
-	queue: [] as (() => void)[],
-	async acquire() {
-		if (this.active < MAX_CONCURRENT_LOADS) {
-			this.active++
-			return
-		}
-		await new Promise<void>(r => this.queue.push(r))
-		this.active++
-	},
-	release() {
-		this.active--
-		const next = this.queue.shift()
-		if (next) next()
-	},
-}
 
 function withGlbVersion(url: string): string {
 	// Нельзя менять query-параметры подписанных URL (S3/совместимые),
@@ -118,44 +97,6 @@ function getModelUrl(product: Product, index: number = 0): string | null {
 	return getProductModelUrlAt(product, index)
 }
 
-async function trimCacheIfNeeded(cache: Cache) {
-	try {
-		const keys = await cache.keys()
-		if (keys.length > GLB_CACHE_MAX_ENTRIES) {
-			for (let i = 0; i < keys.length - GLB_CACHE_MAX_ENTRIES; i++) {
-				await cache.delete(keys[i])
-			}
-		}
-	} catch {
-		/* ignore */
-	}
-}
-
-async function getCachedOrFetchModelUrl(url: string, signal?: AbortController['signal']): Promise<string> {
-	if (typeof caches === 'undefined') return url
-	try {
-		const cached = await caches.match(url)
-		if (cached) {
-			const blob = await cached.blob()
-			return URL.createObjectURL(blob)
-		}
-		await loadQueue.acquire()
-		try {
-			const res = await fetch(url, { mode: 'cors', signal })
-			if (!res.ok) return url
-			const cache = await caches.open(GLB_CACHE_NAME)
-			await cache.put(url, res.clone())
-			trimCacheIfNeeded(cache)
-			const blob = await res.blob()
-			return URL.createObjectURL(blob)
-		} finally {
-			loadQueue.release()
-		}
-	} catch {
-		return url
-	}
-}
-
 interface ProductModelViewerProps {
 	product: Product
 	variant?: 'card' | 'page'
@@ -233,35 +174,13 @@ export default function ProductModelViewer({
 		return () => { cancelled = true }
 	}, [modelUrl])
 
-	const blobUrlRef = useRef<string | null>(null)
-	const loadedForUrlRef = useRef<string | null>(null)
 	useEffect(() => {
 		if (!modelUrl || !scriptReady || !inViewport) return
 		setModelLoadFailed(false)
 		setModelLoaded(false)
-		// Не выгружаем модель при выходе из viewport — оставляем blob, чтобы при возврате скролла модель появлялась мгновенно
-		if (loadedForUrlRef.current === modelUrl) return
-		const ac = new AbortController()
-		if (loadedForUrlRef.current && loadedForUrlRef.current !== modelUrl && blobUrlRef.current) {
-			URL.revokeObjectURL(blobUrlRef.current)
-			blobUrlRef.current = null
-			loadedForUrlRef.current = null
-			setResolvedSrc(null)
-		}
-		getCachedOrFetchModelUrl(modelUrl, ac.signal).then((src) => {
-			if (ac.signal.aborted) {
-				if (src !== modelUrl && src.startsWith('blob:')) URL.revokeObjectURL(src)
-				return
-			}
-			loadedForUrlRef.current = modelUrl
-			if (src !== modelUrl && src.startsWith('blob:')) blobUrlRef.current = src
-			setResolvedSrc(src)
-		}).catch(() => {
-			if (!ac.signal.aborted) setResolvedSrc(modelUrl)
-		})
-		return () => {
-			ac.abort()
-		}
+		// Для стабильной загрузки на Safari/iOS и S3 с range-ответами
+		// передаем model-viewer прямой URL, без промежуточного blob.
+		setResolvedSrc(modelUrl)
 	}, [modelUrl, scriptReady, inViewport])
 
 	useEffect(() => {
@@ -282,13 +201,6 @@ export default function ProductModelViewer({
 			el.removeEventListener('error', onError)
 		}
 	}, [resolvedSrc])
-
-	useEffect(() => () => {
-		if (blobUrlRef.current) {
-			URL.revokeObjectURL(blobUrlRef.current)
-			blobUrlRef.current = null
-		}
-	}, [])
 
 	const setupRef = useCallback((el: any) => {
 		modelViewerRef.current = el
