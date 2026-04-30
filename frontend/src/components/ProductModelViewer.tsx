@@ -6,6 +6,26 @@ import { Product } from '../types'
 const MODEL_VIEWER_FORMATS = ['glb', 'gltf', 'usdz']
 const GLB_VERSION = 'v=opt4'
 const VIEWPORT_HYSTERESIS_MS = 400
+const MAX_CONCURRENT_MODEL_LOADS = 3
+
+const modelLoadQueue = {
+	active: 0,
+	queue: [] as Array<() => void>,
+	async acquire(): Promise<() => void> {
+		if (this.active >= MAX_CONCURRENT_MODEL_LOADS) {
+			await new Promise<void>(resolve => this.queue.push(resolve))
+		}
+		this.active++
+		let released = false
+		return () => {
+			if (released) return
+			released = true
+			this.active = Math.max(0, this.active - 1)
+			const next = this.queue.shift()
+			if (next) next()
+		}
+	},
+}
 
 function withGlbVersion(url: string): string {
 	// Нельзя менять query-параметры подписанных URL (S3/совместимые),
@@ -130,6 +150,7 @@ export default function ProductModelViewer({
 	const [modelLoaded, setModelLoaded] = useState(false)
 	const containerRef = useRef<HTMLDivElement>(null)
 	const modelViewerRef = useRef<any>(null)
+	const releaseQueueSlotRef = useRef<null | (() => void)>(null)
 
 	// Виртуализация: загружаем 3D когда карточка в viewport. Гистерезис — не скрываем при кратковременном выходе из viewport.
 	useEffect(() => {
@@ -176,12 +197,27 @@ export default function ProductModelViewer({
 
 	useEffect(() => {
 		if (!modelUrl || !scriptReady || !inViewport) return
+		// Не сбрасываем состояние на каждом пересечении viewport:
+		// иначе спиннер может "залипать" поверх уже загруженной модели.
 		setModelLoadFailed(false)
-		setModelLoaded(false)
-		// Для стабильной загрузки на Safari/iOS и S3 с range-ответами
-		// передаем model-viewer прямой URL, без промежуточного blob.
-		setResolvedSrc(modelUrl)
-	}, [modelUrl, scriptReady, inViewport])
+		if (resolvedSrc !== modelUrl) {
+			setModelLoaded(false)
+			let cancelled = false
+			modelLoadQueue.acquire().then((release) => {
+				if (cancelled) {
+					release()
+					return
+				}
+				releaseQueueSlotRef.current = release
+				// Для стабильной загрузки на Safari/iOS и S3 с range-ответами
+				// передаем model-viewer прямой URL, без промежуточного blob.
+				setResolvedSrc(modelUrl)
+			})
+			return () => {
+				cancelled = true
+			}
+		}
+	}, [modelUrl, scriptReady, inViewport, resolvedSrc])
 
 	useEffect(() => {
 		const el = modelViewerRef.current as HTMLElement | null
@@ -189,10 +225,18 @@ export default function ProductModelViewer({
 		const onLoad = () => {
 			setModelLoaded(true)
 			setModelLoadFailed(false)
+			if (releaseQueueSlotRef.current) {
+				releaseQueueSlotRef.current()
+				releaseQueueSlotRef.current = null
+			}
 		}
 		const onError = () => {
 			setModelLoaded(false)
 			setModelLoadFailed(true)
+			if (releaseQueueSlotRef.current) {
+				releaseQueueSlotRef.current()
+				releaseQueueSlotRef.current = null
+			}
 		}
 		el.addEventListener('load', onLoad)
 		el.addEventListener('error', onError)
@@ -201,6 +245,15 @@ export default function ProductModelViewer({
 			el.removeEventListener('error', onError)
 		}
 	}, [resolvedSrc])
+
+	useEffect(() => {
+		return () => {
+			if (releaseQueueSlotRef.current) {
+				releaseQueueSlotRef.current()
+				releaseQueueSlotRef.current = null
+			}
+		}
+	}, [])
 
 	const setupRef = useCallback((el: any) => {
 		modelViewerRef.current = el
@@ -214,7 +267,8 @@ export default function ProductModelViewer({
 		resolvedSrc !== null &&
 		!modelLoadFailed
 	const isLoading = inViewport && !resolvedSrc
-	const isViewerLoading = hasModel && !modelLoaded
+	// Показываем крутилку только пока модель реально не загружена и карточка в viewport.
+	const isViewerLoading = hasModel && inViewport && !modelLoaded
 
 	const pageSizeClass = compact
 		? 'aspect-square min-h-[180px] max-h-[280px] sm:max-h-[300px]'
