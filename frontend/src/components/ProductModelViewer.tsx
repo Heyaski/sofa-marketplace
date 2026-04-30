@@ -47,6 +47,22 @@ function isValidUrl(url: string | null | undefined): boolean {
 	return u.startsWith('http://') || u.startsWith('https://') || u.startsWith('/')
 }
 
+function normalizeModelUrl(url: string): string {
+	try {
+		if (url.startsWith('/')) {
+			return encodeURI(url)
+		}
+		const parsed = new URL(url)
+		parsed.pathname = parsed.pathname
+			.split('/')
+			.map(part => encodeURIComponent(decodeURIComponent(part)))
+			.join('/')
+		return parsed.toString()
+	} catch {
+		return encodeURI(url)
+	}
+}
+
 function collectGlbUrls(product: Product): string[] {
 	if (!product) return []
 	const seen = new Set<string>()
@@ -54,14 +70,15 @@ function collectGlbUrls(product: Product): string[] {
 	const modelId = (product.model_3d_id || '').trim().toLowerCase()
 	const push = (raw: string | null | undefined, extHint?: string | null) => {
 		if (!raw || !isValidUrl(raw)) return
-		const u = raw.toLowerCase()
+		const normalized = normalizeModelUrl(raw)
+		const u = normalized.toLowerCase()
 		const extFromUrl = u.substring(u.lastIndexOf('.') + 1).split('?')[0]
 		const ext = (extHint || extFromUrl || '').toLowerCase().replace('.', '')
 		if (!MODEL_VIEWER_FORMATS.includes(ext)) return
-		const base = raw.split('?')[0]
+		const base = normalized.split('?')[0]
 		if (seen.has(base)) return
 		seen.add(base)
-		out.push(withGlbVersion(raw))
+		out.push(withGlbVersion(normalized))
 	}
 
 	// 1) В каталоге приоритет за ассетами, привязанными к товару (наиболее точное соответствие карточке).
