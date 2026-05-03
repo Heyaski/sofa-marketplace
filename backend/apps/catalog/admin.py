@@ -33,8 +33,11 @@ class CategoryAdmin(SortableAdminMixin, ExportExcelMixin, admin.ModelAdmin):
     list_editable = ("unlock_day",)
     search_fields = ("name",)
     prepopulated_fields = {"slug": ("name",)}
-    actions = ["export_selected_to_excel"]
-    
+    # Явный список actions заменяет дефолтные; без delete_selected нет массового удаления и экрана подтверждения.
+    actions = ["delete_selected", "export_selected_to_excel"]
+    delete_confirmation_template = "admin/catalog/category/delete_confirmation.html"
+    delete_selected_confirmation_template = "admin/catalog/category/delete_selected_confirmation.html"
+
     class Meta:
         verbose_name = "Категория"
         verbose_name_plural = "Категории"

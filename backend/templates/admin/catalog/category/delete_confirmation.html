@@ -1,0 +1,68 @@
+{% extends "admin/delete_confirmation.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+.category-delete-submit-row {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	flex-wrap: wrap;
+	padding: 14px 16px;
+	margin: 16px 0;
+	background: #f0f7fb;
+	border: 1px solid #417690;
+	border-radius: 4px;
+}
+.category-delete-submit-row--top {
+	position: sticky;
+	top: 0;
+	z-index: 100;
+	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+.category-delete-submit-row--bottom {
+	position: sticky;
+	bottom: 0;
+	z-index: 100;
+	margin-top: 20px;
+	box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.12);
+}
+.category-delete-related-details summary {
+	cursor: pointer;
+	padding: 10px 12px;
+	background: #eef2f5;
+	border-radius: 4px;
+	font-weight: 600;
+	margin-bottom: 8px;
+}
+.category-delete-related-details[open] summary {
+	margin-bottom: 12px;
+}
+</style>
+{% endblock %}
+
+{% block delete_confirm %}
+{% translate "Yes, I'm sure" as yes_sure %}
+{% translate "No, take me back" as no_back %}
+<form method="post">{% csrf_token %}
+<input type="hidden" name="post" value="yes">
+{% if is_popup %}<input type="hidden" name="{{ is_popup_var }}" value="1">{% endif %}
+{% if to_field %}<input type="hidden" name="{{ to_field_var }}" value="{{ to_field }}">{% endif %}
+<div class="category-delete-submit-row category-delete-submit-row--top">
+	<input type="submit" class="default" value="{{ yes_sure }}">
+	<a href="#" class="button cancel-link">{{ no_back }}</a>
+</div>
+<p>{% blocktranslate with escaped_object=object %}Are you sure you want to delete the {{ object_name }} "{{ escaped_object }}"? All of the following related items will be deleted:{% endblocktranslate %}</p>
+{% include "admin/includes/object_delete_summary.html" %}
+<h2>{% translate "Objects" %}</h2>
+<details class="category-delete-related-details">
+	<summary>Детальный список связанных объектов</summary>
+	<ul id="deleted-objects">{{ deleted_objects|unordered_list }}</ul>
+</details>
+<div class="category-delete-submit-row category-delete-submit-row--bottom">
+	<input type="submit" class="default" value="{{ yes_sure }}">
+	<a href="#" class="button cancel-link">{{ no_back }}</a>
+</div>
+</form>
+{% endblock %}
