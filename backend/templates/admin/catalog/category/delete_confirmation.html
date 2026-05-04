@@ -43,29 +43,39 @@
 {% endblock %}
 
 {% block delete_confirm %}
-{% translate "Yes, I'm sure" as yes_sure %}
-{% translate "No, take me back" as no_back %}
 <form method="post">{% csrf_token %}
 <input type="hidden" name="post" value="yes">
 {% if is_popup %}<input type="hidden" name="{{ is_popup_var }}" value="1">{% endif %}
 {% if to_field %}<input type="hidden" name="{{ to_field_var }}" value="{{ to_field }}">{% endif %}
 <div class="category-delete-submit-row category-delete-submit-row--top">
-	<input type="submit" class="default" value="{{ yes_sure }}">
-	<a href="#" class="button cancel-link">{{ no_back }}</a>
+	<input type="submit" class="default" value="Да, удалить категорию">
+	<a href="{% url opts|admin_urlname:'changelist' %}" class="button cancel-link">Нет, вернуться к списку</a>
 </div>
 {% if extra_warning %}
 <p><strong>{{ extra_warning }}</strong></p>
 {% endif %}
-<p>{% blocktranslate with escaped_object=object %}Are you sure you want to delete the {{ object_name }} "{{ escaped_object }}"? All of the following related items will be deleted:{% endblocktranslate %}</p>
-{% include "admin/includes/object_delete_summary.html" %}
-<h2>{% translate "Objects" %}</h2>
+<p>Вы уверены, что хотите удалить категорию "{{ object }}"? Ниже показано, что будет удалено.</p>
+<h2>Выбранная категория</h2>
+<ul>
+	<li>{{ object.name }}</li>
+</ul>
+<h2>Краткая статистика</h2>
+<ul>
+	<li>Категорий всего к удалению: {{ total_categories_count }}</li>
+	<li>Из них подкатегорий: {{ descendant_count }}</li>
+	<li>Товаров к удалению: {{ products_count }}</li>
+</ul>
+<h2>Объекты</h2>
 <details class="category-delete-related-details">
 	<summary>Детальный список связанных объектов</summary>
-	<ul id="deleted-objects">{{ deleted_objects|unordered_list }}</ul>
+	<p>
+		Будут удалены выбранная категория, найденные подкатегории и все товары,
+		привязанные к этим категориям.
+	</p>
 </details>
 <div class="category-delete-submit-row category-delete-submit-row--bottom">
-	<input type="submit" class="default" value="{{ yes_sure }}">
-	<a href="#" class="button cancel-link">{{ no_back }}</a>
+	<input type="submit" class="default" value="Да, удалить категорию">
+	<a href="{% url opts|admin_urlname:'changelist' %}" class="button cancel-link">Нет, вернуться к списку</a>
 </div>
 </form>
 {% endblock %}

@@ -73,6 +73,30 @@ class CategoryAdmin(SortableAdminMixin, ExportExcelMixin, admin.ModelAdmin):
         deleted_categories, _ = Category.objects.filter(id__in=category_ids).delete()
         return deleted_categories, deleted_products
 
+    def _build_delete_preview_context(self, selected_ids):
+        """Готовит данные для экрана подтверждения удаления."""
+        if not selected_ids:
+            return {
+                "selected_categories": Category.objects.none(),
+                "selected_count": 0,
+                "descendant_count": 0,
+                "products_count": 0,
+                "total_categories_count": 0,
+            }
+
+        selected_categories = Category.objects.filter(id__in=selected_ids).order_by("name")
+        all_category_ids = self._get_descendant_category_ids(selected_ids)
+        products_count = Product.objects.filter(category_id__in=all_category_ids).count()
+        total_categories_count = len(all_category_ids)
+
+        return {
+            "selected_categories": selected_categories,
+            "selected_count": len(selected_ids),
+            "descendant_count": max(total_categories_count - len(selected_ids), 0),
+            "products_count": products_count,
+            "total_categories_count": total_categories_count,
+        }
+
     @admin.action(description="Удалить выбранные категории вместе с содержимым")
     def delete_selected(self, request, queryset):
         """
@@ -88,6 +112,9 @@ class CategoryAdmin(SortableAdminMixin, ExportExcelMixin, admin.ModelAdmin):
             )
             return None
 
+        selected_ids = list(queryset.values_list("id", flat=True))
+        preview_context = self._build_delete_preview_context(selected_ids)
+
         context = {
             **self.admin_site.each_context(request),
             "title": "Подтвердите удаление категорий",
@@ -99,6 +126,7 @@ class CategoryAdmin(SortableAdminMixin, ExportExcelMixin, admin.ModelAdmin):
             "perms_lacking": [],
             "protected": [],
             "extra_warning": "Будут удалены выбранные категории, их подкатегории и все товары внутри них.",
+            **preview_context,
         }
         return TemplateResponse(
             request,
@@ -125,6 +153,8 @@ class CategoryAdmin(SortableAdminMixin, ExportExcelMixin, admin.ModelAdmin):
             )
             return self.response_delete(request, str(obj), object_id)
 
+        preview_context = self._build_delete_preview_context([obj.id])
+
         context = {
             **self.admin_site.each_context(request),
             "title": "Подтвердите удаление",
@@ -137,6 +167,7 @@ class CategoryAdmin(SortableAdminMixin, ExportExcelMixin, admin.ModelAdmin):
             "is_popup": False,
             "to_field": None,
             "extra_warning": "Будут удалены эта категория, все ее подкатегории и все товары внутри них.",
+            **preview_context,
         }
         if extra_context:
             context.update(extra_context)

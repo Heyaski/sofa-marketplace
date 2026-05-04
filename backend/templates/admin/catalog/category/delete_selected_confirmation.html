@@ -44,14 +44,12 @@
 
 {% block content %}
 {% if perms_lacking %}
-	<p>{% blocktranslate %}Deleting the selected {{ objects_name }} would result in deleting related objects, but your account doesn't have permission to delete the following types of objects:{% endblocktranslate %}</p>
+	<p>Удаление выбранных категорий затрагивает связанные объекты, но у вашей учетной записи нет прав на удаление следующих типов объектов:</p>
 	<ul>{{ perms_lacking|unordered_list }}</ul>
 {% elif protected %}
-	<p>{% blocktranslate %}Deleting the selected {{ objects_name }} would require deleting the following protected related objects:{% endblocktranslate %}</p>
+	<p>Удаление выбранных категорий потребует удаления следующих защищенных связанных объектов:</p>
 	<ul>{{ protected|unordered_list }}</ul>
 {% else %}
-	{% translate "Yes, I'm sure" as yes_sure %}
-	{% translate "No, take me back" as no_back %}
 	<form method="post">{% csrf_token %}
 	{% for obj in queryset %}
 	<input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk|unlocalize }}">
@@ -59,24 +57,38 @@
 	<input type="hidden" name="action" value="delete_selected">
 	<input type="hidden" name="post" value="yes">
 	<div class="category-delete-submit-row category-delete-submit-row--top">
-		<input type="submit" class="default" value="{{ yes_sure }}">
-		<a href="#" class="button cancel-link">{{ no_back }}</a>
+		<input type="submit" class="default" value="Да, удалить выбранные категории">
+		<a href="{% url opts|admin_urlname:'changelist' %}" class="button cancel-link">Нет, вернуться к списку</a>
 	</div>
 	{% if extra_warning %}
 	<p><strong>{{ extra_warning }}</strong></p>
 	{% endif %}
-	<p>{% blocktranslate %}Are you sure you want to delete the selected {{ objects_name }}? All of the following objects and their related items will be deleted:{% endblocktranslate %}</p>
-	{% include "admin/includes/object_delete_summary.html" %}
-	<h2>{% translate "Objects" %}</h2>
+	<p>Вы уверены, что хотите удалить выбранные категории? Ниже показано, что будет удалено.</p>
+	<h2>Выбрано категорий: {{ selected_count }}</h2>
+	<ul>
+		{% for category in selected_categories %}
+			<li>{{ category.name }}</li>
+		{% empty %}
+			<li>Категории не выбраны.</li>
+		{% endfor %}
+	</ul>
+	<h2>Краткая статистика</h2>
+	<ul>
+		<li>Категорий всего к удалению: {{ total_categories_count }}</li>
+		<li>Из них подкатегорий: {{ descendant_count }}</li>
+		<li>Товаров к удалению: {{ products_count }}</li>
+	</ul>
+	<h2>Объекты</h2>
 	<details class="category-delete-related-details">
 		<summary>Детальный список связанных объектов</summary>
-		{% for deletable_object in deletable_objects %}
-			<ul>{{ deletable_object|unordered_list }}</ul>
-		{% endfor %}
+		<p>
+			Будут удалены выбранные категории, найденные подкатегории и все товары,
+			привязанные к этим категориям.
+		</p>
 	</details>
 	<div class="category-delete-submit-row category-delete-submit-row--bottom">
-		<input type="submit" class="default" value="{{ yes_sure }}">
-		<a href="#" class="button cancel-link">{{ no_back }}</a>
+		<input type="submit" class="default" value="Да, удалить выбранные категории">
+		<a href="{% url opts|admin_urlname:'changelist' %}" class="button cancel-link">Нет, вернуться к списку</a>
 	</div>
 	</form>
 {% endif %}
