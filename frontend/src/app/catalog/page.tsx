@@ -456,32 +456,6 @@ function CatalogContent() {
 									)}
 								</div>
 
-								{/* Кнопка фильтра стиля */}
-								{filterRanges.styles.length > 0 && (
-									<div className='relative'>
-										<button
-											onClick={() => setOpenFilter(openFilter === 'style' ? null : 'style')}
-											className={`min-w-[88px] px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors text-center ${
-												filters.style
-													? 'bg-main1 text-white'
-													: 'bg-gray-bg text-black hover:bg-gray2'
-											}`}
-										>
-											Стиль
-										</button>
-									{openFilter === 'style' && (
-										<div className='fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 sm:absolute sm:left-0 sm:top-full sm:translate-x-0 sm:translate-y-0 sm:mt-2 bg-white rounded-lg shadow-lg border border-gray2 z-[100] w-[calc(100vw-2rem)] max-w-[340px] overflow-hidden sm:w-auto sm:min-w-[200px] sm:max-w-xs'>
-											<MultiSelectFilter
-												title=''
-												options={filterRanges.styles}
-												selectedValues={filters.style ? filters.style.split(',').map(v => v.trim()) : undefined}
-												onChange={handleMultiSelectChange('style')}
-											/>
-										</div>
-									)}
-									</div>
-								)}
-
 								{/* Кнопка фильтра цвета */}
 								{filterRanges.colors.length > 0 && (
 									<div className='relative'>
