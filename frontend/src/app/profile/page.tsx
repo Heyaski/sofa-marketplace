@@ -60,6 +60,8 @@ export default function ProfilePage() {
 	const [passwordError, setPasswordError] = useState<string | null>(null)
 	const [passwordSuccess, setPasswordSuccess] = useState(false)
 	const [changingPassword, setChangingPassword] = useState(false)
+	const [avatarFile, setAvatarFile] = useState<File | null>(null)
+	const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null)
 
 	const handleSelectChat = (chat: Chat) => {
 		setSelectedChat(chat)
@@ -146,6 +148,15 @@ export default function ProfilePage() {
 		}
 	}, [user])
 
+	useEffect(() => {
+		if (avatarFile) {
+			const objectUrl = URL.createObjectURL(avatarFile)
+			setAvatarPreviewUrl(objectUrl)
+			return () => URL.revokeObjectURL(objectUrl)
+		}
+		setAvatarPreviewUrl(user?.profile?.avatar || null)
+	}, [avatarFile, user?.profile?.avatar])
+
 	const handleSave = async () => {
 		if (!user) return
 
@@ -174,7 +185,11 @@ export default function ProfilePage() {
 		}
 
 		try {
-			const updatedUser = await authService.updateUser(formData)
+			let updatedUser = await authService.updateUser(formData)
+			if (avatarFile) {
+				updatedUser = await authService.uploadAvatar(avatarFile)
+				setAvatarFile(null)
+			}
 			setUser(updatedUser)
 			setEditing(false)
 			alert('Данные успешно сохранены')
@@ -208,6 +223,7 @@ export default function ProfilePage() {
 				},
 			})
 		}
+		setAvatarFile(null)
 		setEditing(false)
 	}
 
@@ -716,14 +732,39 @@ export default function ProfilePage() {
 									{/* Правая часть - Аватар */}
 									<div className='flex-shrink-0 mx-auto sm:mx-0'>
 										<div className='w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 bg-gray-bg rounded-full flex items-center justify-center relative overflow-hidden'>
-											<Image
-												src='/img/profile_default.svg'
-												alt='Profile Avatar'
-												width={160}
-												height={160}
-												className='w-full h-full object-cover'
-											/>
+											{avatarPreviewUrl ? (
+												// eslint-disable-next-line @next/next/no-img-element
+												<img
+													src={avatarPreviewUrl}
+													alt='Profile Avatar'
+													className='w-full h-full object-cover'
+												/>
+											) : (
+												<Image
+													src='/img/profile_default.svg'
+													alt='Profile Avatar'
+													width={160}
+													height={160}
+													className='w-full h-full object-cover'
+												/>
+											)}
 										</div>
+										{editing && (
+											<div className='mt-3'>
+												<label className='inline-block cursor-pointer text-sm text-main1 hover:text-main2'>
+													Выбрать фото
+													<input
+														type='file'
+														accept='image/*'
+														className='hidden'
+														onChange={(e) => {
+															const file = e.target.files?.[0] || null
+															setAvatarFile(file)
+														}}
+													/>
+												</label>
+											</div>
+										)}
 									</div>
 								</div>
 							</div>

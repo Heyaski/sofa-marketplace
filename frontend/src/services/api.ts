@@ -448,6 +448,16 @@ export const authService = {
 		return response.data
 	},
 
+	// Загрузить аватар пользователя
+	uploadAvatar: async (file: File): Promise<User> => {
+		const formData = new FormData()
+		formData.append('avatar', file)
+		const response = await apiClient.post('/api/users/me/avatar/', formData, {
+			headers: { 'Content-Type': 'multipart/form-data' },
+		})
+		return response.data
+	},
+
 	// Выход из системы
 	logout: async (): Promise<void> => {
 		await apiClient.post('/api/users/logout/')

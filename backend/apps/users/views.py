@@ -1,5 +1,6 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
@@ -17,6 +18,7 @@ from .serializers import (
     PasswordResetConfirmSerializer,
     CustomTokenObtainPairSerializer
 )
+from .models import UserProfile
 
 
 class UserMeView(generics.RetrieveUpdateAPIView):
@@ -32,6 +34,29 @@ class UserMeView(generics.RetrieveUpdateAPIView):
         except Exception:
             pass
         return user
+
+
+class UserAvatarUploadView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    serializer_class = UserSerializer
+
+    def post(self, request, *args, **kwargs):
+        avatar_file = request.FILES.get('avatar')
+        if not avatar_file:
+            return Response(
+                {'detail': 'Файл аватара не передан'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        if profile.avatar:
+            profile.avatar.delete(save=False)
+        profile.avatar = avatar_file
+        profile.save(update_fields=['avatar'])
+
+        serializer = self.get_serializer(request.user, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 # ✅ Поиск пользователей для создания чата

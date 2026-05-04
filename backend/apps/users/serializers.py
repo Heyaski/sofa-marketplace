@@ -8,6 +8,7 @@ from .models import UserProfile
 class UserProfileSerializer(serializers.ModelSerializer):
     """Сериализатор для профиля пользователя"""
     subscription_type_display = serializers.CharField(source='get_subscription_type_display', read_only=True)
+    avatar = serializers.SerializerMethodField()
     
     class Meta:
         model = UserProfile
@@ -15,10 +16,20 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'subscription_type', 'subscription_type_display',
             'subscription_end_date', 'auto_renewal', 'yookassa_payment_id',
             'license_key_hash',
+            'avatar',
             'card_number', 'card_holder', 'card_expiry', 'card_cvv',
             'chat_notifications', 'new_models_notifications'
         ]
         read_only_fields = ['subscription_end_date', 'auto_renewal', 'yookassa_payment_id', 'license_key_hash']
+
+    def get_avatar(self, obj):
+        request = self.context.get('request')
+        if obj.avatar and hasattr(obj.avatar, 'url'):
+            avatar_url = obj.avatar.url
+            if avatar_url.startswith(('http://', 'https://')):
+                return avatar_url
+            return request.build_absolute_uri(avatar_url) if request else avatar_url
+        return None
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -52,7 +63,7 @@ class UserSerializer(serializers.ModelSerializer):
         representation = super().to_representation(instance)
         # Если профиль существует, сериализуем его
         if hasattr(instance, 'profile'):
-            representation['profile'] = UserProfileSerializer(instance.profile).data
+            representation['profile'] = UserProfileSerializer(instance.profile, context=self.context).data
         else:
             # Если профиля нет, возвращаем пустой объект с дефолтными значениями
             representation['profile'] = {
@@ -61,6 +72,7 @@ class UserSerializer(serializers.ModelSerializer):
                 'subscription_end_date': None,
                 'auto_renewal': False,
                 'yookassa_payment_id': None,
+                'avatar': None,
                 'card_number': '',
                 'card_holder': '',
                 'card_expiry': '',

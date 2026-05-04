@@ -64,6 +64,12 @@ class UserProfile(models.Model):
     # Настройки уведомлений
     chat_notifications = models.BooleanField(default=True)
     new_models_notifications = models.BooleanField(default=False)
+    avatar = models.ImageField(
+        upload_to='avatars/',
+        blank=True,
+        null=True,
+        verbose_name='Аватар'
+    )
     
     # Ключ лицензии для плагина (хеш, хранится в БД; отображается пользователю для копирования)
     license_key_hash = models.CharField(

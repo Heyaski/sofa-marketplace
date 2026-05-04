@@ -178,6 +178,7 @@ export interface UserProfile {
 	subscription_type_display?: string
 	subscription_end_date?: string | null
 	license_key_hash?: string | null
+	avatar?: string | null
 	card_number: string
 	card_holder: string
 	card_expiry: string
