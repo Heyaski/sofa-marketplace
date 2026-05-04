@@ -93,12 +93,12 @@ export default function ProductPage({ params }: ProductPageProps) {
 			setToastMessage('Товар еще загружается')
 			return
 		}
-		if (!hasDownloadableRfa(product)) {
-			setToastMessage('У этой модели нет файла .rfa')
-			return
-		}
 		if (isAuthenticated === false) {
 			setIsAuthModalOpen(true)
+			return
+		}
+		if (!hasDownloadableRfa(product)) {
+			setToastMessage('У этой модели нет файла .rfa')
 			return
 		}
 		try {

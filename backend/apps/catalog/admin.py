@@ -1,5 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html, strip_tags
+from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
+from django.template.response import TemplateResponse
 
 try:
     from adminsortable2.admin import SortableAdminMixin
@@ -41,6 +43,104 @@ class CategoryAdmin(SortableAdminMixin, ExportExcelMixin, admin.ModelAdmin):
     class Meta:
         verbose_name = "Категория"
         verbose_name_plural = "Категории"
+
+    def _get_descendant_category_ids(self, root_ids):
+        """Собирает ID выбранных категорий и всех их потомков."""
+        collected = set(root_ids)
+        frontier = list(root_ids)
+        while frontier:
+            children = list(
+                Category.objects.filter(parent_id__in=frontier).values_list("id", flat=True)
+            )
+            new_children = [child_id for child_id in children if child_id not in collected]
+            if not new_children:
+                break
+            collected.update(new_children)
+            frontier = new_children
+        return collected
+
+    def _delete_categories_with_products(self, queryset):
+        """Удаляет категории вместе со всеми товарами внутри них."""
+        selected_ids = list(queryset.values_list("id", flat=True))
+        if not selected_ids:
+            return 0, 0
+
+        category_ids = self._get_descendant_category_ids(selected_ids)
+        products_qs = Product.objects.filter(category_id__in=category_ids)
+        deleted_products = products_qs.count()
+        products_qs.delete()
+
+        deleted_categories, _ = Category.objects.filter(id__in=category_ids).delete()
+        return deleted_categories, deleted_products
+
+    @admin.action(description="Удалить выбранные категории вместе с содержимым")
+    def delete_selected(self, request, queryset):
+        """
+        Кастомное массовое удаление: удаляем товары и дочерние категории,
+        чтобы не упираться в PROTECT у Product.category.
+        """
+        if request.POST.get("post") == "yes":
+            deleted_categories, deleted_products = self._delete_categories_with_products(queryset)
+            self.message_user(
+                request,
+                f"Удалено категорий: {deleted_categories}, удалено товаров: {deleted_products}.",
+                level=messages.SUCCESS,
+            )
+            return None
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Подтвердите удаление категорий",
+            "queryset": queryset,
+            "opts": self.model._meta,
+            "action_checkbox_name": ACTION_CHECKBOX_NAME,
+            "objects_name": "категории",
+            "deletable_objects": [],
+            "perms_lacking": [],
+            "protected": [],
+            "extra_warning": "Будут удалены выбранные категории, их подкатегории и все товары внутри них.",
+        }
+        return TemplateResponse(
+            request,
+            self.delete_selected_confirmation_template,
+            context,
+        )
+
+    def delete_view(self, request, object_id, extra_context=None):
+        """
+        Кастомное удаление одной категории: вместе с дочерними категориями и товарами.
+        """
+        obj = self.get_object(request, object_id)
+        if obj is None:
+            return super().delete_view(request, object_id, extra_context=extra_context)
+
+        if request.method == "POST" and request.POST.get("post") == "yes":
+            deleted_categories, deleted_products = self._delete_categories_with_products(
+                Category.objects.filter(pk=obj.pk)
+            )
+            self.message_user(
+                request,
+                f"Удалено категорий: {deleted_categories}, удалено товаров: {deleted_products}.",
+                level=messages.SUCCESS,
+            )
+            return self.response_delete(request, str(obj), object_id)
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Подтвердите удаление",
+            "object_name": self.model._meta.verbose_name,
+            "object": obj,
+            "opts": self.model._meta,
+            "perms_lacking": [],
+            "protected": [],
+            "deleted_objects": [],
+            "is_popup": False,
+            "to_field": None,
+            "extra_warning": "Будут удалены эта категория, все ее подкатегории и все товары внутри них.",
+        }
+        if extra_context:
+            context.update(extra_context)
+        return TemplateResponse(request, self.delete_confirmation_template, context)
 
     # красивый предпросмотр картинки
     def preview_image(self, obj):

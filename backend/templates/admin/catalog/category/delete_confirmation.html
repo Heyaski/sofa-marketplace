@@ -53,6 +53,9 @@
 	<input type="submit" class="default" value="{{ yes_sure }}">
 	<a href="#" class="button cancel-link">{{ no_back }}</a>
 </div>
+{% if extra_warning %}
+<p><strong>{{ extra_warning }}</strong></p>
+{% endif %}
 <p>{% blocktranslate with escaped_object=object %}Are you sure you want to delete the {{ object_name }} "{{ escaped_object }}"? All of the following related items will be deleted:{% endblocktranslate %}</p>
 {% include "admin/includes/object_delete_summary.html" %}
 <h2>{% translate "Objects" %}</h2>

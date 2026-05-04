@@ -84,11 +84,6 @@ export default function ProductCard({
 	}
 
 	const handleDownloadModel = async () => {
-		if (!hasDownloadableRfa(product)) {
-			setToastMessage('У этой модели нет файла .rfa')
-			return
-		}
-
 		const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
 		if (!token) {
 			if (onAuthRequired) {
@@ -96,6 +91,10 @@ export default function ProductCard({
 			} else {
 				setToastMessage('Для скачивания файлов необходимо войти в аккаунт')
 			}
+			return
+		}
+		if (!hasDownloadableRfa(product)) {
+			setToastMessage('У этой модели нет файла .rfa')
 			return
 		}
 

@@ -59,11 +59,11 @@ function CatalogContent() {
 	const effectiveFilters = useMemo<ProductFilters>(
 		() => ({
 			...filters,
-			// Обычные пользователи — только полные карточки (картинка + GLB в БД).
-			// Суперадмин видит весь каталог без этого ограничения.
-			...(!isSuperuser ? { model_files: 'both' as const } : {}),
+			// В 3D-режиме показываем товары, у которых есть хотя бы один файл модели.
+			// В 2D-режиме не ограничиваем каталог по 3D-файлам, чтобы не скрывать товары.
+			...(!isSuperuser && catalogView === '3d' ? { model_files: 'any' as const } : {}),
 		}),
-		[filters, isSuperuser]
+		[filters, isSuperuser, catalogView]
 	)
 
 	const {
