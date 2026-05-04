@@ -199,6 +199,19 @@ function CatalogContent() {
 	}
 
 	const handleFurnitureTypeChange = (ids: number[]) => {
+		const uncategorizedCategory = categories.find(
+			(category) => category.name.trim().toLowerCase() === 'без категории'
+		)
+		const uncategorizedId = uncategorizedCategory?.id
+		// По запросу: выбор "Без категории" должен показывать весь каталог.
+		// Поэтому при выборе этой опции сбрасываем category-фильтр целиком.
+		if (uncategorizedId && ids.includes(uncategorizedId)) {
+			setFilters(prev => {
+				const { category: _category, ...rest } = prev
+				return rest
+			})
+			return
+		}
 		if (ids.length > 0) {
 			setFilters(prev => ({ ...prev, category: ids.join(',') }))
 		} else {
