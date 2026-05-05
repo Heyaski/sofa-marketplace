@@ -29,10 +29,16 @@ class Command(BaseCommand):
             action="store_true",
             help="Печатать товары, для которых не нашлось стабильной замены",
         )
+        parser.add_argument(
+            "--limit",
+            type=int,
+            default=0,
+            help="Максимум товаров для обхода (0 = без лимита)",
+        )
 
     def handle(self, *args, **options):
-        dry_run = options["dry_run"]
-        limit = max(0, options["limit"])
+        dry_run = options.get("dry_run", False)
+        limit = max(0, int(options.get("limit") or 0))
 
         qs = Product.objects.exclude(model_glb="").order_by("id")
         if limit:
@@ -65,7 +71,7 @@ class Command(BaseCommand):
 
             if not new_url or new_url == mg:
                 no_replacement += 1
-                if options["verbose"]:
+                if options.get("verbose"):
                     self.stdout.write(
                         self.style.WARNING(
                             f"id={p.pk} article={p.article!r}: нет стабильного GLB в ассетах/превью"
