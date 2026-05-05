@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { basketService, categoryService, productService } from '../services/api'
 import { Basket, Category, Product, ProductFilters } from '../types'
 
@@ -21,9 +21,16 @@ const firstPageProductsCache = new Map<
 // ---------------------------
 export const useProducts = (
 	filters?: ProductFilters,
-	options?: { paginationMode?: ProductsPaginationMode }
+	options?: {
+		paginationMode?: ProductsPaginationMode
+		forcedPage?: number
+		onPageChange?: (page: number) => void
+	}
 ) => {
 	const paginationMode: ProductsPaginationMode = options?.paginationMode ?? 'infinite'
+	const forcedPage = options?.forcedPage
+	const onPageChangeRef = useRef(options?.onPageChange)
+	onPageChangeRef.current = options?.onPageChange
 	const [products, setProducts] = useState<Product[]>([])
 	const [loading, setLoading] = useState(true)
 	const [loadingMore, setLoadingMore] = useState(false)
@@ -98,6 +105,7 @@ export const useProducts = (
 				setNextPage(next)
 				if (paginationMode === 'paged') {
 					setDisplayedPage(page)
+					onPageChangeRef.current?.(page)
 				}
 			} catch (err) {
 				setError(err instanceof Error ? err.message : 'Ошибка загрузки продуктов')
@@ -111,20 +119,33 @@ export const useProducts = (
 	)
 
 	useEffect(() => {
-		setDisplayedPage(1)
-		setNextPage(2)
+		const startPage =
+			paginationMode === 'paged' && forcedPage != null && forcedPage >= 1
+				? Math.floor(forcedPage)
+				: 1
+		if (paginationMode !== 'paged') {
+			setDisplayedPage(1)
+			setNextPage(2)
+		} else {
+			setDisplayedPage(startPage)
+			setNextPage(startPage + 1)
+		}
 		setTotalPages(1)
 
 		const cached = firstPageProductsCache.get(firstPageCacheKey)
-		if (cached && Date.now() - cached.cachedAt < PRODUCTS_CACHE_TTL_MS) {
+		if (
+			cached &&
+			Date.now() - cached.cachedAt < PRODUCTS_CACHE_TTL_MS &&
+			startPage === 1
+		) {
 			setProducts(cached.products)
 			setHasMore(cached.hasMore)
 			setTotalPages(cached.totalPages)
 			setLoading(false)
 		}
 
-		fetchProducts(1, false)
-	}, [fetchProducts, firstPageCacheKey])
+		void fetchProducts(startPage, false)
+	}, [fetchProducts, firstPageCacheKey, paginationMode, forcedPage])
 
 	const loadMore = useCallback(() => {
 		if (paginationMode !== 'infinite') return

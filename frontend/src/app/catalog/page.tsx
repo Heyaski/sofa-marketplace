@@ -11,17 +11,18 @@ import PriceFilter from '@/components/PriceFilter'
 import RGBRangeFilter from '@/components/RGBRangeFilter'
 import ProductCard from '@/components/ProductCard'
 import { useBaskets, useCategories, useProducts } from '@/hooks/useApi'
+import { buildCatalogSearchParams, parseCatalogSearchParams, type CatalogViewMode } from '@/lib/catalogUrlState'
 import { authService, productService } from '@/services/api'
 import { Category, ProductFilters, User } from '@/types'
 import Script from 'next/script'
-import { useSearchParams } from 'next/navigation'
-import { Suspense, useEffect, useMemo, useState } from 'react'
-
-type CatalogViewMode = '2d' | '3d'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 
 function CatalogContent() {
+	const router = useRouter()
 	const searchParams = useSearchParams()
-	const searchFromUrl = searchParams.get('search') || ''
+	const spKey = searchParams.toString()
+
 	const [isCartModalOpen, setIsCartModalOpen] = useState(false)
 	const [selectedProduct, setSelectedProduct] = useState<{
 		id: number
@@ -34,6 +35,8 @@ function CatalogContent() {
 	const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
 	const [currentUser, setCurrentUser] = useState<User | null>(null)
 	const [catalogView, setCatalogView] = useState<CatalogViewMode>('3d')
+	const [catalogPage, setCatalogPage] = useState(1)
+	const [urlHydrated, setUrlHydrated] = useState(false)
 
 	useEffect(() => {
 		authService.getCurrentUser()
@@ -47,13 +50,37 @@ function CatalogContent() {
 			})
 	}, [])
 
-	// Синхронизация поиска из URL с фильтрами
+	// Параметры адресной строки → фильтры, вид каталога и страница (сохраняются при «Назад» с карточки)
 	useEffect(() => {
-		setFilters(prev => ({
-			...prev,
-			search: searchFromUrl || undefined,
-		}))
-	}, [searchFromUrl])
+		const parsed = parseCatalogSearchParams(searchParams)
+		setFilters(parsed.filters)
+		setCatalogView(parsed.view)
+		setCatalogPage(parsed.page)
+		setUrlHydrated(true)
+	}, [spKey])
+
+	// Фильтры / вид / страница → URL
+	useEffect(() => {
+		if (!urlHydrated) return
+		const qs = buildCatalogSearchParams(filters, catalogView, catalogPage)
+		if (qs === spKey) return
+		router.replace(qs ? `/catalog?${qs}` : '/catalog', { scroll: false })
+	}, [filters, catalogView, catalogPage, urlHydrated, spKey, router])
+
+	// Смена набора фильтров сбрасывает постраничную навигацию (только 3D)
+	const filtersKeyForReset = useMemo(() => JSON.stringify(filters), [filters])
+	const prevFiltersKeyRef = useRef<string | null>(null)
+	useEffect(() => {
+		if (!urlHydrated) return
+		if (prevFiltersKeyRef.current === null) {
+			prevFiltersKeyRef.current = filtersKeyForReset
+			return
+		}
+		if (prevFiltersKeyRef.current !== filtersKeyForReset) {
+			prevFiltersKeyRef.current = filtersKeyForReset
+			setCatalogPage(1)
+		}
+	}, [filtersKeyForReset, urlHydrated])
 
 	const isSuperuser = !!currentUser?.is_superuser
 	const effectiveFilters = useMemo<ProductFilters>(
@@ -80,6 +107,8 @@ function CatalogContent() {
 		refetch: refetchProducts,
 	} = useProducts(effectiveFilters, {
 		paginationMode: catalogView === '2d' ? 'infinite' : 'paged',
+		forcedPage: catalogView === '3d' ? catalogPage : 1,
+		onPageChange: setCatalogPage,
 	})
 	
 	// Получаем все продукты без фильтров для вычисления диапазонов

@@ -9,7 +9,7 @@ import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import SubscriptionManagement from '@/components/SubscriptionManagement'
 import { useBaskets } from '@/hooks/useApi'
-import { authService } from '@/services/api'
+import { authService, chatService } from '@/services/api'
 import { Chat, User } from '@/types'
 import {
 	formatCardCVV,
@@ -20,13 +20,15 @@ import {
 } from '@/utils/cardValidation'
 import { ArrowRightOnRectangleIcon, UserIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useCallback, useEffect, useState } from 'react'
 
 type TabType = 'profile' | 'subscription' | 'downloads' | 'cart' | 'chats'
 
 export default function ProfilePage() {
 	const router = useRouter()
+	const searchParams = useSearchParams()
+	const profileSpKey = searchParams.toString()
 	const [user, setUser] = useState<User | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [editing, setEditing] = useState(false)
@@ -63,9 +65,31 @@ export default function ProfilePage() {
 	const [avatarFile, setAvatarFile] = useState<File | null>(null)
 	const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null)
 
-	const handleSelectChat = (chat: Chat) => {
-		setSelectedChat(chat)
-	}
+	const goToTab = useCallback(
+		(tab: TabType) => {
+			const q = new URLSearchParams()
+			q.set('tab', tab)
+			router.replace(`/profile?${q.toString()}`, { scroll: false })
+		},
+		[router]
+	)
+
+	const handleSelectChat = useCallback(
+		(chat: Chat) => {
+			const q = new URLSearchParams()
+			q.set('tab', 'chats')
+			q.set('chatId', String(chat.id))
+			router.push(`/profile?${q.toString()}`)
+		},
+		[router]
+	)
+
+	const handleCloseChat = useCallback(() => {
+		const q = new URLSearchParams(searchParams.toString())
+		q.set('tab', 'chats')
+		q.delete('chatId')
+		router.replace(`/profile?${q.toString()}`, { scroll: false })
+	}, [router, searchParams])
 
 	// При открытии чата — сбрасываем скролл страницы, плавное открытие без скачков
 	useEffect(() => {
@@ -79,19 +103,40 @@ export default function ProfilePage() {
 		}
 	}, [selectedChat])
 
-	// Обработка URL параметров (tab, возврат с оплаты)
+	// tab и chat из URL — кнопка «Назад» в браузере возвращает к списку чатов
 	useEffect(() => {
-		const urlParams = new URLSearchParams(window.location.search)
-		const paymentSuccess = urlParams.get('payment_success')
-		const tab = urlParams.get('tab')
-		
+		const paymentSuccess = searchParams.get('payment_success')
+		const tab = searchParams.get('tab')
+		const chatIdRaw = searchParams.get('chatId')
+
 		if (tab === 'cart' || tab === 'subscription' || tab === 'downloads' || tab === 'chats' || tab === 'profile') {
 			setActiveTab(tab as TabType)
 		}
 		if (paymentSuccess === 'true' && tab === 'subscription') {
-			window.history.replaceState({}, '', '/profile')
+			router.replace('/profile?tab=subscription', { scroll: false })
 		}
-	}, [])
+		if (!chatIdRaw) {
+			setSelectedChat(null)
+			return
+		}
+		const chatId = parseInt(chatIdRaw, 10)
+		if (!Number.isFinite(chatId)) {
+			setSelectedChat(null)
+			return
+		}
+		let cancelled = false
+		chatService
+			.getChat(chatId)
+			.then((chat) => {
+				if (!cancelled) setSelectedChat(chat)
+			})
+			.catch(() => {
+				if (!cancelled) setSelectedChat(null)
+			})
+		return () => {
+			cancelled = true
+		}
+	}, [profileSpKey, router])
 
 	useEffect(() => {
 		const fetchUser = async () => {
@@ -331,7 +376,7 @@ export default function ProfilePage() {
 											? 'bg-main1 text-white'
 											: 'text-gray hover:bg-gray-bg'
 									}`}
-									onClick={() => setActiveTab('profile')}
+									onClick={() => goToTab('profile')}
 								>
 									<UserIcon
 										className={`w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 ${
@@ -349,7 +394,7 @@ export default function ProfilePage() {
 											? 'bg-main1 text-white'
 											: 'text-gray hover:bg-gray-bg'
 									}`}
-									onClick={() => setActiveTab('subscription')}
+									onClick={() => goToTab('subscription')}
 								>
 									<Image
 										src='/img/fi-rr-diamond.svg'
@@ -369,7 +414,7 @@ export default function ProfilePage() {
 											? 'bg-main1 text-white'
 											: 'text-gray hover:bg-gray-bg'
 									}`}
-									onClick={() => setActiveTab('downloads')}
+									onClick={() => goToTab('downloads')}
 								>
 									<Image
 										src='/img/fi-rr-folder.svg'
@@ -389,7 +434,7 @@ export default function ProfilePage() {
 											? 'bg-main1 text-white'
 											: 'text-gray hover:bg-gray-bg'
 									}`}
-									onClick={() => setActiveTab('cart')}
+									onClick={() => goToTab('cart')}
 								>
 									<Image
 										src='/img/Buy.svg'
@@ -409,7 +454,7 @@ export default function ProfilePage() {
 											? 'bg-main1 text-white'
 											: 'text-gray hover:bg-gray-bg'
 									}`}
-									onClick={() => setActiveTab('chats')}
+									onClick={() => goToTab('chats')}
 								>
 									<Image
 										src='/img/fi-rr-comment.svg'
@@ -790,7 +835,7 @@ export default function ProfilePage() {
 									<div className='flex-1 flex flex-col'>
 										<ChatDetail
 											chat={selectedChat}
-											onBack={() => setSelectedChat(null)}
+											onBack={handleCloseChat}
 											currentUserId={user?.id || 0}
 										/>
 									</div>
@@ -799,7 +844,14 @@ export default function ProfilePage() {
 										<h1 className='text-xl sm:text-2xl lg:text-3xl font-bold text-black mb-4 sm:mb-6 lg:mb-8'>Чаты</h1>
 										<ChatsList
 											onSelectChat={handleSelectChat}
-											selectedChatId={undefined}
+											selectedChatId={
+												(() => {
+													const raw = searchParams.get('chatId')
+													if (!raw) return undefined
+													const n = parseInt(raw, 10)
+													return Number.isFinite(n) ? n : undefined
+												})()
+											}
 										/>
 									</div>
 								)}
