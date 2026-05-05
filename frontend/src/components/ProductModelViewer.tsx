@@ -107,12 +107,12 @@ function collectGlbUrls(product: Product): string[] {
 		for (const a of scored) push(a.file_url, a.file_ext)
 	}
 
-	// 2) Прямые поля — всегда в конец как запас (дедуп по пути без query).
-	// Так при «битой» первой ссылке (например истёкший auth_key на чужом CDN) можно перейти к превью / другому полю.
-	// Без ".glb" в пути ext из URL часто получается из домена (например "net/...") — считаем поля явно GLB.
-	if (product.model_glb) push(product.model_glb, 'glb')
+	// Порядок: стабильные URL до protухших CDN; превью RFA→GLB между ними.
+	const mg = product.model_glb
+	if (mg && !isEphemeralExternalModelUrl(mg)) push(mg, 'glb')
 	if (product.model_rfa_glb_preview) push(product.model_rfa_glb_preview, 'glb')
 	if (product.model_ar_glb) push(product.model_ar_glb, 'glb')
+	if (mg && isEphemeralExternalModelUrl(mg)) push(mg, 'glb')
 	const stable = out.filter(u => !isEphemeralExternalModelUrl(u))
 	const risky = out.filter(u => isEphemeralExternalModelUrl(u))
 	return [...stable, ...risky]

@@ -28,7 +28,11 @@ def queue_rfa_conversion(sender, instance: Product, created: bool, **kwargs):
     if not _is_revit_rfa_url(instance.model_rfa):
         return
     old_rfa = getattr(instance, "_old_model_rfa", None)
-    if not created and old_rfa == instance.model_rfa:
+    rfa_changed = created or old_rfa != instance.model_rfa
+    has_preview = bool((instance.model_rfa_glb_preview or "").strip())
+    # Раньше при неизменном RFA задача не ставилась — GLB-превью с S3 так и не появлялся
+    # (остались только ссылки zaohaowu в model_glb).
+    if not rfa_changed and has_preview:
         return
 
     Product.objects.filter(pk=instance.pk).update(

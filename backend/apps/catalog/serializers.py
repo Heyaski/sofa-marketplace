@@ -308,13 +308,7 @@ class ProductSerializer(serializers.ModelSerializer):
             low = str(url).lower().strip()
             return low.startswith("http://") or low.startswith("https://") or low.startswith("/")
 
-        # Временные ссылки (чужой CDN + auth_key) не должны затенять GLB из FileAsset на нашем S3.
-        field_glb = (
-            obj.model_glb
-            if obj.model_glb and is_valid_url(obj.model_glb) and not is_ephemeral_external_model_url(obj.model_glb)
-            else None
-        )
-
+        # 1) FileAsset на нашем storage
         for asset in obj.get_3d_model_assets():
             name = (getattr(asset.file, "name", "") or "").lower()
             if not name.endswith((".glb", ".gltf", ".usdz")):
@@ -324,13 +318,19 @@ class ProductSerializer(serializers.ModelSerializer):
             if is_valid_url(file_url):
                 return file_url
 
-        if field_glb:
-            return field_glb
-        if obj.model_glb and is_valid_url(obj.model_glb):
-            return obj.model_glb
+        mg = obj.model_glb
+        # 2) Прямое поле — только «стабильные» URL (не протухающий чужой CDN с auth_key)
+        if mg and is_valid_url(mg) and not is_ephemeral_external_model_url(mg):
+            return mg
 
-        if obj.model_rfa_glb_preview and is_valid_url(obj.model_rfa_glb_preview):
-            return obj.model_rfa_glb_preview
+        # 3) Превью из RFA (после convert_rfa_to_glb) — обычно тот же S3, что и RFA
+        preview = obj.model_rfa_glb_preview
+        if preview and is_valid_url(preview):
+            return preview
+
+        # 4) Fallback: что записано в GLB (может отдать 403 в браузере)
+        if mg and is_valid_url(mg):
+            return mg
         return None
 
     def get_asset_images(self, obj):
