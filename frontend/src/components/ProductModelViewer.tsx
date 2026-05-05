@@ -64,6 +64,18 @@ function normalizeModelUrl(url: string): string {
 	}
 }
 
+function isEphemeralExternalModelUrl(url: string): boolean {
+	const low = url.toLowerCase()
+	if (low.includes('auth_key=')) return true
+	if (
+		low.includes('zaohaowu.net') ||
+		low.includes('zaonaowu.net') ||
+		low.includes('hitem3dstatic')
+	)
+		return true
+	return false
+}
+
 function collectGlbUrls(product: Product): string[] {
 	if (!product) return []
 	const seen = new Set<string>()
@@ -101,7 +113,9 @@ function collectGlbUrls(product: Product): string[] {
 	if (product.model_glb) push(product.model_glb, 'glb')
 	if (product.model_rfa_glb_preview) push(product.model_rfa_glb_preview, 'glb')
 	if (product.model_ar_glb) push(product.model_ar_glb, 'glb')
-	return out
+	const stable = out.filter(u => !isEphemeralExternalModelUrl(u))
+	const risky = out.filter(u => isEphemeralExternalModelUrl(u))
+	return [...stable, ...risky]
 }
 
 /** Все URL для model-viewer в порядке приоритета (для ретраев при 403/CORS). */

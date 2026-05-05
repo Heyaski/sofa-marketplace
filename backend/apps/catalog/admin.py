@@ -15,6 +15,7 @@ from django.core.files.base import ContentFile
 from django.http import HttpResponse
 from django.db.models import Q, Count
 from .models import Category, Product, ProductImage, FileAsset
+from .file_urls import should_replace_product_model_url_with_asset
 import openpyxl
 from decimal import Decimal
 import os
@@ -587,7 +588,9 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
                                                 file_ext = os.path.splitext(asset.file.name)[1].lower()
                                                 file_url = asset.file.url
                                                 
-                                                if file_ext == '.glb' and not product.model_glb:
+                                                if file_ext == '.glb' and should_replace_product_model_url_with_asset(
+                                                    product.model_glb, file_url
+                                                ):
                                                     product.model_glb = file_url
                                                 elif file_ext == '.fbx' and not product.model_fbx:
                                                     product.model_fbx = file_url
@@ -767,7 +770,9 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
                                             file_ext = os.path.splitext(asset.file.name)[1].lower()
                                             file_url = asset.file.url
                                             
-                                            if file_ext == '.glb' and not product.model_glb:
+                                            if file_ext == '.glb' and should_replace_product_model_url_with_asset(
+                                                product.model_glb, file_url
+                                            ):
                                                 product.model_glb = file_url
                                             elif file_ext == '.fbx' and not product.model_fbx:
                                                 product.model_fbx = file_url
@@ -1882,7 +1887,9 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                                             if file_asset.file and hasattr(file_asset.file, 'url'):
                                                 file_url = file_asset.file.url
                                                 
-                                                if file_ext == '.glb' and not product.model_glb:
+                                                if file_ext == '.glb' and should_replace_product_model_url_with_asset(
+                                                    product.model_glb, file_url
+                                                ):
                                                     product.model_glb = file_url
                                                 elif file_ext == '.fbx' and not product.model_fbx:
                                                     product.model_fbx = file_url

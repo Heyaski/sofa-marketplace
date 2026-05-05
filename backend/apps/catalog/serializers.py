@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Product, Category, ProductImage, FileAsset
+from .file_urls import is_ephemeral_external_model_url
 import os
 
 
@@ -307,8 +308,12 @@ class ProductSerializer(serializers.ModelSerializer):
             low = str(url).lower().strip()
             return low.startswith("http://") or low.startswith("https://") or low.startswith("/")
 
-        if obj.model_glb and is_valid_url(obj.model_glb):
-            return obj.model_glb
+        # Временные ссылки (чужой CDN + auth_key) не должны затенять GLB из FileAsset на нашем S3.
+        field_glb = (
+            obj.model_glb
+            if obj.model_glb and is_valid_url(obj.model_glb) and not is_ephemeral_external_model_url(obj.model_glb)
+            else None
+        )
 
         for asset in obj.get_3d_model_assets():
             name = (getattr(asset.file, "name", "") or "").lower()
@@ -318,6 +323,11 @@ class ProductSerializer(serializers.ModelSerializer):
             file_url = data.get("file_url")
             if is_valid_url(file_url):
                 return file_url
+
+        if field_glb:
+            return field_glb
+        if obj.model_glb and is_valid_url(obj.model_glb):
+            return obj.model_glb
 
         if obj.model_rfa_glb_preview and is_valid_url(obj.model_rfa_glb_preview):
             return obj.model_rfa_glb_preview
