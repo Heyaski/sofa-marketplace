@@ -5,6 +5,12 @@ from apps.catalog.models import Product
 from apps.catalog.rfa_converter import convert_glb_to_rfa_for_product, convert_rfa_to_glb_for_product
 
 
+def _is_revit_rfa_url(url: str | None) -> bool:
+    if not url or not str(url).strip():
+        return False
+    return str(url).strip().lower().split("?")[0].endswith(".rfa")
+
+
 def _invalidate_product_cache(product_id: int) -> None:
     cache.delete(f"product_detail:{product_id}")
     try:
@@ -51,6 +57,8 @@ def convert_glb_to_rfa_task(self, product_id: int):
     product = Product.objects.filter(pk=product_id).first()
     if not product or not product.model_glb:
         return {"status": "skipped", "reason": "no-product-or-glb"}
+    if _is_revit_rfa_url(product.model_rfa):
+        return {"status": "skipped", "reason": "manual-rfa-present"}
 
     try:
         rfa_url = convert_glb_to_rfa_for_product(product_id)

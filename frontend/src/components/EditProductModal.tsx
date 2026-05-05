@@ -25,13 +25,17 @@ export default function EditProductModal({
 	const [error, setError] = useState<string | null>(null)
 
 	const [glbFile, setGlbFile] = useState<File | null>(null)
-	const [modelFile, setModelFile] = useState<File | null>(null)
+	const [rfaFile, setRfaFile] = useState<File | null>(null)
+	const [ifcFile, setIfcFile] = useState<File | null>(null)
 	const [uploadingGlb, setUploadingGlb] = useState(false)
-	const [uploadingModel, setUploadingModel] = useState(false)
+	const [uploadingRfa, setUploadingRfa] = useState(false)
+	const [uploadingIfc, setUploadingIfc] = useState(false)
 	const [glbStatus, setGlbStatus] = useState<string | null>(null)
-	const [modelStatus, setModelStatus] = useState<string | null>(null)
+	const [rfaStatus, setRfaStatus] = useState<string | null>(null)
+	const [ifcStatus, setIfcStatus] = useState<string | null>(null)
 	const glbInputRef = useRef<HTMLInputElement>(null)
-	const modelInputRef = useRef<HTMLInputElement>(null)
+	const rfaInputRef = useRef<HTMLInputElement>(null)
+	const ifcInputRef = useRef<HTMLInputElement>(null)
 
 	useEffect(() => {
 		if (isOpen) {
@@ -41,9 +45,11 @@ export default function EditProductModal({
 			setDepth(product.depth != null ? String(product.depth) : '')
 			setError(null)
 			setGlbFile(null)
-			setModelFile(null)
+			setRfaFile(null)
+			setIfcFile(null)
 			setGlbStatus(null)
-			setModelStatus(null)
+			setRfaStatus(null)
+			setIfcStatus(null)
 		}
 	}, [isOpen, product])
 
@@ -74,18 +80,26 @@ export default function EditProductModal({
 					setUploadingGlb(false)
 				}
 			}
-			if (modelFile) {
-				setUploadingModel(true)
+			if (rfaFile) {
+				setUploadingRfa(true)
 				try {
-					const name = modelFile.name.toLowerCase()
-					const isRfa = name.endsWith('.rfa')
-					const fmt = isRfa ? 'rfa' : 'ifc'
-					updated = await productService.uploadProductModel(product.id, modelFile, fmt)
-					setModelStatus('Загружено')
+					updated = await productService.uploadProductModel(product.id, rfaFile, 'rfa')
+					setRfaStatus('Загружено')
 				} catch {
-					setModelStatus('Ошибка загрузки файла')
+					setRfaStatus('Ошибка загрузки RFA')
 				} finally {
-					setUploadingModel(false)
+					setUploadingRfa(false)
+				}
+			}
+			if (ifcFile) {
+				setUploadingIfc(true)
+				try {
+					updated = await productService.uploadProductModel(product.id, ifcFile, 'ifc')
+					setIfcStatus('Загружено')
+				} catch {
+					setIfcStatus('Ошибка загрузки IFC')
+				} finally {
+					setUploadingIfc(false)
 				}
 			}
 
@@ -101,7 +115,7 @@ export default function EditProductModal({
 		}
 	}
 
-	const isUploading = uploadingGlb || uploadingModel
+	const isUploading = uploadingGlb || uploadingRfa || uploadingIfc
 
 	if (!isOpen) return null
 
@@ -204,48 +218,81 @@ export default function EditProductModal({
 						</div>
 					</div>
 
-					{/* Secondary model file upload */}
+					{/* RFA */}
 					<div>
-						<label className='block text-sm font-medium text-black mb-1'>RFA / IFC</label>
+						<label className='block text-sm font-medium text-black mb-1'>RFA (.rfa)</label>
 						{product.model_rfa && (
 							<p className='text-xs text-gray mb-1 truncate' title={product.model_rfa}>
-								Текущий RFA: {product.model_rfa.split('/').pop()}
+								Текущий: {product.model_rfa.split('/').pop()}
 							</p>
 						)}
-						{product.model_ifc && (
-							<p className='text-xs text-gray mb-1 truncate' title={product.model_ifc}>
-								Текущий IFC: {product.model_ifc.split('/').pop()}
-							</p>
-						)}
-						<div className='flex items-center gap-2'>
+						<div className='flex items-center gap-2 flex-wrap'>
 							<input
-								ref={modelInputRef}
+								ref={rfaInputRef}
 								type='file'
-								accept='.ifc,.rfa'
+								accept='.rfa'
 								className='hidden'
 								onChange={e => {
 									const f = e.target.files?.[0] || null
-									setModelFile(f)
-									setModelStatus(null)
+									setRfaFile(f)
+									setRfaStatus(null)
 								}}
 							/>
 							<button
 								type='button'
-								onClick={() => modelInputRef.current?.click()}
-								disabled={uploadingModel}
+								onClick={() => rfaInputRef.current?.click()}
+								disabled={uploadingRfa}
 								className='px-3 py-2 text-sm border border-gray2 rounded-lg hover:bg-gray-bg transition-colors flex-shrink-0'
 							>
-								{modelFile ? 'Заменить' : product.model_rfa || product.model_ifc ? 'Заменить файл' : 'Загрузить .rfa / .ifc'}
+								{rfaFile ? 'Заменить RFA' : product.model_rfa ? 'Заменить RFA' : 'Загрузить RFA'}
 							</button>
-							{modelFile && (
-								<span className='text-xs text-black truncate'>{modelFile.name}</span>
+							{rfaFile && (
+								<span className='text-xs text-black truncate'>{rfaFile.name}</span>
 							)}
-							{uploadingModel && (
-								<span className='text-xs text-gray'>Загрузка…</span>
+							{uploadingRfa && <span className='text-xs text-gray'>Загрузка…</span>}
+							{rfaStatus && (
+								<span className={`text-xs ${rfaStatus === 'Загружено' ? 'text-green-600' : 'text-red-500'}`}>
+									{rfaStatus}
+								</span>
 							)}
-							{modelStatus && (
-								<span className={`text-xs ${modelStatus === 'Загружено' ? 'text-green-600' : 'text-red-500'}`}>
-									{modelStatus}
+						</div>
+					</div>
+
+					{/* IFC */}
+					<div>
+						<label className='block text-sm font-medium text-black mb-1'>IFC (.ifc)</label>
+						{product.model_ifc && (
+							<p className='text-xs text-gray mb-1 truncate' title={product.model_ifc}>
+								Текущий: {product.model_ifc.split('/').pop()}
+							</p>
+						)}
+						<div className='flex items-center gap-2 flex-wrap'>
+							<input
+								ref={ifcInputRef}
+								type='file'
+								accept='.ifc'
+								className='hidden'
+								onChange={e => {
+									const f = e.target.files?.[0] || null
+									setIfcFile(f)
+									setIfcStatus(null)
+								}}
+							/>
+							<button
+								type='button'
+								onClick={() => ifcInputRef.current?.click()}
+								disabled={uploadingIfc}
+								className='px-3 py-2 text-sm border border-gray2 rounded-lg hover:bg-gray-bg transition-colors flex-shrink-0'
+							>
+								{ifcFile ? 'Заменить IFC' : product.model_ifc ? 'Заменить IFC' : 'Загрузить IFC'}
+							</button>
+							{ifcFile && (
+								<span className='text-xs text-black truncate'>{ifcFile.name}</span>
+							)}
+							{uploadingIfc && <span className='text-xs text-gray'>Загрузка…</span>}
+							{ifcStatus && (
+								<span className={`text-xs ${ifcStatus === 'Загружено' ? 'text-green-600' : 'text-red-500'}`}>
+									{ifcStatus}
 								</span>
 							)}
 						</div>

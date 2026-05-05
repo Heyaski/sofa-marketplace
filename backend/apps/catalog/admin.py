@@ -13,7 +13,7 @@ from django.contrib import messages
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.http import HttpResponse
-from django.db.models import Q
+from django.db.models import Q, Count
 from .models import Category, Product, ProductImage, FileAsset
 import openpyxl
 from decimal import Decimal
@@ -26,6 +26,29 @@ import shutil
 from urllib.parse import quote
 from datetime import datetime
 from apps.admin_utils import ExportExcelMixin
+
+
+def _product_import_defaults_strip_empty_files(product_data: dict) -> dict:
+    """
+    Пустые ячейки Excel не должны затирать уже сохранённые URL файлов и ID ассетов
+    при update_or_create (иначе повторный импорт без колонок GLB/RFA/IFC обнуляет модели).
+    """
+    out = dict(product_data)
+    for key in (
+        "model_glb",
+        "model_rfa",
+        "model_ifc",
+        "model_fbx",
+        "model_usdz",
+        "model_ar_glb",
+        "photo_url",
+        "image_asset_ids",
+        "model_3d_asset_ids",
+    ):
+        val = out.get(key)
+        if val is None or (isinstance(val, str) and not val.strip()):
+            out.pop(key, None)
+    return out
 
 
 @admin.register(Category)
@@ -956,11 +979,47 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
     )
     
     change_list_template = "admin/catalog/product_changelist.html"
-    
+
+    def _get_product_folder_rows(self):
+        """Категории как «папки» со счётчиками GLB / RFA / IFC для списка товаров."""
+        has_glb = Q(model_glb__isnull=False) & ~Q(model_glb="")
+        has_rfa = (
+            Q(model_rfa__isnull=False)
+            & ~Q(model_rfa="")
+            & (Q(model_rfa__iendswith=".rfa") | Q(model_rfa__icontains=".rfa?"))
+        )
+        has_ifc = (
+            Q(model_ifc__isnull=False)
+            & ~Q(model_ifc="")
+            & (Q(model_ifc__iendswith=".ifc") | Q(model_ifc__icontains=".ifc?"))
+        )
+        stats_rows = Product.objects.values("category_id").annotate(
+            total=Count("id"),
+            n_glb=Count("id", filter=has_glb),
+            n_rfa=Count("id", filter=has_rfa),
+            n_ifc=Count("id", filter=has_ifc),
+            n_bundle=Count("id", filter=has_glb & has_rfa & has_ifc),
+        )
+        stat_by_cat = {row["category_id"]: row for row in stats_rows}
+        categories = Category.objects.all().order_by("order", "id")
+        rows = []
+        for cat in categories:
+            s = stat_by_cat.get(
+                cat.id,
+                {"total": 0, "n_glb": 0, "n_rfa": 0, "n_ifc": 0, "n_bundle": 0},
+            )
+            rows.append({"category": cat, **s})
+        return rows
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["product_folder_rows"] = self._get_product_folder_rows()
+        return super().changelist_view(request, extra_context=extra_context)
+
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
-            path('import-excel/', self.import_excel, name='catalog_product_import_excel'),
+            path("import-excel/", self.import_excel, name="catalog_product_import_excel"),
         ]
         return custom_urls + urls
     
@@ -1563,15 +1622,16 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                         }
                         
                         # Создаем или обновляем по артикулу (если есть) или по названию
+                        import_defaults = _product_import_defaults_strip_empty_files(product_data)
                         if article:
                             product, created = Product.objects.update_or_create(
                                 article=article,
-                                defaults={'title': title, **product_data}
+                                defaults={"title": title, **import_defaults},
                             )
                         else:
                             product, created = Product.objects.update_or_create(
                                 title=title,
-                                defaults=product_data
+                                defaults=import_defaults,
                             )
                         
                         if created:
