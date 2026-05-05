@@ -1,1 +1,0 @@
-self.__REACT_LOADABLE_MANIFEST='{"app\\\\product\\\\[id]\\\\page.tsx -> @/services/api":{"id":8223,"files":[]},"components\\\\ProductModelViewer.tsx -> @google/model-viewer":{"id":1666,"files":["static/chunks/bd904a5c-07d1b9ed4c6161ef.js","static/chunks/b536a0f1-fb2a7698c08c9795.js","static/chunks/545-07b00957e4b0a1c3.js","static/chunks/666.e22a6e128c2e0306.js"]}}';
