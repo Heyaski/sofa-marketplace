@@ -80,7 +80,7 @@ function collectGlbUrls(product: Product): string[] {
 		out.push(withGlbVersion(normalized))
 	}
 
-	// 1) В каталоге приоритет за ассетами, привязанными к товару (наиболее точное соответствие карточке).
+	// 1) Приоритет — GLB/GLTF/USDZ из FileAsset (если в model_3d_asset_ids есть и .rfa/.ifc, они тут просто пропускаются).
 	if (product.asset_3d_models?.length) {
 		const scored = [...product.asset_3d_models].sort((a, b) => {
 			const aId = (a.asset_id || '').toLowerCase()
@@ -93,9 +93,8 @@ function collectGlbUrls(product: Product): string[] {
 		for (const a of scored) push(a.file_url, a.file_ext)
 	}
 
-	// 2) Прямые поля — fallback только если нет привязанных FileAsset-моделей.
-	// Это исключает подмену "чужой" 3D при устаревшем model_glb.
-	if (!product.asset_3d_models?.length) {
+	// 2) Если из ассетов не набрали ни одного URL для вьюера — берём поля товара (иначе при одних только RFA/IFC в ассетах теряется загруженный GLB).
+	if (!out.length) {
 		if (product.model_glb) push(product.model_glb)
 		if (product.model_rfa_glb_preview) push(product.model_rfa_glb_preview)
 	}
