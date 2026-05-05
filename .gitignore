@@ -13,6 +13,8 @@ node_modules/
 .env.test.local
 .env.production.local
 frontend/node_modules/
+# Любой вложенный каталог .next (монорепо / несколько фронтов)
+**/.next/
 backend/venv/
 backend/db.sqlite3
 backend/media/
