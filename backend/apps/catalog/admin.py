@@ -856,6 +856,56 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
         return response
 
 
+def _product_model_files_q_components():
+    """Условия для GLB / RFA / IFC на полях модели (как счётчики папок и bundle в API)."""
+    has_glb = Q(model_glb__isnull=False) & ~Q(model_glb="")
+    has_rfa = (
+        Q(model_rfa__isnull=False)
+        & ~Q(model_rfa="")
+        & (Q(model_rfa__iendswith=".rfa") | Q(model_rfa__icontains=".rfa?"))
+    )
+    has_ifc = (
+        Q(model_ifc__isnull=False)
+        & ~Q(model_ifc="")
+        & (Q(model_ifc__iendswith=".ifc") | Q(model_ifc__icontains=".ifc?"))
+    )
+    return has_glb, has_rfa, has_ifc
+
+
+def product_model_file_kind_q(kind: str):
+    """Фильтр QuerySet: glb | rfa | ifc | bundle (все три)."""
+    has_glb, has_rfa, has_ifc = _product_model_files_q_components()
+    k = (kind or "").strip().lower()
+    if k == "glb":
+        return has_glb
+    if k == "rfa":
+        return has_rfa
+    if k == "ifc":
+        return has_ifc
+    if k == "bundle":
+        return has_glb & has_rfa & has_ifc
+    return None
+
+
+class ModelFilesKindFilter(admin.SimpleListFilter):
+    title = "Файлы 3D (GLB / RFA / IFC)"
+    parameter_name = "model_files_kind"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("glb", "Есть GLB"),
+            ("rfa", "Есть RFA (.rfa)"),
+            ("ifc", "Есть IFC (.ifc)"),
+            ("bundle", "Полный комплект (GLB + RFA + IFC)"),
+        )
+
+    def queryset(self, request, queryset):
+        q = product_model_file_kind_q(self.value() or "")
+        if q is None:
+            return queryset
+        return queryset.filter(q)
+
+
 @admin.register(Product)
 class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
     list_display = (
@@ -863,6 +913,7 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
         "article",
         "title",
         "category",
+        "model_file_formats",
         "price",
         "availability",
         "brand",
@@ -870,7 +921,16 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
         "has_3d_model",
         "is_active",
     )
-    list_filter = ("category", "availability", "brand", "material", "color", "is_active", "is_trending")
+    list_filter = (
+        "category",
+        ModelFilesKindFilter,
+        "availability",
+        "brand",
+        "material",
+        "color",
+        "is_active",
+        "is_trending",
+    )
     search_fields = ("title", "article", "description", "brand")
     list_editable = ("price", "is_active")
     inlines = [ProductImageInline]
@@ -942,6 +1002,33 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
             return format_html('<span style="color: green;">✅</span>')
         return format_html('<span style="color: #ccc;">—</span>')
     has_3d_model.short_description = "3D"
+
+    def model_file_formats(self, obj):
+        """Бейджи наличия GLB / RFA / IFC (по URL в полях)."""
+
+        def badge(label: str, ok: bool):
+            if ok:
+                return format_html(
+                    '<span style="display:inline-block;margin:1px 2px 1px 0;padding:2px 7px;'
+                    "border-radius:4px;font-size:11px;font-weight:600;background:#e8f5e9;color:#1b5e20;"
+                    '">{}</span>',
+                    label,
+                )
+            return format_html(
+                '<span style="display:inline-block;margin:1px 2px 1px 0;padding:2px 7px;'
+                "border-radius:4px;font-size:11px;background:#f0f0f0;color:#9e9e9e;"
+                '">{}</span>',
+                label,
+            )
+
+        glb = bool((obj.model_glb or "").strip())
+        rfa_raw = (obj.model_rfa or "").strip()
+        has_rfa = bool(rfa_raw) and rfa_raw.lower().split("?")[0].endswith(".rfa")
+        ifc_raw = (obj.model_ifc or "").strip()
+        has_ifc = bool(ifc_raw) and ifc_raw.lower().split("?")[0].endswith(".ifc")
+        return format_html("{} {} {}", badge("GLB", glb), badge("RFA", has_rfa), badge("IFC", has_ifc))
+
+    model_file_formats.short_description = "Форматы"
     
     fieldsets = (
         ('Основная информация', {
@@ -982,17 +1069,7 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
 
     def _get_product_folder_rows(self):
         """Категории как «папки» со счётчиками GLB / RFA / IFC для списка товаров."""
-        has_glb = Q(model_glb__isnull=False) & ~Q(model_glb="")
-        has_rfa = (
-            Q(model_rfa__isnull=False)
-            & ~Q(model_rfa="")
-            & (Q(model_rfa__iendswith=".rfa") | Q(model_rfa__icontains=".rfa?"))
-        )
-        has_ifc = (
-            Q(model_ifc__isnull=False)
-            & ~Q(model_ifc="")
-            & (Q(model_ifc__iendswith=".ifc") | Q(model_ifc__icontains=".ifc?"))
-        )
+        has_glb, has_rfa, has_ifc = _product_model_files_q_components()
         stats_rows = Product.objects.values("category_id").annotate(
             total=Count("id"),
             n_glb=Count("id", filter=has_glb),

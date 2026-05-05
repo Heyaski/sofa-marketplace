@@ -30,21 +30,53 @@
     <p class="help" style="margin: 0 0 12px 0;">
         Счётчики: сколько товаров в категории имеют файл данного типа.
         «Полный комплект» — GLB + реальный .rfa + .ifc (как в фильтре каталога).
+        Нажмите «Открыть список» у строки формата — в таблице ниже появятся только эти товары и колонка <strong>Форматы</strong>.
     </p>
+    {% if request.GET.model_files_kind %}
+    <p class="help" style="margin-bottom: 12px; padding: 8px 10px; background: #e7f3ff; border-radius: 4px;">
+        <strong>Открыта папка:</strong>
+        {% if request.GET.model_files_kind == "bundle" %}полный комплект (GLB + RFA + IFC){% endif %}
+        {% if request.GET.model_files_kind == "glb" %}только с GLB{% endif %}
+        {% if request.GET.model_files_kind == "rfa" %}только с RFA (.rfa){% endif %}
+        {% if request.GET.model_files_kind == "ifc" %}только с IFC (.ifc){% endif %}
+        {% if request.GET.category__id__exact %} — категория отфильтрована (см. блок «FILTER» справа).{% endif %}
+        <a href="{% url 'admin:catalog_product_changelist' %}" style="margin-left: 8px;">Сбросить фильтр форматов</a>
+    </p>
+    {% endif %}
     {% for row in product_folder_rows %}
     <details {% if row.total %}open{% endif %} style="margin-bottom: 8px; border: 1px solid #ccc; border-radius: 4px; padding: 6px 10px; background: #fafafa;">
         <summary style="cursor: pointer; font-weight: 600;">
             📁 {{ row.category.name }}
             <span style="font-weight: normal; color: #666;">— всего: {{ row.total }}</span>
-            <a href="{{ request.path }}?category__id__exact={{ row.category.id }}"
+            <a href="{% url 'admin:catalog_product_changelist' %}?category__id__exact={{ row.category.id }}"
                 style="margin-left: 8px; font-size: 12px; font-weight: normal;"
-                onclick="event.stopPropagation();">фильтр списка ↓</a>
+                onclick="event.stopPropagation();">все товары категории ↓</a>
         </summary>
-        <ul style="margin: 10px 0 4px 18px; line-height: 1.6; font-size: 13px;">
-            <li>📂 <strong>GLB</strong> — {{ row.n_glb }}{% if row.total %} / {{ row.total }}{% endif %}</li>
-            <li>📂 <strong>RFA</strong> (.rfa) — {{ row.n_rfa }}{% if row.total %} / {{ row.total }}{% endif %}</li>
-            <li>📂 <strong>IFC</strong> (.ifc) — {{ row.n_ifc }}{% if row.total %} / {{ row.total }}{% endif %}</li>
-            <li>📦 <strong>Полный комплект</strong> — {{ row.n_bundle }}</li>
+        <ul style="margin: 10px 0 4px 18px; line-height: 1.75; font-size: 13px; list-style: none; padding-left: 0;">
+            <li>
+                📂 <strong>GLB</strong> — {{ row.n_glb }}{% if row.total %} / {{ row.total }}{% endif %}
+                {% if row.n_glb %}
+                — <a href="{% url 'admin:catalog_product_changelist' %}?category__id__exact={{ row.category.id }}&model_files_kind=glb">открыть список</a>
+                {% endif %}
+            </li>
+            <li>
+                📂 <strong>RFA</strong> (.rfa) — {{ row.n_rfa }}{% if row.total %} / {{ row.total }}{% endif %}
+                {% if row.n_rfa %}
+                — <a href="{% url 'admin:catalog_product_changelist' %}?category__id__exact={{ row.category.id }}&model_files_kind=rfa">открыть список</a>
+                {% endif %}
+            </li>
+            <li>
+                📂 <strong>IFC</strong> (.ifc) — {{ row.n_ifc }}{% if row.total %} / {{ row.total }}{% endif %}
+                {% if row.n_ifc %}
+                — <a href="{% url 'admin:catalog_product_changelist' %}?category__id__exact={{ row.category.id }}&model_files_kind=ifc">открыть список</a>
+                {% endif %}
+            </li>
+            <li>
+                📦 <strong>Полный комплект</strong> — {{ row.n_bundle }}
+                {% if row.n_bundle %}
+                — <a href="{% url 'admin:catalog_product_changelist' %}?category__id__exact={{ row.category.id }}&model_files_kind=bundle"><strong>открыть список (3 формата)</strong></a>
+                {% endif %}
+            </li>
         </ul>
     </details>
     {% empty %}
