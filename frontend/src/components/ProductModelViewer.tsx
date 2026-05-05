@@ -97,8 +97,10 @@ function collectGlbUrls(product: Product): string[] {
 
 	// 2) Прямые поля — всегда в конец как запас (дедуп по пути без query).
 	// Так при «битой» первой ссылке (например истёкший auth_key на чужом CDN) можно перейти к превью / другому полю.
-	if (product.model_glb) push(product.model_glb)
-	if (product.model_rfa_glb_preview) push(product.model_rfa_glb_preview)
+	// Без ".glb" в пути ext из URL часто получается из домена (например "net/...") — считаем поля явно GLB.
+	if (product.model_glb) push(product.model_glb, 'glb')
+	if (product.model_rfa_glb_preview) push(product.model_rfa_glb_preview, 'glb')
+	if (product.model_ar_glb) push(product.model_ar_glb, 'glb')
 	return out
 }
 
