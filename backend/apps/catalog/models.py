@@ -208,18 +208,43 @@ class Product(models.Model):
                         best = min(best, idx)
                 return (best, asset_id_lower)
 
-            combined = []
+            combined_pks = []
             seen = set()
             for asset in sorted(exact_assets + prefixed_assets, key=_asset_rank):
                 if asset.pk in seen:
                     continue
                 seen.add(asset.pk)
-                combined.append(asset.pk)
+                combined_pks.append(asset.pk)
 
-            order_clauses = [When(pk=pk, then=pos) for pos, pk in enumerate(combined)]
-            return FileAsset.objects.filter(pk__in=combined).order_by(
-                Case(*order_clauses, default=len(combined), output_field=IntegerField())
+            def _is_browser_3d_asset(asset) -> bool:
+                name = (getattr(asset.file, "name", "") or "").lower()
+                return name.endswith((".glb", ".gltf", ".usdz"))
+
+            base_len = len(combined_pks)
+            order_clauses = [When(pk=pk, then=pos) for pos, pk in enumerate(combined_pks)]
+            qs = FileAsset.objects.filter(pk__in=combined_pks).order_by(
+                Case(*order_clauses, default=base_len, output_field=IntegerField())
             )
+            # В model_3d_asset_ids часто только RFA/IFC; GLB на S3 лежит отдельным FileAsset с asset_id = артикул.
+            # Без этого get_3d_model_assets() не видит GLB → API/бэкфилл думают, что файла нет.
+            row0 = list(qs)
+            if not any(_is_browser_3d_asset(a) for a in row0):
+                article = (self.article or "").strip()
+                if article:
+                    known = set(combined_pks)
+                    for a in self._get_assets_by_article_fallback("3d_model"):
+                        if a.pk in known:
+                            continue
+                        if not _is_browser_3d_asset(a):
+                            continue
+                        combined_pks.append(a.pk)
+                        known.add(a.pk)
+            if len(combined_pks) > base_len:
+                order_clauses = [When(pk=pk, then=pos) for pos, pk in enumerate(combined_pks)]
+                return FileAsset.objects.filter(pk__in=combined_pks).order_by(
+                    Case(*order_clauses, default=len(combined_pks), output_field=IntegerField())
+                )
+            return qs
 
         return self._get_assets_by_article_fallback('3d_model')
     
