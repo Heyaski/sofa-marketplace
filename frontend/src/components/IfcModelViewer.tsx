@@ -5,8 +5,16 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { IFCLoader } from 'web-ifc-three'
 
-/** WASM web-ifc кладутся в `public/web-ifc` скриптом postinstall (см. scripts/copy-web-ifc-wasm.cjs). */
-const WASM_ROOT = '/web-ifc/'
+/**
+ * web-ifc ищет WASM через locateFile(prefix + wasmPath + file).
+ * В Next.js prefix = путь к чанку (`_next/static/chunks/`), из‑за этого получается 404.
+ * Задаём абсолютный URL каталога на сайте: `/web-ifc/` (файлы из `public/web-ifc`, см. postinstall).
+ */
+function getWasmBaseUrl(): string {
+	if (typeof window === 'undefined') return '/web-ifc/'
+	const { origin } = window.location
+	return `${origin.replace(/\/$/, '')}/web-ifc/`
+}
 
 interface IfcModelViewerProps {
 	ifcUrl: string
@@ -80,7 +88,13 @@ export default function IfcModelViewer({ ifcUrl, className = '' }: IfcModelViewe
 			try {
 				const loader = new IFCLoader()
 				loaderRef.current = loader
-				await loader.ifcManager.setWasmPath(WASM_ROOT)
+				const wasmBase = getWasmBaseUrl()
+				// web-ifc: второй аргумент — не добавлять emscripten prefix (иначе Next.js → chunks/…/web-if.c).
+				const ifcApi = loader.ifcManager.state.api as unknown as {
+					SetWasmPath: (path: string, absolute?: boolean) => void
+				}
+				ifcApi.SetWasmPath(wasmBase, true)
+				loader.ifcManager.state.wasmPath = wasmBase
 
 				await new Promise<void>((resolve, reject) => {
 					loader.load(
