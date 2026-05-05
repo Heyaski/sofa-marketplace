@@ -71,7 +71,21 @@ def resolve_product_file_url(product, fmt, request):
     ext = fmt.lower() if fmt.startswith('.') else f'.{fmt}'.lower()
 
     # 1. Прямые URL в Product
-    if ext in ('.rfa', '.ifc') and product.model_rfa:
+    if ext == '.ifc':
+        ifc = getattr(product, 'model_ifc', '') or ''
+        if ifc:
+            url = ifc
+            if url.startswith(('http://', 'https://')):
+                return url
+            return request.build_absolute_uri(url)
+        # Legacy: IFC раньше хранился в model_rfa
+        mr = getattr(product, 'model_rfa', '') or ''
+        if mr and mr.lower().split('?')[0].endswith('.ifc'):
+            if mr.startswith(('http://', 'https://')):
+                return mr
+            return request.build_absolute_uri(mr)
+
+    if ext == '.rfa' and product.model_rfa:
         url = product.model_rfa
         if url.startswith(('http://', 'https://')):
             return url
@@ -89,7 +103,9 @@ def resolve_product_file_url(product, fmt, request):
         if not asset.file or not asset.file.name:
             continue
         name_lower = asset.file.name.lower()
-        if ext in ('.rfa', '.ifc') and name_lower.endswith(('.rfa', '.ifc')):
+        if ext == '.rfa' and name_lower.endswith('.rfa'):
+            return get_file_asset_url(asset, request)
+        if ext == '.ifc' and name_lower.endswith('.ifc'):
             return get_file_asset_url(asset, request)
         if ext == '.glb' and (name_lower.endswith('.glb') or name_lower.endswith('.gltf')):
             return get_file_asset_url(asset, request)

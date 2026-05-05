@@ -6,6 +6,12 @@ from apps.catalog.models import Product
 from apps.catalog.tasks import convert_rfa_to_glb_task
 
 
+def _is_revit_rfa_url(url: str | None) -> bool:
+    if not url or not str(url).strip():
+        return False
+    return str(url).strip().lower().split("?")[0].endswith(".rfa")
+
+
 @receiver(pre_save, sender=Product)
 def remember_old_rfa(sender, instance: Product, **kwargs):
     if not instance.pk:
@@ -19,7 +25,7 @@ def remember_old_rfa(sender, instance: Product, **kwargs):
 def queue_rfa_conversion(sender, instance: Product, created: bool, **kwargs):
     if not getattr(settings, "RFA_CONVERT_ENABLED", True):
         return
-    if not instance.model_rfa:
+    if not _is_revit_rfa_url(instance.model_rfa):
         return
     old_rfa = getattr(instance, "_old_model_rfa", None)
     if not created and old_rfa == instance.model_rfa:

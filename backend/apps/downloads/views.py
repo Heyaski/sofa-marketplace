@@ -61,9 +61,12 @@ class PresignView(APIView):
                         return self._as_absolute(request, file_url)
         # Устарело: клиентские сценарии скачивают только .rfa
         if fmt in ('.ifc',):
+            mi = getattr(product, 'model_ifc', '') or ''
+            if mi:
+                return self._as_absolute(request, mi)
             mr = getattr(product, 'model_rfa', '') or ''
             if mr and (mr.lower().split('?')[0].endswith('.ifc') or '.ifc?' in mr.lower()):
-                return self._as_absolute(request, product.model_rfa)
+                return self._as_absolute(request, mr)
             for asset in product.get_3d_model_assets():
                 name = (getattr(asset.file, 'name', '') or '').lower()
                 if name.endswith('.ifc'):

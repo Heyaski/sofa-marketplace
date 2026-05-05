@@ -97,6 +97,12 @@ class Product(models.Model):
     model_fbx = models.CharField(max_length=500, blank=True, verbose_name="FBX файл")
     model_glb = models.CharField(max_length=500, blank=True, verbose_name="GLB файл")
     model_rfa = models.CharField(max_length=500, blank=True, verbose_name="RFA файл")
+    model_ifc = models.CharField(
+        max_length=500,
+        blank=True,
+        verbose_name="IFC файл",
+        help_text="Отдельно от .rfa: только IFC для просмотра и выдачи в этом формате",
+    )
     model_rfa_glb_preview = models.CharField(
         max_length=500,
         blank=True,

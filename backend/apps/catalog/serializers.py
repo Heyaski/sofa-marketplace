@@ -215,7 +215,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "width", "height", "depth", "weight", "availability",
             "is_active", "is_trending", "photo_url",
             "image_asset_ids", "model_3d_asset_ids", "model_3d_id", "title_display",
-            "model_glb", "model_fbx", "model_rfa", "model_rfa_glb_preview",
+            "model_glb", "model_fbx", "model_rfa", "model_ifc", "model_rfa_glb_preview",
             "model_rfa_convert_status", "model_rfa_convert_error",
             "model_usdz", "model_ar_glb",
             "shop_url", "cp_notes",

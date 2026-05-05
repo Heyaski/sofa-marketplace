@@ -59,6 +59,7 @@ export interface Product {
 	model_glb?: string
 	model_fbx?: string
 	model_rfa?: string
+	model_ifc?: string
 	model_rfa_glb_preview?: string
 	model_rfa_convert_status?: 'idle' | 'queued' | 'processing' | 'ready' | 'failed'
 	model_rfa_convert_error?: string
@@ -224,7 +225,7 @@ export interface ProductFilters {
 	depth_max?: number
 	is_active?: boolean
 	is_trending?: boolean
-	model_files?: 'both' | 'any'
+	model_files?: 'both' | 'any' | 'bundle'
 	search?: string
 	ordering?: string
 }

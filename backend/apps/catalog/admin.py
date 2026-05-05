@@ -557,13 +557,15 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
                                                     product.model_fbx = file_url
                                                 elif file_ext == '.usdz' and not product.model_usdz:
                                                     product.model_usdz = file_url
-                                                elif file_ext in ('.rfa', '.ifc') and not product.model_rfa:
+                                                elif file_ext == '.rfa' and not product.model_rfa:
                                                     product.model_rfa = file_url
+                                                elif file_ext == '.ifc' and not product.model_ifc:
+                                                    product.model_ifc = file_url
                                         except Exception:
                                             pass
                                 
                                 # Сохраняем товар
-                                product.save(update_fields=['image_asset_ids', 'model_3d_asset_ids', 'model_glb', 'model_fbx', 'model_usdz', 'model_rfa'])
+                                product.save(update_fields=['image_asset_ids', 'model_3d_asset_ids', 'model_glb', 'model_fbx', 'model_usdz', 'model_rfa', 'model_ifc'])
                                 products_linked_count += 1
                             else:
                                 # Товар не найден - добавляем в ошибки для информации
@@ -735,13 +737,15 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
                                                 product.model_fbx = file_url
                                             elif file_ext == '.usdz' and not product.model_usdz:
                                                 product.model_usdz = file_url
-                                            elif file_ext in ('.rfa', '.ifc') and not product.model_rfa:
+                                            elif file_ext == '.rfa' and not product.model_rfa:
                                                 product.model_rfa = file_url
+                                            elif file_ext == '.ifc' and not product.model_ifc:
+                                                product.model_ifc = file_url
                                     except Exception:
                                         pass
                             
                             # Сохраняем товар
-                            product.save(update_fields=['image_asset_ids', 'model_3d_asset_ids', 'model_glb', 'model_fbx', 'model_usdz', 'model_rfa'])
+                            product.save(update_fields=['image_asset_ids', 'model_3d_asset_ids', 'model_glb', 'model_fbx', 'model_usdz', 'model_rfa', 'model_ifc'])
                             products_linked_count += 1
                             
                     except Exception as e:
@@ -934,7 +938,8 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                 'image_asset_ids',
                 'model_glb', 
                 'model_fbx', 
-                'model_rfa', 
+                'model_rfa',
+                'model_ifc', 
                 'model_usdz', 
                 'model_ar_glb', 
                 'model_3d_asset_ids'
@@ -1041,6 +1046,7 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                     'model_fbx': ['fbx', 'model_fbx'],
                     'model_glb': ['glb', 'model_glb'],
                     'model_rfa': ['rfa', 'model_rfa'],
+                    'model_ifc': ['ifc', 'model_ifc'],
                     'model_usdz': ['usdz', 'model_usdz'],
                     'model_ar_glb': ['ar-glb', 'ar_glb', 'arglb', 'model_ar_glb'],
                 }
@@ -1550,6 +1556,7 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                             'model_fbx': get_cell_value(row, 'model_fbx'),
                             'model_glb': get_cell_value(row, 'model_glb'),
                             'model_rfa': get_cell_value(row, 'model_rfa'),
+                            'model_ifc': get_cell_value(row, 'model_ifc'),
                             'model_usdz': get_cell_value(row, 'model_usdz'),
                             'model_ar_glb': get_cell_value(row, 'model_ar_glb'),
                             'is_active': True,  # Всегда активируем товары при импорте
@@ -1731,8 +1738,10 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                                                     product.model_fbx = file_url
                                                 elif file_ext == '.usdz' and not product.model_usdz:
                                                     product.model_usdz = file_url
-                                                elif file_ext in ('.rfa', '.ifc') and not product.model_rfa:
+                                                elif file_ext == '.rfa' and not product.model_rfa:
                                                     product.model_rfa = file_url
+                                                elif file_ext == '.ifc' and not product.model_ifc:
+                                                    product.model_ifc = file_url
                                             
                                         except Exception as model_error:
                                             errors.append(f"Строка {row_num}: ошибка при добавлении 3D модели '{os.path.basename(model_path)}': {str(model_error)}")
@@ -1740,7 +1749,7 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                                     # Обновляем model_3d_asset_ids товара
                                     if model_asset_ids_list:
                                         product.model_3d_asset_ids = ','.join(model_asset_ids_list)
-                                        product.save(update_fields=['model_3d_asset_ids', 'model_glb', 'model_fbx', 'model_usdz', 'model_rfa'])
+                                        product.save(update_fields=['model_3d_asset_ids', 'model_glb', 'model_fbx', 'model_usdz', 'model_rfa', 'model_ifc'])
                                         models_attached_count += len(model_asset_ids_list)
                                 
                             except Exception as e:

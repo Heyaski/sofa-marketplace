@@ -5,9 +5,8 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { IFCLoader } from 'web-ifc-three'
 
-/** Совпадает с `node_modules/web-ifc` у web-ifc-three. */
-const WEB_IFC_VERSION = '0.0.39'
-const WASM_CDN_ROOT = `https://unpkg.com/web-ifc@${WEB_IFC_VERSION}/`
+/** WASM web-ifc кладутся в `public/web-ifc` скриптом postinstall (см. scripts/copy-web-ifc-wasm.cjs). */
+const WASM_ROOT = '/web-ifc/'
 
 interface IfcModelViewerProps {
 	ifcUrl: string
@@ -81,7 +80,7 @@ export default function IfcModelViewer({ ifcUrl, className = '' }: IfcModelViewe
 			try {
 				const loader = new IFCLoader()
 				loaderRef.current = loader
-				await loader.ifcManager.setWasmPath(WASM_CDN_ROOT)
+				await loader.ifcManager.setWasmPath(WASM_ROOT)
 
 				await new Promise<void>((resolve, reject) => {
 					loader.load(

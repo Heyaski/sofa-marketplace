@@ -37,7 +37,9 @@ class Command(BaseCommand):
         limit = max(0, options["limit"])
         run_sync = options["sync"]
 
-        qs = Product.objects.filter(~Q(model_rfa=""), model_rfa__isnull=False).order_by("id")
+        qs = Product.objects.filter(~Q(model_rfa=""), model_rfa__isnull=False).filter(
+            Q(model_rfa__iendswith=".rfa") | Q(model_rfa__icontains=".rfa?")
+        ).order_by("id")
         if only_failed:
             qs = qs.filter(model_rfa_convert_status="failed")
         elif not include_all:

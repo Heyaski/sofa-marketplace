@@ -80,7 +80,8 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         # Фильтрация по наличию файлов:
         # model_files=both -> только товары с изображением И реально доступной браузерной 3D-моделью
-        # model_files=any  -> хотя бы один из файлов модели (GLB/3D id или model file)
+        # model_files=any  -> хотя бы один из файлов модели (GLB/3D id или RFA/IFC URL)
+        # model_files=bundle (full3d/trio) -> GLB + Revit .rfa + .ifc (для витрины в режиме 3D)
         model_files = (self.request.query_params.get('model_files') or '').strip().lower()
         glb_ext_q = (
             models.Q(file__iendswith='.glb')
@@ -105,7 +106,33 @@ class ProductViewSet(viewsets.ModelViewSet):
             )
         )
         has_glb_q = has_direct_glb_url_q | has_glb_asset_by_model_id_q
-        has_model_file_q = models.Q(model_rfa__isnull=False) & ~models.Q(model_rfa='')
+        has_model_file_q = (models.Q(model_rfa__isnull=False) & ~models.Q(model_rfa='')) | (
+            models.Q(model_ifc__isnull=False) & ~models.Q(model_ifc='')
+        )
+        rfa_ext_q = models.Q(file__iendswith='.rfa')
+        ifc_ext_q = models.Q(file__iendswith='.ifc')
+        has_rfa_asset_by_model_id_q = models.Exists(
+            FileAsset.objects.filter(file_type='3d_model').filter(rfa_ext_q).filter(
+                models.Q(asset_id__iexact=models.OuterRef('model_3d_asset_ids'))
+                | models.Q(asset_id__istartswith=Concat(models.OuterRef('model_3d_asset_ids'), models.Value('_')))
+                | models.Q(asset_id__istartswith=Concat(models.OuterRef('model_3d_asset_ids'), models.Value('-')))
+            )
+        )
+        has_ifc_asset_by_model_id_q = models.Exists(
+            FileAsset.objects.filter(file_type='3d_model').filter(ifc_ext_q).filter(
+                models.Q(asset_id__iexact=models.OuterRef('model_3d_asset_ids'))
+                | models.Q(asset_id__istartswith=Concat(models.OuterRef('model_3d_asset_ids'), models.Value('_')))
+                | models.Q(asset_id__istartswith=Concat(models.OuterRef('model_3d_asset_ids'), models.Value('-')))
+            )
+        )
+        has_rfa_direct_q = (~models.Q(model_rfa='')) & (
+            models.Q(model_rfa__iendswith='.rfa') | models.Q(model_rfa__icontains='.rfa?')
+        )
+        has_ifc_direct_q = (~models.Q(model_ifc='')) & (
+            models.Q(model_ifc__iendswith='.ifc') | models.Q(model_ifc__icontains='.ifc?')
+        )
+        has_rfa_q = has_rfa_direct_q | has_rfa_asset_by_model_id_q
+        has_ifc_q = has_ifc_direct_q | has_ifc_asset_by_model_id_q
         has_image_q = (
             models.Q(image__isnull=False)
             | (models.Q(photo_url__isnull=False) & ~models.Q(photo_url=''))
@@ -117,6 +144,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(has_glb_q & has_image_q)
         elif model_files == 'any':
             queryset = queryset.filter(has_glb_q | has_model_file_q)
+        elif model_files in ('bundle', 'full3d', 'trio'):
+            queryset = queryset.filter(has_glb_q & has_rfa_q & has_ifc_q)
         
         # Фильтрация по категории (поддержка нескольких: category=1,2,3)
         category_param = self.request.query_params.get('category', None)
@@ -259,7 +288,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         """Кэширование списка товаров (5 мин) — ускоряет загрузку страниц с 3D моделями."""
-        cache_key = f"products_list:v4:{request.GET.urlencode()}"
+        cache_key = f"products_list:v5:{request.GET.urlencode()}"
         cached = cache.get(cache_key)
         if cached is not None:
             return Response(cached)
@@ -270,7 +299,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         """Кэширование деталей товара (10 мин)."""
         pk = kwargs.get("pk")
-        cache_key = f"product_detail:v4:{pk}"
+        cache_key = f"product_detail:v5:{pk}"
         cached = cache.get(cache_key)
         if cached is not None:
             return Response(cached)
@@ -283,6 +312,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         cache.delete(f"product_detail:v2:{product.pk}")
         cache.delete(f"product_detail:v3:{product.pk}")
         cache.delete(f"product_detail:v4:{product.pk}")
+        cache.delete(f"product_detail:v5:{product.pk}")
         try:
             cache.delete_pattern("products_list*")
         except AttributeError:
@@ -318,8 +348,8 @@ class ProductViewSet(viewsets.ModelViewSet):
         ext = os.path.splitext(file.name)[1].lower()
         allowed_exts = {
             "glb": {".glb"},
-            "rfa": {".rfa", ".ifc"},
-            "ifc": {".ifc", ".rfa"},
+            "rfa": {".rfa"},
+            "ifc": {".ifc"},
         }
         if ext not in allowed_exts[model_format]:
             return Response(
@@ -338,9 +368,14 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         if model_format == "glb":
             product.model_glb = saved_url
-        else:
+            update_fields = ["model_glb"]
+        elif model_format == "rfa":
             product.model_rfa = saved_url
-        product.save(update_fields=["model_glb" if model_format == "glb" else "model_rfa"])
+            update_fields = ["model_rfa"]
+        else:
+            product.model_ifc = saved_url
+            update_fields = ["model_ifc"]
+        product.save(update_fields=update_fields)
 
         self._invalidate_product_cache(product)
 

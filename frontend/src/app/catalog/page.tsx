@@ -59,9 +59,8 @@ function CatalogContent() {
 	const effectiveFilters = useMemo<ProductFilters>(
 		() => ({
 			...filters,
-			// В 3D-режиме показываем товары, у которых есть хотя бы один файл модели.
-			// В 2D-режиме не ограничиваем каталог по 3D-файлам, чтобы не скрывать товары.
-			...(!isSuperuser && catalogView === '3d' ? { model_files: 'any' as const } : {}),
+			// В 3D-режиме показываем только товары с полным комплектом: GLB + RFA + IFC.
+			...(!isSuperuser && catalogView === '3d' ? { model_files: 'bundle' as const } : {}),
 		}),
 		[filters, isSuperuser, catalogView]
 	)

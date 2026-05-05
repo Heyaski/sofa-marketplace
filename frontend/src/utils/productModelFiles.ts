@@ -13,6 +13,14 @@ function absolutize(url: string): string {
 export function getIfcViewerUrl(product: Product): string | null {
 	const candidates: string[] = []
 
+	const mic = (product.model_ifc || '').trim()
+	if (mic) {
+		const low = mic.toLowerCase()
+		if (low.split('?')[0].endsWith('.ifc') || low.includes('.ifc?')) {
+			candidates.push(absolutize(mic))
+		}
+	}
+
 	for (const asset of product.asset_3d_models || []) {
 		const ext = (asset.file_ext || '').toLowerCase()
 		const u = (asset.file_url || '').toLowerCase()

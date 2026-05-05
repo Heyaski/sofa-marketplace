@@ -77,7 +77,10 @@ export default function EditProductModal({
 			if (modelFile) {
 				setUploadingModel(true)
 				try {
-					updated = await productService.uploadProductModel(product.id, modelFile, 'ifc')
+					const name = modelFile.name.toLowerCase()
+					const isRfa = name.endsWith('.rfa')
+					const fmt = isRfa ? 'rfa' : 'ifc'
+					updated = await productService.uploadProductModel(product.id, modelFile, fmt)
 					setModelStatus('Загружено')
 				} catch {
 					setModelStatus('Ошибка загрузки файла')
@@ -203,10 +206,15 @@ export default function EditProductModal({
 
 					{/* Secondary model file upload */}
 					<div>
-						<label className='block text-sm font-medium text-black mb-1'>Файл модели</label>
+						<label className='block text-sm font-medium text-black mb-1'>RFA / IFC</label>
 						{product.model_rfa && (
 							<p className='text-xs text-gray mb-1 truncate' title={product.model_rfa}>
-								Текущий: {product.model_rfa.split('/').pop()}
+								Текущий RFA: {product.model_rfa.split('/').pop()}
+							</p>
+						)}
+						{product.model_ifc && (
+							<p className='text-xs text-gray mb-1 truncate' title={product.model_ifc}>
+								Текущий IFC: {product.model_ifc.split('/').pop()}
 							</p>
 						)}
 						<div className='flex items-center gap-2'>
@@ -227,7 +235,7 @@ export default function EditProductModal({
 								disabled={uploadingModel}
 								className='px-3 py-2 text-sm border border-gray2 rounded-lg hover:bg-gray-bg transition-colors flex-shrink-0'
 							>
-								{modelFile ? 'Заменить' : product.model_rfa ? 'Заменить файл' : 'Загрузить файл'}
+								{modelFile ? 'Заменить' : product.model_rfa || product.model_ifc ? 'Заменить файл' : 'Загрузить .rfa / .ifc'}
 							</button>
 							{modelFile && (
 								<span className='text-xs text-black truncate'>{modelFile.name}</span>

@@ -18,6 +18,9 @@ def convert_rfa_to_glb_task(self, product_id: int):
     product = Product.objects.filter(pk=product_id).first()
     if not product or not product.model_rfa:
         return {"status": "skipped", "reason": "no-product-or-rfa"}
+    mr = (product.model_rfa or "").strip()
+    if not mr.lower().split("?")[0].endswith(".rfa"):
+        return {"status": "skipped", "reason": "not-revit-rfa"}
 
     Product.objects.filter(pk=product_id).update(
         model_rfa_convert_status="processing",

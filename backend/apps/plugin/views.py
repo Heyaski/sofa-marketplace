@@ -389,21 +389,39 @@ class PluginProductListView(APIView):
         products = Product.objects.filter(is_active=True).order_by('-id')[:500]
         items = []
         for p in products:
+            assets = list(p.get_3d_model_assets())
+
+            def _urls_rfa():
+                mr = (p.model_rfa or '').strip()
+                return mr.lower().split('?')[0].endswith('.rfa') if mr else False
+
+            def _urls_ifc():
+                mi = getattr(p, 'model_ifc', '') or ''
+                if mi.strip():
+                    return mi.lower().split('?')[0].endswith('.ifc')
+                mr = (p.model_rfa or '').strip()
+                return mr.lower().split('?')[0].endswith('.ifc') if mr else False
+
             has_glb = bool(p.model_glb or any(
                 a.file and a.file.name.lower().endswith(('.glb', '.gltf'))
-                for a in p.get_3d_model_assets()
+                for a in assets
             ))
-            has_rfa = bool(p.model_rfa or any(
-                a.file and a.file.name.lower().endswith(('.rfa', '.ifc'))
-                for a in p.get_3d_model_assets()
+            has_rfa = bool(_urls_rfa() or any(
+                a.file and a.file.name.lower().split('?')[0].endswith('.rfa')
+                for a in assets
             ))
-            if has_glb or has_rfa:
+            has_ifc = bool(_urls_ifc() or any(
+                a.file and a.file.name.lower().split('?')[0].endswith('.ifc')
+                for a in assets
+            ))
+            if has_glb and has_rfa and has_ifc:
                 items.append({
                     "id": p.id,
                     "title": p.title,
                     "article": p.article or "",
                     "has_glb": has_glb,
                     "has_rfa": has_rfa,
+                    "has_ifc": has_ifc,
                 })
         return Response({"products": items}, status=status.HTTP_200_OK)
 
