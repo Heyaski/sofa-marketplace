@@ -105,7 +105,21 @@ class ProductViewSet(viewsets.ModelViewSet):
                 & ~models.Q(model_rfa_glb_preview='')
             )
         )
-        has_glb_q = has_direct_glb_url_q | has_glb_asset_by_model_id_q
+        # GLB в FileAsset по артикулу (имя файла часто Кровать5315_xxx.glb, а model_3d_asset_ids пустой)
+        has_glb_via_article_q = (
+            models.Q(article__isnull=False)
+            & ~models.Q(article='')
+            & models.Exists(
+                FileAsset.objects.filter(file_type='3d_model')
+                .filter(glb_ext_q)
+                .filter(
+                    models.Q(asset_id__iexact=models.OuterRef('article'))
+                    | models.Q(asset_id__istartswith=Concat(models.OuterRef('article'), models.Value('_')))
+                    | models.Q(asset_id__istartswith=Concat(models.OuterRef('article'), models.Value('-')))
+                )
+            )
+        )
+        has_glb_q = has_direct_glb_url_q | has_glb_asset_by_model_id_q | has_glb_via_article_q
         has_model_file_q = (models.Q(model_rfa__isnull=False) & ~models.Q(model_rfa='')) | (
             models.Q(model_ifc__isnull=False) & ~models.Q(model_ifc='')
         )
@@ -131,8 +145,24 @@ class ProductViewSet(viewsets.ModelViewSet):
         has_ifc_direct_q = (~models.Q(model_ifc='')) & (
             models.Q(model_ifc__iendswith='.ifc') | models.Q(model_ifc__icontains='.ifc?')
         )
-        has_rfa_q = has_rfa_direct_q | has_rfa_asset_by_model_id_q
-        has_ifc_q = has_ifc_direct_q | has_ifc_asset_by_model_id_q
+        article_asset_prefix_q = (
+            models.Q(asset_id__iexact=models.OuterRef('article'))
+            | models.Q(asset_id__istartswith=Concat(models.OuterRef('article'), models.Value('_')))
+            | models.Q(asset_id__istartswith=Concat(models.OuterRef('article'), models.Value('-')))
+        )
+        has_article_for_asset = models.Q(article__isnull=False) & ~models.Q(article='')
+        has_rfa_via_article_q = has_article_for_asset & models.Exists(
+            FileAsset.objects.filter(file_type='3d_model')
+            .filter(rfa_ext_q)
+            .filter(article_asset_prefix_q)
+        )
+        has_ifc_via_article_q = has_article_for_asset & models.Exists(
+            FileAsset.objects.filter(file_type='3d_model')
+            .filter(ifc_ext_q)
+            .filter(article_asset_prefix_q)
+        )
+        has_rfa_q = has_rfa_direct_q | has_rfa_asset_by_model_id_q | has_rfa_via_article_q
+        has_ifc_q = has_ifc_direct_q | has_ifc_asset_by_model_id_q | has_ifc_via_article_q
         has_image_q = (
             models.Q(image__isnull=False)
             | (models.Q(photo_url__isnull=False) & ~models.Q(photo_url=''))

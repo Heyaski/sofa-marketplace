@@ -9,7 +9,7 @@ import { formatDimension } from '../utils/format'
 import { getTitleWithoutBrand } from '../utils/productTitle'
 import { getProductPrimaryImageUrl } from '@/utils/productImage'
 import { hasDownloadableRfa } from '@/utils/productModelFiles'
-import ProductModelViewer, { getProductModelUrlAt } from './ProductModelViewer'
+import ProductModelViewer, { getProductModelUrlCandidates } from './ProductModelViewer'
 import EditProductModal from './EditProductModal'
 import { productService } from '../services/api'
 
@@ -62,6 +62,7 @@ export default function ProductCard({
 
 	const displayTitle = product.title_display ?? getTitleWithoutBrand(product.title || '', product.brand)
 	const catalogThumbUrl = getProductPrimaryImageUrl(product)
+	const hasViewerGlbCandidates = getProductModelUrlCandidates(product).length > 0
 
 	const getCategoryName = () => {
 		if (!displayTitle) return ''
@@ -212,8 +213,8 @@ export default function ProductCard({
 			<div className='rounded-lg mb-3 sm:mb-4 overflow-hidden relative aspect-square bg-gray-50'>
 				<div className='absolute right-2 bottom-2 z-10 flex gap-1'>
 					<span
-						className={`text-[10px] px-1.5 py-0.5 rounded ${getProductModelUrlAt(product, 0) ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}
-						title={getProductModelUrlAt(product, 0) ? '3D доступен' : '3D не добавлен'}
+						className={`text-[10px] px-1.5 py-0.5 rounded ${hasViewerGlbCandidates ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}
+						title={hasViewerGlbCandidates ? 'В карточке есть URL для 3D (если ссылка протухла — см. текст на превью)' : '3D не добавлен'}
 					>
 						3D
 					</span>
@@ -241,7 +242,7 @@ export default function ProductCard({
 							Нет фото
 						</button>
 					)
-				) : getProductModelUrlAt(product, 0) ? (
+				) : hasViewerGlbCandidates ? (
 					<ProductModelViewer
 						product={product}
 						variant='card'

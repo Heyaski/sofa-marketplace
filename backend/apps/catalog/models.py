@@ -164,12 +164,13 @@ class Product(models.Model):
         return self._get_assets_by_article_fallback('image')
     
     def get_3d_model_assets(self):
-        """Получить все 3D модели строго по model_3d_asset_ids."""
-        if not self.model_3d_asset_ids:
-            return FileAsset.objects.none()
-        ids = [id.strip() for id in self.model_3d_asset_ids.split(',') if id.strip()]
+        """3D-модели FileAsset: сначала model_3d_asset_ids, иначе — привязка по артикулу (как у изображений)."""
+        raw = (self.model_3d_asset_ids or "").strip()
+        if not raw:
+            return self._get_assets_by_article_fallback('3d_model')
+        ids = [i.strip() for i in raw.split(',') if i.strip()]
         if not ids:
-            return FileAsset.objects.none()
+            return self._get_assets_by_article_fallback('3d_model')
         # Собираем все варианты для поиска: точный id + вариант с пробелом (ДиванП7682 -> Диван П7682)
         import re
         ordered_keys = []
@@ -220,7 +221,7 @@ class Product(models.Model):
                 Case(*order_clauses, default=len(combined), output_field=IntegerField())
             )
 
-        return FileAsset.objects.none()
+        return self._get_assets_by_article_fallback('3d_model')
     
     def get_glb_url(self):
         """Получить URL GLB модели (приоритет: model_glb, затем FileAsset)"""

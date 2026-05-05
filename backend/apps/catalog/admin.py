@@ -271,11 +271,17 @@ class CategoryFilter(admin.SimpleListFilter):
     def lookups(self, request, model_admin):
         """Получаем все категории, у которых есть товары с привязанными файлами"""
         # Находим категории, у которых есть товары с непустыми полями image_asset_ids или model_3d_asset_ids
-        categories = Category.objects.filter(
-            Q(product__image_asset_ids__isnull=False) & ~Q(product__image_asset_ids='')
-        ).distinct() | Category.objects.filter(
-            Q(product__model_3d_asset_ids__isnull=False) & ~Q(product__model_3d_asset_ids='')
-        ).distinct()
+        categories = (
+            Category.objects.filter(
+                Q(product__image_asset_ids__isnull=False) & ~Q(product__image_asset_ids='')
+            ).distinct()
+            | Category.objects.filter(
+                Q(product__model_3d_asset_ids__isnull=False) & ~Q(product__model_3d_asset_ids='')
+            ).distinct()
+            | Category.objects.filter(
+                Q(product__article__isnull=False) & ~Q(product__article='')
+            ).distinct()
+        )
         
         return [(cat.id, cat.name) for cat in categories.order_by('name')]
 
@@ -288,18 +294,25 @@ class CategoryFilter(admin.SimpleListFilter):
             
             asset_ids = set()
             for product in products:
+                if product.article and str(product.article).strip():
+                    asset_ids.add(str(product.article).strip())
                 # Добавляем ID изображений
                 if product.image_asset_ids and product.image_asset_ids.strip():
                     ids = [id.strip() for id in product.image_asset_ids.split(',') if id.strip()]
                     asset_ids.update(ids)
-                
+
                 # Добавляем ID 3D моделей
                 if product.model_3d_asset_ids and product.model_3d_asset_ids.strip():
                     ids = [id.strip() for id in product.model_3d_asset_ids.split(',') if id.strip()]
                     asset_ids.update(ids)
             
             if asset_ids:
-                return queryset.filter(asset_id__in=asset_ids)
+                id_filter = Q(asset_id__in=asset_ids)
+                for aid in asset_ids:
+                    id_filter |= Q(asset_id__istartswith=f"{aid}_") | Q(
+                        asset_id__istartswith=f"{aid}-"
+                    )
+                return queryset.filter(id_filter)
             else:
                 # Если нет привязанных файлов, возвращаем пустой queryset
                 return queryset.none()

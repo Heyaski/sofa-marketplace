@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Product } from '../types'
 
 const MODEL_VIEWER_FORMATS = ['glb', 'gltf', 'usdz']
@@ -35,7 +35,9 @@ function withGlbVersion(url: string): string {
 		lower.includes('x-amz-signature=') ||
 		lower.includes('x-amz-credential=') ||
 		lower.includes('x-amz-algorithm=') ||
-		lower.includes('signature=')
+		lower.includes('signature=') ||
+		// Временные CDN-ссылки (Volc/проч.) — query нельзя менять, иначе 403
+		lower.includes('auth_key=')
 	if (hasSignature) return url
 	return url + (url.includes('?') ? '&' : '?') + GLB_VERSION
 }
@@ -93,12 +95,16 @@ function collectGlbUrls(product: Product): string[] {
 		for (const a of scored) push(a.file_url, a.file_ext)
 	}
 
-	// 2) Если из ассетов не набрали ни одного URL для вьюера — берём поля товара (иначе при одних только RFA/IFC в ассетах теряется загруженный GLB).
-	if (!out.length) {
-		if (product.model_glb) push(product.model_glb)
-		if (product.model_rfa_glb_preview) push(product.model_rfa_glb_preview)
-	}
+	// 2) Прямые поля — всегда в конец как запас (дедуп по пути без query).
+	// Так при «битой» первой ссылке (например истёкший auth_key на чужом CDN) можно перейти к превью / другому полю.
+	if (product.model_glb) push(product.model_glb)
+	if (product.model_rfa_glb_preview) push(product.model_rfa_glb_preview)
 	return out
+}
+
+/** Все URL для model-viewer в порядке приоритета (для ретраев при 403/CORS). */
+export function getProductModelUrlCandidates(product: Product): string[] {
+	return collectGlbUrls(product)
 }
 
 /** URL n-й 3D-модели (0 — основная). Для страницы товара: два вьюера. */
@@ -110,10 +116,6 @@ export function getProductModelUrlAt(product: Product, index: number): string | 
 export function getRfaPreviewModelUrl(product: Product): string | null {
 	const url = product.model_rfa_glb_preview
 	return url && isValidUrl(url) ? withGlbVersion(url) : null
-}
-
-function getModelUrl(product: Product, index: number = 0): string | null {
-	return getProductModelUrlAt(product, index)
 }
 
 interface ProductModelViewerProps {
@@ -141,7 +143,21 @@ export default function ProductModelViewer({
 	className = '',
 	onClick,
 }: ProductModelViewerProps) {
-	const modelUrl = modelUrlOverride || getModelUrl(product, modelIndex)
+	const candidates = useMemo(() => {
+		if (modelUrlOverride) {
+			const u = modelUrlOverride.trim()
+			if (!isValidUrl(u)) return []
+			return [withGlbVersion(normalizeModelUrl(u))]
+		}
+		const urls = collectGlbUrls(product)
+		return urls.slice(Math.max(0, modelIndex))
+	}, [product, modelUrlOverride, modelIndex])
+
+	const [failoverIdx, setFailoverIdx] = useState(0)
+	const modelUrl = candidates[failoverIdx] ?? null
+	const candidatesLenRef = useRef(0)
+	candidatesLenRef.current = candidates.length
+
 	const [scriptReady, setScriptReady] = useState(false)
 	const [resolvedSrc, setResolvedSrc] = useState<string | null>(null)
 	const [inViewport, setInViewport] = useState(false)
@@ -150,6 +166,11 @@ export default function ProductModelViewer({
 	const containerRef = useRef<HTMLDivElement>(null)
 	const modelViewerRef = useRef<any>(null)
 	const releaseQueueSlotRef = useRef<null | (() => void)>(null)
+
+	useEffect(() => {
+		setFailoverIdx(0)
+		setModelLoadFailed(false)
+	}, [product.id, modelUrlOverride, modelIndex])
 
 	// Виртуализация: загружаем 3D когда карточка в viewport. Гистерезис — не скрываем при кратковременном выходе из viewport.
 	useEffect(() => {
@@ -231,11 +252,20 @@ export default function ProductModelViewer({
 		}
 		const onError = () => {
 			setModelLoaded(false)
-			setModelLoadFailed(true)
 			if (releaseQueueSlotRef.current) {
 				releaseQueueSlotRef.current()
 				releaseQueueSlotRef.current = null
 			}
+			setFailoverIdx((i) => {
+				const next = i + 1
+				if (next < candidatesLenRef.current) {
+					return next
+				}
+				queueMicrotask(() => {
+					setModelLoadFailed(true)
+				})
+				return i
+			})
 		}
 		el.addEventListener('load', onLoad)
 		el.addEventListener('error', onError)
@@ -336,8 +366,8 @@ export default function ProductModelViewer({
 						className='absolute inset-0 w-full h-full object-cover'
 					/>
 					<div className='absolute inset-0 flex items-center justify-center bg-black/35 px-2'>
-						<span className='text-xs text-white drop-shadow'>
-							3D недоступно — показано фото
+						<span className='text-xs text-white drop-shadow text-center'>
+							3D недоступно — показано фото. Частая причина: срок ссылки (auth_key) на чужом CDN истёк — загрузите GLB в каталог или своё хранилище.
 						</span>
 					</div>
 				</button>
@@ -346,7 +376,7 @@ export default function ProductModelViewer({
 					className="w-full h-full min-h-[200px] cursor-pointer flex items-center justify-center text-xs text-gray px-2 text-center"
 					onClick={onClick}
 				>
-					3D недоступно
+					3D недоступно (проверьте ссылку или загрузите GLB)
 				</div>
 			)}
 		</div>
