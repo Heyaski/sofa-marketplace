@@ -10,7 +10,6 @@ import os
 import tempfile
 from pathlib import Path
 
-import numpy as np
 from django.conf import settings
 from django.core.files.base import ContentFile
 
@@ -105,6 +104,7 @@ def _scene_to_single_mesh(scene) -> "trimesh.Trimesh":
 
 
 def _limit_face_count(mesh: "trimesh.Trimesh", max_faces: int) -> "trimesh.Trimesh":
+    import numpy as np
     import trimesh
 
     n = len(mesh.faces)
@@ -152,6 +152,16 @@ def render_glb_bytes_to_png(glb_bytes: bytes) -> bytes:
     except (OSError, subprocess.TimeoutExpired, ValueError) as e:
         logger.warning("glb_2d: внешняя команда не выполнена: %s", e)
 
+    import importlib.util
+
+    for mod in ("numpy", "trimesh", "matplotlib"):
+        if importlib.util.find_spec(mod) is None:
+            raise RuntimeError(
+                f"Не установлен пакет «{mod}». После обновления кода выполните на сервере "
+                f"в venv бэкенда: pip install -r requirements.txt"
+            )
+
+    import numpy as np
     import matplotlib
 
     matplotlib.use("Agg")
