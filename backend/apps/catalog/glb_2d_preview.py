@@ -1,12 +1,17 @@
 """
 Генерация плоского превью (PNG) из GLB/GLTF для режима 2D каталога.
 GLB не удаляется и не перезаписывается — заполняется только поле image, если других фото нет.
+
+Рендер по умолчанию (matplotlib): освещение + vertex colors / baseColorFactor / diffuse из GLB.
+UV-текстуры в PNG не «выпекаются» — как в браузерном 3D с PBR невозможно без Blender/pyrender;
+для фотореализма задайте GLB_PREVIEW_COMMAND (рендер во внешний PNG).
 """
 from __future__ import annotations
 
 import io
 import logging
 import os
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -112,6 +117,102 @@ def _limit_face_count(mesh: "trimesh.Trimesh", max_faces: int) -> "trimesh.Trime
     raise ValueError("submesh не вернул Trimesh")
 
 
+def _matplotlib_mesh_preview_png(mesh: "trimesh.Trimesh", size: tuple[int, int], dpi: int) -> bytes:
+    """
+    Рендер без UV-текстур: освещение по нормалям + цвет вершин / diffuse из GLB (если есть).
+    Иначе тёплый нейтральный тон вместо однотонного «серого каркаса».
+    Полноценные текстуры как в браузере — только через GLB_PREVIEW_COMMAND (Blender и т.п.).
+    """
+    import numpy as np
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+    w, h = size
+    vtx = np.asarray(mesh.vertices, dtype=np.float64)
+    fc = np.asarray(mesh.faces, dtype=np.int64)
+    if vtx.size == 0 or fc.size == 0:
+        raise ValueError("пустая геометрия")
+
+    mesh = mesh.copy()
+    mesh.fix_normals()
+    fn = np.asarray(mesh.face_normals, dtype=np.float64)
+    norms = np.linalg.norm(fn, axis=1, keepdims=True)
+    norms = np.where(norms < 1e-12, 1.0, norms)
+    fn = fn / norms
+
+    L = np.array([0.48, 0.36, 0.86], dtype=np.float64)
+    L = L / max(float(np.linalg.norm(L)), 1e-12)
+    ndotl = np.clip(np.sum(fn * L, axis=1), 0.0, 1.0)
+    shade = (0.26 + 0.74 * ndotl)[:, np.newaxis]
+
+    n_faces = len(fc)
+    base = np.tile(np.array([[0.86, 0.80, 0.74]], dtype=np.float64), (n_faces, 1))
+
+    vis = getattr(mesh, "visual", None)
+    if vis is not None:
+        try:
+            vc = np.asarray(getattr(vis, "vertex_colors", None))
+            if vc.size and vc.shape[0] == len(mesh.vertices) and vc.shape[1] >= 3:
+                tri_vc = vc[fc][:, :, :3].astype(np.float64) / 255.0
+                base = np.clip(tri_vc.mean(axis=1), 0.0, 1.0)
+        except Exception:
+            pass
+        default_tile = np.tile(np.array([[0.86, 0.80, 0.74]], dtype=np.float64), (n_faces, 1))
+        if np.allclose(base, default_tile):
+            mat = getattr(vis, "material", None)
+            if mat is not None:
+                bcf = getattr(mat, "baseColorFactor", None)
+                if bcf is not None:
+                    arr = np.asarray(bcf, dtype=np.float64).ravel()
+                    if arr.size >= 3:
+                        rgb = np.clip(arr[:3], 0.0, 1.0)
+                        base = np.tile(rgb, (n_faces, 1))
+                if np.allclose(base, default_tile):
+                    for attr in ("main_color", "diffuse", "ambient"):
+                        c = getattr(mat, attr, None)
+                        if c is None:
+                            continue
+                        arr = np.asarray(c, dtype=np.float64).ravel()
+                        if arr.size >= 3:
+                            mx = 255.0 if arr[:3].max() > 1.01 else 1.0
+                            rgb = np.clip(arr[:3] / mx, 0.0, 1.0)
+                            base = np.tile(rgb, (n_faces, 1))
+                            break
+
+    face_rgb = np.clip(base * shade, 0.0, 1.0)
+    triangles = vtx[fc]
+
+    fig = plt.figure(figsize=(w / dpi, h / dpi), dpi=dpi, facecolor="white")
+    ax = fig.add_subplot(111, projection="3d")
+    coll = Poly3DCollection(
+        triangles,
+        facecolors=face_rgb,
+        edgecolors="none",
+        linewidths=0,
+        antialiased=True,
+    )
+    ax.add_collection3d(coll)
+
+    ax.view_init(elev=22, azim=42)
+    span = float(np.ptp(vtx, axis=0).max())
+    if span <= 0:
+        span = 1.0
+    mid = vtx.mean(axis=0)
+    pad = span * 0.52
+    ax.set_xlim(mid[0] - pad, mid[0] + pad)
+    ax.set_ylim(mid[1] - pad, mid[1] + pad)
+    ax.set_zlim(mid[2] - pad, mid[2] + pad)
+    ax.set_axis_off()
+    plt.subplots_adjust(left=0, right=1, bottom=0, top=1)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", facecolor="white", transparent=False)
+    plt.close(fig)
+    return buf.getvalue()
+
+
 def _render_with_subprocess(glb_bytes: bytes) -> bytes | None:
     cmd_tmpl = getattr(settings, "GLB_PREVIEW_COMMAND", "").strip()
     if not cmd_tmpl or "{input}" not in cmd_tmpl or "{output}" not in cmd_tmpl:
@@ -155,11 +256,9 @@ def render_glb_bytes_to_png(glb_bytes: bytes) -> bytes:
                 f"в venv бэкенда: pip install -r requirements.txt"
             )
 
-    import numpy as np
     import matplotlib
 
     matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
     import trimesh
 
     scene = trimesh.load(
@@ -171,40 +270,7 @@ def render_glb_bytes_to_png(glb_bytes: bytes) -> bytes:
     mesh = _scene_to_single_mesh(scene)
     mesh = _limit_face_count(mesh, _MAX_FACES_MATPLOTLIB)
 
-    vtx = np.asarray(mesh.vertices, dtype=np.float64)
-    fc = np.asarray(mesh.faces, dtype=np.int64)
-    if vtx.size == 0 or fc.size == 0:
-        raise ValueError("пустая геометрия")
-
-    w, h = _PREVIEW_SIZE
-    dpi = 100
-    fig = plt.figure(figsize=(w / dpi, h / dpi), dpi=dpi, facecolor="white")
-    ax = fig.add_subplot(111, projection="3d")
-    ax.plot_trisurf(
-        vtx[:, 0],
-        vtx[:, 1],
-        vtx[:, 2],
-        triangles=fc,
-        linewidth=0.05,
-        antialiased=True,
-        color="#c8c8c8",
-        edgecolor="none",
-    )
-    ax.view_init(elev=22, azim=42)
-    span = float(np.ptp(vtx, axis=0).max())
-    if span <= 0:
-        span = 1.0
-    mid = vtx.mean(axis=0)
-    pad = span * 0.52
-    ax.set_xlim(mid[0] - pad, mid[0] + pad)
-    ax.set_ylim(mid[1] - pad, mid[1] + pad)
-    ax.set_zlim(mid[2] - pad, mid[2] + pad)
-    ax.set_axis_off()
-    plt.subplots_adjust(left=0, right=1, bottom=0, top=1)
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", facecolor="white", transparent=False)
-    plt.close(fig)
-    return buf.getvalue()
+    return _matplotlib_mesh_preview_png(mesh, _PREVIEW_SIZE, dpi=100)
 
 
 def _invalidate_product_cache(product_id: int) -> None:
