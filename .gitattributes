@@ -1,3 +1,6 @@
 # Артефакты Next.js не должны быть в репозитории (см. .gitignore).
 # Если путь когда-либо снова попадёт в индекс, не применять text=auto / CRLF — иначе на Windows сотни предупреждений при операциях git.
 frontend/.next/** -text
+
+# pip читает только UTF-8 / ASCII; фиксируем LF, чтобы файл не превратился в UTF-16 на Windows.
+backend/requirements.txt text eol=lf
