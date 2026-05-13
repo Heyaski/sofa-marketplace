@@ -99,7 +99,25 @@ def _scene_to_single_mesh(scene) -> "trimesh.Trimesh":
             meshes.append(g)
     if not meshes:
         raise ValueError("GLB/GLTF: нет Trimesh-геометрии")
-    return trimesh.util.concatenate(tuple(meshes))
+    if len(meshes) == 1:
+        return meshes[0]
+    # Несколько мешей: merge без визуала — иначе concatenate копирует PIL-текстуры (долго, лишняя память).
+    # Цвет превью тогда из освещения + дефолтный тон; геометрия целая.
+    bare = tuple(m.copy(include_visual=False) for m in meshes)
+    return trimesh.util.concatenate(bare)
+
+
+def _face_normals_numpy(vtx: "np.ndarray", fc: "np.ndarray") -> "np.ndarray":
+    """Единичные нормали граней без scipy / fix_normals."""
+    import numpy as np
+
+    v0 = vtx[fc[:, 0]]
+    v1 = vtx[fc[:, 1]]
+    v2 = vtx[fc[:, 2]]
+    fn = np.cross(v1 - v0, v2 - v0)
+    norms = np.linalg.norm(fn, axis=1, keepdims=True)
+    norms = np.where(norms < 1e-12, 1.0, norms)
+    return (fn / norms).astype(np.float64)
 
 
 def _limit_face_count(mesh: "trimesh.Trimesh", max_faces: int) -> "trimesh.Trimesh":
@@ -136,14 +154,7 @@ def _matplotlib_mesh_preview_png(mesh: "trimesh.Trimesh", size: tuple[int, int],
     if vtx.size == 0 or fc.size == 0:
         raise ValueError("пустая геометрия")
 
-    mesh = mesh.copy()
-    mesh.fix_normals()
-    fn = np.asarray(mesh.face_normals, dtype=np.float64)
-    norms = np.linalg.norm(fn, axis=1, keepdims=True)
-    norms = np.where(norms < 1e-12, 1.0, norms)
-    fn = fn / norms
-
-    L = np.array([0.48, 0.36, 0.86], dtype=np.float64)
+    fn = _face_normals_numpy(vtx, fc)
     L = L / max(float(np.linalg.norm(L)), 1e-12)
     ndotl = np.clip(np.sum(fn * L, axis=1), 0.0, 1.0)
     shade = (0.26 + 0.74 * ndotl)[:, np.newaxis]
