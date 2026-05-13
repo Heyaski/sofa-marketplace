@@ -443,13 +443,16 @@ def _render_with_subprocess(glb_bytes: bytes) -> bytes | None:
         return out_path.read_bytes()
 
 
-def render_glb_bytes_to_png(glb_bytes: bytes) -> bytes:
-    """GLB/GLTF (байты) → PNG (байты)."""
+def render_glb_bytes_to_png(glb_bytes: bytes) -> tuple[bytes, str]:
+    """
+    GLB/GLTF (байты) → (PNG байты, имя рендерера).
+    Рендерер: 'subprocess' | 'playwright' | 'matplotlib'
+    """
     ext = _infer_load_file_type(glb_bytes)
     try:
         ext_cmd = _render_with_subprocess(glb_bytes)
         if ext_cmd:
-            return ext_cmd
+            return ext_cmd, "subprocess"
     except subprocess.CalledProcessError as e:
         logger.warning("glb_2d: внешняя команда GLB_PREVIEW_COMMAND завершилась с ошибкой: %s", e)
     except (OSError, subprocess.TimeoutExpired, ValueError) as e:
@@ -457,15 +460,20 @@ def render_glb_bytes_to_png(glb_bytes: bytes) -> bytes:
 
     pw = _render_with_playwright_screenshot(glb_bytes, ext)
     if pw:
-        return pw
+        return pw, "playwright"
+
+    logger.warning(
+        "glb_2d: Playwright не сработал — используем matplotlib (без UV-текстур, качество ниже). "
+        "Для нормального качества: pip install playwright && playwright install chromium"
+    )
 
     import importlib.util
 
     for mod in ("numpy", "trimesh", "matplotlib"):
         if importlib.util.find_spec(mod) is None:
             raise RuntimeError(
-                f"Не установлен пакет «{mod}». После обновления кода выполните на сервере "
-                f"в venv бэкенда: pip install -r requirements.txt"
+                f"Не установлен пакет «{mod}». "
+                f"pip install -r requirements.txt"
             )
 
     import matplotlib
@@ -482,7 +490,7 @@ def render_glb_bytes_to_png(glb_bytes: bytes) -> bytes:
     mesh = _scene_to_single_mesh(scene)
     mesh = _limit_face_count(mesh, _MAX_FACES_MATPLOTLIB)
 
-    return _matplotlib_mesh_preview_png(mesh, _PREVIEW_SIZE, dpi=100)
+    return _matplotlib_mesh_preview_png(mesh, _PREVIEW_SIZE, dpi=100), "matplotlib"
 
 
 def _invalidate_product_cache(product_id: int) -> None:
@@ -514,7 +522,7 @@ def run_glb_2d_preview_for_product_id(product_id: int, *, force: bool = False) -
         return {"status": "skipped", "reason": "no-glb"}
 
     try:
-        png = render_glb_bytes_to_png(raw)
+        png, renderer = render_glb_bytes_to_png(raw)
     except Exception as e:
         logger.exception("glb_2d: рендер не удался product_id=%s", product_id)
         return {"status": "error", "reason": f"render-failed: {e}"[:500]}
@@ -522,4 +530,4 @@ def run_glb_2d_preview_for_product_id(product_id: int, *, force: bool = False) -
     name = f"glb2d_{product_id}.png"
     product.image.save(name, ContentFile(png), save=True)
     _invalidate_product_cache(product_id)
-    return {"status": "ok", "image": product.image.name}
+    return {"status": "ok", "image": product.image.name, "renderer": renderer}
