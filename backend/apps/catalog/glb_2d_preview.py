@@ -2,9 +2,11 @@
 Генерация плоского превью (PNG) из GLB/GLTF для режима 2D каталога.
 GLB не удаляется и не перезаписывается — заполняется только поле image, если других фото нет.
 
-Рендер по умолчанию (matplotlib): освещение + vertex colors / baseColorFactor / diffuse из GLB.
-UV-текстуры в PNG не «выпекаются» — как в браузерном 3D с PBR невозможно без Blender/pyrender;
-для фотореализма задайте GLB_PREVIEW_COMMAND (рендер во внешний PNG).
+Порядок рендера:
+1) GLB_PREVIEW_COMMAND — внешний пайплайн (Blender и т.п.), если задан.
+2) Playwright + Chromium + <model-viewer> (локальный HTTP) — как «скрин» 3D в браузере
+   (текстуры, PBR). Нужны: pip install playwright && playwright install chromium.
+3) Matplotlib + trimesh — запасной путь без полноценных UV-текстур.
 """
 from __future__ import annotations
 
@@ -13,6 +15,8 @@ import logging
 import os
 import subprocess
 import tempfile
+import threading
+from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 
 from django.conf import settings
@@ -26,6 +30,141 @@ logger = logging.getLogger(__name__)
 
 _MAX_FACES_MATPLOTLIB = 14_000
 _PREVIEW_SIZE = (768, 768)
+
+
+class _ReusableHTTPServer(HTTPServer):
+    allow_reuse_address = True
+
+
+def _make_static_handler(root: Path):
+    class _H(SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, directory=str(root), **kwargs)
+
+        def log_message(self, *_args, **_kwargs):
+            pass
+
+    return _H
+
+
+def _render_with_playwright_screenshot(glb_bytes: bytes, file_ext: str) -> bytes | None:
+    """
+    Скриншот model-viewer в headless Chromium — визуально близко к карточке 3D на сайте.
+    GLB отдаётся с http://127.0.0.1 (file:// даёт проблемы с fetch/WebGL).
+    """
+    if not getattr(settings, "GLB_2D_USE_PLAYWRIGHT", True):
+        return None
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        logger.info(
+            "glb_2d: playwright не установлен — используем matplotlib. "
+            "Для превью как в браузере: pip install playwright && playwright install chromium"
+        )
+        return None
+
+    w = max(256, int(getattr(settings, "GLB_2D_PLAYWRIGHT_VIEWPORT", 1024)))
+    h = w
+    timeout_ms = int(getattr(settings, "GLB_2D_PLAYWRIGHT_TIMEOUT_MS", 180_000))
+    script_src = getattr(
+        settings,
+        "GLB_2D_MODEL_VIEWER_SCRIPT_URL",
+        "https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer.min.js",
+    )
+    fname = f"model.{file_ext}"
+    html = f"""<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<script type="module" src="{script_src}"></script>
+<style>
+  html, body {{ margin: 0; padding: 0; background: #ffffff; overflow: hidden; }}
+  model-viewer {{ width: {w}px; height: {h}px; display: block; }}
+</style>
+</head>
+<body>
+<model-viewer
+  id="mv"
+  src="{fname}"
+  alt=""
+  camera-orbit="42deg 72deg 108%"
+  shadow-intensity="1"
+  exposure="1"
+  environment-image="neutral"
+  tone-mapping="commerce"
+  interaction-prompt="none"
+></model-viewer>
+</body>
+</html>"""
+
+    root = Path(tempfile.mkdtemp(prefix="mvshot_"))
+    try:
+        (root / fname).write_bytes(glb_bytes)
+        (root / "index.html").write_text(html, encoding="utf-8")
+        handler = _make_static_handler(root)
+        server = _ReusableHTTPServer(("127.0.0.1", 0), handler)
+        port = server.server_address[1]
+        th = threading.Thread(target=server.serve_forever, daemon=True)
+        th.start()
+        url = f"http://127.0.0.1:{port}/index.html"
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(
+                    headless=True,
+                    args=["--no-sandbox", "--disable-dev-shm-usage"],
+                )
+                try:
+                    page = browser.new_page(viewport={"width": w, "height": h})
+                    page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+                    page.wait_for_selector("model-viewer", timeout=timeout_ms)
+                    page.evaluate(
+                        """
+                        async (t) => {
+                          await customElements.whenDefined('model-viewer');
+                          const el = document.querySelector('model-viewer');
+                          if (!el) throw new Error('model-viewer missing');
+                          await new Promise((resolve, reject) => {
+                            const timer = setTimeout(
+                              () => reject(new Error('model-viewer load timeout')),
+                              t,
+                            );
+                            const done = () => { clearTimeout(timer); resolve(null); };
+                            const fail = (e) => { clearTimeout(timer); reject(e); };
+                            if (el.loaded) return done();
+                            el.addEventListener('load', done, { once: true });
+                            el.addEventListener('error', fail, { once: true });
+                          });
+                          await new Promise((r) =>
+                            requestAnimationFrame(() => requestAnimationFrame(r)),
+                          );
+                        }
+                        """,
+                        timeout_ms,
+                    )
+                    page.wait_for_timeout(400)
+                    return page.locator("model-viewer").screenshot(type="png")
+                finally:
+                    browser.close()
+        finally:
+            server.shutdown()
+            server.server_close()
+            th.join(timeout=15.0)
+    except Exception as e:
+        logger.warning(
+            "glb_2d: playwright/model-viewer не удались (%s). "
+            "Проверьте: playwright install chromium, сеть до unpkg, WebGL в контейнере. "
+            "Переходим на matplotlib.",
+            e,
+        )
+        return None
+    finally:
+        try:
+            for child in root.iterdir():
+                child.unlink(missing_ok=True)
+            root.rmdir()
+        except OSError:
+            pass
 
 
 def _url_ok(url: str) -> bool:
@@ -137,9 +276,8 @@ def _limit_face_count(mesh: "trimesh.Trimesh", max_faces: int) -> "trimesh.Trime
 
 def _matplotlib_mesh_preview_png(mesh: "trimesh.Trimesh", size: tuple[int, int], dpi: int) -> bytes:
     """
-    Рендер без UV-текстур: освещение по нормалям + цвет вершин / diffuse из GLB (если есть).
-    Иначе тёплый нейтральный тон вместо однотонного «серого каркаса».
-    Полноценные текстуры как в браузере — только через GLB_PREVIEW_COMMAND (Blender и т.п.).
+    Запасной рендер без WebGL: освещение + vertex colors / baseColorFactor / diffuse.
+    UV-текстуры и PBR не совпадают с model-viewer — при наличии Playwright используется скрин viewer.
     """
     import numpy as np
     import matplotlib
@@ -258,6 +396,10 @@ def render_glb_bytes_to_png(glb_bytes: bytes) -> bytes:
         logger.warning("glb_2d: внешняя команда GLB_PREVIEW_COMMAND завершилась с ошибкой: %s", e)
     except (OSError, subprocess.TimeoutExpired, ValueError) as e:
         logger.warning("glb_2d: внешняя команда не выполнена: %s", e)
+
+    pw = _render_with_playwright_screenshot(glb_bytes, ext)
+    if pw:
+        return pw
 
     import importlib.util
 

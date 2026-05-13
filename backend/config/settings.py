@@ -191,6 +191,15 @@ GLB_2D_PREVIEW_AUTO_QUEUE = bool(int(get_env("GLB_2D_PREVIEW_AUTO_QUEUE", "1")))
 # Опционально: внешняя команда вместо trimesh+matplotlib; нужны плейсхолдеры {input} и {output}
 GLB_PREVIEW_COMMAND = get_env("GLB_PREVIEW_COMMAND", "").strip()
 GLB_PREVIEW_COMMAND_TIMEOUT_SEC = int(get_env("GLB_PREVIEW_COMMAND_TIMEOUT_SEC", "300"))
+# Превью 2D «как скрин model-viewer» (Chromium + WebGL + текстуры). После pip install playwright: playwright install chromium
+GLB_2D_USE_PLAYWRIGHT = bool(int(get_env("GLB_2D_USE_PLAYWRIGHT", "1")))
+GLB_2D_PLAYWRIGHT_TIMEOUT_MS = int(get_env("GLB_2D_PLAYWRIGHT_TIMEOUT_MS", "180000"))
+GLB_2D_PLAYWRIGHT_VIEWPORT = int(get_env("GLB_2D_PLAYWRIGHT_VIEWPORT", "1024"))
+# Тот же скрипт, что на странице каталога (WebGL + PBR как у пользователя).
+GLB_2D_MODEL_VIEWER_SCRIPT_URL = get_env(
+    "GLB_2D_MODEL_VIEWER_SCRIPT_URL",
+    "https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer.min.js",
+).strip()
 
 CACHES = {
     "default": {
