@@ -16,6 +16,7 @@ import os
 import subprocess
 import tempfile
 import threading
+import urllib.request
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 
@@ -30,6 +31,32 @@ logger = logging.getLogger(__name__)
 
 _MAX_FACES_MATPLOTLIB = 14_000
 _PREVIEW_SIZE = (768, 768)
+
+# Кэш model-viewer.min.js — скачивается один раз рядом с этим модулем.
+_MV_CACHE_PATH = Path(__file__).parent / "_model_viewer_cache.js"
+_MV_DEFAULT_CDN = "https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer.min.js"
+
+
+def _get_model_viewer_js() -> Path:
+    """
+    Возвращает путь к локальному model-viewer.min.js.
+    При первом вызове скачивает с CDN и сохраняет рядом с модулем.
+    Если скачать не удалось и кэша нет — возвращает None (HTML будет грузить с CDN).
+    """
+    if _MV_CACHE_PATH.exists() and _MV_CACHE_PATH.stat().st_size > 10_000:
+        return _MV_CACHE_PATH
+    cdn_url = getattr(settings, "GLB_2D_MODEL_VIEWER_SCRIPT_URL", _MV_DEFAULT_CDN)
+    try:
+        logger.info("glb_2d: скачиваем model-viewer.min.js с %s ...", cdn_url)
+        req = urllib.request.Request(cdn_url, headers={"User-Agent": "sofa-marketplace-glb-preview/1.0"})
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            data = resp.read()
+        _MV_CACHE_PATH.write_bytes(data)
+        logger.info("glb_2d: model-viewer.min.js сохранён (%d байт)", len(data))
+        return _MV_CACHE_PATH
+    except Exception as e:
+        logger.warning("glb_2d: не удалось скачать model-viewer.min.js: %s — будем грузить с CDN", e)
+        return None
 
 
 class _ReusableHTTPServer(HTTPServer):
@@ -49,8 +76,9 @@ def _make_static_handler(root: Path):
 
 def _render_with_playwright_screenshot(glb_bytes: bytes, file_ext: str) -> bytes | None:
     """
-    Скриншот model-viewer в headless Chromium — визуально близко к карточке 3D на сайте.
-    GLB отдаётся с http://127.0.0.1 (file:// даёт проблемы с fetch/WebGL).
+    Скриншот model-viewer в headless Chromium — визуально как карточка 3D на сайте.
+    GLB + model-viewer.min.js отдаются с http://127.0.0.1 (file:// ломает fetch/WebGL).
+    SwiftShader включён для WebGL без GPU.
     """
     if not getattr(settings, "GLB_2D_USE_PLAYWRIGHT", True):
         return None
@@ -59,25 +87,32 @@ def _render_with_playwright_screenshot(glb_bytes: bytes, file_ext: str) -> bytes
     except ImportError:
         logger.info(
             "glb_2d: playwright не установлен — используем matplotlib. "
-            "Для превью как в браузере: pip install playwright && playwright install chromium"
+            "Установите: pip install playwright && playwright install chromium"
         )
         return None
 
     w = max(256, int(getattr(settings, "GLB_2D_PLAYWRIGHT_VIEWPORT", 1024)))
     h = w
     timeout_ms = int(getattr(settings, "GLB_2D_PLAYWRIGHT_TIMEOUT_MS", 180_000))
-    script_src = getattr(
-        settings,
-        "GLB_2D_MODEL_VIEWER_SCRIPT_URL",
-        "https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer.min.js",
-    )
-    fname = f"model.{file_ext}"
+    cdn_url = getattr(settings, "GLB_2D_MODEL_VIEWER_SCRIPT_URL", _MV_DEFAULT_CDN)
+
+    # Пробуем отдать model-viewer локально — не нужен интернет на сервере.
+    mv_js_path = _get_model_viewer_js()
+    fname_glb = f"model.{file_ext}"
+    fname_mv = "model-viewer.min.js"
+    if mv_js_path and mv_js_path.exists():
+        script_tag = f'<script type="module" src="{fname_mv}"></script>'
+        use_local_mv = True
+    else:
+        script_tag = f'<script type="module" src="{cdn_url}"></script>'
+        use_local_mv = False
+
     html = f"""<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<script type="module" src="{script_src}"></script>
+{script_tag}
 <style>
   html, body {{ margin: 0; padding: 0; background: #ffffff; overflow: hidden; }}
   model-viewer {{ width: {w}px; height: {h}px; display: block; }}
@@ -86,7 +121,7 @@ def _render_with_playwright_screenshot(glb_bytes: bytes, file_ext: str) -> bytes
 <body>
 <model-viewer
   id="mv"
-  src="{fname}"
+  src="{fname_glb}"
   alt=""
   camera-orbit="42deg 72deg 108%"
   shadow-intensity="1"
@@ -100,19 +135,36 @@ def _render_with_playwright_screenshot(glb_bytes: bytes, file_ext: str) -> bytes
 
     root = Path(tempfile.mkdtemp(prefix="mvshot_"))
     try:
-        (root / fname).write_bytes(glb_bytes)
+        (root / fname_glb).write_bytes(glb_bytes)
         (root / "index.html").write_text(html, encoding="utf-8")
+        if use_local_mv:
+            import shutil
+            shutil.copy2(mv_js_path, root / fname_mv)
+
         handler = _make_static_handler(root)
         server = _ReusableHTTPServer(("127.0.0.1", 0), handler)
         port = server.server_address[1]
         th = threading.Thread(target=server.serve_forever, daemon=True)
         th.start()
         url = f"http://127.0.0.1:{port}/index.html"
+        logger.info(
+            "glb_2d: playwright запускается (viewport=%dx%d, timeout=%dms, local_mv=%s)",
+            w, h, timeout_ms, use_local_mv,
+        )
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(
                     headless=True,
-                    args=["--no-sandbox", "--disable-dev-shm-usage"],
+                    args=[
+                        "--no-sandbox",
+                        "--disable-dev-shm-usage",
+                        # Software WebGL без GPU (SwiftShader)
+                        "--use-gl=swiftshader",
+                        "--enable-webgl",
+                        "--ignore-gpu-blocklist",
+                        "--disable-gpu-sandbox",
+                        "--disable-software-rasterizer",
+                    ],
                 )
                 try:
                     page = browser.new_page(viewport={"width": w, "height": h})
@@ -123,27 +175,33 @@ def _render_with_playwright_screenshot(glb_bytes: bytes, file_ext: str) -> bytes
                         async (t) => {
                           await customElements.whenDefined('model-viewer');
                           const el = document.querySelector('model-viewer');
-                          if (!el) throw new Error('model-viewer missing');
+                          if (!el) throw new Error('model-viewer element missing');
                           await new Promise((resolve, reject) => {
                             const timer = setTimeout(
-                              () => reject(new Error('model-viewer load timeout')),
+                              () => reject(new Error('model-viewer load timeout after ' + t + 'ms')),
                               t,
                             );
                             const done = () => { clearTimeout(timer); resolve(null); };
-                            const fail = (e) => { clearTimeout(timer); reject(e); };
+                            const fail = (ev) => {
+                              clearTimeout(timer);
+                              reject(new Error('model-viewer error: ' + (ev.detail || ev)));
+                            };
                             if (el.loaded) return done();
                             el.addEventListener('load', done, { once: true });
                             el.addEventListener('error', fail, { once: true });
                           });
+                          // Два кадра: гарантируем рендер после onload
                           await new Promise((r) =>
-                            requestAnimationFrame(() => requestAnimationFrame(r)),
+                            requestAnimationFrame(() => requestAnimationFrame(r))
                           );
                         }
                         """,
                         timeout_ms,
                     )
-                    page.wait_for_timeout(400)
-                    return page.locator("model-viewer").screenshot(type="png")
+                    page.wait_for_timeout(600)
+                    png = page.locator("model-viewer").screenshot(type="png")
+                    logger.info("glb_2d: playwright успешно, PNG %d байт", len(png))
+                    return png
                 finally:
                     browser.close()
         finally:
@@ -152,9 +210,9 @@ def _render_with_playwright_screenshot(glb_bytes: bytes, file_ext: str) -> bytes
             th.join(timeout=15.0)
     except Exception as e:
         logger.warning(
-            "glb_2d: playwright/model-viewer не удались (%s). "
-            "Проверьте: playwright install chromium, сеть до unpkg, WebGL в контейнере. "
-            "Переходим на matplotlib.",
+            "glb_2d: playwright/model-viewer упал: %s — откат на matplotlib. "
+            "Типичные причины: нет WebGL (--use-gl=swiftshader), нет сети до unpkg, "
+            "нет chromium (playwright install chromium).",
             e,
         )
         return None
