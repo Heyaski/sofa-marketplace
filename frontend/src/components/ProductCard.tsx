@@ -215,13 +215,11 @@ export default function ProductCard({
 				<div className='absolute right-2 bottom-2 z-10 flex gap-1'>
 				{catalogDisplayMode === '2d' ? (
 					<span
-						className={`text-[10px] px-1.5 py-0.5 rounded ${(hasViewerGlbCandidates || has2dThumb) ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}
+						className={`text-[10px] px-1.5 py-0.5 rounded ${has2dThumb ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}
 						title={
-							hasViewerGlbCandidates
-								? 'В режиме 2D показывается статичный 3D-вид (те же текстуры, без вращения)'
-								: has2dThumb
+							has2dThumb
 								? 'В режиме 2D показывается фото'
-								: 'Нет модели и фото для 2D'
+								: 'Нет фото для 2D (сгенерируйте из GLB на сервере: manage.py generate_2d_from_glb --force)'
 						}
 					>
 						2D
@@ -245,15 +243,7 @@ export default function ProductCard({
 					</span>
 				)}
 			{catalogDisplayMode === '2d' ? (
-				hasViewerGlbCandidates ? (
-					<ProductModelViewer
-						product={product}
-						variant='card'
-						fallbackPosterUrl={catalogThumbUrl}
-						onClick={handleCardClick}
-						staticMode
-					/>
-				) : catalogThumbUrl ? (
+				catalogThumbUrl ? (
 					// eslint-disable-next-line @next/next/no-img-element -- внешние URL с API
 					<img
 						src={catalogThumbUrl}

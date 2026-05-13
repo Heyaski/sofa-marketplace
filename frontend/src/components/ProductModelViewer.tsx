@@ -144,11 +144,6 @@ interface ProductModelViewerProps {
 	compact?: boolean
 	className?: string
 	onClick?: () => void
-	/**
-	 * Статичный режим (2D-каталог): тот же рендер что и в 3D, но камера зафиксирована,
-	 * вращение и жесты отключены — визуально как скрин 3D-модели.
-	 */
-	staticMode?: boolean
 }
 
 export default function ProductModelViewer({
@@ -160,7 +155,6 @@ export default function ProductModelViewer({
 	compact = false,
 	className = '',
 	onClick,
-	staticMode = false,
 }: ProductModelViewerProps) {
 	const candidates = useMemo(() => {
 		if (modelUrlOverride) {
@@ -333,33 +327,31 @@ export default function ProductModelViewer({
 		>
 		{hasModel ? (
 			<div
-				className={staticMode ? 'relative w-full h-full cursor-pointer' : 'relative w-full h-full cursor-grab active:cursor-grabbing'}
-				onClick={staticMode ? onClick : (e) => e.stopPropagation()}
-				onDoubleClick={staticMode ? undefined : (e) => {
+				className="relative w-full h-full cursor-grab active:cursor-grabbing"
+				onClick={(e) => e.stopPropagation()}
+				onDoubleClick={(e) => {
 					e.stopPropagation()
 					onClick?.()
 				}}
-				title={staticMode ? undefined : (onClick ? 'Двойной щелчок — открыть карточку товара' : undefined)}
+				title={onClick ? 'Двойной щелчок — открыть карточку товара' : undefined}
 			>
 				<model-viewer
 					ref={setupRef}
 					src={resolvedSrc}
 					poster={TRANSPARENT_PIXEL}
 					alt={product.title || '3D модель'}
-					{...(staticMode ? {} : { 'camera-controls': true })}
-					camera-orbit='42deg 72deg 105%'
+					camera-controls
 					shadow-intensity='1'
 					loading='lazy'
 					reveal='auto'
-					interaction-prompt='none'
-					{...(staticMode ? {} : { 'interaction-policy': 'allow-when-focused' })}
-					disable-zoom={staticMode || variant === 'card'}
+					interaction-policy='allow-when-focused'
+					disable-zoom={variant === 'card'}
 					style={{
 						width: '100%',
 						height: '100%',
 						minHeight: variant === 'page' ? (compact ? 180 : 280) : 200,
 						display: 'block',
-						pointerEvents: staticMode ? 'none' : 'auto',
+						pointerEvents: 'auto',
 					}}
 				/>
 				{isViewerLoading && (
