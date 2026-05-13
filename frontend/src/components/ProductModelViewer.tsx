@@ -144,6 +144,11 @@ interface ProductModelViewerProps {
 	compact?: boolean
 	className?: string
 	onClick?: () => void
+	/**
+	 * Статичный режим (2D-каталог): тот же рендер что и в 3D, но камера зафиксирована,
+	 * вращение и жесты отключены — визуально как скрин 3D-модели.
+	 */
+	staticMode?: boolean
 }
 
 export default function ProductModelViewer({
@@ -155,6 +160,7 @@ export default function ProductModelViewer({
 	compact = false,
 	className = '',
 	onClick,
+	staticMode = false,
 }: ProductModelViewerProps) {
 	const candidates = useMemo(() => {
 		if (modelUrlOverride) {
@@ -325,42 +331,44 @@ export default function ProductModelViewer({
 			className={containerClass}
 			style={{ contentVisibility: 'auto' } as React.CSSProperties}
 		>
-			{hasModel ? (
-				<div
-					className="relative w-full h-full cursor-grab active:cursor-grabbing"
-					onClick={(e) => e.stopPropagation()}
-					onDoubleClick={(e) => {
-						e.stopPropagation()
-						onClick?.()
+		{hasModel ? (
+			<div
+				className={staticMode ? 'relative w-full h-full cursor-pointer' : 'relative w-full h-full cursor-grab active:cursor-grabbing'}
+				onClick={staticMode ? onClick : (e) => e.stopPropagation()}
+				onDoubleClick={staticMode ? undefined : (e) => {
+					e.stopPropagation()
+					onClick?.()
+				}}
+				title={staticMode ? undefined : (onClick ? 'Двойной щелчок — открыть карточку товара' : undefined)}
+			>
+				<model-viewer
+					ref={setupRef}
+					src={resolvedSrc}
+					poster={TRANSPARENT_PIXEL}
+					alt={product.title || '3D модель'}
+					{...(staticMode ? {} : { 'camera-controls': true })}
+					camera-orbit='42deg 72deg 105%'
+					shadow-intensity='1'
+					loading='lazy'
+					reveal='auto'
+					interaction-prompt='none'
+					{...(staticMode ? {} : { 'interaction-policy': 'allow-when-focused' })}
+					disable-zoom={staticMode || variant === 'card'}
+					style={{
+						width: '100%',
+						height: '100%',
+						minHeight: variant === 'page' ? (compact ? 180 : 280) : 200,
+						display: 'block',
+						pointerEvents: staticMode ? 'none' : 'auto',
 					}}
-					title={onClick ? 'Двойной щелчок — открыть карточку товара' : undefined}
-				>
-					<model-viewer
-						ref={setupRef}
-						src={resolvedSrc}
-						poster={TRANSPARENT_PIXEL}
-						alt={product.title || '3D модель'}
-						camera-controls
-						shadow-intensity='1'
-						loading='lazy'
-						reveal='auto'
-						interaction-policy='allow-when-focused'
-						disable-zoom={variant === 'card'}
-						style={{
-							width: '100%',
-							height: '100%',
-							minHeight: variant === 'page' ? (compact ? 180 : 280) : 200,
-							display: 'block',
-							pointerEvents: 'auto',
-						}}
-					/>
-					{isViewerLoading && (
-						<div className='pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gray-50/80'>
-							<div className='animate-spin rounded-full h-8 w-8 border-2 border-main1 border-t-transparent' />
-							<span className='text-xs text-gray'>Загрузка 3D...</span>
-						</div>
-					)}
-				</div>
+				/>
+				{isViewerLoading && (
+					<div className='pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gray-50/80'>
+						<div className='animate-spin rounded-full h-8 w-8 border-2 border-main1 border-t-transparent' />
+						<span className='text-xs text-gray'>Загрузка 3D...</span>
+					</div>
+				)}
+			</div>
 			) : isLoading ? (
 				<div className="w-full h-full flex flex-col items-center justify-center gap-2 cursor-pointer" onClick={onClick}>
 					<div className='animate-spin rounded-full h-8 w-8 border-2 border-main1 border-t-transparent' />
