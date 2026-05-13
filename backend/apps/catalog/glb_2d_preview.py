@@ -1,0 +1,243 @@
+"""
+Генерация плоского превью (PNG) из GLB/GLTF для режима 2D каталога.
+GLB не удаляется и не перезаписывается — заполняется только поле image, если других фото нет.
+"""
+from __future__ import annotations
+
+import io
+import logging
+import os
+import tempfile
+from pathlib import Path
+
+import numpy as np
+from django.conf import settings
+from django.core.files.base import ContentFile
+
+from apps.catalog.file_urls import is_ephemeral_external_model_url
+from apps.catalog.models import Product
+from apps.catalog.rfa_converter import _build_command_args, _load_file_bytes
+
+logger = logging.getLogger(__name__)
+
+_MAX_FACES_MATPLOTLIB = 14_000
+_PREVIEW_SIZE = (768, 768)
+
+
+def _url_ok(url: str) -> bool:
+    low = url.lower().strip()
+    return low.startswith(("http://", "https://", "/"))
+
+
+def product_lacks_catalog_2d(product: Product) -> bool:
+    """True если для карточки 2D нет ни одного источника (как getProductPrimaryImageUrl на фронте)."""
+    if product.image:
+        return False
+    if (product.photo_url or "").strip():
+        return False
+    if product.images.exists():
+        return False
+    if product.get_image_assets().exists():
+        return False
+    return True
+
+
+def load_primary_glb_bytes(product: Product) -> bytes | None:
+    """
+    Загрузить байты основной браузерной модели (порядок близок к ProductSerializer.get_model_glb).
+    USDZ пропускаем — рендер через matplotlib/trimesh не гарантирован.
+    """
+    for asset in product.get_3d_model_assets():
+        name = (getattr(asset.file, "name", "") or "").lower()
+        if not name.endswith((".glb", ".gltf")):
+            continue
+        try:
+            with asset.file.open("rb") as f:
+                return f.read()
+        except OSError as e:
+            logger.warning("glb_2d: не удалось прочитать FileAsset %s: %s", asset.pk, e)
+            continue
+
+    mg = (product.model_glb or "").strip()
+    if mg and _url_ok(mg) and not is_ephemeral_external_model_url(mg):
+        try:
+            return _load_file_bytes(mg)
+        except Exception as e:
+            logger.warning("glb_2d: model_glb load failed: %s", e)
+
+    preview = (product.model_rfa_glb_preview or "").strip()
+    if preview and _url_ok(preview):
+        try:
+            return _load_file_bytes(preview)
+        except Exception as e:
+            logger.warning("glb_2d: rfa glb preview load failed: %s", e)
+
+    if mg and _url_ok(mg):
+        try:
+            return _load_file_bytes(mg)
+        except Exception as e:
+            logger.warning("glb_2d: model_glb fallback load failed: %s", e)
+
+    return None
+
+
+def _infer_load_file_type(data: bytes) -> str:
+    head = data.lstrip()[:20]
+    if head.startswith(b"{"):
+        return "gltf"
+    return "glb"
+
+
+def _scene_to_single_mesh(scene) -> "trimesh.Trimesh":
+    import trimesh
+
+    if isinstance(scene, trimesh.Trimesh):
+        return scene
+    if not isinstance(scene, trimesh.Scene):
+        raise ValueError(f"unexpected loaded type: {type(scene)}")
+    meshes: list[trimesh.Trimesh] = []
+    for g in scene.geometry.values():
+        if isinstance(g, trimesh.Trimesh):
+            meshes.append(g)
+    if not meshes:
+        raise ValueError("GLB/GLTF: нет Trimesh-геометрии")
+    return trimesh.util.concatenate(tuple(meshes))
+
+
+def _limit_face_count(mesh: "trimesh.Trimesh", max_faces: int) -> "trimesh.Trimesh":
+    import trimesh
+
+    n = len(mesh.faces)
+    if n <= max_faces:
+        return mesh
+    rng = np.random.default_rng(42)
+    idx = np.sort(rng.choice(n, size=max_faces, replace=False))
+    sub = mesh.submesh([idx], only_watertight=False, append=True)
+    if isinstance(sub, trimesh.Trimesh):
+        return sub
+    raise ValueError("submesh не вернул Trimesh")
+
+
+def _render_with_subprocess(glb_bytes: bytes) -> bytes | None:
+    cmd_tmpl = getattr(settings, "GLB_PREVIEW_COMMAND", "").strip()
+    if not cmd_tmpl or "{input}" not in cmd_tmpl or "{output}" not in cmd_tmpl:
+        return None
+    with tempfile.TemporaryDirectory(prefix="glb2png_") as tmp:
+        in_path = Path(tmp) / "model.glb"
+        out_path = Path(tmp) / "preview.png"
+        in_path.write_bytes(glb_bytes)
+        cmd = cmd_tmpl.format(input=str(in_path), output=str(out_path))
+        subprocess.run(
+            _build_command_args(cmd),
+            check=True,
+            timeout=getattr(settings, "GLB_PREVIEW_COMMAND_TIMEOUT_SEC", 300),
+            capture_output=True,
+            text=True,
+            env={**os.environ, **getattr(settings, "GLB_PREVIEW_COMMAND_ENV", {})},
+        )
+        if not out_path.is_file():
+            return None
+        return out_path.read_bytes()
+
+
+def render_glb_bytes_to_png(glb_bytes: bytes) -> bytes:
+    """GLB/GLTF (байты) → PNG (байты)."""
+    ext = _infer_load_file_type(glb_bytes)
+    try:
+        ext_cmd = _render_with_subprocess(glb_bytes)
+        if ext_cmd:
+            return ext_cmd
+    except subprocess.CalledProcessError as e:
+        logger.warning("glb_2d: внешняя команда GLB_PREVIEW_COMMAND завершилась с ошибкой: %s", e)
+    except (OSError, subprocess.TimeoutExpired, ValueError) as e:
+        logger.warning("glb_2d: внешняя команда не выполнена: %s", e)
+
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import trimesh
+
+    scene = trimesh.load(
+        io.BytesIO(glb_bytes),
+        file_type=ext,
+        force="scene",
+        ignore_broken=True,
+    )
+    mesh = _scene_to_single_mesh(scene)
+    mesh = _limit_face_count(mesh, _MAX_FACES_MATPLOTLIB)
+
+    vtx = np.asarray(mesh.vertices, dtype=np.float64)
+    fc = np.asarray(mesh.faces, dtype=np.int64)
+    if vtx.size == 0 or fc.size == 0:
+        raise ValueError("пустая геометрия")
+
+    w, h = _PREVIEW_SIZE
+    dpi = 100
+    fig = plt.figure(figsize=(w / dpi, h / dpi), dpi=dpi, facecolor="white")
+    ax = fig.add_subplot(111, projection="3d")
+    ax.plot_trisurf(
+        vtx[:, 0],
+        vtx[:, 1],
+        vtx[:, 2],
+        triangles=fc,
+        linewidth=0.05,
+        antialiased=True,
+        color="#c8c8c8",
+        edgecolor="none",
+    )
+    ax.view_init(elev=22, azim=42)
+    span = float(np.ptp(vtx, axis=0).max())
+    if span <= 0:
+        span = 1.0
+    mid = vtx.mean(axis=0)
+    pad = span * 0.52
+    ax.set_xlim(mid[0] - pad, mid[0] + pad)
+    ax.set_ylim(mid[1] - pad, mid[1] + pad)
+    ax.set_zlim(mid[2] - pad, mid[2] + pad)
+    ax.set_axis_off()
+    plt.subplots_adjust(left=0, right=1, bottom=0, top=1)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", facecolor="white", transparent=False)
+    plt.close(fig)
+    return buf.getvalue()
+
+
+def _invalidate_product_cache(product_id: int) -> None:
+    from django.core.cache import cache
+
+    cache.delete(f"product_detail:{product_id}")
+    try:
+        cache.delete_pattern("products_list*")
+    except AttributeError:
+        pass
+
+
+def run_glb_2d_preview_for_product_id(product_id: int, *, force: bool = False) -> dict:
+    """
+    Сгенерировать и сохранить product.image из GLB, если нет других фото (или force=True).
+    """
+    product = Product.objects.filter(pk=product_id).first()
+    if not product:
+        return {"status": "error", "reason": "no-product"}
+
+    if not getattr(settings, "GLB_2D_PREVIEW_ENABLED", True):
+        return {"status": "skipped", "reason": "disabled"}
+
+    if not force and not product_lacks_catalog_2d(product):
+        return {"status": "skipped", "reason": "has-2d"}
+
+    raw = load_primary_glb_bytes(product)
+    if not raw:
+        return {"status": "skipped", "reason": "no-glb"}
+
+    try:
+        png = render_glb_bytes_to_png(raw)
+    except Exception as e:
+        logger.exception("glb_2d: рендер не удался product_id=%s", product_id)
+        return {"status": "error", "reason": f"render-failed: {e}"[:500]}
+
+    name = f"glb2d_{product_id}.png"
+    product.image.save(name, ContentFile(png), save=True)
+    _invalidate_product_cache(product_id)
+    return {"status": "ok", "image": product.image.name}

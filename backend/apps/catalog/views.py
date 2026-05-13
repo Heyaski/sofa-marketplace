@@ -362,7 +362,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="upload-model")
     def upload_model(self, request, pk=None):
-        """Upload GLB or model file (RFA/IFC) for a product (superuser only)."""
+        """Upload GLB, FBX, or Revit/BIM file (RFA/IFC) for a product (superuser only)."""
         import os
         from django.core.files.storage import default_storage
 
@@ -372,12 +372,13 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         if not file:
             return Response({"error": "Файл не загружен"}, status=400)
-        if model_format not in ("glb", "rfa", "ifc"):
-            return Response({"error": "Допустимые форматы: glb, rfa, ifc"}, status=400)
+        if model_format not in ("glb", "fbx", "rfa", "ifc"):
+            return Response({"error": "Допустимые форматы: glb, fbx, rfa, ifc"}, status=400)
 
         ext = os.path.splitext(file.name)[1].lower()
         allowed_exts = {
             "glb": {".glb"},
+            "fbx": {".fbx"},
             "rfa": {".rfa"},
             "ifc": {".ifc"},
         }
@@ -399,6 +400,9 @@ class ProductViewSet(viewsets.ModelViewSet):
         if model_format == "glb":
             product.model_glb = saved_url
             update_fields = ["model_glb"]
+        elif model_format == "fbx":
+            product.model_fbx = saved_url
+            update_fields = ["model_fbx"]
         elif model_format == "rfa":
             product.model_rfa = saved_url
             update_fields = ["model_rfa"]

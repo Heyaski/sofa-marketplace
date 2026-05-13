@@ -25,15 +25,19 @@ export default function EditProductModal({
 	const [error, setError] = useState<string | null>(null)
 
 	const [glbFile, setGlbFile] = useState<File | null>(null)
+	const [fbxFile, setFbxFile] = useState<File | null>(null)
 	const [rfaFile, setRfaFile] = useState<File | null>(null)
 	const [ifcFile, setIfcFile] = useState<File | null>(null)
 	const [uploadingGlb, setUploadingGlb] = useState(false)
+	const [uploadingFbx, setUploadingFbx] = useState(false)
 	const [uploadingRfa, setUploadingRfa] = useState(false)
 	const [uploadingIfc, setUploadingIfc] = useState(false)
 	const [glbStatus, setGlbStatus] = useState<string | null>(null)
+	const [fbxStatus, setFbxStatus] = useState<string | null>(null)
 	const [rfaStatus, setRfaStatus] = useState<string | null>(null)
 	const [ifcStatus, setIfcStatus] = useState<string | null>(null)
 	const glbInputRef = useRef<HTMLInputElement>(null)
+	const fbxInputRef = useRef<HTMLInputElement>(null)
 	const rfaInputRef = useRef<HTMLInputElement>(null)
 	const ifcInputRef = useRef<HTMLInputElement>(null)
 
@@ -45,9 +49,11 @@ export default function EditProductModal({
 			setDepth(product.depth != null ? String(product.depth) : '')
 			setError(null)
 			setGlbFile(null)
+			setFbxFile(null)
 			setRfaFile(null)
 			setIfcFile(null)
 			setGlbStatus(null)
+			setFbxStatus(null)
 			setRfaStatus(null)
 			setIfcStatus(null)
 		}
@@ -78,6 +84,17 @@ export default function EditProductModal({
 					setGlbStatus('Ошибка загрузки GLB')
 				} finally {
 					setUploadingGlb(false)
+				}
+			}
+			if (fbxFile) {
+				setUploadingFbx(true)
+				try {
+					updated = await productService.uploadProductModel(product.id, fbxFile, 'fbx')
+					setFbxStatus('Загружено')
+				} catch {
+					setFbxStatus('Ошибка загрузки FBX')
+				} finally {
+					setUploadingFbx(false)
 				}
 			}
 			if (rfaFile) {
@@ -115,7 +132,7 @@ export default function EditProductModal({
 		}
 	}
 
-	const isUploading = uploadingGlb || uploadingRfa || uploadingIfc
+	const isUploading = uploadingGlb || uploadingFbx || uploadingRfa || uploadingIfc
 
 	if (!isOpen) return null
 
@@ -213,6 +230,46 @@ export default function EditProductModal({
 							{glbStatus && (
 								<span className={`text-xs ${glbStatus === 'Загружено' ? 'text-green-600' : 'text-red-500'}`}>
 									{glbStatus}
+								</span>
+							)}
+						</div>
+					</div>
+
+					{/* FBX (опционально, не входит в «полный комплект» витрины) */}
+					<div>
+						<label className='block text-sm font-medium text-black mb-1'>FBX (.fbx), опционально</label>
+						{product.model_fbx && (
+							<p className='text-xs text-gray mb-1 truncate' title={product.model_fbx}>
+								Текущий: {product.model_fbx.split('/').pop()}
+							</p>
+						)}
+						<div className='flex items-center gap-2 flex-wrap'>
+							<input
+								ref={fbxInputRef}
+								type='file'
+								accept='.fbx'
+								className='hidden'
+								onChange={e => {
+									const f = e.target.files?.[0] || null
+									setFbxFile(f)
+									setFbxStatus(null)
+								}}
+							/>
+							<button
+								type='button'
+								onClick={() => fbxInputRef.current?.click()}
+								disabled={uploadingFbx}
+								className='px-3 py-2 text-sm border border-gray2 rounded-lg hover:bg-gray-bg transition-colors flex-shrink-0'
+							>
+								{fbxFile ? 'Заменить FBX' : product.model_fbx ? 'Заменить FBX' : 'Загрузить FBX'}
+							</button>
+							{fbxFile && (
+								<span className='text-xs text-black truncate'>{fbxFile.name}</span>
+							)}
+							{uploadingFbx && <span className='text-xs text-gray'>Загрузка…</span>}
+							{fbxStatus && (
+								<span className={`text-xs ${fbxStatus === 'Загружено' ? 'text-green-600' : 'text-red-500'}`}>
+									{fbxStatus}
 								</span>
 							)}
 						</div>

@@ -26,19 +26,20 @@
 
 {% block result_list %}
 <div class="module" style="margin-bottom: 1rem; padding: 12px 16px;">
-    <h2 style="margin: 0 0 8px 0; font-size: 14px;">По категориям (как папки): GLB / RFA / IFC</h2>
+    <h2 style="margin: 0 0 8px 0; font-size: 14px;">По категориям (как папки): GLB / RFA / IFC + FBX</h2>
     <p class="help" style="margin: 0 0 12px 0;">
         Счётчики: сколько товаров в категории имеют файл данного типа.
-        «Полный комплект» — GLB + реальный .rfa + .ifc (как в фильтре каталога).
+        «Полный комплект для каталога» — только GLB + реальный .rfa + .ifc (FBX в комплект не входит и для фильтра витрины не обязателен).
         Нажмите «Открыть список» у строки формата — в таблице ниже появятся только эти товары и колонка <strong>Форматы</strong>.
     </p>
     {% if request.GET.model_files_kind %}
     <p class="help" style="margin-bottom: 12px; padding: 8px 10px; background: #e7f3ff; border-radius: 4px;">
         <strong>Открыта папка:</strong>
-        {% if request.GET.model_files_kind == "bundle" %}полный комплект (GLB + RFA + IFC){% endif %}
+        {% if request.GET.model_files_kind == "bundle" %}полный комплект для каталога (GLB + RFA + IFC){% endif %}
         {% if request.GET.model_files_kind == "glb" %}только с GLB{% endif %}
         {% if request.GET.model_files_kind == "rfa" %}только с RFA (.rfa){% endif %}
         {% if request.GET.model_files_kind == "ifc" %}только с IFC (.ifc){% endif %}
+        {% if request.GET.model_files_kind == "fbx" %}только с FBX (.fbx){% endif %}
         {% if request.GET.category__id__exact %} — категория отфильтрована (см. блок «FILTER» справа).{% endif %}
         <a href="{% url 'admin:catalog_product_changelist' %}" style="margin-left: 8px;">Сбросить фильтр форматов</a>
     </p>
@@ -72,7 +73,13 @@
                 {% endif %}
             </li>
             <li>
-                📦 <strong>Полный комплект</strong> — {{ row.n_bundle }}
+                📂 <strong>FBX</strong> (.fbx), опционально — {{ row.n_fbx }}{% if row.total %} / {{ row.total }}{% endif %}
+                {% if row.n_fbx %}
+                — <a href="{% url 'admin:catalog_product_changelist' %}?category__id__exact={{ row.category.id }}&model_files_kind=fbx">открыть список</a>
+                {% endif %}
+            </li>
+            <li>
+                📦 <strong>Полный комплект для каталога</strong> — {{ row.n_bundle }}
                 {% if row.n_bundle %}
                 — <a href="{% url 'admin:catalog_product_changelist' %}?category__id__exact={{ row.category.id }}&model_files_kind=bundle"><strong>открыть список (3 формата)</strong></a>
                 {% endif %}

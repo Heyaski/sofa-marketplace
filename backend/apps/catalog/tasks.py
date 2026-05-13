@@ -3,6 +3,7 @@ from django.core.cache import cache
 
 from apps.catalog.models import Product
 from apps.catalog.rfa_converter import convert_glb_to_rfa_for_product, convert_rfa_to_glb_for_product
+from apps.catalog.glb_2d_preview import run_glb_2d_preview_for_product_id
 
 
 def _is_revit_rfa_url(url: str | None) -> bool:
@@ -77,4 +78,10 @@ def convert_glb_to_rfa_task(self, product_id: int):
     )
     _invalidate_product_cache(product_id)
     return {"status": "ready", "rfa": rfa_url}
+
+
+@shared_task(bind=True, autoretry_for=(Exception,), retry_backoff=True, retry_jitter=True, max_retries=2)
+def generate_glb_2d_preview_task(self, product_id: int):
+    """PNG-превью из GLB для режима 2D каталога (поле image, GLB не удаляется)."""
+    return run_glb_2d_preview_for_product_id(product_id)
 

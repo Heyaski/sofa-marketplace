@@ -890,8 +890,17 @@ def _product_model_files_q_components():
     return has_glb, has_rfa, has_ifc
 
 
+def _product_has_fbx_q():
+    """FBX по полю model_fbx — не входит в bundle и фильтры витрины каталога."""
+    return (
+        Q(model_fbx__isnull=False)
+        & ~Q(model_fbx="")
+        & (Q(model_fbx__iendswith=".fbx") | Q(model_fbx__icontains=".fbx?"))
+    )
+
+
 def product_model_file_kind_q(kind: str):
-    """Фильтр QuerySet: glb | rfa | ifc | bundle (все три)."""
+    """Фильтр QuerySet: glb | rfa | ifc | fbx | bundle (GLB+RFA+IFC, без FBX)."""
     has_glb, has_rfa, has_ifc = _product_model_files_q_components()
     k = (kind or "").strip().lower()
     if k == "glb":
@@ -900,13 +909,15 @@ def product_model_file_kind_q(kind: str):
         return has_rfa
     if k == "ifc":
         return has_ifc
+    if k == "fbx":
+        return _product_has_fbx_q()
     if k == "bundle":
         return has_glb & has_rfa & has_ifc
     return None
 
 
 class ModelFilesKindFilter(admin.SimpleListFilter):
-    title = "Файлы 3D (GLB / RFA / IFC)"
+    title = "Файлы 3D"
     parameter_name = "model_files_kind"
 
     def lookups(self, request, model_admin):
@@ -914,7 +925,8 @@ class ModelFilesKindFilter(admin.SimpleListFilter):
             ("glb", "Есть GLB"),
             ("rfa", "Есть RFA (.rfa)"),
             ("ifc", "Есть IFC (.ifc)"),
-            ("bundle", "Полный комплект (GLB + RFA + IFC)"),
+            ("fbx", "Есть FBX (.fbx), опционально"),
+            ("bundle", "Полный комплект для каталога (GLB + RFA + IFC)"),
         )
 
     def queryset(self, request, queryset):
@@ -1022,7 +1034,7 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
     has_3d_model.short_description = "3D"
 
     def model_file_formats(self, obj):
-        """Бейджи наличия GLB / RFA / IFC (по URL в полях)."""
+        """Бейджи наличия GLB / RFA / IFC / FBX (по URL в полях). FBX не входит в «полный комплект» витрины."""
 
         def badge(label: str, ok: bool):
             if ok:
@@ -1044,7 +1056,15 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
         has_rfa = bool(rfa_raw) and rfa_raw.lower().split("?")[0].endswith(".rfa")
         ifc_raw = (obj.model_ifc or "").strip()
         has_ifc = bool(ifc_raw) and ifc_raw.lower().split("?")[0].endswith(".ifc")
-        return format_html("{} {} {}", badge("GLB", glb), badge("RFA", has_rfa), badge("IFC", has_ifc))
+        fbx_raw = (obj.model_fbx or "").strip()
+        has_fbx = bool(fbx_raw) and fbx_raw.lower().split("?")[0].endswith(".fbx")
+        return format_html(
+            "{} {} {} {}",
+            badge("GLB", glb),
+            badge("RFA", has_rfa),
+            badge("IFC", has_ifc),
+            badge("FBX", has_fbx),
+        )
 
     model_file_formats.short_description = "Форматы"
     
@@ -1086,13 +1106,15 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
     change_list_template = "admin/catalog/product_changelist.html"
 
     def _get_product_folder_rows(self):
-        """Категории как «папки» со счётчиками GLB / RFA / IFC для списка товаров."""
+        """Категории как «папки» со счётчиками GLB / RFA / IFC (+ FBX опционально) для списка товаров."""
         has_glb, has_rfa, has_ifc = _product_model_files_q_components()
+        has_fbx = _product_has_fbx_q()
         stats_rows = Product.objects.values("category_id").annotate(
             total=Count("id"),
             n_glb=Count("id", filter=has_glb),
             n_rfa=Count("id", filter=has_rfa),
             n_ifc=Count("id", filter=has_ifc),
+            n_fbx=Count("id", filter=has_fbx),
             n_bundle=Count("id", filter=has_glb & has_rfa & has_ifc),
         )
         stat_by_cat = {row["category_id"]: row for row in stats_rows}
@@ -1101,7 +1123,7 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
         for cat in categories:
             s = stat_by_cat.get(
                 cat.id,
-                {"total": 0, "n_glb": 0, "n_rfa": 0, "n_ifc": 0, "n_bundle": 0},
+                {"total": 0, "n_glb": 0, "n_rfa": 0, "n_ifc": 0, "n_fbx": 0, "n_bundle": 0},
             )
             rows.append({"category": cat, **s})
         return rows
