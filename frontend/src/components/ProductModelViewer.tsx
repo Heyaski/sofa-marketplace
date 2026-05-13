@@ -107,15 +107,12 @@ function collectGlbUrls(product: Product): string[] {
 		for (const a of scored) push(a.file_url, a.file_ext)
 	}
 
-	// Порядок: стабильные URL до protухших CDN; превью RFA→GLB между ними.
+	// Стабильные URL; протухшие CDN (auth_key / zaohaowu и т.д.) не передаём в model-viewer — всё равно 403.
 	const mg = product.model_glb
 	if (mg && !isEphemeralExternalModelUrl(mg)) push(mg, 'glb')
 	if (product.model_rfa_glb_preview) push(product.model_rfa_glb_preview, 'glb')
 	if (product.model_ar_glb) push(product.model_ar_glb, 'glb')
-	if (mg && isEphemeralExternalModelUrl(mg)) push(mg, 'glb')
-	const stable = out.filter(u => !isEphemeralExternalModelUrl(u))
-	const risky = out.filter(u => isEphemeralExternalModelUrl(u))
-	return [...stable, ...risky]
+	return out
 }
 
 /** Все URL для model-viewer в порядке приоритета (для ретраев при 403/CORS). */
@@ -381,9 +378,23 @@ export default function ProductModelViewer({
 						alt=''
 						className='absolute inset-0 w-full h-full object-cover'
 					/>
-					<div className='absolute inset-0 flex items-center justify-center bg-black/35 px-2'>
-						<span className='text-xs text-white drop-shadow text-center'>
-							3D недоступно — показано фото. Частая причина: срок ссылки (auth_key) на чужом CDN истёк — загрузите GLB в каталог или своё хранилище.
+					<div
+						className={
+							variant === 'card'
+								? 'absolute bottom-0 left-0 right-0 bg-black/45 px-1.5 py-1'
+								: 'absolute inset-0 flex items-center justify-center bg-black/35 px-2'
+						}
+					>
+						<span
+							className={
+								variant === 'card'
+									? 'text-[10px] leading-tight text-white/95 text-center line-clamp-2'
+									: 'text-xs text-white drop-shadow text-center'
+							}
+						>
+							{variant === 'card'
+								? '3D недоступен (истёкшая ссылка). Показано фото.'
+								: '3D недоступно — показано фото. Частая причина: срок ссылки (auth_key) на чужом CDN истёк — загрузите GLB в каталог или своё хранилище.'}
 						</span>
 					</div>
 				</button>

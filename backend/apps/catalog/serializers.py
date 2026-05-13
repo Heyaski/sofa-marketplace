@@ -241,8 +241,16 @@ class ProductSerializer(serializers.ModelSerializer):
                 if image_url.startswith(('http://', 'https://')):
                     return image_url
                 return request.build_absolute_uri(image_url) if request else image_url
-        
-        # Приоритет 2: Изображения из FileAsset по ID
+
+        # Приоритет 2: основное фото на товаре (ручная загрузка + автогенерация glb2d_*.png из GLB).
+        # Раньше шло после FileAsset — превью из GLB не попадало в API, в 2D каталоге было «Нет фото».
+        if obj.image and hasattr(obj.image, "url"):
+            image_url = obj.image.url
+            if image_url.startswith(('http://', 'https://')):
+                return image_url
+            return request.build_absolute_uri(image_url) if request else image_url
+
+        # Приоритет 3: изображения из FileAsset по ID
         image_assets = obj.get_image_assets()
         if image_assets.exists():
             first_asset = image_assets.first()
@@ -251,17 +259,11 @@ class ProductSerializer(serializers.ModelSerializer):
                 if file_url.startswith(('http://', 'https://')):
                     return file_url
                 return request.build_absolute_uri(file_url) if request else file_url
-        
-        # Приоритет 3: photo_url (из Excel импорта)
+
+        # Приоритет 4: photo_url (из Excel импорта)
         if obj.photo_url:
             return obj.photo_url
-        
-        # Приоритет 4: Старое поле image (для обратной совместимости)
-        if obj.image and hasattr(obj.image, "url"):
-            image_url = obj.image.url
-            if image_url.startswith(('http://', 'https://')):
-                return image_url
-            return request.build_absolute_uri(image_url) if request else image_url
+
         return None
     
     def get_model_3d_id(self, obj):

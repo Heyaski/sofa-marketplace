@@ -71,12 +71,6 @@ def load_primary_glb_bytes(product: Product) -> bytes | None:
         except Exception as e:
             logger.warning("glb_2d: rfa glb preview load failed: %s", e)
 
-    if mg and _url_ok(mg):
-        try:
-            return _load_file_bytes(mg)
-        except Exception as e:
-            logger.warning("glb_2d: model_glb fallback load failed: %s", e)
-
     return None
 
 

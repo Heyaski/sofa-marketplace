@@ -63,6 +63,7 @@ export default function ProductCard({
 	const displayTitle = product.title_display ?? getTitleWithoutBrand(product.title || '', product.brand)
 	const catalogThumbUrl = getProductPrimaryImageUrl(product)
 	const hasViewerGlbCandidates = getProductModelUrlCandidates(product).length > 0
+	const has2dThumb = Boolean(catalogThumbUrl)
 
 	const getCategoryName = () => {
 		if (!displayTitle) return ''
@@ -212,12 +213,29 @@ export default function ProductCard({
 			{/* Каталог: 2D — фото, 3D — интерактивная модель */}
 			<div className='rounded-lg mb-3 sm:mb-4 overflow-hidden relative aspect-square bg-gray-50'>
 				<div className='absolute right-2 bottom-2 z-10 flex gap-1'>
-					<span
-						className={`text-[10px] px-1.5 py-0.5 rounded ${hasViewerGlbCandidates ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}
-						title={hasViewerGlbCandidates ? 'В карточке есть URL для 3D (если ссылка протухла — см. текст на превью)' : '3D не добавлен'}
-					>
-						3D
-					</span>
+					{catalogDisplayMode === '2d' ? (
+						<span
+							className={`text-[10px] px-1.5 py-0.5 rounded ${has2dThumb ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}
+							title={
+								has2dThumb
+									? 'В режиме 2D показывается это фото'
+									: 'Нет фото для 2D (загрузите изображение или сгенерируйте из GLB на сервере)'
+							}
+						>
+							2D
+						</span>
+					) : (
+						<span
+							className={`text-[10px] px-1.5 py-0.5 rounded ${hasViewerGlbCandidates ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}
+							title={
+								hasViewerGlbCandidates
+									? 'Есть стабильный URL для 3D. Протухший чужой CDN в viewer не подставляется — загрузите GLB в своё хранилище.'
+									: 'Нет загружаемого GLB (или только истёкшая внешняя ссылка)'
+							}
+						>
+							3D
+						</span>
+					)}
 				</div>
 				{isSuperuser && product.model_3d_id && catalogDisplayMode === '3d' && (
 					<span className='absolute left-2 top-2 z-10 text-xs text-gray font-medium bg-white/80 px-1.5 py-0.5 rounded'>
