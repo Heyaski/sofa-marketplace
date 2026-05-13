@@ -158,7 +158,6 @@ def _render_with_playwright_screenshot(glb_bytes: bytes, file_ext: str) -> bytes
                     args=[
                         "--no-sandbox",
                         "--disable-dev-shm-usage",
-                        # Software WebGL без GPU (SwiftShader)
                         "--use-gl=swiftshader",
                         "--enable-webgl",
                         "--ignore-gpu-blocklist",
@@ -168,35 +167,46 @@ def _render_with_playwright_screenshot(glb_bytes: bytes, file_ext: str) -> bytes
                 )
                 try:
                     page = browser.new_page(viewport={"width": w, "height": h})
+                    # Применяем таймаут ко всем операциям страницы
+                    page.set_default_timeout(timeout_ms)
                     page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
                     page.wait_for_selector("model-viewer", timeout=timeout_ms)
+                    # Все ожидания внутри JS обёрнуты в race с общим таймаутом
                     page.evaluate(
                         """
-                        async (t) => {
-                          await customElements.whenDefined('model-viewer');
-                          const el = document.querySelector('model-viewer');
-                          if (!el) throw new Error('model-viewer element missing');
-                          await new Promise((resolve, reject) => {
-                            const timer = setTimeout(
-                              () => reject(new Error('model-viewer load timeout after ' + t + 'ms')),
+                        async ([t]) => {
+                          // 1) Ждём регистрацию custom element (с таймаутом)
+                          await Promise.race([
+                            customElements.whenDefined('model-viewer'),
+                            new Promise((_, rej) => setTimeout(
+                              () => rej(new Error('model-viewer script not defined after ' + t + 'ms')),
                               t,
-                            );
-                            const done = () => { clearTimeout(timer); resolve(null); };
-                            const fail = (ev) => {
-                              clearTimeout(timer);
-                              reject(new Error('model-viewer error: ' + (ev.detail || ev)));
-                            };
-                            if (el.loaded) return done();
-                            el.addEventListener('load', done, { once: true });
-                            el.addEventListener('error', fail, { once: true });
-                          });
-                          // Два кадра: гарантируем рендер после onload
+                            )),
+                          ]);
+                          const el = document.querySelector('model-viewer');
+                          if (!el) throw new Error('model-viewer element missing in DOM');
+                          // 2) Ждём загрузку GLB (с таймаутом)
+                          await Promise.race([
+                            new Promise((resolve, reject) => {
+                              if (el.loaded) return resolve(null);
+                              el.addEventListener('load', () => resolve(null), { once: true });
+                              el.addEventListener('error', (ev) =>
+                                reject(new Error('model-viewer GLB error: ' + (ev.detail || ev))),
+                                { once: true },
+                              );
+                            }),
+                            new Promise((_, rej) => setTimeout(
+                              () => rej(new Error('GLB load timeout after ' + t + 'ms')),
+                              t,
+                            )),
+                          ]);
+                          // 3) Два кадра — рендер после onload
                           await new Promise((r) =>
                             requestAnimationFrame(() => requestAnimationFrame(r))
                           );
                         }
                         """,
-                        timeout_ms,
+                        [timeout_ms],  # передаём как массив чтобы точно не путался с keyword
                     )
                     page.wait_for_timeout(600)
                     png = page.locator("model-viewer").screenshot(type="png")
