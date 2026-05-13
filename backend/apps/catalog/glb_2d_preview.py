@@ -155,8 +155,9 @@ def _matplotlib_mesh_preview_png(mesh: "trimesh.Trimesh", size: tuple[int, int],
         raise ValueError("пустая геометрия")
 
     fn = _face_normals_numpy(vtx, fc)
-    L = L / max(float(np.linalg.norm(L)), 1e-12)
-    ndotl = np.clip(np.sum(fn * L, axis=1), 0.0, 1.0)
+    light_dir = np.array([0.48, 0.36, 0.86], dtype=np.float64)
+    light_dir = light_dir / max(float(np.linalg.norm(light_dir)), 1e-12)
+    ndotl = np.clip(np.sum(fn * light_dir, axis=1), 0.0, 1.0)
     shade = (0.26 + 0.74 * ndotl)[:, np.newaxis]
 
     n_faces = len(fc)
