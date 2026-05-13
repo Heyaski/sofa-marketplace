@@ -2,7 +2,7 @@ from django.conf import settings
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 
-from apps.catalog.models import Product
+from apps.catalog.models import FileAsset, Product
 from apps.catalog.tasks import convert_rfa_to_glb_task, generate_glb_2d_preview_task
 
 
@@ -68,4 +68,37 @@ def queue_glb_2d_catalog_preview(sender, instance: Product, created: bool, **kwa
     if not load_primary_glb_bytes(instance):
         return
     generate_glb_2d_preview_task.delay(instance.pk)
+
+
+@receiver(post_save, sender=FileAsset)
+def queue_glb_2d_on_file_asset(sender, instance: FileAsset, created: bool, **kwargs):
+    """
+    Автоматически генерировать 2D превью когда к товару добавляется GLB FileAsset.
+    Срабатывает только для 3d_model-ассетов с расширением .glb/.gltf.
+    """
+    if not created:
+        return
+    if kwargs.get("raw"):
+        return
+    if not getattr(settings, "GLB_2D_PREVIEW_ENABLED", True):
+        return
+    if not getattr(settings, "GLB_2D_PREVIEW_AUTO_QUEUE", True):
+        return
+    if instance.file_type != "3d_model":
+        return
+    fname = (getattr(instance.file, "name", "") or "").lower()
+    if not fname.endswith((".glb", ".gltf")):
+        return
+
+    # Найти все продукты, использующие этот ассет
+    products = Product.objects.filter(
+        asset_3d_models__asset_id=instance.asset_id,
+        asset_3d_models__file_type="3d_model",
+    ).distinct()
+
+    from apps.catalog.glb_2d_preview import product_lacks_catalog_2d
+
+    for product in products:
+        if product_lacks_catalog_2d(product):
+            generate_glb_2d_preview_task.delay(product.pk)
 
