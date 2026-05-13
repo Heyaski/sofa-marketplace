@@ -147,9 +147,17 @@ def _render_with_playwright_screenshot(glb_bytes: bytes, file_ext: str) -> bytes
         th = threading.Thread(target=server.serve_forever, daemon=True)
         th.start()
         url = f"http://127.0.0.1:{port}/index.html"
-        logger.info(
-            "glb_2d: playwright запускается (viewport=%dx%d, timeout=%dms, local_mv=%s)",
-            w, h, timeout_ms, use_local_mv,
+        # Сколько секунд ждать рендера после загрузки скрипта.
+        # Для тяжёлых GLB (>10 MB) нужно больше.
+        glb_mb = len(glb_bytes) / 1_048_576
+        render_wait_ms = max(5_000, min(30_000, int(glb_mb * 1_500)))
+        script_timeout_ms = min(timeout_ms, 30_000)
+
+        logger.warning(
+            "glb_2d: playwright запускается (viewport=%dx%d, glb=%.1fMB, "
+            "script_timeout=%ds, render_wait=%ds, local_mv=%s)",
+            w, h, glb_mb,
+            script_timeout_ms // 1000, render_wait_ms // 1000, use_local_mv,
         )
         try:
             with sync_playwright() as p:
@@ -158,59 +166,32 @@ def _render_with_playwright_screenshot(glb_bytes: bytes, file_ext: str) -> bytes
                     args=[
                         "--no-sandbox",
                         "--disable-dev-shm-usage",
-                        "--use-gl=swiftshader",
+                        # WebGL через ANGLE + SwiftShader (software, без GPU)
+                        "--use-angle=swiftshader",
                         "--enable-webgl",
                         "--ignore-gpu-blocklist",
+                        "--disable-gpu",
                         "--disable-gpu-sandbox",
-                        "--disable-software-rasterizer",
                     ],
                 )
                 try:
                     page = browser.new_page(viewport={"width": w, "height": h})
-                    # Применяем таймаут ко всем операциям страницы
                     page.set_default_timeout(timeout_ms)
                     page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
-                    page.wait_for_selector("model-viewer", timeout=timeout_ms)
-                    # Все ожидания внутри JS обёрнуты в race с общим таймаутом
-                    page.evaluate(
-                        """
-                        async ([t]) => {
-                          // 1) Ждём регистрацию custom element (с таймаутом)
-                          await Promise.race([
-                            customElements.whenDefined('model-viewer'),
-                            new Promise((_, rej) => setTimeout(
-                              () => rej(new Error('model-viewer script not defined after ' + t + 'ms')),
-                              t,
-                            )),
-                          ]);
-                          const el = document.querySelector('model-viewer');
-                          if (!el) throw new Error('model-viewer element missing in DOM');
-                          // 2) Ждём загрузку GLB (с таймаутом)
-                          await Promise.race([
-                            new Promise((resolve, reject) => {
-                              if (el.loaded) return resolve(null);
-                              el.addEventListener('load', () => resolve(null), { once: true });
-                              el.addEventListener('error', (ev) =>
-                                reject(new Error('model-viewer GLB error: ' + (ev.detail || ev))),
-                                { once: true },
-                              );
-                            }),
-                            new Promise((_, rej) => setTimeout(
-                              () => rej(new Error('GLB load timeout after ' + t + 'ms')),
-                              t,
-                            )),
-                          ]);
-                          // 3) Два кадра — рендер после onload
-                          await new Promise((r) =>
-                            requestAnimationFrame(() => requestAnimationFrame(r))
-                          );
-                        }
-                        """,
-                        [timeout_ms],  # передаём как массив чтобы точно не путался с keyword
+
+                    # Ждём пока model-viewer зарегистрируется как custom element.
+                    # wait_for_function имеет нормальный Python-таймаут (не висит).
+                    page.wait_for_function(
+                        "() => customElements.get('model-viewer') !== undefined",
+                        timeout=script_timeout_ms,
                     )
-                    page.wait_for_timeout(600)
+                    logger.warning("glb_2d: model-viewer custom element зарегистрирован")
+
+                    # Ждём фиксированное время — рендер GLB (тяжёлая геометрия).
+                    page.wait_for_timeout(render_wait_ms)
+
                     png = page.locator("model-viewer").screenshot(type="png")
-                    logger.info("glb_2d: playwright успешно, PNG %d байт", len(png))
+                    logger.warning("glb_2d: playwright успешно, PNG %d байт", len(png))
                     return png
                 finally:
                     browser.close()
