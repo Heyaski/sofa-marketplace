@@ -50,9 +50,9 @@ export const useProducts = (
 				if (useAppend) {
 					setLoadingMore(true)
 				} else {
-					// Не блокируем сетку повторно, если карточки уже есть:
-					// пользователь должен видеть товары сразу, а 3D догружаются отдельно.
-					setLoading(products.length === 0)
+					// При смене фильтров / режима каталога нельзя оставлять старый список до ответа API —
+					// иначе в сетке кратко «перемешиваются» чужие карточки и 3D-вьюеры.
+					setLoading(true)
 				}
 				setError(null)
 				if (filters && Object.keys(filters).length > 0) {
@@ -115,7 +115,7 @@ export const useProducts = (
 			}
 		},
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- фильтры через filtersKey
-		[filtersKey, paginationMode, products.length, firstPageCacheKey]
+		[filtersKey, paginationMode, firstPageCacheKey]
 	)
 
 	useEffect(() => {
@@ -142,6 +142,9 @@ export const useProducts = (
 			setHasMore(cached.hasMore)
 			setTotalPages(cached.totalPages)
 			setLoading(false)
+		} else {
+			// Иначе на сетке остаются товары от прошлого ключа (другой режим пагинации / фильтры).
+			setProducts([])
 		}
 
 		void fetchProducts(startPage, false)

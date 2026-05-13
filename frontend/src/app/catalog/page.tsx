@@ -86,10 +86,11 @@ function CatalogContent() {
 	const effectiveFilters = useMemo<ProductFilters>(
 		() => ({
 			...filters,
-			// В 3D-режиме показываем только товары с полным комплектом: GLB + RFA + IFC.
-			...(!isSuperuser && catalogView === '3d' ? { model_files: 'bundle' as const } : {}),
+			// Один и тот же набор товаров в 2D и 3D: полный комплект GLB + RFA + IFC.
+			// Иначе в 2D подтягивался бы весь каталог без превью, а при возврате в 3D — «перемешивание».
+			...(!isSuperuser ? { model_files: 'bundle' as const } : {}),
 		}),
-		[filters, isSuperuser, catalogView]
+		[filters, isSuperuser]
 	)
 
 	const {
@@ -558,7 +559,7 @@ function CatalogContent() {
 							<div className='grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6'>
 								{products.map(product => (
 								<ProductCard
-									key={product.id}
+									key={`${product.id}-${catalogView}`}
 									product={product}
 									catalogDisplayMode={catalogView}
 									onAddToCart={handleAddToCart}
