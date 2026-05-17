@@ -86,11 +86,14 @@ function CatalogContent() {
 	const effectiveFilters = useMemo<ProductFilters>(
 		() => ({
 			...filters,
-			// Один и тот же набор товаров в 2D и 3D: полный комплект GLB + RFA + IFC.
-			// Иначе в 2D подтягивался бы весь каталог без превью, а при возврате в 3D — «перемешивание».
-			...(!isSuperuser ? { model_files: 'bundle' as const } : {}),
+			// Публичная витрина: в 3D нужны модель (GLB/аналог) и превью, без обязательных RFA/IFC.
+			// Иначе категории вроде «Обеденные столы» с GLB, но без Revit/BIM, исчезают с сайта.
+			// В 2D не навязываем model_files — показываем товары категории и базовые карточки.
+			...(!isSuperuser && catalogView === '3d'
+				? { model_files: 'both' as const }
+				: {}),
 		}),
-		[filters, isSuperuser]
+		[filters, isSuperuser, catalogView]
 	)
 
 	const {

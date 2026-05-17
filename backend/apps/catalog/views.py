@@ -39,7 +39,7 @@ class IsCatalogEditor(BasePermission):
         )
 from django.db import models
 from django.db.models.functions import Concat
-from .models import Product, Category, FileAsset
+from .models import Product, Category, FileAsset, ProductImage
 from .serializers import ProductSerializer, CategorySerializer
 
 
@@ -151,6 +151,12 @@ class ProductViewSet(viewsets.ModelViewSet):
             | models.Q(asset_id__istartswith=Concat(models.OuterRef('article'), models.Value('-')))
         )
         has_article_for_asset = models.Q(article__isnull=False) & ~models.Q(article='')
+        has_productimage_q = models.Exists(
+            ProductImage.objects.filter(product_id=models.OuterRef('pk'))
+        )
+        has_image_asset_by_article_q = has_article_for_asset & models.Exists(
+            FileAsset.objects.filter(file_type='image').filter(article_asset_prefix_q)
+        )
         has_rfa_via_article_q = has_article_for_asset & models.Exists(
             FileAsset.objects.filter(file_type='3d_model')
             .filter(rfa_ext_q)
@@ -164,9 +170,11 @@ class ProductViewSet(viewsets.ModelViewSet):
         has_rfa_q = has_rfa_direct_q | has_rfa_asset_by_model_id_q | has_rfa_via_article_q
         has_ifc_q = has_ifc_direct_q | has_ifc_asset_by_model_id_q | has_ifc_via_article_q
         has_image_q = (
-            models.Q(image__isnull=False)
+            (models.Q(image__isnull=False) & ~models.Q(image=''))
             | (models.Q(photo_url__isnull=False) & ~models.Q(photo_url=''))
             | (models.Q(image_asset_ids__isnull=False) & ~models.Q(image_asset_ids=''))
+            | has_productimage_q
+            | has_image_asset_by_article_q
         )
         if model_files == 'both':
             # Только быстрый SQL-фильтр без Python-итерации по всем товарам,
@@ -218,7 +226,8 @@ class ProductViewSet(viewsets.ModelViewSet):
 
                     filtered_ids = []
                     for product in queryset:
-                        if not product.color_rgb:
+                        if not product.color_rgb or not str(product.color_rgb).strip():
+                            filtered_ids.append(product.id)
                             continue
                         try:
                             rgb_parts = [
@@ -318,7 +327,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         """Кэширование списка товаров (5 мин) — ускоряет загрузку страниц с 3D моделями."""
-        cache_key = f"products_list:v5:{request.GET.urlencode()}"
+        cache_key = f"products_list:v6:{request.GET.urlencode()}"
         cached = cache.get(cache_key)
         if cached is not None:
             return Response(cached)
@@ -329,7 +338,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         """Кэширование деталей товара (10 мин)."""
         pk = kwargs.get("pk")
-        cache_key = f"product_detail:v5:{pk}"
+        cache_key = f"product_detail:v6:{pk}"
         cached = cache.get(cache_key)
         if cached is not None:
             return Response(cached)
@@ -342,7 +351,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         cache.delete(f"product_detail:v2:{product.pk}")
         cache.delete(f"product_detail:v3:{product.pk}")
         cache.delete(f"product_detail:v4:{product.pk}")
-        cache.delete(f"product_detail:v5:{product.pk}")
+        cache.delete(f"product_detail:v6:{product.pk}")
         try:
             cache.delete_pattern("products_list*")
         except AttributeError:

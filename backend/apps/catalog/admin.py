@@ -24,42 +24,9 @@ from pathlib import Path
 import zipfile
 import tempfile
 import shutil
-from urllib.parse import quote, urlparse, unquote
+from urllib.parse import quote
 from datetime import datetime
 from apps.admin_utils import ExportExcelMixin
-
-
-def _category_self_and_descendant_ids(category_id):
-    """ID категории и всех потомков (товары часто привязаны к листьям, не к родителю)."""
-    try:
-        root = int(category_id)
-    except (TypeError, ValueError):
-        return []
-    collected = {root}
-    frontier = [root]
-    while frontier:
-        children = list(
-            Category.objects.filter(parent_id__in=frontier).values_list("id", flat=True)
-        )
-        frontier = [c for c in children if c not in collected]
-        collected.update(frontier)
-    return list(collected)
-
-
-def _filename_stem_from_file_field(url_or_path: str) -> str | None:
-    """Имя файла без расширения из URL или пути (как потенциальный asset_id)."""
-    if not url_or_path or not str(url_or_path).strip():
-        return None
-    s = str(url_or_path).strip()
-    path = urlparse(s).path if "://" in s else s
-    path = unquote(path).replace("\\", "/").rstrip("/")
-    if not path:
-        return None
-    name = path.split("/")[-1]
-    if not name:
-        return None
-    stem, _ext = os.path.splitext(name)
-    return stem.strip() or None
 
 
 def _product_import_defaults_strip_empty_files(product_data: dict) -> dict:
@@ -323,53 +290,20 @@ class CategoryFilter(admin.SimpleListFilter):
         """Фильтруем файлы, привязанные к товарам выбранной категории"""
         if self.value():
             category_id = self.value()
-            category_ids = _category_self_and_descendant_ids(category_id)
-            if not category_ids:
-                return queryset.none()
-            # Совпадение с тем, как товары реально ссылаются на файлы: артикул / id из Excel /
-            # имя файла из URL в полях model_glb и т.п. (иначе GLB есть у товара, а FileAsset не попадает в выборку).
-            products = Product.objects.filter(category_id__in=category_ids).only(
-                "article",
-                "image_asset_ids",
-                "model_3d_asset_ids",
-                "model_glb",
-                "model_fbx",
-                "model_rfa",
-                "model_ifc",
-                "model_usdz",
-                "model_ar_glb",
-                "model_rfa_glb_preview",
-                "photo_url",
+            products = Product.objects.filter(category_id=category_id).only(
+                "article", "image_asset_ids", "model_3d_asset_ids"
             )
 
             asset_ids = set()
-            url_fields = (
-                "model_glb",
-                "model_fbx",
-                "model_rfa",
-                "model_ifc",
-                "model_usdz",
-                "model_ar_glb",
-                "model_rfa_glb_preview",
-                "photo_url",
-            )
             for product in products.iterator(chunk_size=1000):
                 if product.article and str(product.article).strip():
                     asset_ids.add(str(product.article).strip())
-                # Добавляем ID изображений
                 if product.image_asset_ids and product.image_asset_ids.strip():
-                    ids = [id.strip() for id in product.image_asset_ids.split(',') if id.strip()]
+                    ids = [id.strip() for id in product.image_asset_ids.split(",") if id.strip()]
                     asset_ids.update(ids)
-
-                # Добавляем ID 3D моделей
                 if product.model_3d_asset_ids and product.model_3d_asset_ids.strip():
-                    ids = [id.strip() for id in product.model_3d_asset_ids.split(',') if id.strip()]
+                    ids = [id.strip() for id in product.model_3d_asset_ids.split(",") if id.strip()]
                     asset_ids.update(ids)
-
-                for field in url_fields:
-                    stem = _filename_stem_from_file_field(getattr(product, field, "") or "")
-                    if stem:
-                        asset_ids.add(stem)
 
             if not asset_ids:
                 return queryset.none()
