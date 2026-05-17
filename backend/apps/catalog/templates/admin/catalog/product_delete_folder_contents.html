@@ -1,0 +1,33 @@
+{% extends "admin/base_site.html" %}
+
+{% block title %}Удалить содержимое папки{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>Удалить содержимое папки</h1>
+    <div class="module" style="max-width: 720px;">
+        <p>
+            Категория: <strong>{{ category.name }}</strong>
+        </p>
+        {% if product_count %}
+        <p style="background: #fff3cd; padding: 12px; border-radius: 4px; border: 1px solid #ffc107;">
+            Будет безвозвратно удалено товаров: <strong>{{ product_count }}</strong>.
+            Связанные изображения (ProductImage) удалятся вместе с товарами.
+            Если на эти товары ссылаются позиции в корзинах или заказах, они тоже будут удалены (правила БД).
+            Сама категория в справочнике категорий <strong>не удаляется</strong>.
+        </p>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="post" value="yes">
+            <div style="margin-top: 20px;">
+                <input type="submit" class="default" style="background: #ba2121; color: #fff;" value="Да, удалить все товары в этой папке">
+                <a href="{% url 'admin:catalog_product_changelist' %}" class="button cancel-link" style="margin-left: 12px;">Отмена</a>
+            </div>
+        </form>
+        {% else %}
+        <p class="help">В этой категории нет товаров — удалять нечего.</p>
+        <p><a href="{% url 'admin:catalog_product_changelist' %}">← К списку товаров</a></p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

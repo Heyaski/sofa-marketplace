@@ -52,6 +52,11 @@
             <a href="{% url 'admin:catalog_product_changelist' %}?category__id__exact={{ row.category.id }}"
                 style="margin-left: 8px; font-size: 12px; font-weight: normal;"
                 onclick="event.stopPropagation();">все товары категории ↓</a>
+            {% if row.total and product_folder_delete_allowed %}
+            <a href="{% url 'admin:catalog_product_delete_folder_contents' row.category.id %}"
+                style="margin-left: 8px; font-size: 12px; font-weight: normal; color: #b71c1c;"
+                onclick="event.stopPropagation();">удалить содержимое папки</a>
+            {% endif %}
         </summary>
         <ul style="margin: 10px 0 4px 18px; line-height: 1.75; font-size: 13px; list-style: none; padding-left: 0;">
             <li>

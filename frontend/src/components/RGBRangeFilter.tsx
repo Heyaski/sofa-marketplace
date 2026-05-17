@@ -7,8 +7,9 @@ interface RGBRangeFilterProps {
   onChange: (value: string | undefined) => void
 }
 
-const THUMB_SIZE = 18
-const TRACK_HEIGHT = 16
+const THUMB_SIZE = 28
+/** Как у кнопок «Габариты / Цена / Цвет»: py-1.5 sm:py-2 + text-xs sm:text-sm (~44px). */
+const ROW_HEIGHT = 44
 
 /**
  * Единая шкала 0–460:
@@ -175,18 +176,18 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
   const maxRgbStr = colorToRgbStr(maxC)
 
   return (
-    <div className='w-full py-3'>
-      <div className='mb-1 flex justify-between text-[11px] text-gray-500'>
-        <span>Диапазон цвета</span>
-        <span className='flex items-center gap-1.5'>
+    <div className='w-full'>
+      <div className='mb-2 flex items-center justify-between gap-2 text-xs sm:text-sm font-medium text-gray-600'>
+        <span className='shrink-0'>Диапазон цвета</span>
+        <span className='flex items-center gap-1.5 text-[11px] sm:text-xs tabular-nums'>
           <span
-            className='inline-block w-3 h-3 rounded-full border border-gray-300'
+            className='inline-block w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 rounded-full border border-gray-300'
             style={{ background: minRgbStr }}
           />
           <span>{minHex}</span>
           <span className='text-gray-400'>–</span>
           <span
-            className='inline-block w-3 h-3 rounded-full border border-gray-300'
+            className='inline-block w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 rounded-full border border-gray-300'
             style={{ background: maxRgbStr }}
           />
           <span>{maxHex}</span>
@@ -195,55 +196,45 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
 
       <div
         ref={trackRef}
-        className='relative select-none touch-none'
-        style={{ height: 44, minHeight: 44 }}
+        className='relative w-full shrink-0 select-none touch-none rounded-lg h-11 min-h-[44px] sm:min-h-[44px]'
+        style={{ height: ROW_HEIGHT, minHeight: ROW_HEIGHT }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
       >
         <div
-          className='absolute rounded-full'
+          className='absolute inset-0 rounded-lg'
           style={{
-            left: 0,
-            right: 0,
-            top: (44 - TRACK_HEIGHT) / 2,
-            height: TRACK_HEIGHT,
             background: gradient,
           }}
         />
 
         <div
-          className='absolute rounded-full pointer-events-none'
+          className='absolute inset-y-0 rounded-lg pointer-events-none'
           style={{
             left: `${minPercent}%`,
             width: `${Math.max(maxPercent - minPercent, 0.5)}%`,
-            top: (44 - TRACK_HEIGHT) / 2,
-            height: TRACK_HEIGHT,
             boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.8)',
           }}
         />
 
         {minPercent > 0 && (
           <div
-            className='absolute rounded-l-full pointer-events-none'
+            className='absolute inset-y-0 rounded-l-lg pointer-events-none'
             style={{
               left: 0,
               width: `${minPercent}%`,
-              top: (44 - TRACK_HEIGHT) / 2,
-              height: TRACK_HEIGHT,
               background: 'rgba(0,0,0,0.45)',
             }}
           />
         )}
         {maxPercent < 100 && (
           <div
-            className='absolute rounded-r-full pointer-events-none'
+            className='absolute inset-y-0 rounded-r-lg pointer-events-none'
             style={{
               left: `${maxPercent}%`,
               width: `${100 - maxPercent}%`,
-              top: (44 - TRACK_HEIGHT) / 2,
-              height: TRACK_HEIGHT,
               background: 'rgba(0,0,0,0.45)',
             }}
           />
@@ -255,7 +246,7 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
             width: THUMB_SIZE,
             height: THUMB_SIZE,
             left: `calc(${minPercent}% - ${THUMB_SIZE / 2}px)`,
-            top: (44 - THUMB_SIZE) / 2,
+            top: (ROW_HEIGHT - THUMB_SIZE) / 2,
             background: minRgbStr,
           }}
         />
@@ -265,7 +256,7 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
             width: THUMB_SIZE,
             height: THUMB_SIZE,
             left: `calc(${maxPercent}% - ${THUMB_SIZE / 2}px)`,
-            top: (44 - THUMB_SIZE) / 2,
+            top: (ROW_HEIGHT - THUMB_SIZE) / 2,
             background: maxRgbStr,
           }}
         />

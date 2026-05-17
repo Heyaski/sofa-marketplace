@@ -86,11 +86,10 @@ function CatalogContent() {
 	const effectiveFilters = useMemo<ProductFilters>(
 		() => ({
 			...filters,
-			// Публичная витрина: в 3D нужны модель (GLB/аналог) и превью, без обязательных RFA/IFC.
-			// Иначе категории вроде «Обеденные столы» с GLB, но без Revit/BIM, исчезают с сайта.
-			// В 2D не навязываем model_files — показываем товары категории и базовые карточки.
+			// Публичная витрина в 3D: только полный комплект GLB + .rfa + .ifc (как на бэкенде model_files=bundle).
+			// В 2D не навязываем model_files — базовые карточки по категории.
 			...(!isSuperuser && catalogView === '3d'
-				? { model_files: 'both' as const }
+				? { model_files: 'bundle' as const }
 				: {}),
 		}),
 		[filters, isSuperuser, catalogView]
@@ -420,7 +419,7 @@ function CatalogContent() {
 								<div className='relative'>
 									<button
 										onClick={() => setOpenFilter(openFilter === 'dimensions' ? null : 'dimensions')}
-										className={`min-w-[88px] px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors text-center ${
+										className={`min-w-[88px] min-h-[44px] px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors text-center ${
 											(filters.width_min !== undefined || filters.width_max !== undefined || 
 											 filters.depth_min !== undefined || filters.depth_max !== undefined)
 												? 'bg-main1 text-white'
@@ -461,7 +460,7 @@ function CatalogContent() {
 								<div className='relative'>
 									<button
 										onClick={() => setOpenFilter(openFilter === 'price' ? null : 'price')}
-										className={`min-w-[88px] px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors text-center ${
+										className={`min-w-[88px] min-h-[44px] px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors text-center ${
 											filters.price_min !== undefined || filters.price_max !== undefined
 												? 'bg-main1 text-white'
 												: 'bg-gray-bg text-black hover:bg-gray2'
@@ -493,7 +492,7 @@ function CatalogContent() {
 									<div className='relative'>
 										<button
 											onClick={() => setOpenFilter(openFilter === 'color' ? null : 'color')}
-											className={`min-w-[88px] px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors text-center ${
+											className={`min-w-[88px] min-h-[44px] px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors text-center ${
 												filters.color
 													? 'bg-main1 text-white'
 													: 'bg-gray-bg text-black hover:bg-gray2'

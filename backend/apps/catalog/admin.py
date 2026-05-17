@@ -1152,12 +1152,51 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
         extra_context["product_folder_rows"] = self._get_product_folder_rows()
+        extra_context["product_folder_delete_allowed"] = self.has_delete_permission(request)
         return super().changelist_view(request, extra_context=extra_context)
+
+    def delete_folder_contents(self, request, category_id):
+        """Удаление всех товаров, у которых category_id = эта категория (саму категорию не трогаем)."""
+        from django.core.exceptions import PermissionDenied
+        from django.shortcuts import get_object_or_404
+
+        if not self.has_delete_permission(request):
+            raise PermissionDenied
+        category = get_object_or_404(Category, pk=category_id)
+        qs = Product.objects.filter(category=category)
+        count = qs.count()
+
+        if request.method == "POST" and request.POST.get("post") == "yes":
+            qs.delete()
+            self.message_user(
+                request,
+                f"Удалено товаров в категории «{category.name}»: {count}.",
+                messages.SUCCESS,
+            )
+            return redirect("admin:catalog_product_changelist")
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Удалить содержимое папки",
+            "opts": self.model._meta,
+            "category": category,
+            "product_count": count,
+        }
+        return TemplateResponse(
+            request,
+            "admin/catalog/product_delete_folder_contents.html",
+            context,
+        )
 
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
             path("import-excel/", self.import_excel, name="catalog_product_import_excel"),
+            path(
+                "folder/<int:category_id>/delete-contents/",
+                self.delete_folder_contents,
+                name="catalog_product_delete_folder_contents",
+            ),
         ]
         return custom_urls + urls
     
