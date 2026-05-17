@@ -84,12 +84,17 @@ document.addEventListener('DOMContentLoaded', function() {
 {% block content %}
     <div style="background: #d1ecf1; padding: 15px; margin-bottom: 20px; border-radius: 4px; border: 1px solid #bee5eb;">
         <p style="margin: 0 0 10px 0; color: #0c5460; font-size: 13px;">
-            💡 <strong>Совет:</strong> Используйте поле "ID файла" для создания уникальных идентификаторов, 
-            которые затем можно указать в Excel при импорте товаров.
+            💡 <strong>Фильтр «Категория товара»:</strong> показывает только те файловые ресурсы, у которых
+            <strong>ID файла</strong> совпадает с <strong>артикулом</strong> товара этой категории (и подкатегорий),
+            с ID из полей «ID изображений» / «ID 3D моделей» или с <strong>именем файла</strong> из URL в полях
+            GLB/FBX/RFA/IFC и основного фото. Это не «все файлы каталога»: если имена загруженных файлов не совпали
+            с артикулами, список будет пустой при сотнях товаров.
         </p>
-        <p style="margin: 0; color: #0c5460; font-size: 13px;">
-            Например: <code>img_001</code>, <code>img_002</code>, <code>model_001</code>
+        <p style="margin: 0 0 10px 0; color: #0c5460; font-size: 13px;">
+            💡 <strong>ID файла:</strong> задайте уникальные идентификаторы и укажите их в Excel при импорте товаров,
+            например: <code>img_001</code>, <code>img_002</code>, <code>model_001</code>.
         </p>
+
     </div>
     {{ block.super }}
 {% endblock %}
