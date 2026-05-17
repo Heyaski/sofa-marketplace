@@ -56,14 +56,16 @@ export default function RfaModelViewer({ product, className = '', onDownload }: 
 					<div className='text-xs text-gray'>Файл .rfa для этого товара не добавлен</div>
 				)}
 			</div>
-			<button
-				type='button'
-				onClick={onDownload}
-				disabled={!hasRfaFile}
-				className='mt-3 py-2 px-3 text-sm rounded-lg border border-gray2 text-black bg-white hover:bg-gray-bg hover:border-main1 hover:text-main1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
-			>
-				{hasRfaFile ? 'Скачать .rfa' : 'Файл .rfa недоступен'}
-			</button>
+			{!ifcUrl && (
+				<button
+					type='button'
+					onClick={onDownload}
+					disabled={!hasRfaFile}
+					className='mt-3 py-2 px-3 text-sm rounded-lg border border-gray2 text-black bg-white hover:bg-gray-bg hover:border-main1 hover:text-main1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+				>
+					{hasRfaFile ? 'Скачать .rfa' : 'Файл .rfa недоступен'}
+				</button>
+			)}
 		</div>
 	)
 }
