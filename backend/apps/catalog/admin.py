@@ -291,10 +291,12 @@ class CategoryFilter(admin.SimpleListFilter):
         if self.value():
             category_id = self.value()
             # Получаем все asset_id из товаров выбранной категории
-            products = Product.objects.filter(category_id=category_id)
-            
+            products = Product.objects.filter(category_id=category_id).only(
+                "article", "image_asset_ids", "model_3d_asset_ids"
+            )
+
             asset_ids = set()
-            for product in products:
+            for product in products.iterator(chunk_size=1000):
                 if product.article and str(product.article).strip():
                     asset_ids.add(str(product.article).strip())
                 # Добавляем ID изображений
@@ -306,17 +308,40 @@ class CategoryFilter(admin.SimpleListFilter):
                 if product.model_3d_asset_ids and product.model_3d_asset_ids.strip():
                     ids = [id.strip() for id in product.model_3d_asset_ids.split(',') if id.strip()]
                     asset_ids.update(ids)
-            
-            if asset_ids:
-                id_filter = Q(asset_id__in=asset_ids)
-                for aid in asset_ids:
+
+            if not asset_ids:
+                return queryset.none()
+
+            # Один общий Q с тысячами OR ломает SQLite: «Expression tree is too large
+            # (maximum depth 1000)». Собираем pk небольшими порциями, затем фильтруем по pk.
+            ids_list = list(asset_ids)
+            # Меньше OR на запрос — SQLite SQLITE_MAX_EXPR_DEPTH по умолчанию 1000.
+            article_chunk = 25
+            matching_pks = []
+            for i in range(0, len(ids_list), article_chunk):
+                chunk = ids_list[i : i + article_chunk]
+                id_filter = Q(asset_id__in=chunk)
+                for aid in chunk:
                     id_filter |= Q(asset_id__istartswith=f"{aid}_") | Q(
                         asset_id__istartswith=f"{aid}-"
                     )
-                return queryset.filter(id_filter)
-            else:
-                # Если нет привязанных файлов, возвращаем пустой queryset
+                matching_pks.extend(
+                    queryset.filter(id_filter).values_list("pk", flat=True)
+                )
+
+            matching_pks = list(dict.fromkeys(matching_pks))
+            if not matching_pks:
                 return queryset.none()
+
+            pk_chunk = 500
+            if len(matching_pks) <= pk_chunk:
+                return queryset.filter(pk__in=matching_pks)
+
+            parts = [
+                queryset.filter(pk__in=matching_pks[j : j + pk_chunk])
+                for j in range(0, len(matching_pks), pk_chunk)
+            ]
+            return parts[0].union(*parts[1:], all=True)
         return queryset
 
 
