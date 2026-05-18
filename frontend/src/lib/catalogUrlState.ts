@@ -73,3 +73,40 @@ export function buildCatalogSearchParams(
 
 	return q.toString()
 }
+
+/** Сравнение без учёта порядка параметров (иначе лишний router.replace и сброс состояния). */
+export function catalogQueryStringsEqual(a: string, b: string): boolean {
+	if (a === b) return true
+	const normalize = (raw: string) => {
+		const p = new URLSearchParams(raw)
+		return [...p.entries()]
+			.sort(([k1], [k2]) => (k1 < k2 ? -1 : k1 > k2 ? 1 : 0))
+			.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+			.join('&')
+	}
+	return normalize(a) === normalize(b)
+}
+
+const CATALOG_LAST_QUERY_KEY = 'catalog:lastQuery'
+
+export function persistCatalogQueryForBackNavigation(queryWithoutQuestion: string): void {
+	if (typeof window === 'undefined') return
+	try {
+		if (queryWithoutQuestion) {
+			window.sessionStorage.setItem(CATALOG_LAST_QUERY_KEY, queryWithoutQuestion)
+		} else {
+			window.sessionStorage.removeItem(CATALOG_LAST_QUERY_KEY)
+		}
+	} catch {
+		/* ignore */
+	}
+}
+
+export function getLastCatalogQueryForBackNavigation(): string {
+	if (typeof window === 'undefined') return ''
+	try {
+		return window.sessionStorage.getItem(CATALOG_LAST_QUERY_KEY) || ''
+	} catch {
+		return ''
+	}
+}

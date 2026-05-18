@@ -143,8 +143,7 @@ export const useProducts = (
 			setTotalPages(cached.totalPages)
 			setLoading(false)
 		} else {
-			// Иначе на сетке остаются товары от прошлого ключа (другой режим пагинации / фильтры).
-			setProducts([])
+			// Не очищаем сетку до ответа API — меньше визуального «рывка» при смене категории.
 		}
 
 		void fetchProducts(startPage, false)

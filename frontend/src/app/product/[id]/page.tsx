@@ -13,6 +13,8 @@ import { config } from '@/config'
 import { formatDimension } from '@/utils/format'
 import { getTitleWithoutBrand } from '@/utils/productTitle'
 import { useBaskets, useProduct } from '@/hooks/useApi'
+import { getLastCatalogQueryForBackNavigation } from '@/lib/catalogUrlState'
+import { handlePresignFailure } from '@/utils/presignDownload'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
@@ -123,8 +125,14 @@ export default function ProductPage({ params }: ProductPageProps) {
 			const data = isJson ? await response.json() : null
 
 			if (!response.ok) {
-				if (response.status === 401) {
-					setIsAuthModalOpen(true)
+				if (
+					handlePresignFailure(
+						response.status,
+						data,
+						() => setIsAuthModalOpen(true),
+						msg => alert(msg)
+					)
+				) {
 					return
 				}
 				const message =
@@ -191,7 +199,10 @@ export default function ProductPage({ params }: ProductPageProps) {
 						<span className='mx-2'>•</span>
 						<span
 							className='cursor-pointer hover:text-black'
-							onClick={() => router.push('/catalog')}
+							onClick={() => {
+								const q = getLastCatalogQueryForBackNavigation()
+								router.push(q ? `/catalog?${q}` : '/catalog')
+							}}
 						>
 							Каталог
 						</span>

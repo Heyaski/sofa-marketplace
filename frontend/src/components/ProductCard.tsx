@@ -12,11 +12,14 @@ import { hasDownloadableRfa } from '@/utils/productModelFiles'
 import ProductModelViewer, { getProductModelUrlCandidates } from './ProductModelViewer'
 import EditProductModal from './EditProductModal'
 import { productService } from '../services/api'
+import { handlePresignFailure } from '@/utils/presignDownload'
 
 interface ProductCardProps {
 	product: Product
 	onAddToCart: (productId: number, format: string) => void
 	isSuperuser?: boolean
+	/** Согласованно с каталогом: явно «не в сети» — сразу показываем окно входа при скачивании */
+	isAuthenticated?: boolean | null
 	onProductUpdated?: (product: Product) => void
 	onProductDeleted?: (productId: number) => void
 	onAuthRequired?: () => void
@@ -28,6 +31,7 @@ export default function ProductCard({
 	product,
 	onAddToCart,
 	isSuperuser = false,
+	isAuthenticated = null,
 	onProductUpdated,
 	onProductDeleted,
 	onAuthRequired,
@@ -85,8 +89,18 @@ export default function ProductCard({
 		return line.trim()
 	}
 
-	const handleDownloadModel = async () => {
-		const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+	const handleDownloadModel = async (e: React.MouseEvent) => {
+		e.preventDefault()
+		e.stopPropagation()
+		if (isAuthenticated === false) {
+			if (onAuthRequired) {
+				onAuthRequired()
+			} else {
+				setToastMessage('Для скачивания файлов необходимо войти в аккаунт')
+			}
+			return
+		}
+		const token = typeof window !== 'undefined' ? localStorage.getItem('access_token')?.trim() : null
 		if (!token) {
 			if (onAuthRequired) {
 				onAuthRequired()
@@ -118,12 +132,17 @@ export default function ProductCard({
 			const data = isJson ? await response.json() : null
 
 			if (!response.ok) {
-				if (response.status === 401) {
-					if (onAuthRequired) {
-						onAuthRequired()
-					} else {
-						setToastMessage('Для скачивания файлов необходимо войти в аккаунт')
-					}
+				if (
+					handlePresignFailure(
+						response.status,
+						data,
+						() => {
+							if (onAuthRequired) onAuthRequired()
+							else setToastMessage('Для скачивания файлов необходимо войти в аккаунт')
+						},
+						msg => alert(msg)
+					)
+				) {
 					return
 				}
 				const message =
@@ -308,6 +327,7 @@ export default function ProductCard({
 			{/* Действия */}
 			<div className='flex flex-col gap-2 relative'>
 				<button
+					type='button'
 					onClick={() => onAddToCart(product.id, config.DEFAULT_FORMAT)}
 					className='btn-primary py-2 px-3 w-full text-sm font-medium whitespace-nowrap rounded-lg'
 				>
@@ -315,6 +335,7 @@ export default function ProductCard({
 				</button>
 
 				<button
+					type='button'
 					onClick={handleDownloadModel}
 					className='py-2 px-3 w-full text-sm font-medium whitespace-nowrap rounded-lg border border-gray2 text-black bg-white hover:bg-gray-bg hover:border-main1 hover:text-main1 transition-colors'
 				>

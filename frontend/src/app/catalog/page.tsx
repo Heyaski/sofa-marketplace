@@ -11,7 +11,13 @@ import PriceFilter from '@/components/PriceFilter'
 import RGBRangeFilter from '@/components/RGBRangeFilter'
 import ProductCard from '@/components/ProductCard'
 import { useBaskets, useCategories, useProducts } from '@/hooks/useApi'
-import { buildCatalogSearchParams, parseCatalogSearchParams, type CatalogViewMode } from '@/lib/catalogUrlState'
+import {
+	buildCatalogSearchParams,
+	parseCatalogSearchParams,
+	catalogQueryStringsEqual,
+	persistCatalogQueryForBackNavigation,
+	type CatalogViewMode,
+} from '@/lib/catalogUrlState'
 import { authService, productService } from '@/services/api'
 import { Category, ProductFilters, User } from '@/types'
 import Script from 'next/script'
@@ -59,11 +65,16 @@ function CatalogContent() {
 		setUrlHydrated(true)
 	}, [spKey])
 
+	// Чтобы «Каталог» на карточке товара возвращал с теми же фильтрами
+	useEffect(() => {
+		persistCatalogQueryForBackNavigation(spKey)
+	}, [spKey])
+
 	// Фильтры / вид / страница → URL
 	useEffect(() => {
 		if (!urlHydrated) return
 		const qs = buildCatalogSearchParams(filters, catalogView, catalogPage)
-		if (qs === spKey) return
+		if (catalogQueryStringsEqual(qs, spKey)) return
 		router.replace(qs ? `/catalog?${qs}` : '/catalog', { scroll: false })
 	}, [filters, catalogView, catalogPage, urlHydrated, spKey, router])
 
@@ -315,7 +326,7 @@ function CatalogContent() {
 													return rest
 												})
 											}
-											className={`w-full text-left px-4 py-2 rounded-lg transition-all flex items-center ${
+											className={`w-full text-left px-4 py-2 rounded-lg transition-colors duration-200 ease-out flex items-center ${
 												!filters.category
 													? 'bg-main1 text-white'
 													: 'bg-gray-bg text-black hover:bg-gray2'
@@ -337,7 +348,7 @@ function CatalogContent() {
 											return (
 												<label
 													key={category.id}
-													className='flex items-center gap-2 w-full px-4 py-2 rounded-lg cursor-pointer hover:bg-gray-bg transition-colors min-h-[44px]'
+													className='flex items-center gap-2 w-full px-4 py-2 rounded-lg cursor-pointer hover:bg-gray-bg transition-colors duration-200 ease-out min-h-[44px]'
 												>
 													<input
 														type='checkbox'
@@ -566,6 +577,7 @@ function CatalogContent() {
 									catalogDisplayMode={catalogView}
 									onAddToCart={handleAddToCart}
 									isSuperuser={isSuperuser}
+									isAuthenticated={isAuthenticated}
 									onProductUpdated={() => refetchProducts()}
 									onProductDeleted={() => refetchProducts()}
 									onAuthRequired={() => setIsAuthModalOpen(true)}

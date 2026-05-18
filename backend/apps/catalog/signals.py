@@ -1,4 +1,10 @@
+from __future__ import annotations
+
+import re
+from typing import Optional
+
 from django.conf import settings
+from django.db.models import Q
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 
@@ -70,6 +76,88 @@ def queue_glb_2d_catalog_preview(sender, instance: Product, created: bool, **kwa
     generate_glb_2d_preview_task.delay(instance.pk)
 
 
+def _asset_id_search_keys(asset_id: str) -> list[str]:
+    """Варианты ID как в Excel/импорте: пробелы, слитное написание кириллицы."""
+    raw = (asset_id or "").strip()
+    if not raw:
+        return []
+    keys: set[str] = {raw}
+    compact = re.sub(r"\s+", "", raw)
+    if compact:
+        keys.add(compact)
+    for base in list(keys):
+        spaced = re.sub(r"([а-яёa-z])([А-ЯЁA-Z])", r"\1 \2", base)
+        if spaced != base:
+            keys.add(spaced)
+    return list(keys)
+
+
+def _article_keys_matching_asset_id(asset_id: str) -> set[str]:
+    """Значения article, при которых _get_assets_by_article_fallback находит этот asset_id."""
+    keys: set[str] = set()
+    raw = (asset_id or "").strip()
+    if not raw:
+        return keys
+    keys.add(raw)
+    for i, ch in enumerate(raw):
+        if ch in "_-" and i > 0:
+            keys.add(raw[:i])
+    return keys
+
+
+def _q_model_3d_asset_ids_tokens(keys: list[str]) -> Optional[Q]:
+    accum: Optional[Q] = None
+    for key in keys:
+        if not key:
+            continue
+        part = (
+            Q(model_3d_asset_ids__iexact=key)
+            | Q(model_3d_asset_ids__istartswith=f"{key},")
+            | Q(model_3d_asset_ids__iendswith=f",{key}")
+            | Q(model_3d_asset_ids__icontains=f",{key},")
+        )
+        accum = part if accum is None else (accum | part)
+    return accum
+
+
+def _q_article_fallback(article_keys: set[str]) -> Optional[Q]:
+    accum: Optional[Q] = None
+    for key in article_keys:
+        if not key:
+            continue
+        part = Q(article__iexact=key)
+        accum = part if accum is None else (accum | part)
+    return accum
+
+
+def iter_products_linked_to_3d_file_asset(asset: FileAsset):
+    """
+    Товары, у которых get_3d_model_assets() включает этот FileAsset.
+    Связь в БД только через model_3d_asset_ids / article (см. Product.get_3d_model_assets).
+    """
+    search_keys = _asset_id_search_keys(asset.asset_id)
+    if not search_keys:
+        return
+    article_keys: set[str] = set()
+    for k in search_keys:
+        article_keys |= _article_keys_matching_asset_id(k)
+    parts: list[Q] = []
+    mq = _q_model_3d_asset_ids_tokens(search_keys)
+    if mq is not None:
+        parts.append(mq)
+    aq = _q_article_fallback(article_keys)
+    if aq is not None:
+        parts.append(aq)
+    if not parts:
+        return
+    combined = parts[0]
+    for p in parts[1:]:
+        combined |= p
+    for product in Product.objects.filter(combined).distinct().iterator():
+        if product.get_3d_model_assets().filter(pk=asset.pk).exists():
+            yield product
+
+
 @receiver(post_save, sender=FileAsset)
 def queue_glb_2d_on_file_asset(sender, instance: FileAsset, created: bool, **kwargs):
     """
@@ -90,15 +178,12 @@ def queue_glb_2d_on_file_asset(sender, instance: FileAsset, created: bool, **kwa
     if not fname.endswith((".glb", ".gltf")):
         return
 
-    # Найти все продукты, использующие этот ассет
-    products = Product.objects.filter(
-        asset_3d_models__asset_id=instance.asset_id,
-        asset_3d_models__file_type="3d_model",
-    ).distinct()
+    from apps.catalog.glb_2d_preview import load_primary_glb_bytes, product_lacks_catalog_2d
 
-    from apps.catalog.glb_2d_preview import product_lacks_catalog_2d
-
-    for product in products:
-        if product_lacks_catalog_2d(product):
-            generate_glb_2d_preview_task.delay(product.pk)
+    for product in iter_products_linked_to_3d_file_asset(instance):
+        if not product_lacks_catalog_2d(product):
+            continue
+        if not load_primary_glb_bytes(product):
+            continue
+        generate_glb_2d_preview_task.delay(product.pk)
 
