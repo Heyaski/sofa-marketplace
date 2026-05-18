@@ -79,7 +79,7 @@ export function catalogQueryStringsEqual(a: string, b: string): boolean {
 	if (a === b) return true
 	const normalize = (raw: string) => {
 		const p = new URLSearchParams(raw)
-		return [...p.entries()]
+		return Array.from(p.entries())
 			.sort(([k1], [k2]) => (k1 < k2 ? -1 : k1 > k2 ? 1 : 0))
 			.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
 			.join('&')
