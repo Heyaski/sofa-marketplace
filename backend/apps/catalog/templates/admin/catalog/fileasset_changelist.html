@@ -82,13 +82,26 @@ document.addEventListener('DOMContentLoaded', function() {
 {% endblock %}
 
 {% block content %}
-    <div style="background: #d1ecf1; padding: 15px; margin-bottom: 20px; border-radius: 4px; border: 1px solid #bee5eb;">
-        <p style="margin: 0 0 10px 0; color: #0c5460; font-size: 13px;">
-            💡 <strong>Совет:</strong> Используйте поле "ID файла" для создания уникальных идентификаторов, 
-            которые затем можно указать в Excel при импорте товаров.
+    <div style="background: #fff3cd; padding: 15px; margin-bottom: 16px; border-radius: 4px; border: 1px solid #ffc107;">
+        <p style="margin: 0; color: #856404; font-size: 13px; line-height: 1.45;">
+            <strong>Важно:</strong> здесь только записи таблицы «Файловые ресурсы» (файлы, реально лежащие в хранилище).
+            Цифра «GLB 40» в <strong>папках у списка Товары</strong> часто означает лишь
+            «у 40 карточек непустое поле <code>model_glb</code>» (часто внешняя ссылка) — это <strong>не число строк здесь</strong>.
+        </p>
+        <p style="margin: 10px 0 0 0; color: #856404; font-size: 13px; line-height: 1.45;">
+            <strong>Фильтр «Категория товара»</strong> показывает файлы, которые удаётся связать с товарами этой категории
+            (артикул, <code>model_3d_asset_ids</code>, имя из URL полей, фрагменты названия с цифрами — как «Тумба1343»).
+            Если загрузили GLB с <code>asset_id</code>, которого нет ни в названии, ни в полях карточки — снимите фильтр категории,
+            найдите файлы по поиску или пропишите ID в товаре / нажмите «Синхронизировать с товарами».
+        </p>
+    </div>
+    <div style="background: #e7f5ff; padding: 12px 15px; margin-bottom: 16px; border-radius: 4px; border: 1px solid #b8daff;">
+        <p style="margin: 0 0 8px 0; color: #0c5460; font-size: 13px;">
+            💡 <strong>Совет:</strong> задайте уникальный <strong>ID файла</strong> и укажите его в Excel в
+            <code>model_3d_asset_ids</code> / артикуле, чтобы файлы стабильно находились по категории и на сайте.
         </p>
         <p style="margin: 0; color: #0c5460; font-size: 13px;">
-            Например: <code>img_001</code>, <code>img_002</code>, <code>model_001</code>
+            Например: <code>Тумба1343</code>, <code>img_001</code>, <code>model_001</code>
         </p>
     </div>
     {{ block.super }}

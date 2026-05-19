@@ -262,6 +262,27 @@ def _asset_id_search_variants(token: str) -> list[str]:
     return [k for k in keys if k and len(k) >= 2]
 
 
+def _title_tokens_for_asset_match(title: str | None) -> list[str]:
+    """
+    Фрагменты названия, похожие на внутренние коды (Тумба1343, Стол4617).
+    Уменьшает ситуацию «40 GLB в FileAsset, но фильтр категории их не видит»,
+    когда в Excel в model_3d_asset_ids не прописали тот же id, что у файла.
+    """
+    t = (title or "").strip()
+    if not t:
+        return []
+    out: set[str] = set()
+    for part in re.split(r"[\s,;/|()]+", t):
+        p = part.strip()
+        # Короткие слова без цифр дают массу ложных совпадений («белый», «стол»)
+        if len(p) < 4:
+            continue
+        if not re.search(r"\d", p):
+            continue
+        out.update(_asset_id_search_variants(p))
+    return list(out)
+
+
 class FileExtensionFilter(admin.SimpleListFilter):
     """Фильтр по расширению файла"""
     title = 'Расширение файла'
@@ -328,13 +349,14 @@ class CategoryFilter(admin.SimpleListFilter):
         if self.value():
             category_id = self.value()
             products = Product.objects.filter(category_id=category_id).only(
-                "article", "image_asset_ids", "model_3d_asset_ids"
+                "article", "image_asset_ids", "model_3d_asset_ids", "title"
             )
 
             asset_ids: set[str] = set()
             for product in products.iterator(chunk_size=1000):
                 if product.article and str(product.article).strip():
                     asset_ids.update(_asset_id_search_variants(str(product.article).strip()))
+                asset_ids.update(_title_tokens_for_asset_match(product.title))
                 if product.image_asset_ids and product.image_asset_ids.strip():
                     for raw_id in product.image_asset_ids.split(","):
                         tid = raw_id.strip()
