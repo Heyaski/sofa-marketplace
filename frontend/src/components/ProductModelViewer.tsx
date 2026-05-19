@@ -107,11 +107,14 @@ function collectGlbUrls(product: Product): string[] {
 		for (const a of scored) push(a.file_url, a.file_ext)
 	}
 
-	// Стабильные URL; протухшие CDN (auth_key / zaohaowu и т.д.) не передаём в model-viewer — всё равно 403.
+	// Стабильные URL в приоритете; временные CDN не подставляем раньше FileAsset и S3.
 	const mg = product.model_glb
 	if (mg && !isEphemeralExternalModelUrl(mg)) push(mg, 'glb')
 	if (product.model_rfa_glb_preview) push(product.model_rfa_glb_preview, 'glb')
 	if (product.model_ar_glb) push(product.model_ar_glb, 'glb')
+	/* Как get_model_glb на бэкенде (шаг 4): если других кандидатов нет — пробуем то, что в поле.
+	   Иначе витрина «Нет 3D» при зелёном GLB в админке (там учитывается только непустой model_glb). */
+	if (!out.length && mg && isValidUrl(mg)) push(mg, 'glb')
 	return out
 }
 

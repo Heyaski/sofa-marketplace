@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Product, Category, ProductImage, FileAsset
-from .file_urls import is_ephemeral_external_model_url
+from .file_urls import is_ephemeral_external_model_url, url_looks_like_browser_model_file
 import os
 
 
@@ -321,17 +321,17 @@ class ProductSerializer(serializers.ModelSerializer):
                 return file_url
 
         mg = obj.model_glb
-        # 2) Прямое поле — только «стабильные» URL (не протухающий чужой CDN с auth_key)
-        if mg and is_valid_url(mg) and not is_ephemeral_external_model_url(mg):
+        # 2) Прямое поле — стабильные URL и реально GLB/GLTF/USDZ (.fbx в model_glb не отдаём)
+        if mg and is_valid_url(mg) and url_looks_like_browser_model_file(mg) and not is_ephemeral_external_model_url(mg):
             return mg
 
         # 3) Превью из RFA (после convert_rfa_to_glb) — обычно тот же S3, что и RFA
         preview = obj.model_rfa_glb_preview
-        if preview and is_valid_url(preview):
+        if preview and is_valid_url(preview) and url_looks_like_browser_model_file(preview):
             return preview
 
-        # 4) Fallback: что записано в GLB (может отдать 403 в браузере)
-        if mg and is_valid_url(mg):
+        # 4) Fallback: что записано в model_glb (временный CDN и т.д.) — только если расширение под viewer
+        if mg and is_valid_url(mg) and url_looks_like_browser_model_file(mg):
             return mg
         return None
 

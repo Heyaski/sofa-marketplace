@@ -1,6 +1,17 @@
 """Распознавание нестабильных URL моделей (временные ключи, чужие CDN)."""
 
 
+def url_looks_like_browser_model_file(url: str | None) -> bool:
+    """
+    True если путь в URL похож на формат, который открывает model-viewer (.glb/.gltf/.usdz).
+    Не путать с полем Product.model_glb — туда иногда попадает .fbx или другой URL из импорта.
+    """
+    if not url or not str(url).strip():
+        return False
+    base = str(url).strip().lower().split("?")[0].rstrip("/")
+    return base.endswith((".glb", ".gltf", ".usdz"))
+
+
 def is_ephemeral_external_model_url(url: str | None) -> bool:
     """
     True если ссылка с высокой вероятностью перестанет открываться (истечёт ключ и т.п.).

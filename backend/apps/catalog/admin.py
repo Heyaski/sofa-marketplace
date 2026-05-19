@@ -15,7 +15,7 @@ from django.core.files.base import ContentFile
 from django.http import HttpResponse
 from django.db.models import Q, Count
 from .models import Category, Product, ProductImage, FileAsset
-from .file_urls import should_replace_product_model_url_with_asset
+from .file_urls import should_replace_product_model_url_with_asset, url_looks_like_browser_model_file
 import openpyxl
 from decimal import Decimal
 import os
@@ -24,7 +24,7 @@ from pathlib import Path
 import zipfile
 import tempfile
 import shutil
-from urllib.parse import quote
+from urllib.parse import quote, urlparse, unquote
 from datetime import datetime
 from apps.admin_utils import ExportExcelMixin
 
@@ -228,6 +228,40 @@ class ProductImageInline(admin.TabularInline):
     preview.short_description = "Предпросмотр"
 
 
+def _stem_from_model_file_url(url: str | None) -> str | None:
+    """
+    Имя файла без расширения из URL/пути (для сопоставления с FileAsset.asset_id).
+    Учитывает витрину: у многих товаров GLB только в model_glb, без model_3d_asset_ids.
+    """
+    if not url or not str(url).strip():
+        return None
+    try:
+        path = urlparse(str(url).strip().split()[0]).path
+        name = os.path.basename(unquote(path))
+        if not name:
+            return None
+        stem = os.path.splitext(name)[0].strip()
+        return stem or None
+    except Exception:
+        return None
+
+
+def _asset_id_search_variants(token: str) -> list[str]:
+    """Те же варианты ID, что при импорте (пробелы, слитная кириллица)."""
+    raw = (token or "").strip()
+    if not raw:
+        return []
+    keys: set[str] = {raw}
+    compact = re.sub(r"\s+", "", raw)
+    if compact:
+        keys.add(compact)
+    for base in list(keys):
+        spaced = re.sub(r"([а-яёa-z])([А-ЯЁA-Z])", r"\1 \2", base)
+        if spaced != base:
+            keys.add(spaced)
+    return [k for k in keys if k and len(k) >= 2]
+
+
 class FileExtensionFilter(admin.SimpleListFilter):
     """Фильтр по расширению файла"""
     title = 'Расширение файла'
@@ -265,45 +299,72 @@ class FileExtensionFilter(admin.SimpleListFilter):
 
 
 class CategoryFilter(admin.SimpleListFilter):
-    """Фильтр по категории товаров (показывает файлы, привязанные к товарам выбранной категории)"""
+    """
+    Файлы, связанные с товарами категории: по article / ID в полях и по имени файла из URL
+    (model_glb, RFA/IFC и т.д.) — как на витрине, где GLB часто только в поле URL.
+    """
     title = 'Категория товара'
     parameter_name = 'product_category'
 
     def lookups(self, request, model_admin):
-        """Получаем все категории, у которых есть товары с привязанными файлами"""
-        # Находим категории, у которых есть товары с непустыми полями image_asset_ids или model_3d_asset_ids
+        """Категории, где у товаров есть файлы/URL или ID ассетов."""
+        def nonempty(field: str) -> Q:
+            return Q(**{f"product__{field}__isnull": False}) & ~Q(
+                **{f"product__{field}__exact": ""}
+            )
+
         categories = (
-            Category.objects.filter(
-                Q(product__image_asset_ids__isnull=False) & ~Q(product__image_asset_ids='')
-            ).distinct()
-            | Category.objects.filter(
-                Q(product__model_3d_asset_ids__isnull=False) & ~Q(product__model_3d_asset_ids='')
-            ).distinct()
-            | Category.objects.filter(
-                Q(product__article__isnull=False) & ~Q(product__article='')
-            ).distinct()
+            Category.objects.filter(nonempty("image_asset_ids")).distinct()
+            | Category.objects.filter(nonempty("model_3d_asset_ids")).distinct()
+            | Category.objects.filter(nonempty("article")).distinct()
+            | Category.objects.filter(nonempty("model_glb")).distinct()
+            | Category.objects.filter(nonempty("model_rfa")).distinct()
+            | Category.objects.filter(nonempty("model_ifc")).distinct()
         )
-        
-        return [(cat.id, cat.name) for cat in categories.order_by('name')]
+
+        return [(cat.id, cat.name) for cat in categories.order_by("name")]
 
     def queryset(self, request, queryset):
-        """Фильтруем файлы, привязанные к товарам выбранной категории"""
         if self.value():
             category_id = self.value()
             products = Product.objects.filter(category_id=category_id).only(
                 "article", "image_asset_ids", "model_3d_asset_ids"
             )
 
-            asset_ids = set()
+            asset_ids: set[str] = set()
             for product in products.iterator(chunk_size=1000):
                 if product.article and str(product.article).strip():
-                    asset_ids.add(str(product.article).strip())
+                    asset_ids.update(_asset_id_search_variants(str(product.article).strip()))
                 if product.image_asset_ids and product.image_asset_ids.strip():
-                    ids = [id.strip() for id in product.image_asset_ids.split(",") if id.strip()]
-                    asset_ids.update(ids)
+                    for raw_id in product.image_asset_ids.split(","):
+                        tid = raw_id.strip()
+                        if tid:
+                            asset_ids.update(_asset_id_search_variants(tid))
                 if product.model_3d_asset_ids and product.model_3d_asset_ids.strip():
-                    ids = [id.strip() for id in product.model_3d_asset_ids.split(",") if id.strip()]
-                    asset_ids.update(ids)
+                    for raw_id in product.model_3d_asset_ids.split(","):
+                        tid = raw_id.strip()
+                        if tid:
+                            asset_ids.update(_asset_id_search_variants(tid))
+
+            pq = Product.objects.filter(category_id=category_id)
+            for fname in (
+                "model_glb",
+                "model_rfa_glb_preview",
+                "model_ar_glb",
+                "model_rfa",
+                "model_ifc",
+                "model_fbx",
+                "model_usdz",
+            ):
+                qf = (
+                    pq.filter(**{f"{fname}__isnull": False})
+                    .exclude(**{f"{fname}__exact": ""})
+                    .values_list(fname, flat=True)
+                )
+                for val in qf:
+                    stem = _stem_from_model_file_url(val)
+                    if stem:
+                        asset_ids.update(_asset_id_search_variants(stem))
 
             if not asset_ids:
                 return queryset.none()
@@ -1072,7 +1133,11 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                 label,
             )
 
-        glb = bool((obj.model_glb or "").strip())
+        glb = (
+            url_looks_like_browser_model_file(obj.model_glb)
+            or url_looks_like_browser_model_file(obj.model_rfa_glb_preview)
+            or url_looks_like_browser_model_file(obj.model_ar_glb)
+        )
         rfa_raw = (obj.model_rfa or "").strip()
         has_rfa = bool(rfa_raw) and rfa_raw.lower().split("?")[0].endswith(".rfa")
         ifc_raw = (obj.model_ifc or "").strip()
