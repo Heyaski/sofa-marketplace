@@ -366,29 +366,45 @@ class CategoryFilter(admin.SimpleListFilter):
                     if stem:
                         asset_ids.update(_asset_id_search_variants(stem))
 
-            if not asset_ids:
-                return queryset.none()
-
-            # Один общий Q с тысячами OR ломает SQLite: «Expression tree is too large
-            # (maximum depth 1000)». Собираем pk небольшими порциями, затем фильтруем по pk.
-            ids_list = list(asset_ids)
-            # Меньше OR на запрос — SQLite SQLITE_MAX_EXPR_DEPTH по умолчанию 1000.
-            article_chunk = 25
-            matching_pks = []
-            for i in range(0, len(ids_list), article_chunk):
-                chunk = ids_list[i : i + article_chunk]
-                id_filter = Q(asset_id__in=chunk)
-                for aid in chunk:
-                    id_filter |= Q(asset_id__istartswith=f"{aid}_") | Q(
-                        asset_id__istartswith=f"{aid}-"
+            fast_pks: list[int] = []
+            if asset_ids:
+                ids_list = list(asset_ids)
+                article_chunk = 25
+                matching_pks: list[int] = []
+                for i in range(0, len(ids_list), article_chunk):
+                    chunk = ids_list[i : i + article_chunk]
+                    id_filter = Q(asset_id__in=chunk)
+                    for aid in chunk:
+                        id_filter |= Q(asset_id__istartswith=f"{aid}_") | Q(
+                            asset_id__istartswith=f"{aid}-"
+                        )
+                    matching_pks.extend(
+                        queryset.filter(id_filter).values_list("pk", flat=True)
                     )
-                matching_pks.extend(
-                    queryset.filter(id_filter).values_list("pk", flat=True)
-                )
+                fast_pks = list(dict.fromkeys(matching_pks))
 
-            matching_pks = list(dict.fromkeys(matching_pks))
-            if not matching_pks:
+            # Как API/витрина: привязка через get_*_assets (RFA/IFC/GLB в FileAsset).
+            # Кэш по (article, id полей) — тысячи товаров часто с одинаковыми ключами после импорта.
+            link_pks_set = set(fast_pks)
+            orm_cache: dict[tuple[str, str, str], frozenset[int]] = {}
+            for p in Product.objects.filter(category_id=category_id).only(
+                "article", "model_3d_asset_ids", "image_asset_ids"
+            ).iterator(chunk_size=500):
+                key = (
+                    (p.article or "").strip(),
+                    (p.model_3d_asset_ids or "").strip(),
+                    (p.image_asset_ids or "").strip(),
+                )
+                if key not in orm_cache:
+                    s3 = set(p.get_3d_model_assets().values_list("pk", flat=True))
+                    si = set(p.get_image_assets().values_list("pk", flat=True))
+                    orm_cache[key] = frozenset(s3 | si)
+                link_pks_set.update(orm_cache[key])
+
+            if not link_pks_set:
                 return queryset.none()
+
+            matching_pks = list(link_pks_set)
 
             pk_chunk = 500
             if len(matching_pks) <= pk_chunk:
