@@ -231,7 +231,8 @@ def products_with_browser_glb_queryset():
     """
     Товары, у которых есть GLB/GLTF (поле URL или FileAsset) — только SQL, без скачивания файлов.
     """
-    from django.db.models import Q, Exists, OuterRef, Concat, Value
+    from django.db.models import Q, Exists, OuterRef, Value
+    from django.db.models.functions import Concat
     from apps.catalog.models import FileAsset
 
     glb_ext_q = Q(file__iendswith=".glb") | Q(file__iendswith=".gltf")
