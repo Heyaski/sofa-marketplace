@@ -126,6 +126,8 @@ export default function RGBRangeFilter({ value, onChange }: RGBRangeFilterProps)
   }
 
   useEffect(() => {
+    // Не дергаем родителя при монтировании (pendingValue ещё undefined) — лишний refetch каталога.
+    if (pendingValue === undefined) return
     const id = window.setTimeout(() => {
       onChange(pendingValue)
     }, 250)

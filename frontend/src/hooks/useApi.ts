@@ -19,6 +19,8 @@ const firstPageProductsCache = new Map<
 	string,
 	{ products: Product[]; hasMore: boolean; totalPages: number; cachedAt: number }
 >()
+let categoriesCache: { data: Category[]; cachedAt: number } | null = null
+const CATEGORIES_CACHE_TTL_MS = 300_000
 
 // ---------------------------
 // 🛍️ useProducts (пагинация: «загрузить ещё» или постранично)
@@ -41,6 +43,11 @@ export const useProducts = (
 	const enabled = options?.enabled !== false
 	const onPageChangeRef = useRef(options?.onPageChange)
 	onPageChangeRef.current = options?.onPageChange
+	const filtersRef = useRef(filters)
+	filtersRef.current = filters
+	const forcedPageRef = useRef(forcedPage)
+	forcedPageRef.current = forcedPage
+	const fetchSerialRef = useRef(0)
 	const [products, setProducts] = useState<Product[]>([])
 	const productsCountRef = useRef(0)
 	useEffect(() => {
@@ -67,6 +74,7 @@ export const useProducts = (
 			requestOpts?: { signal?: AbortSignal }
 		) => {
 			const fingerprintAtStart = fingerprintLiveRef.current
+			const requestSerial = ++fetchSerialRef.current
 			try {
 				const useAppend = paginationMode === 'infinite' && append
 				if (useAppend) {
@@ -84,7 +92,7 @@ export const useProducts = (
 				setError(null)
 				const pageSizeValue = 20
 				const response = await productService.getProducts(
-					filters,
+					filtersRef.current,
 					page,
 					pageSizeValue,
 					requestOpts?.signal !== undefined ? { signal: requestOpts.signal } : undefined
@@ -151,7 +159,10 @@ export const useProducts = (
 				setNextPage(next)
 				if (paginationMode === 'paged') {
 					setDisplayedPage(page)
-					onPageChangeRef.current?.(page)
+					const urlPage = forcedPageRef.current ?? 1
+					if (urlPage !== page) {
+						onPageChangeRef.current?.(page)
+					}
 				}
 			} catch (err) {
 				const canceled =
@@ -162,19 +173,20 @@ export const useProducts = (
 				}
 				setError(err instanceof Error ? err.message : 'Ошибка загрузки продуктов')
 			} finally {
-				if (fingerprintLiveRef.current !== fingerprintAtStart) {
+				if (requestSerial !== fetchSerialRef.current) {
 					return
 				}
 				setLoading(false)
 				setLoadingMore(false)
 			}
 		},
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- фильтры через filtersKey
-		[filtersKey, paginationMode, firstPageCacheKey, forcedPage]
+		[paginationMode, firstPageCacheKey]
 	)
 
 	useEffect(() => {
 		if (!enabled) {
+			setLoading(false)
+			setLoadingMore(false)
 			return
 		}
 
@@ -211,7 +223,8 @@ export const useProducts = (
 		return () => {
 			ac.abort()
 		}
-	}, [enabled, fetchProducts, firstPageCacheKey, paginationMode, forcedPage])
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- fetchProducts стабилен через refs
+	}, [enabled, filtersKey, paginationMode, forcedPage, catalogListKey])
 
 	const loadMore = useCallback(() => {
 		if (paginationMode !== 'infinite') return
@@ -254,16 +267,35 @@ export const useProducts = (
 // 🧩 useCategories
 // ---------------------------
 export const useCategories = () => {
-	const [categories, setCategories] = useState<Category[]>([])
-	const [loading, setLoading] = useState(true)
+	const [categories, setCategories] = useState<Category[]>(() =>
+		categoriesCache && Date.now() - categoriesCache.cachedAt < CATEGORIES_CACHE_TTL_MS
+			? categoriesCache.data
+			: []
+	)
+	const [loading, setLoading] = useState(
+		() =>
+			!(
+				categoriesCache &&
+				Date.now() - categoriesCache.cachedAt < CATEGORIES_CACHE_TTL_MS
+			)
+	)
 	const [error, setError] = useState<string | null>(null)
 
 	const fetchCategories = useCallback(async () => {
+		if (
+			categoriesCache &&
+			Date.now() - categoriesCache.cachedAt < CATEGORIES_CACHE_TTL_MS
+		) {
+			setCategories(categoriesCache.data)
+			setLoading(false)
+			return
+		}
 		try {
 			setLoading(true)
 			setError(null)
 			const response = await categoryService.getCategories()
 			const categoriesData = extractResults(response)
+			categoriesCache = { data: categoriesData, cachedAt: Date.now() }
 			setCategories(categoriesData)
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Ошибка загрузки категорий')
@@ -273,7 +305,7 @@ export const useCategories = () => {
 	}, [])
 
 	useEffect(() => {
-		fetchCategories()
+		void fetchCategories()
 	}, [fetchCategories])
 
 	return { categories, loading, error, refetch: fetchCategories }

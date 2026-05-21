@@ -378,3 +378,58 @@ class ProductSerializer(serializers.ModelSerializer):
             })
         
         return models
+
+
+class ProductCatalogLiteSerializer(serializers.ModelSerializer):
+    """
+    Быстрый список для 2D-каталога (без model_files в query).
+    Без presigned URL для каждого FileAsset 3D и без тяжёлых полей моделей.
+    """
+
+    category = CategorySerializer(read_only=True)
+    image = serializers.SerializerMethodField()
+    title_display = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Product
+        fields = (
+            "id",
+            "title",
+            "article",
+            "category",
+            "subcategory",
+            "description",
+            "price",
+            "material",
+            "style",
+            "color",
+            "color_rgb",
+            "brand",
+            "country",
+            "width",
+            "height",
+            "depth",
+            "weight",
+            "availability",
+            "is_active",
+            "is_trending",
+            "photo_url",
+            "title_display",
+            "image",
+        )
+        ref_name = "CatalogProductLite"
+
+    def get_title_display(self, obj):
+        return ProductSerializer.get_title_display(self, obj)
+
+    def get_image(self, obj):
+        request = self.context.get("request")
+        url = resolve_media_field_url(obj.image, request)
+        if url:
+            return url
+        for product_image in obj.images.all().order_by("order", "created_at")[:3]:
+            url = resolve_media_field_url(product_image.image, request)
+            if url:
+                return url
+        photo = (obj.photo_url or "").strip()
+        return photo or None

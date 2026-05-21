@@ -41,7 +41,7 @@ function CatalogContent() {
 	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
 	const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
 	const [currentUser, setCurrentUser] = useState<User | null>(null)
-	const [catalogView, setCatalogView] = useState<CatalogViewMode>('3d')
+	const [catalogView, setCatalogView] = useState<CatalogViewMode>('2d')
 	const [catalogPage, setCatalogPage] = useState(1)
 	const [urlHydrated, setUrlHydrated] = useState(false)
 
@@ -107,11 +107,10 @@ function CatalogContent() {
 		[filters, isSuperuser]
 	)
 
-	// Грузим API только для режима, который пользователь уже открывал (меньше нагрузки при старте в 3D).
-	const [fetchList2d, setFetchList2d] = useState(catalogView === '2d')
+	// 2D грузим сразу (лёгкий список фото); 3D — по первому открытию вкладки 3D.
+	const [fetchList2d, setFetchList2d] = useState(true)
 	const [fetchList3d, setFetchList3d] = useState(catalogView === '3d')
 	useEffect(() => {
-		if (catalogView === '2d') setFetchList2d(true)
 		if (catalogView === '3d') setFetchList3d(true)
 	}, [catalogView])
 
@@ -328,11 +327,11 @@ function CatalogContent() {
 						<div className='bg-white rounded-xl p-4 sm:p-6 lg:sticky lg:top-4'>
 							<h2 className='text-base sm:text-lg font-bold text-black mb-3 sm:mb-4'>Категории</h2>
 							
-							{categoriesLoading ? (
+							{categoriesLoading && visibleCategories.length === 0 ? (
 								<div className='text-center py-4 text-sm text-gray-500'>
 									Загрузка категорий...
 								</div>
-							) : categoriesError ? (
+							) : categoriesError && visibleCategories.length === 0 ? (
 								<div className='text-center py-4 text-sm text-red-500'>
 									Ошибка загрузки категорий
 								</div>
@@ -581,8 +580,15 @@ function CatalogContent() {
 					{productsLoading && (!products || products.length === 0) ? (
 						<div className='text-center py-8 text-sm sm:text-base'>Загрузка продуктов...</div>
 					) : productsError ? (
-						<div className='text-center py-8 text-red-500 text-sm sm:text-base'>
-							Ошибка загрузки продуктов: {productsError}
+						<div className='text-center py-8 text-sm sm:text-base space-y-3'>
+							<p className='text-red-500'>Ошибка загрузки: {productsError}</p>
+							<button
+								type='button'
+								onClick={() => refetchProducts()}
+								className='text-main1 hover:underline font-medium'
+							>
+								Повторить
+							</button>
 						</div>
 					) : !products || products.length === 0 ? (
 						<div className='text-center py-8 text-gray-500 text-sm sm:text-base'>

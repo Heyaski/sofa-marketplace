@@ -41,7 +41,7 @@ from django.db import models
 from django.db.models import Prefetch
 from django.db.models.functions import Concat
 from .models import Product, Category, FileAsset, ProductImage
-from .serializers import ProductSerializer, CategorySerializer
+from .serializers import ProductSerializer, ProductCatalogLiteSerializer, CategorySerializer
 
 
 class ProductPagination(PageNumberPagination):
@@ -63,6 +63,14 @@ class ProductViewSet(viewsets.ModelViewSet):
         if self.action in ('update', 'partial_update', 'destroy', 'upload_model'):
             return [IsAuthenticated(), IsCatalogEditor()]
         return [AllowAny()]
+
+    def get_serializer_class(self):
+        """Список без model_files — лёгкий JSON (только фото), иначе полный (3D-каталог)."""
+        if self.action == 'list':
+            mf = (self.request.query_params.get('model_files') or '').strip().lower()
+            if not mf:
+                return ProductCatalogLiteSerializer
+        return ProductSerializer
 
     def get_serializer_context(self):
         """Добавляем request и action в контекст для правильной генерации URL изображений"""
@@ -225,34 +233,39 @@ class ProductViewSet(viewsets.ModelViewSet):
                     if scale_min > scale_max:
                         scale_min, scale_max = scale_max, scale_min
 
-                    filtered_ids = []
-                    for product in queryset:
-                        if not product.color_rgb or not str(product.color_rgb).strip():
-                            filtered_ids.append(product.id)
-                            continue
-                        try:
-                            rgb_parts = [
-                                max(0, min(255, int(p.strip())))
-                                for p in product.color_rgb.split(',')
-                            ]
-                            if len(rgb_parts) != 3:
-                                continue
-                            r, g, b = rgb_parts
-                            h, s, v = colorsys.rgb_to_hsv(
-                                r / 255.0, g / 255.0, b / 255.0
-                            )
-                            hue_deg = h * 360.0
-
-                            pos = _rgb_to_scale(hue_deg, s, v)
-                            if scale_min <= pos <= scale_max:
-                                filtered_ids.append(product.id)
-                        except (ValueError, TypeError):
-                            continue
-
-                    if filtered_ids:
-                        queryset = queryset.filter(id__in=filtered_ids)
+                    # Полный диапазон — не фильтруем (иначе Python-проход по всему каталогу).
+                    if scale_min <= 0 and scale_max >= 460:
+                        pass
                     else:
-                        queryset = queryset.none()
+                        filtered_ids = []
+                        color_qs = queryset.only('id', 'color_rgb').iterator(chunk_size=500)
+                        for product in color_qs:
+                            if not product.color_rgb or not str(product.color_rgb).strip():
+                                filtered_ids.append(product.id)
+                                continue
+                            try:
+                                rgb_parts = [
+                                    max(0, min(255, int(p.strip())))
+                                    for p in product.color_rgb.split(',')
+                                ]
+                                if len(rgb_parts) != 3:
+                                    continue
+                                r, g, b = rgb_parts
+                                h, s, v = colorsys.rgb_to_hsv(
+                                    r / 255.0, g / 255.0, b / 255.0
+                                )
+                                hue_deg = h * 360.0
+
+                                pos = _rgb_to_scale(hue_deg, s, v)
+                                if scale_min <= pos <= scale_max:
+                                    filtered_ids.append(product.id)
+                            except (ValueError, TypeError):
+                                continue
+
+                        if filtered_ids:
+                            queryset = queryset.filter(id__in=filtered_ids)
+                        else:
+                            queryset = queryset.none()
                 except (ValueError, TypeError):
                     pass
 
@@ -310,7 +323,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             except (ValueError, TypeError):
                 pass
 
-        queryset = queryset.prefetch_related(
+        queryset = queryset.select_related('category', 'category__parent').prefetch_related(
             Prefetch(
                 'images',
                 queryset=ProductImage.objects.order_by('order', 'created_at'),

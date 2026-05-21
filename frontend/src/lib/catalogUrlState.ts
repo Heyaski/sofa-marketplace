@@ -41,7 +41,8 @@ export function parseCatalogSearchParams(
 	}
 
 	const v = params.get('view')
-	const view: CatalogViewMode = v === '2d' ? '2d' : '3d'
+	// По умолчанию 2D — быстрый каталог с PNG; 3D только по ?view=3d
+	const view: CatalogViewMode = v === '3d' ? '3d' : '2d'
 	const p = Number(params.get('page') || '1')
 	const page = Number.isFinite(p) && p >= 1 ? Math.floor(p) : 1
 
@@ -68,7 +69,7 @@ export function buildCatalogSearchParams(
 		}
 	}
 
-	if (view === '2d') q.set('view', '2d')
+	if (view === '3d') q.set('view', '3d')
 	if (page > 1 && view === '3d') q.set('page', String(page))
 
 	return q.toString()
