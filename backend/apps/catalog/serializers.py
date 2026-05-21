@@ -367,19 +367,18 @@ class ProductCatalogLiteSerializer(serializers.ModelSerializer):
         return ProductSerializer.get_title_display(self, obj)
 
     def get_image(self, obj):
+        """Как ProductSerializer: сначала glb2d/image в storage, photo_url — только валидный http(s)."""
         request = self.context.get("request")
-        photo = (obj.photo_url or "").strip()
-        if photo:
-            return photo
         url = resolve_media_field_url(obj.image, request)
         if url:
             return url
-        images = getattr(obj, "images", None)
-        if images is not None:
-            for product_image in images.all().order_by("order", "created_at")[:1]:
-                url = resolve_media_field_url(product_image.image, request)
-                if url:
-                    return url
+        for product_image in obj.images.all().order_by("order", "created_at")[:1]:
+            url = resolve_media_field_url(product_image.image, request)
+            if url:
+                return url
+        photo = (obj.photo_url or "").strip()
+        if photo.startswith(("http://", "https://")):
+            return photo
         return None
 
 

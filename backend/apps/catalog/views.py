@@ -173,6 +173,11 @@ def build_catalog_list_3d_assets_for_products(products: list[Product]) -> dict[i
         raw = (p.model_3d_asset_ids or "").strip()
         for chunk in raw.split(","):
             add_article_keys(or_parts, chunk.strip())
+        # Часто GLB в FileAsset по коду из названия (Пуф1504), а article пустой
+        title_key = re.sub(r"\s+", "", (p.title or ""))[:80]
+        m = re.match(r"^([A-Za-zА-Яа-яЁё]+\d+)", title_key)
+        if m:
+            add_article_keys(or_parts, m.group(1))
 
     if not or_parts:
         return out
@@ -547,7 +552,9 @@ class ProductViewSet(viewsets.ModelViewSet):
         Кэш JSON на 300 с давал «Нет фото» (2D) при обновлённых превью и «3D истёк» при протухших presigned
         URL в asset_3d_models, тогда как страница товара тянет свежий retrieve.
         """
-        request._catalog_list_fast_urls = True
+        # 3D-список: те же presigned URL, что на странице товара (fast_urls режет GLB/PNG).
+        list_mode = (request.query_params.get("list_mode") or "").strip().lower()
+        request._catalog_list_fast_urls = list_mode != "3d"
         return super().list(request, *args, **kwargs)
 
     def retrieve(self, request, *args, **kwargs):
