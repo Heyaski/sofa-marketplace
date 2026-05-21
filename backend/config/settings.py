@@ -125,6 +125,9 @@ def _db_from_database_url(url: str):
         return {
             "ENGINE": engine,
             "NAME": sqlite_name,
+            "OPTIONS": {
+                "timeout": int(get_env("SQLITE_TIMEOUT", "60")),
+            },
         }
 
     return {
@@ -147,6 +150,9 @@ else:
             "default": {
                 "ENGINE": DB_ENGINE,
                 "NAME": get_env("DB_NAME", str(BASE_DIR / "db.sqlite3")),
+                "OPTIONS": {
+                    "timeout": int(get_env("SQLITE_TIMEOUT", "60")),
+                },
             }
         }
     else:

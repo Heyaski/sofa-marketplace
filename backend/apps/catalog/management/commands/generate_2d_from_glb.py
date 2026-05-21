@@ -25,6 +25,13 @@ from apps.catalog.glb_2d_preview import (
 from apps.catalog.models import Product
 
 
+def _uses_sqlite() -> bool:
+    from django.conf import settings
+
+    engine = settings.DATABASES.get("default", {}).get("ENGINE", "")
+    return "sqlite" in engine
+
+
 def _allow_sync_orm_with_playwright() -> None:
     """
     Playwright sync_api поднимает event loop; Django 5+ иначе блокирует ORM
@@ -78,6 +85,14 @@ class Command(BaseCommand):
         limit = options["limit"]
         force = options["force"]
         use_matplotlib = options.get("matplotlib", False)
+
+        if _uses_sqlite():
+            self.stdout.write(
+                self.style.WARNING(
+                    "SQLite: на время прогона остановите сайт (gunicorn/uwsgi/celery), "
+                    "иначе возможна ошибка «database is locked»."
+                )
+            )
 
         product_ids = self._collect_ids(pid, force)
         total = len(product_ids)
@@ -322,16 +337,45 @@ class Command(BaseCommand):
 # модуля чтобы pickle работал с spawn)                                #
 # ------------------------------------------------------------------ #
 
+def _save_product_preview_png(product_id: int, png: bytes) -> None:
+    """Сохранить PNG в Product.image; повтор при блокировке SQLite."""
+    import time
+
+    from django.core.files.base import ContentFile
+    from django.db import close_old_connections
+    from django.db.utils import OperationalError
+
+    from apps.catalog.glb_2d_preview import _invalidate_product_cache
+    from apps.catalog.models import Product
+
+    name = f"glb2d_{product_id}.png"
+    max_attempts = 12
+    for attempt in range(max_attempts):
+        close_old_connections()
+        try:
+            product = Product.objects.filter(pk=product_id).first()
+            if not product:
+                raise ValueError("no-product")
+            product.image.save(name, ContentFile(png), save=True)
+            _invalidate_product_cache(product_id)
+            return
+        except OperationalError as exc:
+            msg = str(exc).lower()
+            if "locked" not in msg or attempt >= max_attempts - 1:
+                raise
+            time.sleep(min(30.0, 0.75 * (attempt + 1)))
+
+
 def _render_one(product_id: int, force: bool, session) -> dict:
     """Рендер одного продукта. session=PlaywrightSession или None."""
+    from django.db import close_old_connections
+
     from apps.catalog.glb_2d_preview import (
         load_primary_glb_bytes,
         render_glb_bytes_to_png,
         _infer_load_file_type,
-        _invalidate_product_cache,
     )
     from apps.catalog.models import Product
-    from django.core.files.base import ContentFile
 
     if session is not None:
         _allow_sync_orm_with_playwright()
@@ -343,6 +387,9 @@ def _render_one(product_id: int, force: bool, session) -> dict:
     if not raw:
         return {"status": "skipped", "reason": "no-glb"}
 
+    # Долгий рендер без удержания соединения с SQLite
+    close_old_connections()
+
     try:
         if session is not None:
             ext = _infer_load_file_type(raw)
@@ -353,9 +400,11 @@ def _render_one(product_id: int, force: bool, session) -> dict:
     except Exception as e:
         return {"status": "error", "reason": str(e)[:300]}
 
-    name = f"glb2d_{product_id}.png"
-    product.image.save(name, ContentFile(png), save=True)
-    _invalidate_product_cache(product_id)
+    try:
+        _save_product_preview_png(product_id, png)
+    except Exception as e:
+        return {"status": "error", "reason": str(e)[:300]}
+
     return {"status": "ok", "renderer": renderer}
 
 
