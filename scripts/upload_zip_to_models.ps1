@@ -1,3 +1,5 @@
+# Распаковывает ZIP во временную папку и заливает только .glb / .rfa / .ifc / изображения (не сам .zip).
+# См. scripts/README_UPLOAD_MODELS.md — агент/CI не должны отправлять архив напрямую на SFTP.
 param(
     [Parameter(Mandatory = $true)]
     [string]$ZipPath,

@@ -4,6 +4,8 @@
 Для каждого товара URL страницы берётся из shop_url (если это ссылка на карточку inmyroom),
 иначе строится из артикула IMR-XXXXXXXX: https://www.inmyroom.ru/products/<цифры>-
 
+Ежедневный запуск на сервере: см. `deploy/cron/README.md` (crontab или systemd timer).
+
 Запуск из каталога backend:
   python manage.py sync_inmyroom_prices
   python manage.py sync_inmyroom_prices --dry-run

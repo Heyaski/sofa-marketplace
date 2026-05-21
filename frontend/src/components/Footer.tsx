@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { authService } from '../services/api'
 import { User } from '../types'
 import AuthModal from './AuthModal'
+import { getLastCatalogQueryForBackNavigation } from '@/lib/catalogUrlState'
 
 export default function Footer() {
 	const router = useRouter()
@@ -36,9 +37,8 @@ export default function Footer() {
 		setIsAuthModalOpen(false)
 		window.dispatchEvent(new Event('auth-updated'))
 		if (pathname === '/') {
-			router.push('/catalog')
-		} else {
-			router.refresh()
+			const q = getLastCatalogQueryForBackNavigation()
+			router.push(q ? `/catalog?${q}` : '/catalog')
 		}
 	}
 	return (

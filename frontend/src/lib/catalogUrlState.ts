@@ -89,6 +89,18 @@ export function catalogQueryStringsEqual(a: string, b: string): boolean {
 
 const CATALOG_LAST_QUERY_KEY = 'catalog:lastQuery'
 
+/** Событие: обновить href ссылок «Каталог» в шапке/нижней навигации (Next router.replace не шлёт popstate). */
+export const CATALOG_NAV_HREF_REFRESH = 'catalog-nav-href-refresh'
+
+export function notifyCatalogNavHrefRefresh(): void {
+	if (typeof window === 'undefined') return
+	try {
+		window.dispatchEvent(new Event(CATALOG_NAV_HREF_REFRESH))
+	} catch {
+		/* ignore */
+	}
+}
+
 export function persistCatalogQueryForBackNavigation(queryWithoutQuestion: string): void {
 	if (typeof window === 'undefined') return
 	try {

@@ -1,0 +1,14 @@
+[Unit]
+Description=Sofa Marketplace — sync product prices from INMYROOM.ru
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=deploy
+Group=deploy
+WorkingDirectory=/home/deploy/sofa-marketplace/backend
+EnvironmentFile=-/home/deploy/sofa-marketplace/backend/.env
+ExecStart=/home/deploy/sofa-marketplace/backend/.venv/bin/python manage.py sync_inmyroom_prices --sleep 1 --set-shop-url
+StandardOutput=journal
+StandardError=journal

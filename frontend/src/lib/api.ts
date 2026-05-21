@@ -1,5 +1,8 @@
 import axios from 'axios'
 import { config } from '../config'
+import { clearUserMeCache } from './userMeCache'
+
+const logApi = process.env.NODE_ENV === 'development'
 
 // Базовый URL для API
 const API_BASE_URL = config.API_URL
@@ -40,6 +43,7 @@ async function refreshAccessToken(): Promise<string | null> {
 		} catch {
 			localStorage.removeItem('access_token')
 			localStorage.removeItem('refresh_token')
+			clearUserMeCache()
 			return null
 		} finally {
 			refreshInFlight = null
@@ -52,12 +56,14 @@ async function refreshAccessToken(): Promise<string | null> {
 // Интерцептор для добавления токена авторизации
 apiClient.interceptors.request.use(
 	config => {
-		console.log(
-			'API Request:',
-			config.method?.toUpperCase(),
-			config.url,
-			config.data
-		)
+		if (logApi) {
+			console.log(
+				'API Request:',
+				config.method?.toUpperCase(),
+				config.url,
+				config.data
+			)
+		}
 		const token = localStorage.getItem('access_token')
 		if (token) {
 			config.headers.Authorization = `Bearer ${token}`
@@ -73,12 +79,14 @@ apiClient.interceptors.request.use(
 // Интерцептор: при истечении access — обновить через refresh и повторить запрос
 apiClient.interceptors.response.use(
 	response => {
-		console.log(
-			'API Response:',
-			response.status,
-			response.config.url,
-			response.data
-		)
+		if (logApi) {
+			console.log(
+				'API Response:',
+				response.status,
+				response.config.url,
+				response.data
+			)
+		}
 		return response
 	},
 	error => {
@@ -110,6 +118,7 @@ apiClient.interceptors.response.use(
 		if (req._authRetry) {
 			localStorage.removeItem('access_token')
 			localStorage.removeItem('refresh_token')
+			clearUserMeCache()
 			return Promise.reject(error)
 		}
 		req._authRetry = true

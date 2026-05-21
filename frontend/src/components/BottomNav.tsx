@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useCatalogNavHref } from '@/hooks/useCatalogNavHref'
 import {
 	Squares2X2Icon,
 	ShoppingBagIcon,
@@ -15,6 +16,7 @@ import {
 
 export default function BottomNav() {
 	const pathname = usePathname()
+	const catalogHref = useCatalogNavHref()
 	const isCatalog = pathname === '/catalog' || pathname?.startsWith('/catalog')
 	const isProfile = pathname === '/profile' || pathname?.startsWith('/profile')
 
@@ -27,7 +29,7 @@ export default function BottomNav() {
 		>
 			<div className='flex items-center justify-around h-14 min-h-[52px] w-full max-w-[100vw]'>
 				<Link
-					href='/catalog'
+					href={catalogHref}
 					className={`flex flex-col items-center justify-center flex-1 min-w-0 py-2 ${
 						isCatalog ? 'text-main1' : 'text-gray'
 					}`}

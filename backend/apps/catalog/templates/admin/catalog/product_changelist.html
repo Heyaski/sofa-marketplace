@@ -30,7 +30,8 @@
     <p class="help" style="margin: 0 0 12px 0;">
         Счётчики: сколько товаров в категории имеют файл данного типа.
         «Полный комплект для каталога» — только GLB + реальный .rfa + .ifc (FBX в комплект не входит и для фильтра витрины не обязателен).
-        Нажмите «Открыть список» у строки формата — в таблице ниже появятся только эти товары и колонка <strong>Форматы</strong>.
+        Под каждой подпапкой по формату — кнопка <strong>«Удалить содержимое папки»</strong>: удаляются только товары этой категории с выбранным типом файлов (как фильтр витрины).
+        В заголовке категории — ссылка <strong>«удалить всю категорию целиком»</strong> (все товары в этой категории без исключений).
     </p>
     {% if request.GET.model_files_kind %}
     <p class="help" style="margin-bottom: 12px; padding: 8px 10px; background: #e7f3ff; border-radius: 4px;">
@@ -55,41 +56,73 @@
             {% if row.total and product_folder_delete_allowed %}
             <a href="{% url 'admin:catalog_product_delete_folder_contents' row.category.id %}"
                 style="margin-left: 8px; font-size: 12px; font-weight: normal; color: #b71c1c;"
-                onclick="event.stopPropagation();">удалить содержимое папки</a>
+                onclick="event.stopPropagation();">удалить всю категорию целиком</a>
             {% endif %}
         </summary>
-        <ul style="margin: 10px 0 4px 18px; line-height: 1.75; font-size: 13px; list-style: none; padding-left: 0;">
-            <li>
-                📂 <strong>GLB</strong> — {{ row.n_glb }}{% if row.total %} / {{ row.total }}{% endif %}
-                {% if row.n_glb %}
-                — <a href="{% url 'admin:catalog_product_changelist' %}?category__id__exact={{ row.category.id }}&model_files_kind=glb">открыть список</a>
+        {% with btn_del="display:inline-block;margin-top:8px;padding:6px 14px;border:1px solid #ba2121;border-radius:4px;color:#ba2121!important;background:#fff;text-decoration:none!important;font-weight:600;font-size:12px;" %}
+        <ul style="margin: 10px 0 4px 0; line-height: 1.65; font-size: 13px; list-style: none; padding-left: 0;">
+            <li style="margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #e8e8e8;">
+                <div>
+                    📂 <strong>GLB</strong> — {{ row.n_glb }}{% if row.total %} / {{ row.total }}{% endif %}
+                    {% if row.n_glb %}
+                    — <a href="{% url 'admin:catalog_product_changelist' %}?category__id__exact={{ row.category.id }}&model_files_kind=glb">открыть список</a>
+                    {% endif %}
+                </div>
+                {% if row.n_glb and product_folder_delete_allowed %}
+                <a href="{% url 'admin:catalog_product_delete_folder_slice' row.category.id 'glb' %}"
+                    style="{{ btn_del }}" onclick="event.stopPropagation();">Удалить содержимое папки</a>
                 {% endif %}
             </li>
-            <li>
-                📂 <strong>RFA</strong> (.rfa) — {{ row.n_rfa }}{% if row.total %} / {{ row.total }}{% endif %}
-                {% if row.n_rfa %}
-                — <a href="{% url 'admin:catalog_product_changelist' %}?category__id__exact={{ row.category.id }}&model_files_kind=rfa">открыть список</a>
+            <li style="margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #e8e8e8;">
+                <div>
+                    📂 <strong>RFA</strong> (.rfa) — {{ row.n_rfa }}{% if row.total %} / {{ row.total }}{% endif %}
+                    {% if row.n_rfa %}
+                    — <a href="{% url 'admin:catalog_product_changelist' %}?category__id__exact={{ row.category.id }}&model_files_kind=rfa">открыть список</a>
+                    {% endif %}
+                </div>
+                {% if row.n_rfa and product_folder_delete_allowed %}
+                <a href="{% url 'admin:catalog_product_delete_folder_slice' row.category.id 'rfa' %}"
+                    style="{{ btn_del }}" onclick="event.stopPropagation();">Удалить содержимое папки</a>
                 {% endif %}
             </li>
-            <li>
-                📂 <strong>IFC</strong> (.ifc) — {{ row.n_ifc }}{% if row.total %} / {{ row.total }}{% endif %}
-                {% if row.n_ifc %}
-                — <a href="{% url 'admin:catalog_product_changelist' %}?category__id__exact={{ row.category.id }}&model_files_kind=ifc">открыть список</a>
+            <li style="margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #e8e8e8;">
+                <div>
+                    📂 <strong>IFC</strong> (.ifc) — {{ row.n_ifc }}{% if row.total %} / {{ row.total }}{% endif %}
+                    {% if row.n_ifc %}
+                    — <a href="{% url 'admin:catalog_product_changelist' %}?category__id__exact={{ row.category.id }}&model_files_kind=ifc">открыть список</a>
+                    {% endif %}
+                </div>
+                {% if row.n_ifc and product_folder_delete_allowed %}
+                <a href="{% url 'admin:catalog_product_delete_folder_slice' row.category.id 'ifc' %}"
+                    style="{{ btn_del }}" onclick="event.stopPropagation();">Удалить содержимое папки</a>
                 {% endif %}
             </li>
-            <li>
-                📂 <strong>FBX</strong> (.fbx), опционально — {{ row.n_fbx }}{% if row.total %} / {{ row.total }}{% endif %}
-                {% if row.n_fbx %}
-                — <a href="{% url 'admin:catalog_product_changelist' %}?category__id__exact={{ row.category.id }}&model_files_kind=fbx">открыть список</a>
+            <li style="margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #e8e8e8;">
+                <div>
+                    📂 <strong>FBX</strong> (.fbx), опционально — {{ row.n_fbx }}{% if row.total %} / {{ row.total }}{% endif %}
+                    {% if row.n_fbx %}
+                    — <a href="{% url 'admin:catalog_product_changelist' %}?category__id__exact={{ row.category.id }}&model_files_kind=fbx">открыть список</a>
+                    {% endif %}
+                </div>
+                {% if row.n_fbx and product_folder_delete_allowed %}
+                <a href="{% url 'admin:catalog_product_delete_folder_slice' row.category.id 'fbx' %}"
+                    style="{{ btn_del }}" onclick="event.stopPropagation();">Удалить содержимое папки</a>
                 {% endif %}
             </li>
-            <li>
-                📦 <strong>Полный комплект для каталога</strong> — {{ row.n_bundle }}
-                {% if row.n_bundle %}
-                — <a href="{% url 'admin:catalog_product_changelist' %}?category__id__exact={{ row.category.id }}&model_files_kind=bundle"><strong>открыть список (3 формата)</strong></a>
+            <li style="margin-bottom: 4px;">
+                <div>
+                    📦 <strong>Полный комплект для каталога</strong> — {{ row.n_bundle }}
+                    {% if row.n_bundle %}
+                    — <a href="{% url 'admin:catalog_product_changelist' %}?category__id__exact={{ row.category.id }}&model_files_kind=bundle"><strong>открыть список (3 формата)</strong></a>
+                    {% endif %}
+                </div>
+                {% if row.n_bundle and product_folder_delete_allowed %}
+                <a href="{% url 'admin:catalog_product_delete_folder_slice' row.category.id 'bundle' %}"
+                    style="{{ btn_del }}" onclick="event.stopPropagation();">Удалить содержимое папки</a>
                 {% endif %}
             </li>
         </ul>
+        {% endwith %}
     </details>
     {% empty %}
     <p class="help">Нет категорий.</p>

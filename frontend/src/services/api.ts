@@ -1,4 +1,5 @@
 import apiClient from '../lib/api'
+import { clearUserMeCache, getCachedCurrentUser } from '../lib/userMeCache'
 import {
 	ApiResponse,
 	AuthTokens,
@@ -418,12 +419,14 @@ export const pluginService = {
 export const authService = {
 	// Вход в систему
 	login: async (credentials: LoginCredentials): Promise<AuthTokens> => {
+		clearUserMeCache()
 		const response = await apiClient.post('/api/auth/login/', credentials)
 		return response.data
 	},
 
 	// Регистрация
 	register: async (data: RegisterData): Promise<User> => {
+		clearUserMeCache()
 		const response = await apiClient.post('/api/users/register/', data)
 		return response.data
 	},
@@ -438,13 +441,16 @@ export const authService = {
 
 	// Получить информацию о текущем пользователе
 	getCurrentUser: async (): Promise<User> => {
-		const response = await apiClient.get('/api/users/me/')
-		return response.data
+		return getCachedCurrentUser(async () => {
+			const response = await apiClient.get('/api/users/me/')
+			return response.data
+		})
 	},
 
 	// Обновить информацию о текущем пользователе
 	updateUser: async (data: Partial<User>): Promise<User> => {
 		const response = await apiClient.patch('/api/users/me/', data)
+		clearUserMeCache()
 		return response.data
 	},
 
@@ -455,12 +461,17 @@ export const authService = {
 		const response = await apiClient.post('/api/users/me/avatar/', formData, {
 			headers: { 'Content-Type': 'multipart/form-data' },
 		})
+		clearUserMeCache()
 		return response.data
 	},
 
 	// Выход из системы
 	logout: async (): Promise<void> => {
-		await apiClient.post('/api/users/logout/')
+		try {
+			await apiClient.post('/api/users/logout/')
+		} finally {
+			clearUserMeCache()
+		}
 	},
 
 	// Поиск пользователей

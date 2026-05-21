@@ -42,16 +42,26 @@ export default function HeroSection({ onOpenAuth }: HeroSectionProps) {
 			checkAuth()
 		}
 
+		let lastVisibilityCheck = 0
+		const VISIBILITY_AUTH_MIN_MS = 60_000
+		const handleVisibilityChange = () => {
+			if (typeof document === 'undefined' || document.visibilityState !== 'visible') return
+			const token = localStorage.getItem('access_token')
+			if (!token) return
+			const now = Date.now()
+			if (now - lastVisibilityCheck < VISIBILITY_AUTH_MIN_MS) return
+			lastVisibilityCheck = now
+			checkAuth()
+		}
+
 		window.addEventListener('storage', handleStorageChange)
 		window.addEventListener('auth-updated', handleAuthUpdate)
-		
-		// Также проверяем при фокусе окна (на случай авторизации в другой вкладке)
-		window.addEventListener('focus', checkAuth)
+		document.addEventListener('visibilitychange', handleVisibilityChange)
 
 		return () => {
 			window.removeEventListener('storage', handleStorageChange)
 			window.removeEventListener('auth-updated', handleAuthUpdate)
-			window.removeEventListener('focus', checkAuth)
+			document.removeEventListener('visibilitychange', handleVisibilityChange)
 		}
 	}, [])
 

@@ -32,6 +32,10 @@ export const useProducts = (
 	const onPageChangeRef = useRef(options?.onPageChange)
 	onPageChangeRef.current = options?.onPageChange
 	const [products, setProducts] = useState<Product[]>([])
+	const productsCountRef = useRef(0)
+	useEffect(() => {
+		productsCountRef.current = products.length
+	}, [products.length])
 	const [loading, setLoading] = useState(true)
 	const [loadingMore, setLoadingMore] = useState(false)
 	const [error, setError] = useState<string | null>(null)
@@ -50,9 +54,14 @@ export const useProducts = (
 				if (useAppend) {
 					setLoadingMore(true)
 				} else {
-					// При смене фильтров / режима каталога нельзя оставлять старый список до ответа API —
-					// иначе в сетке кратко «перемешиваются» чужие карточки и 3D-вьюеры.
-					setLoading(true)
+					// Первый заход — полный экран. Смена фильтров / страницы при уже открытой сетке — без «вечной» загрузки.
+					if (paginationMode === 'paged' && page > 1) {
+						setLoading(true)
+					} else if (productsCountRef.current === 0) {
+						setLoading(true)
+					} else {
+						setLoading(false)
+					}
 				}
 				setError(null)
 				if (filters && Object.keys(filters).length > 0) {

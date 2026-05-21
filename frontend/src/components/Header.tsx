@@ -6,12 +6,15 @@ import { usePathname, useRouter } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
 import { authService } from '../services/api'
 import { User } from '../types'
+import { useCatalogNavHref } from '@/hooks/useCatalogNavHref'
+import { getLastCatalogQueryForBackNavigation } from '@/lib/catalogUrlState'
 import AuthModal from './AuthModal'
 import GlobalSearchBar from './GlobalSearchBar'
 
 export default function Header() {
 	const router = useRouter()
 	const pathname = usePathname()
+	const catalogHref = useCatalogNavHref()
 	const [user, setUser] = useState<User | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
@@ -56,9 +59,8 @@ export default function Header() {
 			setUser(userData)
 			window.dispatchEvent(new Event('auth-updated'))
 			if (pathname === '/') {
-				router.push('/catalog')
-			} else {
-				router.refresh()
+				const q = getLastCatalogQueryForBackNavigation()
+				router.push(q ? `/catalog?${q}` : '/catalog')
 			}
 		} catch (error) {
 			setUser(null)
@@ -71,7 +73,7 @@ export default function Header() {
 				<div className='flex lg:hidden items-center justify-between min-h-[48px] py-1.5 gap-1 min-w-0'>
 					{/* Catalog — иконка + текст «Каталог» (лого скрыто на мобильной) */}
 					<a
-						href='/catalog'
+						href={catalogHref}
 						className='flex-shrink-0 bg-main1 text-white px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 hover:bg-main2 transition-colors'
 						aria-label='Каталог'
 					>
@@ -163,7 +165,7 @@ export default function Header() {
 					<div className='flex-1 flex items-center justify-center space-x-4 mx-8'>
 						{/* Catalog button */}
 						<a
-							href='/catalog'
+							href={catalogHref}
 							className='bg-main1 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-main2 transition-colors flex-shrink-0'
 						>
 							<Image

@@ -1,0 +1,36 @@
+{% extends "admin/base_site.html" %}
+
+{% block title %}Удалить подборку по формату{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>Удалить товары по формату (внутри категории)</h1>
+    <div class="module" style="max-width: 720px;">
+        <p>
+            Категория: <strong>{{ category.name }}</strong>
+        </p>
+        <p>
+            Подборка: <strong>{{ slice_label }}</strong>
+        </p>
+        {% if product_count %}
+        <p style="background: #fff3cd; padding: 12px; border-radius: 4px; border: 1px solid #ffc107;">
+            Будет безвозвратно удалено товаров: <strong>{{ product_count }}</strong>.
+            Остальные товары этой же категории (без выбранного признака GLB/RFA/IFC/FBX или не входящие в «полный комплект»)
+            не затронуты. Связанные изображения (ProductImage) удалятся вместе с удаляемыми товарами.
+            Сама категория в справочнике <strong>не удаляется</strong>.
+        </p>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="post" value="yes">
+            <div style="margin-top: 20px;">
+                <input type="submit" class="default" style="background: #ba2121; color: #fff;" value="Да, удалить эти товары">
+                <a href="{% url 'admin:catalog_product_changelist' %}" class="button cancel-link" style="margin-left: 12px;">Отмена</a>
+            </div>
+        </form>
+        {% else %}
+        <p class="help">В этой подборке нет товаров — удалять нечего.</p>
+        <p><a href="{% url 'admin:catalog_product_changelist' %}">← К списку товаров</a></p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

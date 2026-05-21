@@ -12,7 +12,7 @@ from django.urls import path
 from django.contrib import messages
 from django.core.files import File
 from django.core.files.base import ContentFile
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404
 from django.db.models import Q, Count
 from .models import Category, Product, ProductImage, FileAsset
 from .file_urls import should_replace_product_model_url_with_asset, url_looks_like_browser_model_file
@@ -1036,6 +1036,18 @@ def product_model_file_kind_q(kind: str):
     return None
 
 
+# Подмножество товаров в категории (виртуальные «папки» на changelist — GLB, RFA, …)
+ALLOWED_FOLDER_SLICE_KINDS = frozenset({"glb", "rfa", "ifc", "fbx", "bundle"})
+
+FOLDER_SLICE_LABELS_RU = {
+    "glb": "только товары с GLB в этой категории",
+    "rfa": 'только товары с RFA (.rfa) в этой категории',
+    "ifc": 'только товары с IFC (.ifc) в этой категории',
+    "fbx": 'только товары с FBX (.fbx) в этой категории',
+    "bundle": "товары полного комплекта (GLB + RFA + IFC) в этой категории",
+}
+
+
 class ModelFilesKindFilter(admin.SimpleListFilter):
     title = "Файлы 3D"
     parameter_name = "model_files_kind"
@@ -1291,6 +1303,53 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
             context,
         )
 
+    def delete_folder_slice(self, request, category_id, slice_kind):
+        """
+        Удаление только подмножества товаров в категории (как виртуальные папки GLB/RFA/IFC/FBX/bundle).
+        Совпадает с фильтром model_files_kind на changelist.
+        """
+        from django.core.exceptions import PermissionDenied
+        from django.shortcuts import get_object_or_404
+
+        if not self.has_delete_permission(request):
+            raise PermissionDenied
+
+        slug = (slice_kind or "").strip().lower()
+        if slug not in ALLOWED_FOLDER_SLICE_KINDS:
+            raise Http404("Неизвестный тип «папки»")
+        q_filter = product_model_file_kind_q(slug)
+        if q_filter is None:
+            raise Http404("Неизвестный тип «папки»")
+
+        category = get_object_or_404(Category, pk=category_id)
+        qs = Product.objects.filter(category=category).filter(q_filter)
+        count = qs.count()
+        slice_label = FOLDER_SLICE_LABELS_RU.get(slug, slug)
+
+        if request.method == "POST" and request.POST.get("post") == "yes":
+            qs.delete()
+            self.message_user(
+                request,
+                f"Удалено товаров в категории «{category.name}» ({slice_label}): {count}.",
+                messages.SUCCESS,
+            )
+            return redirect("admin:catalog_product_changelist")
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Удалить товары в подборке формата",
+            "opts": self.model._meta,
+            "category": category,
+            "product_count": count,
+            "slice_kind": slug,
+            "slice_label": slice_label,
+        }
+        return TemplateResponse(
+            request,
+            "admin/catalog/product_delete_folder_slice.html",
+            context,
+        )
+
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
@@ -1299,6 +1358,11 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                 "folder/<int:category_id>/delete-contents/",
                 self.delete_folder_contents,
                 name="catalog_product_delete_folder_contents",
+            ),
+            path(
+                "folder/<int:category_id>/delete-slice/<slug:slice_kind>/",
+                self.delete_folder_slice,
+                name="catalog_product_delete_folder_slice",
             ),
         ]
         return custom_urls + urls

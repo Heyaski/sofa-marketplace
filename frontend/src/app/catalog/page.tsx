@@ -16,6 +16,7 @@ import {
 	parseCatalogSearchParams,
 	catalogQueryStringsEqual,
 	persistCatalogQueryForBackNavigation,
+	notifyCatalogNavHrefRefresh,
 	type CatalogViewMode,
 } from '@/lib/catalogUrlState'
 import { authService, productService } from '@/services/api'
@@ -65,9 +66,10 @@ function CatalogContent() {
 		setUrlHydrated(true)
 	}, [spKey])
 
-	// Чтобы «Каталог» на карточке товара возвращал с теми же фильтрами
+	// Сохранить query для «Назад» и обновить href «Каталог» в шапке (router.replace не шлёт popstate)
 	useEffect(() => {
 		persistCatalogQueryForBackNavigation(spKey)
+		notifyCatalogNavHrefRefresh()
 	}, [spKey])
 
 	// Фильтры / вид / страница → URL
@@ -572,7 +574,7 @@ function CatalogContent() {
 							<div className='grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6'>
 								{products.map(product => (
 								<ProductCard
-									key={`${product.id}-${catalogView}`}
+									key={product.id}
 									product={product}
 									catalogDisplayMode={catalogView}
 									onAddToCart={handleAddToCart}
