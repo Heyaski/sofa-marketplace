@@ -357,7 +357,7 @@ class ProductSerializer(serializers.ModelSerializer):
                 name = (getattr(asset.file, "name", "") or "").lower()
                 if name.endswith((".glb", ".gltf", ".usdz")):
                     glb_like_assets.append(asset)
-                if len(glb_like_assets) >= 2:
+                if len(glb_like_assets) >= 12:
                     break
             models.extend(
                 FileAssetSerializer(glb_like_assets, many=True, context={'request': request}).data

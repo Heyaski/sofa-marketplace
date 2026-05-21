@@ -38,6 +38,7 @@ class IsCatalogEditor(BasePermission):
             getattr(request.user, 'is_superuser', False)
         )
 from django.db import models
+from django.db.models import Prefetch
 from django.db.models.functions import Concat
 from .models import Product, Category, FileAsset, ProductImage
 from .serializers import ProductSerializer, CategorySerializer
@@ -308,7 +309,14 @@ class ProductViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(depth__lte=float(depth_lte))
             except (ValueError, TypeError):
                 pass
-        
+
+        queryset = queryset.prefetch_related(
+            Prefetch(
+                'images',
+                queryset=ProductImage.objects.order_by('order', 'created_at'),
+            )
+        )
+
         return queryset
 
     # Фильтрация
@@ -326,14 +334,12 @@ class ProductViewSet(viewsets.ModelViewSet):
     ordering = ["price"]
 
     def list(self, request, *args, **kwargs):
-        """Кэширование списка товаров (5 мин) — ускоряет загрузку страниц с 3D моделями."""
-        cache_key = f"products_list:v6:{request.GET.urlencode()}"
-        cached = cache.get(cache_key)
-        if cached is not None:
-            return Response(cached)
-        response = super().list(request, *args, **kwargs)
-        cache.set(cache_key, response.data, timeout=300)
-        return response
+        """Без кэширования полного ответа.
+
+        Кэш JSON на 300 с давал «Нет фото» (2D) при обновлённых превью и «3D истёк» при протухших presigned
+        URL в asset_3d_models, тогда как страница товара тянет свежий retrieve.
+        """
+        return super().list(request, *args, **kwargs)
 
     def retrieve(self, request, *args, **kwargs):
         """Кэширование деталей товара (10 мин)."""

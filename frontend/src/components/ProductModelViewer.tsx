@@ -94,7 +94,13 @@ function collectGlbUrls(product: Product): string[] {
 		out.push(withGlbVersion(normalized))
 	}
 
-	// 1) Приоритет — GLB/GLTF/USDZ из FileAsset (если в model_3d_asset_ids есть и .rfa/.ifc, они тут просто пропускаются).
+	// В list API первыми часто приходят presigned URL из FileAsset — они протухают раньше полей модели.
+	// Сервер уже считает «лучший» model_glb (get_model_glb): используем поля перед asset_3d_models, как ближе к странице товара.
+	const mg = product.model_glb
+	if (mg && !isEphemeralExternalModelUrl(mg)) push(mg, 'glb')
+	if (product.model_rfa_glb_preview) push(product.model_rfa_glb_preview, 'glb')
+	if (product.model_ar_glb) push(product.model_ar_glb, 'glb')
+
 	if (product.asset_3d_models?.length) {
 		const scored = [...product.asset_3d_models].sort((a, b) => {
 			const aId = (a.asset_id || '').toLowerCase()
@@ -107,13 +113,8 @@ function collectGlbUrls(product: Product): string[] {
 		for (const a of scored) push(a.file_url, a.file_ext)
 	}
 
-	// Стабильные URL в приоритете; временные CDN не подставляем раньше FileAsset и S3.
-	const mg = product.model_glb
-	if (mg && !isEphemeralExternalModelUrl(mg)) push(mg, 'glb')
-	if (product.model_rfa_glb_preview) push(product.model_rfa_glb_preview, 'glb')
-	if (product.model_ar_glb) push(product.model_ar_glb, 'glb')
-	/* Как get_model_glb на бэкенде (шаг 4): если других кандидатов нет — пробуем то, что в поле.
-	   Иначе витрина «Нет 3D» при зелёном GLB в админке (там учитывается только непустой model_glb). */
+	if (mg && isValidUrl(mg) && isEphemeralExternalModelUrl(mg)) push(mg, 'glb')
+	/* Как get_model_glb на бэкенде (шаг 4): если других кандидатов нет — пробуем то, что в поле. */
 	if (!out.length && mg && isValidUrl(mg)) push(mg, 'glb')
 	return out
 }
