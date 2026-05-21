@@ -15,7 +15,9 @@ from django.core.management.base import BaseCommand
 
 from apps.catalog.glb_2d_preview import (
     load_primary_glb_bytes,
+    product_has_glb_source,
     product_lacks_catalog_2d,
+    products_with_browser_glb_queryset,
     render_glb_bytes_to_png,
     run_glb_2d_preview_for_product_id,
     PlaywrightSession,
@@ -39,6 +41,11 @@ class Command(BaseCommand):
                             help="Тест рендерера (без сохранения в БД)")
         parser.add_argument("--workers", type=int, default=1,
                             help="Кол-во параллельных процессов (по умолчанию 1)")
+        parser.add_argument(
+            "--matplotlib",
+            action="store_true",
+            help="Без Playwright/Chromium — только matplotlib (быстрее на сервере без браузера)",
+        )
 
     def handle(self, *args, **options):
         if options["check"]:
@@ -59,23 +66,44 @@ class Command(BaseCommand):
         pid = options["product_id"]
         limit = options["limit"]
         force = options["force"]
+        use_matplotlib = options.get("matplotlib", False)
 
         product_ids = self._collect_ids(pid, force)
         total = len(product_ids)
         self.stdout.write(f"Товаров для обработки: {total}")
+        if total == 0:
+            self.stdout.write(
+                self.style.WARNING(
+                    "Нет товаров с GLB. Проверьте model_glb / FileAsset или укажите --product-id ID."
+                )
+            )
+            return
 
         done = 0
         errors = 0
         by_renderer: dict[str, int] = {}
 
         from django.conf import settings as dj_settings
-        use_pw = getattr(dj_settings, "GLB_2D_USE_PLAYWRIGHT", True)
+        use_pw = not use_matplotlib and getattr(dj_settings, "GLB_2D_USE_PLAYWRIGHT", True)
 
-        try:
-            session = PlaywrightSession().__enter__() if use_pw else None
-        except Exception as e:
-            self.stdout.write(self.style.WARNING(f"PlaywrightSession не запустилась: {e} — используем matplotlib"))
-            session = None
+        session = None
+        if use_pw:
+            self.stdout.write(
+                "Запуск Chromium (Playwright)… первый старт может занять 1–2 мин.",
+                ending="\n",
+            )
+            self.stdout.flush()
+            try:
+                session = PlaywrightSession().__enter__()
+            except Exception as e:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"PlaywrightSession не запустилась: {e} — используем matplotlib"
+                    )
+                )
+                session = None
+        else:
+            self.stdout.write("Рендер: matplotlib (без браузера).")
 
         try:
             for product_id in product_ids:
@@ -173,16 +201,34 @@ class Command(BaseCommand):
         )
 
     def _collect_ids(self, pid, force) -> list[int]:
-        qs = Product.objects.order_by("id")
+        self.stdout.write(
+            "Сканируем каталог (только БД, без загрузки GLB с S3)…",
+            ending="",
+        )
+        self.stdout.flush()
+
+        qs = products_with_browser_glb_queryset().order_by("id")
         if pid is not None:
             qs = qs.filter(pk=pid)
-        ids = []
-        for product in qs.only("id", "image", "photo_url").iterator(chunk_size=500):
+
+        ids: list[int] = []
+        scanned = 0
+        for product in qs.prefetch_related("images").iterator(chunk_size=200):
+            scanned += 1
+            if scanned % 50 == 0:
+                self.stdout.write(
+                    f"\r  проверено {scanned}, отобрано {len(ids)}…",
+                    ending="",
+                )
+                self.stdout.flush()
             if not force and not product_lacks_catalog_2d(product):
                 continue
-            if not load_primary_glb_bytes(product):
+            if not product_has_glb_source(product):
                 continue
             ids.append(product.pk)
+
+        self.stdout.write(f"\r  проверено {scanned}, с GLB для рендера: {len(ids)}.       ")
+        self.stdout.flush()
         return ids
 
     # ------------------------------------------------------------------ #
@@ -193,7 +239,10 @@ class Command(BaseCommand):
         self.stdout.write("=== Проверка рендерера (--check) ===")
         product = None
         glb_bytes = None
-        for p in Product.objects.order_by("id").iterator(chunk_size=100):
+        for p in products_with_browser_glb_queryset().order_by("id").iterator(chunk_size=50):
+            if not product_has_glb_source(p):
+                continue
+            self.stdout.write(f"Загрузка GLB для id={p.pk}…")
             b = load_primary_glb_bytes(p)
             if b:
                 product = p

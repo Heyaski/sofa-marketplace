@@ -227,6 +227,70 @@ def _url_ok(url: str) -> bool:
     return low.startswith(("http://", "https://", "/"))
 
 
+def products_with_browser_glb_queryset():
+    """
+    Товары, у которых есть GLB/GLTF (поле URL или FileAsset) — только SQL, без скачивания файлов.
+    """
+    from django.db.models import Q, Exists, OuterRef, Concat, Value
+    from apps.catalog.models import FileAsset
+
+    glb_ext_q = Q(file__iendswith=".glb") | Q(file__iendswith=".gltf")
+    has_glb_asset_by_model_id_q = Exists(
+        FileAsset.objects.filter(file_type="3d_model")
+        .filter(glb_ext_q)
+        .filter(
+            Q(asset_id__iexact=OuterRef("model_3d_asset_ids"))
+            | Q(asset_id__istartswith=Concat(OuterRef("model_3d_asset_ids"), Value("_")))
+            | Q(asset_id__istartswith=Concat(OuterRef("model_3d_asset_ids"), Value("-")))
+        )
+    )
+    has_direct_glb_url_q = (
+        (
+            Q(model_glb__startswith="http://")
+            | Q(model_glb__startswith="https://")
+            | Q(model_glb__startswith="/")
+        )
+        & ~Q(model_glb="")
+    ) | (
+        (
+            Q(model_rfa_glb_preview__startswith="http://")
+            | Q(model_rfa_glb_preview__startswith="https://")
+            | Q(model_rfa_glb_preview__startswith="/")
+        )
+        & ~Q(model_rfa_glb_preview="")
+    )
+    has_glb_via_article_q = (
+        Q(article__isnull=False)
+        & ~Q(article="")
+        & Exists(
+            FileAsset.objects.filter(file_type="3d_model")
+            .filter(glb_ext_q)
+            .filter(
+                Q(asset_id__iexact=OuterRef("article"))
+                | Q(asset_id__istartswith=Concat(OuterRef("article"), Value("_")))
+                | Q(asset_id__istartswith=Concat(OuterRef("article"), Value("-")))
+            )
+        )
+    )
+    has_glb_q = has_direct_glb_url_q | has_glb_asset_by_model_id_q | has_glb_via_article_q
+    return Product.objects.filter(has_glb_q)
+
+
+def product_has_glb_source(product: Product) -> bool:
+    """Есть ли источник GLB/GLTF без скачивания (для отбора товаров в management command)."""
+    mg = (product.model_glb or "").strip()
+    if mg and _url_ok(mg) and not is_ephemeral_external_model_url(mg):
+        return True
+    preview = (product.model_rfa_glb_preview or "").strip()
+    if preview and _url_ok(preview):
+        return True
+    for asset in product.get_3d_model_assets():
+        name = (getattr(asset.file, "name", "") or "").lower()
+        if name.endswith((".glb", ".gltf")):
+            return True
+    return False
+
+
 def product_lacks_catalog_2d(product: Product) -> bool:
     """True если для карточки 2D нет ни одного реального источника фото."""
     if product.image and getattr(product.image, "name", None):
