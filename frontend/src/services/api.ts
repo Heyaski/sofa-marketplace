@@ -45,7 +45,8 @@ export const productService = {
 	getProducts: async (
 		filters?: ProductFilters,
 		page?: number,
-		pageSize?: number
+		pageSize?: number,
+		options?: { signal?: AbortSignal }
 	): Promise<ApiResponse<Product>> => {
 		const params = new URLSearchParams()
 
@@ -82,7 +83,9 @@ export const productService = {
 			params.append('page_size', '1000')
 		}
 
-		const response = await apiClient.get(`/api/products/?${params.toString()}`)
+		const response = await apiClient.get(`/api/products/?${params.toString()}`, {
+			signal: options?.signal,
+		})
 		return response.data
 	},
 

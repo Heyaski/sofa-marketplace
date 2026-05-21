@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import axios from 'axios'
 import { basketService, categoryService, productService } from '../services/api'
 import { Basket, Category, Product, ProductFilters } from '../types'
 
@@ -46,9 +47,17 @@ export const useProducts = (
 
 	const filtersKey = JSON.stringify(filters || {})
 	const firstPageCacheKey = `${paginationMode}:${filtersKey}`
+	const listFingerprint = `${filtersKey}|${paginationMode}|${forcedPage ?? ''}`
+	const fingerprintLiveRef = useRef(listFingerprint)
+	fingerprintLiveRef.current = listFingerprint
 
 	const fetchProducts = useCallback(
-		async (page: number = 1, append: boolean = false) => {
+		async (
+			page: number = 1,
+			append: boolean = false,
+			requestOpts?: { signal?: AbortSignal }
+		) => {
+			const fingerprintAtStart = fingerprintLiveRef.current
 			try {
 				const useAppend = paginationMode === 'infinite' && append
 				if (useAppend) {
@@ -64,11 +73,19 @@ export const useProducts = (
 					}
 				}
 				setError(null)
-				if (filters && Object.keys(filters).length > 0) {
-					console.log('Применяемые фильтры:', filters)
-				}
 				const pageSizeValue = 20
-				const response = await productService.getProducts(filters, page, pageSizeValue)
+				const response = await productService.getProducts(
+					filters,
+					page,
+					pageSizeValue,
+					requestOpts?.signal !== undefined ? { signal: requestOpts.signal } : undefined
+				)
+
+				// Отсекаем поздний ответ старого запроса — иначе при смене 3D→2D (учёт фильтров/пагинации)
+				// сетку переписывают объекты товаров без полей превью → массовое «Нет фото», а 3D — «истёкшая ссылка».
+				if (fingerprintLiveRef.current !== fingerprintAtStart) {
+					return
+				}
 
 				let productsData: Product[] = []
 				let next: number | null = null
@@ -104,7 +121,13 @@ export const useProducts = (
 							hasMore: next !== null,
 							totalPages:
 								response && Array.isArray(response.results)
-									? Math.max(1, Math.ceil((typeof response.count === 'number' ? response.count : 0) / pageSizeValue))
+									? Math.max(
+											1,
+											Math.ceil(
+												(typeof response.count === 'number' ? response.count : 0) /
+													pageSizeValue
+											)
+										)
 									: 1,
 							cachedAt: Date.now(),
 						})
@@ -117,17 +140,27 @@ export const useProducts = (
 					onPageChangeRef.current?.(page)
 				}
 			} catch (err) {
+				const canceled =
+					(requestOpts?.signal?.aborted === true) ||
+					axios.isCancel(err)
+				if (canceled || fingerprintLiveRef.current !== fingerprintAtStart) {
+					return
+				}
 				setError(err instanceof Error ? err.message : 'Ошибка загрузки продуктов')
 			} finally {
+				if (fingerprintLiveRef.current !== fingerprintAtStart) {
+					return
+				}
 				setLoading(false)
 				setLoadingMore(false)
 			}
 		},
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- фильтры через filtersKey
-		[filtersKey, paginationMode, firstPageCacheKey]
+		[filtersKey, paginationMode, firstPageCacheKey, forcedPage]
 	)
 
 	useEffect(() => {
+		const ac = new AbortController()
 		const startPage =
 			paginationMode === 'paged' && forcedPage != null && forcedPage >= 1
 				? Math.floor(forcedPage)
@@ -155,7 +188,11 @@ export const useProducts = (
 			// Не очищаем сетку до ответа API — меньше визуального «рывка» при смене категории.
 		}
 
-		void fetchProducts(startPage, false)
+		void fetchProducts(startPage, false, { signal: ac.signal })
+
+		return () => {
+			ac.abort()
+		}
 	}, [fetchProducts, firstPageCacheKey, paginationMode, forcedPage])
 
 	const loadMore = useCallback(() => {
