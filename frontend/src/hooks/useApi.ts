@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import axios from 'axios'
 import { basketService, categoryService, productService } from '../services/api'
 import { Basket, Category, Product, ProductFilters } from '../types'
+import { mergeProductMediaFromPrevious } from '@/utils/mergeProductMedia'
 
 // Универсальная функция для обработки форматов ответов (с results или без)
 const extractResults = (response: any) => {
@@ -112,26 +113,32 @@ export const useProducts = (
 				}
 
 				if (useAppend) {
-					setProducts(prev => [...prev, ...productsData])
+					setProducts(prev => [
+						...prev,
+						...mergeProductMediaFromPrevious(productsData, prev),
+					])
 				} else {
-					setProducts(productsData)
-					if (page === 1) {
-						firstPageProductsCache.set(firstPageCacheKey, {
-							products: productsData,
-							hasMore: next !== null,
-							totalPages:
-								response && Array.isArray(response.results)
-									? Math.max(
-											1,
-											Math.ceil(
-												(typeof response.count === 'number' ? response.count : 0) /
-													pageSizeValue
+					setProducts(prev => {
+						const merged = mergeProductMediaFromPrevious(productsData, prev)
+						if (page === 1) {
+							firstPageProductsCache.set(firstPageCacheKey, {
+								products: merged,
+								hasMore: next !== null,
+								totalPages:
+									response && Array.isArray(response.results)
+										? Math.max(
+												1,
+												Math.ceil(
+													(typeof response.count === 'number' ? response.count : 0) /
+														pageSizeValue
+												)
 											)
-										)
-									: 1,
-							cachedAt: Date.now(),
-						})
-					}
+										: 1,
+								cachedAt: Date.now(),
+							})
+						}
+						return merged
+					})
 				}
 
 				setNextPage(next)
@@ -180,7 +187,7 @@ export const useProducts = (
 			Date.now() - cached.cachedAt < PRODUCTS_CACHE_TTL_MS &&
 			startPage === 1
 		) {
-			setProducts(cached.products)
+			setProducts(prev => mergeProductMediaFromPrevious(cached.products, prev))
 			setHasMore(cached.hasMore)
 			setTotalPages(cached.totalPages)
 			setLoading(false)
