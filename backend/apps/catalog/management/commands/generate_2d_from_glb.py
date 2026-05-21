@@ -159,6 +159,14 @@ class Command(BaseCommand):
                 f"Готово: ok={done} [{renderer_summary}], ошибок={errors}, всего={total}"
             )
         )
+        if limit is not None and done < total:
+            remaining = total - done
+            self.stdout.write(
+                self.style.WARNING(
+                    f"Остановлено по --limit {limit}: в очереди ещё ~{remaining} товаров. "
+                    f"Запустите снова: python manage.py generate_2d_from_glb"
+                )
+            )
 
     # ------------------------------------------------------------------ #
     # Многопроцессный прогон                                              #
