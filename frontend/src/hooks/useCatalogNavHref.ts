@@ -1,15 +1,15 @@
 'use client'
 
-import {
-	CATALOG_NAV_HREF_REFRESH,
-	getLastCatalogQueryForBackNavigation,
-} from '@/lib/catalogUrlState'
+import { CATALOG_NAV_HREF_REFRESH } from '@/lib/catalogUrlState'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 /**
  * Ссылка для «Каталог» в шапке и нижней навигации:
- * на странице каталога — текущий query; иначе — последний сохранённый (возврат с товара).
+ * на странице каталога — текущий URL (оставаться с теми же фильтрами).
+ * С любой другой страницы — всегда `/catalog`: не подставляем сохранённый query из sessionStorage,
+ * иначе после прошлых визитов открывались те же параметры (в т.ч. «тяжёлые»), каталог висел или падал по таймауту.
+ * Вернуться к последнему виду каталога можно с карточки товара (хлебные крошки) или после авторизации — там используется getLastCatalogQueryForBackNavigation().
  */
 export function useCatalogNavHref(): string {
 	const pathname = usePathname()
@@ -21,8 +21,7 @@ export function useCatalogNavHref(): string {
 				const qs = new URLSearchParams(window.location.search).toString()
 				setHref(qs ? `/catalog?${qs}` : '/catalog')
 			} else {
-				const saved = getLastCatalogQueryForBackNavigation()
-				setHref(saved ? `/catalog?${saved}` : '/catalog')
+				setHref('/catalog')
 			}
 		}
 

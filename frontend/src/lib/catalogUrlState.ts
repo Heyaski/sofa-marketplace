@@ -24,6 +24,27 @@ const FILTER_NUM_KEYS: (keyof ProductFilters)[] = [
 	'depth_max',
 ]
 
+/** Совпадает с backend/apps/catalog/views.py (TOTAL 460, near_full_floor TOTAL−42). */
+const COLOR_SCALE_TOTAL = 460
+const COLOR_HUE_NEAR_FULL_FLOOR = COLOR_SCALE_TOTAL - 42
+
+/**
+ * Убираем из состояния «почти весь» диапазон цвета (напр. 0–420 в URL): иначе запросы к API тормозят.
+ * Возвращает undefined — параметр не добавлять в фильтры (как «не выбран цвет»).
+ */
+function normalizeNearFullColorHueParam(raw: string): string | undefined {
+	const parts = raw.trim().split('-')
+	if (parts.length !== 2) return raw
+	const min = Number(parts[0])
+	const max = Number(parts[1])
+	if (!Number.isFinite(min) || !Number.isFinite(max)) return raw
+	let lo = Math.max(0, Math.min(COLOR_SCALE_TOTAL, min))
+	let hi = Math.max(0, Math.min(COLOR_SCALE_TOTAL, max))
+	if (lo > hi) [lo, hi] = [hi, lo]
+	if (lo <= 0 && hi >= COLOR_HUE_NEAR_FULL_FLOOR) return undefined
+	return `${lo}-${hi}`
+}
+
 export function parseCatalogSearchParams(
 	params: URLSearchParams
 ): { filters: ProductFilters; view: CatalogViewMode; page: number } {
@@ -31,7 +52,14 @@ export function parseCatalogSearchParams(
 
 	for (const key of FILTER_STRING_KEYS) {
 		const v = params.get(key)?.trim()
-		if (v) (filters as Record<string, string>)[key] = v
+		if (!v) continue
+		if (key === 'color_hue') {
+			const normalized = normalizeNearFullColorHueParam(v)
+			if (!normalized) continue
+			;(filters as Record<string, string>)[key] = normalized
+			continue
+		}
+		;(filters as Record<string, string>)[key] = v
 	}
 	for (const key of FILTER_NUM_KEYS) {
 		const raw = params.get(key)

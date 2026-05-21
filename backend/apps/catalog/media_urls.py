@@ -133,6 +133,26 @@ def resolve_media_field_url(file_field, request=None) -> str | None:
     if not str(name).strip():
         return None
 
+    # Список каталога: без пачки presign на каждую карточку (иначе таймаут 90s на /api/products/).
+    if request is not None and getattr(request, "_catalog_list_fast_urls", False):
+        direct = public_storage_object_url(name)
+        if direct:
+            if str(direct).startswith(("http://", "https://")):
+                return direct
+            if hasattr(request, "build_absolute_uri"):
+                return request.build_absolute_uri(direct)
+            return direct
+        try:
+            if hasattr(file_field, "storage") and hasattr(file_field.storage, "url"):
+                image_url = file_field.storage.url(name)
+                if image_url and str(image_url).startswith(("http://", "https://")):
+                    return image_url
+                if image_url and hasattr(request, "build_absolute_uri"):
+                    return request.build_absolute_uri(image_url)
+        except Exception:
+            pass
+        return None
+
     from django.conf import settings
 
     use_signed = getattr(settings, "S3_FILE_ACCESS_MODE", "public") == "signed"

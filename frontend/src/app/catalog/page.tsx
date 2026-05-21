@@ -72,9 +72,16 @@ function CatalogContent() {
 		setUrlHydrated(true)
 	}, [spKey])
 
-	// Сохранить query для «Назад» и обновить href «Каталог» в шапке (router.replace не шлёт popstate)
+	// Сохранить канонический query (из состояния фильтров), не сырой URL — иначе в sessionStorage
+	// попадали устаревшие/тяжёлые параметры и ссылка «Каталог» с других страниц их поднимала снова.
 	useEffect(() => {
-		persistCatalogQueryForBackNavigation(spKey)
+		const qs = buildCatalogSearchParams(filters, catalogView, catalogPage)
+		persistCatalogQueryForBackNavigation(qs)
+		notifyCatalogNavHrefRefresh()
+	}, [filters, catalogView, catalogPage])
+
+	// После router.replace меняется только query — обновить href «Каталог» в шапке (pathname тот же).
+	useEffect(() => {
 		notifyCatalogNavHrefRefresh()
 	}, [spKey])
 
@@ -163,12 +170,9 @@ function CatalogContent() {
 		colors: string[]
 	} | null>(null)
 
-	// Диапазоны фильтров — после первого кадра, чтобы не конкурировать с категориями/товарами на API.
+	// Диапазоны фильтров — сразу параллельно категориям/товарам (на бэкенде ответ кешируется).
 	useEffect(() => {
-		const t = window.setTimeout(() => {
-			productService.getFilterRanges().then(setFilterRangesData).catch(() => {})
-		}, 1500)
-		return () => window.clearTimeout(t)
+		void productService.getFilterRanges().then(setFilterRangesData).catch(() => {})
 	}, [])
 
 	

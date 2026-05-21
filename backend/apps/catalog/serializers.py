@@ -196,9 +196,14 @@ class ProductSerializer(serializers.ModelSerializer):
 
         # 1) FileAsset на нашем storage (список + model_files: из batched-кеша во views)
         batch_map = self.context.get("catalog_list_3d_by_product_id")
-        assets_iter = (
-            batch_map.get(obj.id, []) if batch_map is not None else obj.get_3d_model_assets()
-        )
+        if self.context.get("view_action") == "list":
+            assets_iter = batch_map.get(obj.id, []) if batch_map is not None else []
+        else:
+            assets_iter = (
+                batch_map.get(obj.id, [])
+                if batch_map is not None
+                else obj.get_3d_model_assets()
+            )
         for asset in assets_iter:
             name = (getattr(asset.file, "name", "") or "").lower()
             if not name.endswith((".glb", ".gltf", ".usdz")):
@@ -241,8 +246,12 @@ class ProductSerializer(serializers.ModelSerializer):
         # Для list-ответа ограничиваемся первыми GLB-подобными файлами:
         # это сильно ускоряет каталог и убирает "зависание" на генерации URL для всех ассетов.
         batch_map = self.context.get("catalog_list_3d_by_product_id")
-        if view_action == "list" and batch_map is not None:
-            model_assets = batch_map.get(obj.id, [])
+        if view_action == "list":
+            model_assets = (
+                batch_map.get(obj.id, [])
+                if batch_map is not None
+                else []
+            )
         else:
             model_assets = obj.get_3d_model_assets()
         if view_action == 'list':
@@ -251,7 +260,7 @@ class ProductSerializer(serializers.ModelSerializer):
                 name = (getattr(asset.file, "name", "") or "").lower()
                 if name.endswith((".glb", ".gltf", ".usdz")):
                     glb_like_assets.append(asset)
-                if len(glb_like_assets) >= 5:
+                if len(glb_like_assets) >= 3:
                     break
             models.extend(
                 FileAssetSerializer(glb_like_assets, many=True, context={'request': request}).data
@@ -351,13 +360,12 @@ class ProductCatalogLiteSerializer(serializers.ModelSerializer):
 
     def get_image(self, obj):
         request = self.context.get("request")
-        url = resolve_media_field_url(obj.image, request)
-        if url:
-            return url
         photo = (obj.photo_url or "").strip()
         if photo:
             return photo
-        # Prefetch в get_queryset; не более одного доп. presign на карточку.
+        url = resolve_media_field_url(obj.image, request)
+        if url:
+            return url
         images = getattr(obj, "images", None)
         if images is not None:
             for product_image in images.all().order_by("order", "created_at")[:1]:
@@ -365,3 +373,31 @@ class ProductCatalogLiteSerializer(serializers.ModelSerializer):
                 if url:
                     return url
         return None
+
+
+class ProductCatalog3DSerializer(ProductCatalogLiteSerializer):
+    """
+    Список 3D-каталога (model_files=bundle): без тяжёлого ProductSerializer и без N+1 по FileAsset.
+    """
+
+    model_3d_id = serializers.SerializerMethodField()
+    model_glb = serializers.SerializerMethodField()
+    model_rfa_glb_preview = serializers.CharField(read_only=True)
+    asset_3d_models = serializers.SerializerMethodField()
+
+    class Meta(ProductCatalogLiteSerializer.Meta):
+        fields = ProductCatalogLiteSerializer.Meta.fields + (
+            "model_3d_id",
+            "model_glb",
+            "model_rfa_glb_preview",
+            "asset_3d_models",
+        )
+
+    def get_model_3d_id(self, obj):
+        return ProductSerializer.get_model_3d_id(self, obj)
+
+    def get_model_glb(self, obj):
+        return ProductSerializer.get_model_glb(self, obj)
+
+    def get_asset_3d_models(self, obj):
+        return ProductSerializer.get_asset_3d_models(self, obj)

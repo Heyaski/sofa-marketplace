@@ -19,6 +19,7 @@ from .models import Category, FileAsset, Product, ProductImage
 from .serializers import (
     CategoryLiteSerializer,
     CategorySerializer,
+    ProductCatalog3DSerializer,
     ProductCatalogLiteSerializer,
     ProductSerializer,
 )
@@ -171,12 +172,23 @@ class ProductViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated(), IsCatalogEditor()]
         return [AllowAny()]
 
+    def _catalog_has_narrowing_filters(self) -> bool:
+        req = self.request
+        skip_keys = {'color_hue', 'page', 'page_size', 'ordering', 'format'}
+        for key, val in req.query_params.items():
+            if key in skip_keys:
+                continue
+            if val is not None and str(val).strip() != '':
+                return True
+        return False
+
     def get_serializer_class(self):
-        """Список без model_files — лёгкий JSON (только фото), иначе полный (3D-каталог)."""
+        """Список: лёгкий 2D или лёгкий 3D; полный ProductSerializer только для карточки товара."""
         if self.action == 'list':
             mf = (self.request.query_params.get('model_files') or '').strip().lower()
             if not mf:
                 return ProductCatalogLiteSerializer
+            return ProductCatalog3DSerializer
         return ProductSerializer
 
     def get_serializer_context(self):
@@ -202,6 +214,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                     )
                 except Exception:
                     logger.exception('catalog list 3d batch prefetch failed')
+                    self.request._catalog_list_3d_by_product_id = {}
         return page
 
     def get_queryset(self):
@@ -317,7 +330,12 @@ class ProductViewSet(viewsets.ModelViewSet):
         elif model_files == 'any':
             queryset = queryset.filter(has_glb_q | has_model_file_q)
         elif model_files in ('bundle', 'full3d', 'trio'):
-            queryset = queryset.filter(has_glb_q & has_rfa_q & has_ifc_q)
+            # Сетка каталога 3D: нужен GLB для viewer. Тройной EXISTS (glb+rfa+ifc) на всей таблице
+            # вешает list на минуты; RFA/IFC остаются на странице товара (retrieve).
+            if self.action == 'list':
+                queryset = queryset.filter(has_glb_q)
+            else:
+                queryset = queryset.filter(has_glb_q & has_rfa_q & has_ifc_q)
         
         # Фильтрация по категории (поддержка нескольких: category=1,2,3)
         category_param = self.request.query_params.get('category', None)
@@ -358,8 +376,16 @@ class ProductViewSet(viewsets.ModelViewSet):
                     if scale_min > scale_max:
                         scale_min, scale_max = scale_max, scale_min
 
-                    # Полный диапазон — не фильтруем (иначе Python-проход по всему каталогу).
-                    if scale_min <= 0 and scale_max >= 460:
+                    # Полный диапазон шкалы 0–460 — не фильтруем (иначе Python-проход по всему каталогу).
+                    # На фронте (RGBRangeFilter) TOTAL=460, но в URL часто попадает верхняя граница чуть ниже
+                    # (напр. color_hue=0-420) — для пользователя это «весь спектр», без этого условия сервер
+                    # минутами перебирает все товары и фронт ловит timeout.
+                    color_scale_total = 460.0
+                    near_full_floor = color_scale_total - 42.0  # max >= 418 трактуем как «почти весь диапазон»
+                    if scale_min <= 0 and scale_max >= near_full_floor:
+                        pass
+                    elif self.action == 'list' and not self._catalog_has_narrowing_filters():
+                        # Только color_hue на весь каталог — Python-scan по всем строкам роняет /api/products/.
                         pass
                     else:
                         filtered_ids = []
@@ -477,6 +503,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         Кэш JSON на 300 с давал «Нет фото» (2D) при обновлённых превью и «3D истёк» при протухших presigned
         URL в asset_3d_models, тогда как страница товара тянет свежий retrieve.
         """
+        request._catalog_list_fast_urls = True
         return super().list(request, *args, **kwargs)
 
     def retrieve(self, request, *args, **kwargs):
