@@ -11,8 +11,8 @@ function absolutize(url: string): string {
 
 /** Первое доступное изображение товара для режима 2D в каталоге */
 export function getProductPrimaryImageUrl(product: Product): string | null {
-	if (product.image) return product.image
-	if (product.photo_url) return product.photo_url
+	if (product.image) return absolutize(product.image)
+	if (product.photo_url) return absolutize(product.photo_url)
 	const fromImages = product.images?.[0]?.image_url
 	if (fromImages) return absolutize(fromImages)
 	const fromAssets = product.asset_images?.[0]?.file_url

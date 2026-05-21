@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Product, Category, ProductImage, FileAsset
 from .file_urls import is_ephemeral_external_model_url, url_looks_like_browser_model_file
+from .media_urls import resolve_media_field_url
 import os
 
 
@@ -14,13 +15,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
     def get_image(self, obj):
         request = self.context.get("request")
-        if obj.image and hasattr(obj.image, "url"):
-            image_url = obj.image.url
-            # Если URL уже полный (начинается с http:// или https://), возвращаем как есть
-            if image_url.startswith(('http://', 'https://')):
-                return image_url
-            return request.build_absolute_uri(image_url) if request else image_url
-        return None
+        return resolve_media_field_url(obj.image, request)
     
     def get_parent_category(self, obj):
         """Возвращает информацию о родительской категории, если она есть"""
@@ -43,26 +38,7 @@ class ProductImageSerializer(serializers.ModelSerializer):
 
     def get_image_url(self, obj):
         request = self.context.get("request")
-        if obj.image and hasattr(obj.image, "url"):
-            # Проверяем режим доступа к файлам
-            from django.conf import settings
-            use_signed_urls = getattr(settings, 'S3_FILE_ACCESS_MODE', 'public') == 'signed'
-            
-            if use_signed_urls and hasattr(obj.image, 'storage'):
-                try:
-                    storage = obj.image.storage
-                    image_url = storage.url(obj.image.name)
-                    return image_url
-                except Exception:
-                    image_url = obj.image.url
-            else:
-                image_url = obj.image.url
-            
-            # Если URL уже полный (начинается с http:// или https://), возвращаем как есть
-            if image_url.startswith(('http://', 'https://')):
-                return image_url
-            return request.build_absolute_uri(image_url) if request else image_url
-        return None
+        return resolve_media_field_url(obj.image, request)
 
 
 class FileAssetSerializer(serializers.ModelSerializer):
@@ -232,37 +208,28 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_image(self, obj):
         request = self.context.get("request")
-        
-        # Приоритет 1: Изображения в ProductImage (созданные через импорт)
-        if obj.images.exists():
-            first_image = obj.images.first()
-            if first_image.image and hasattr(first_image.image, "url"):
-                image_url = first_image.image.url
-                if image_url.startswith(('http://', 'https://')):
-                    return image_url
-                return request.build_absolute_uri(image_url) if request else image_url
 
-        # Приоритет 2: основное фото на товаре (ручная загрузка + автогенерация glb2d_*.png из GLB).
-        # Раньше шло после FileAsset — превью из GLB не попадало в API, в 2D каталоге было «Нет фото».
-        if obj.image and hasattr(obj.image, "url"):
-            image_url = obj.image.url
-            if image_url.startswith(('http://', 'https://')):
-                return image_url
-            return request.build_absolute_uri(image_url) if request else image_url
+        # 1) ProductImage (импорт)
+        for product_image in obj.images.all().order_by("order", "created_at"):
+            url = resolve_media_field_url(product_image.image, request)
+            if url:
+                return url
 
-        # Приоритет 3: изображения из FileAsset по ID
-        image_assets = obj.get_image_assets()
-        if image_assets.exists():
-            first_asset = image_assets.first()
-            if first_asset.file and hasattr(first_asset.file, "url"):
-                file_url = first_asset.file.url
-                if file_url.startswith(('http://', 'https://')):
-                    return file_url
-                return request.build_absolute_uri(file_url) if request else file_url
+        # 2) Product.image — в т.ч. glb2d_*.png из generate_2d_from_glb (нужен storage.url на S3 signed)
+        url = resolve_media_field_url(obj.image, request)
+        if url:
+            return url
 
-        # Приоритет 4: photo_url (из Excel импорта)
-        if obj.photo_url:
-            return obj.photo_url
+        # 3) FileAsset-изображения
+        for asset in obj.get_image_assets():
+            url = resolve_media_field_url(asset.file, request)
+            if url:
+                return url
+
+        # 4) photo_url из Excel
+        photo = (obj.photo_url or "").strip()
+        if photo:
+            return photo
 
         return None
     

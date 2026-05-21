@@ -228,15 +228,17 @@ def _url_ok(url: str) -> bool:
 
 
 def product_lacks_catalog_2d(product: Product) -> bool:
-    """True если для карточки 2D нет ни одного источника (как getProductPrimaryImageUrl на фронте)."""
-    if product.image:
+    """True если для карточки 2D нет ни одного реального источника фото."""
+    if product.image and getattr(product.image, "name", None):
         return False
     if (product.photo_url or "").strip():
         return False
-    if product.images.exists():
-        return False
-    if product.get_image_assets().exists():
-        return False
+    for row in product.images.all():
+        if row.image and getattr(row.image, "name", None):
+            return False
+    for asset in product.get_image_assets():
+        if asset.file and getattr(asset.file, "name", None):
+            return False
     return True
 
 
