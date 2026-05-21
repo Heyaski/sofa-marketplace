@@ -96,18 +96,35 @@ function CatalogContent() {
 	}, [filtersKeyForReset, urlHydrated])
 
 	const isSuperuser = !!currentUser?.is_superuser
-	const effectiveFilters = useMemo<ProductFilters>(
-		() => ({
-			...filters,
-			// Публичная витрина в 3D: только полный комплект GLB + .rfa + .ifc (как на бэкенде model_files=bundle).
-			// В 2D не навязываем model_files — базовые карточки по категории.
-			...(!isSuperuser && catalogView === '3d'
-				? { model_files: 'bundle' as const }
-				: {}),
-		}),
-		[filters, isSuperuser, catalogView]
+
+	// 2D и 3D — разные запросы к API; переключатель только меняет, какой список показывать (без перетирания).
+	const filters2d = filters
+	const filters3d = useMemo<ProductFilters>(
+		() =>
+			isSuperuser
+				? filters
+				: { ...filters, model_files: 'bundle' as const },
+		[filters, isSuperuser]
 	)
 
+	const catalogListOpts = {
+		activeCatalogView: catalogView,
+	} as const
+
+	const list2d = useProducts(filters2d, {
+		...catalogListOpts,
+		catalogListMode: '2d',
+		paginationMode: 'infinite',
+	})
+	const list3d = useProducts(filters3d, {
+		...catalogListOpts,
+		catalogListMode: '3d',
+		paginationMode: 'paged',
+		forcedPage: catalogPage,
+		onPageChange: setCatalogPage,
+	})
+
+	const activeList = catalogView === '2d' ? list2d : list3d
 	const {
 		products,
 		loading: productsLoading,
@@ -120,12 +137,12 @@ function CatalogContent() {
 		loadMore,
 		loadNextPage,
 		loadPrevPage,
-		refetch: refetchProducts,
-	} = useProducts(effectiveFilters, {
-		paginationMode: catalogView === '2d' ? 'infinite' : 'paged',
-		forcedPage: catalogView === '3d' ? catalogPage : 1,
-		onPageChange: setCatalogPage,
-	})
+	} = activeList
+
+	const refetchProducts = () => {
+		list2d.refetch()
+		list3d.refetch()
+	}
 
 	// Получаем все продукты без фильтров для вычисления диапазонов
 	const [filterRangesData, setFilterRangesData] = useState<{

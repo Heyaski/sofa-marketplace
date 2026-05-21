@@ -12,6 +12,7 @@ const extractResults = (response: any) => {
 }
 
 export type ProductsPaginationMode = 'infinite' | 'paged'
+export type CatalogProductsListMode = '2d' | '3d'
 const PRODUCTS_CACHE_TTL_MS = 60_000
 const firstPageProductsCache = new Map<
 	string,
@@ -27,10 +28,22 @@ export const useProducts = (
 		paginationMode?: ProductsPaginationMode
 		forcedPage?: number
 		onPageChange?: (page: number) => void
+		/** Режим списка каталога (2D и 3D — отдельные экземпляры хука, не перетирают друг друга). */
+		catalogListMode?: CatalogProductsListMode
+		/** Текущий переключатель на странице каталога. */
+		activeCatalogView?: CatalogProductsListMode
 	}
 ) => {
 	const paginationMode: ProductsPaginationMode = options?.paginationMode ?? 'infinite'
 	const forcedPage = options?.forcedPage
+	const catalogListMode = options?.catalogListMode
+	const activeCatalogView = options?.activeCatalogView ?? catalogListMode
+	const isCatalogListActive =
+		catalogListMode === undefined ||
+		activeCatalogView === undefined ||
+		activeCatalogView === catalogListMode
+	const isCatalogListActiveRef = useRef(isCatalogListActive)
+	isCatalogListActiveRef.current = isCatalogListActive
 	const onPageChangeRef = useRef(options?.onPageChange)
 	onPageChangeRef.current = options?.onPageChange
 	const [products, setProducts] = useState<Product[]>([])
@@ -47,7 +60,7 @@ export const useProducts = (
 	const [totalPages, setTotalPages] = useState(1)
 
 	const filtersKey = JSON.stringify(filters || {})
-	const firstPageCacheKey = `${paginationMode}:${filtersKey}`
+	const firstPageCacheKey = `${catalogListMode ?? 'default'}:${paginationMode}:${filtersKey}`
 	const listFingerprint = `${filtersKey}|${paginationMode}|${forcedPage ?? ''}`
 	const fingerprintLiveRef = useRef(listFingerprint)
 	fingerprintLiveRef.current = listFingerprint
@@ -167,6 +180,11 @@ export const useProducts = (
 	)
 
 	useEffect(() => {
+		// Неактивный режим 2D/3D: не грузим и не отменяем запрос при переключении (отдельные списки).
+		if (!isCatalogListActive) {
+			return
+		}
+
 		const ac = new AbortController()
 		const startPage =
 			paginationMode === 'paged' && forcedPage != null && forcedPage >= 1
@@ -198,9 +216,17 @@ export const useProducts = (
 		void fetchProducts(startPage, false, { signal: ac.signal })
 
 		return () => {
-			ac.abort()
+			if (isCatalogListActiveRef.current) {
+				ac.abort()
+			}
 		}
-	}, [fetchProducts, firstPageCacheKey, paginationMode, forcedPage])
+	}, [
+		fetchProducts,
+		firstPageCacheKey,
+		paginationMode,
+		forcedPage,
+		isCatalogListActive,
+	])
 
 	const loadMore = useCallback(() => {
 		if (paginationMode !== 'infinite') return
