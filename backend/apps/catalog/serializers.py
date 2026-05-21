@@ -115,12 +115,15 @@ class ProductSerializer(serializers.ModelSerializer):
     
     def get_images(self, obj):
         """Получить все изображения из ProductImage с правильным контекстом"""
+        if self.context.get("view_action") == "list":
+            return []
         request = self.context.get("request")
         images = obj.images.all().order_by('order', 'created_at')
         return ProductImageSerializer(images, many=True, context={'request': request}).data
 
     def get_image(self, obj):
         request = self.context.get("request")
+        view_action = self.context.get("view_action")
 
         # 1) Product.image — glb2d_*.png и ручная загрузка (главный источник для 2D каталога)
         url = resolve_media_field_url(obj.image, request)
@@ -133,11 +136,12 @@ class ProductSerializer(serializers.ModelSerializer):
             if url:
                 return url
 
-        # 3) FileAsset-изображения
-        for asset in obj.get_image_assets():
-            url = resolve_media_field_url(asset.file, request)
-            if url:
-                return url
+        # 3) FileAsset-изображения (дорого для списка — только карточка/retrieve)
+        if view_action != "list":
+            for asset in obj.get_image_assets():
+                url = resolve_media_field_url(asset.file, request)
+                if url:
+                    return url
 
         # 4) photo_url из Excel
         photo = (obj.photo_url or "").strip()
@@ -190,8 +194,12 @@ class ProductSerializer(serializers.ModelSerializer):
             low = str(url).lower().strip()
             return low.startswith("http://") or low.startswith("https://") or low.startswith("/")
 
-        # 1) FileAsset на нашем storage
-        for asset in obj.get_3d_model_assets():
+        # 1) FileAsset на нашем storage (список + model_files: из batched-кеша во views)
+        batch_map = self.context.get("catalog_list_3d_by_product_id")
+        assets_iter = (
+            batch_map.get(obj.id, []) if batch_map is not None else obj.get_3d_model_assets()
+        )
+        for asset in assets_iter:
             name = (getattr(asset.file, "name", "") or "").lower()
             if not name.endswith((".glb", ".gltf", ".usdz")):
                 continue
@@ -217,6 +225,8 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_asset_images(self, obj):
         """Получить все изображения из FileAsset"""
+        if self.context.get("view_action") == "list":
+            return []
         request = self.context.get("request")
         image_assets = obj.get_image_assets()
         return FileAssetSerializer(image_assets, many=True, context={'request': request}).data
@@ -230,14 +240,18 @@ class ProductSerializer(serializers.ModelSerializer):
         # Добавляем модели из FileAsset.
         # Для list-ответа ограничиваемся первыми GLB-подобными файлами:
         # это сильно ускоряет каталог и убирает "зависание" на генерации URL для всех ассетов.
-        model_assets = obj.get_3d_model_assets()
+        batch_map = self.context.get("catalog_list_3d_by_product_id")
+        if view_action == "list" and batch_map is not None:
+            model_assets = batch_map.get(obj.id, [])
+        else:
+            model_assets = obj.get_3d_model_assets()
         if view_action == 'list':
             glb_like_assets = []
             for asset in model_assets:
                 name = (getattr(asset.file, "name", "") or "").lower()
                 if name.endswith((".glb", ".gltf", ".usdz")):
                     glb_like_assets.append(asset)
-                if len(glb_like_assets) >= 12:
+                if len(glb_like_assets) >= 5:
                     break
             models.extend(
                 FileAssetSerializer(glb_like_assets, many=True, context={'request': request}).data

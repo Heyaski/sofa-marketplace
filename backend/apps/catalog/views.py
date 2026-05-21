@@ -1,6 +1,29 @@
 import colorsys
+import logging
+import operator
+import re
+from functools import reduce
 
-from rest_framework import viewsets, filters
+from django.core.cache import cache
+from django.db import models
+from django.db.models import Prefetch, Q
+from django.db.models.functions import Concat
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, viewsets
+from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
+from rest_framework.response import Response
+
+from .models import Category, FileAsset, Product, ProductImage
+from .serializers import (
+    CategoryLiteSerializer,
+    CategorySerializer,
+    ProductCatalogLiteSerializer,
+    ProductSerializer,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def _rgb_to_scale(hue_deg: float, s: float, v: float) -> float:
@@ -21,12 +44,6 @@ def _rgb_to_scale(hue_deg: float, s: float, v: float) -> float:
     if 15 <= hue_deg <= 55 and 0.10 <= s <= 0.40 and v > 0.60:
         return 75.0 + ((hue_deg - 15.0) / 40.0) * 25.0
     return 100.0 + hue_deg
-from django.core.cache import cache
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission
-from rest_framework.pagination import PageNumberPagination
 
 
 class IsCatalogEditor(BasePermission):
@@ -37,16 +54,94 @@ class IsCatalogEditor(BasePermission):
             request.user.is_authenticated and
             getattr(request.user, 'is_superuser', False)
         )
-from django.db import models
-from django.db.models import Prefetch
-from django.db.models.functions import Concat
-from .models import Product, Category, FileAsset, ProductImage
-from .serializers import (
-    ProductSerializer,
-    ProductCatalogLiteSerializer,
-    CategorySerializer,
-    CategoryLiteSerializer,
-)
+
+
+def build_catalog_list_3d_assets_for_products(products: list[Product]) -> dict[int, list[FileAsset]]:
+    """
+    Один запрос FileAsset на страницу списка вместо N вызовов get_3d_model_assets()
+    (иначе таймауты при model_files=bundle и сотнях URL/presign на страницу).
+    """
+
+    def add_article_keys(parts: list[Q], raw_key: str) -> None:
+        k = (raw_key or "").strip()
+        if not k:
+            return
+        variants = {k, re.sub(r"([а-яёa-z])([А-ЯЁA-Z])", r"\1 \2", k)}
+        for kv in variants:
+            kv = kv.strip()
+            if not kv:
+                continue
+            parts.append(
+                Q(asset_id__iexact=kv)
+                | Q(asset_id__istartswith=f"{kv}_")
+                | Q(asset_id__istartswith=f"{kv}-")
+            )
+
+    def asset_belongs_to_product(asset: FileAsset, product: Product) -> bool:
+        aid = (asset.asset_id or "").lower()
+        art = (product.article or "").strip().lower()
+        if art and (
+            aid == art or aid.startswith(f"{art}_") or aid.startswith(f"{art}-")
+        ):
+            return True
+        raw = (product.model_3d_asset_ids or "").strip()
+        for part in raw.split(","):
+            k = part.strip().lower()
+            if not k:
+                continue
+            variants = {
+                k,
+                re.sub(r"([а-яёa-z])([А-ЯЁA-Z])", r"\1 \2", part.strip()).lower(),
+            }
+            for kv in variants:
+                if not kv:
+                    continue
+                if aid == kv or aid.startswith(f"{kv}_") or aid.startswith(f"{kv}-"):
+                    return True
+        return False
+
+    if not products:
+        return {}
+
+    out: dict[int, list[FileAsset]] = {p.id: [] for p in products}
+    or_parts: list[Q] = []
+
+    for p in products:
+        art = (p.article or "").strip()
+        if art:
+            add_article_keys(or_parts, art)
+        raw = (p.model_3d_asset_ids or "").strip()
+        for chunk in raw.split(","):
+            add_article_keys(or_parts, chunk.strip())
+
+    if not or_parts:
+        return out
+
+    combined_q = reduce(operator.or_, or_parts)
+    glb_q = (
+        Q(file__iendswith=".glb")
+        | Q(file__iendswith=".gltf")
+        | Q(file__iendswith=".usdz")
+    )
+    assets = list(
+        FileAsset.objects.filter(file_type="3d_model")
+        .filter(glb_q)
+        .filter(combined_q)
+        .order_by("asset_id")
+    )
+
+    for p in products:
+        matched = [a for a in assets if asset_belongs_to_product(a, p)]
+        seen: set[int] = set()
+        uniq: list[FileAsset] = []
+        for a in matched:
+            if a.pk in seen:
+                continue
+            seen.add(a.pk)
+            uniq.append(a)
+        out[p.id] = uniq[:16]
+
+    return out
 
 
 class ProductPagination(PageNumberPagination):
@@ -82,7 +177,25 @@ class ProductViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context['request'] = self.request
         context['view_action'] = self.action
+        context['catalog_list_3d_by_product_id'] = getattr(
+            self.request, '_catalog_list_3d_by_product_id', None
+        )
         return context
+
+    def paginate_queryset(self, queryset):
+        """Для list + model_files один batched-запрос FileAsset на страницу (без N+1)."""
+        page = super().paginate_queryset(queryset)
+        self.request._catalog_list_3d_by_product_id = None
+        if page is not None and self.action == 'list':
+            mf = (self.request.query_params.get('model_files') or '').strip().lower()
+            if mf:
+                try:
+                    self.request._catalog_list_3d_by_product_id = (
+                        build_catalog_list_3d_assets_for_products(list(page))
+                    )
+                except Exception:
+                    logger.exception('catalog list 3d batch prefetch failed')
+        return page
 
     def get_queryset(self):
         """
