@@ -25,6 +25,17 @@ from apps.catalog.glb_2d_preview import (
 from apps.catalog.models import Product
 
 
+def _allow_sync_orm_with_playwright() -> None:
+    """
+    Playwright sync_api поднимает event loop; Django 5+ иначе блокирует ORM
+    (SynchronousOnlyOperation). Разрешено только в management command.
+    """
+    os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
+    from django.db import close_old_connections
+
+    close_old_connections()
+
+
 class Command(BaseCommand):
     help = (
         "Сгенерировать поле image (2D превью) из GLB/GLTF. "
@@ -88,6 +99,7 @@ class Command(BaseCommand):
 
         session = None
         if use_pw:
+            _allow_sync_orm_with_playwright()
             self.stdout.write(
                 "Запуск Chromium (Playwright)… первый старт может занять 1–2 мин.",
                 ending="\n",
@@ -201,35 +213,66 @@ class Command(BaseCommand):
         )
 
     def _collect_ids(self, pid, force) -> list[int]:
-        self.stdout.write(
-            "Сканируем каталог (только БД, без загрузки GLB с S3)…",
-            ending="",
-        )
-        self.stdout.flush()
+        if pid is not None:
+            product = (
+                Product.objects.filter(pk=pid).prefetch_related("images").first()
+            )
+            if not product:
+                self.stdout.write(self.style.ERROR(f"Товар id={pid} не найден в БД."))
+                return []
+            if not product_has_glb_source(product):
+                self.stdout.write(
+                    self.style.ERROR(
+                        f"Товар id={pid} («{product.title or '—'}»): нет GLB/GLTF "
+                        f"(проверьте model_glb, model_rfa_glb_preview, FileAsset .glb)."
+                    )
+                )
+                self._hint_products_with_glb()
+                return []
+            if not force and not product_lacks_catalog_2d(product):
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Товар id={pid} уже с фото 2D. Добавьте --force для перегенерации."
+                    )
+                )
+                return []
+            self.stdout.write(f"Товар id={pid}: GLB найден, будет обработан.")
+            return [pid]
+
+        self.stdout.write("Сканируем каталог (только БД, без загрузки GLB с S3)…")
 
         qs = products_with_browser_glb_queryset().order_by("id")
-        if pid is not None:
-            qs = qs.filter(pk=pid)
-
         ids: list[int] = []
         scanned = 0
         for product in qs.prefetch_related("images").iterator(chunk_size=200):
             scanned += 1
             if scanned % 50 == 0:
-                self.stdout.write(
-                    f"\r  проверено {scanned}, отобрано {len(ids)}…",
-                    ending="",
-                )
-                self.stdout.flush()
+                self.stdout.write(f"  …проверено {scanned}, отобрано {len(ids)}")
             if not force and not product_lacks_catalog_2d(product):
                 continue
             if not product_has_glb_source(product):
                 continue
             ids.append(product.pk)
 
-        self.stdout.write(f"\r  проверено {scanned}, с GLB для рендера: {len(ids)}.       ")
-        self.stdout.flush()
+        self.stdout.write(f"  Проверено {scanned}, с GLB для рендера: {len(ids)}.")
+        if len(ids) == 0:
+            self._hint_products_with_glb()
         return ids
+
+    def _hint_products_with_glb(self) -> None:
+        sample = list(
+            products_with_browser_glb_queryset()
+            .order_by("id")
+            .values_list("id", "title")[:5]
+        )
+        if sample:
+            self.stdout.write("Примеры id с GLB в каталоге:")
+            for pk, title in sample:
+                self.stdout.write(f"  --product-id {pk}  ({title or '—'})")
+        else:
+            self.stdout.write(
+                "В БД нет товаров с GLB. Загрузите .glb в FileAsset или заполните model_glb."
+            )
 
     # ------------------------------------------------------------------ #
     # --check                                                             #
@@ -290,6 +333,9 @@ def _render_one(product_id: int, force: bool, session) -> dict:
     from apps.catalog.models import Product
     from django.core.files.base import ContentFile
 
+    if session is not None:
+        _allow_sync_orm_with_playwright()
+
     product = Product.objects.filter(pk=product_id).first()
     if not product:
         return {"status": "error", "reason": "no-product"}
@@ -323,6 +369,8 @@ def _worker_process(product_ids: list, force: bool, result_queue):
 
     use_pw = getattr(dj_settings, "GLB_2D_USE_PLAYWRIGHT", True)
     try:
+        if use_pw:
+            _allow_sync_orm_with_playwright()
         session = PlaywrightSession().__enter__() if use_pw else None
     except Exception:
         session = None
