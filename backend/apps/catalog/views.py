@@ -117,17 +117,24 @@ def build_catalog_list_3d_assets_for_products(products: list[Product]) -> dict[i
     if not or_parts:
         return out
 
-    combined_q = reduce(operator.or_, or_parts)
     glb_q = (
         Q(file__iendswith=".glb")
         | Q(file__iendswith=".gltf")
         | Q(file__iendswith=".usdz")
     )
-    assets = list(
-        FileAsset.objects.filter(file_type="3d_model")
-        .filter(glb_q)
-        .filter(combined_q)
-        .order_by("asset_id")
+    base_qs = FileAsset.objects.filter(file_type="3d_model").filter(glb_q)
+
+    # Один гигантский Q из сотен кусков даёт глубокое дерево и может ронять компиляцию SQL / стек.
+    q_chunk_size = 24
+    assets_by_pk: dict[int, FileAsset] = {}
+    for i in range(0, len(or_parts), q_chunk_size):
+        chunk = or_parts[i : i + q_chunk_size]
+        sub_q = reduce(operator.or_, chunk)
+        for row in base_qs.filter(sub_q).iterator(chunk_size=256):
+            assets_by_pk[row.pk] = row
+    assets = sorted(
+        assets_by_pk.values(),
+        key=lambda a: ((a.asset_id or "").lower(), a.pk),
     )
 
     for p in products:
