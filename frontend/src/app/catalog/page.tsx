@@ -44,8 +44,6 @@ function CatalogContent() {
 	const [catalogView, setCatalogView] = useState<CatalogViewMode>('3d')
 	const [catalogPage, setCatalogPage] = useState(1)
 	const [urlHydrated, setUrlHydrated] = useState(false)
-	const [catalogListRefetching, setCatalogListRefetching] = useState(false)
-	const prevCatalogViewRef = useRef<CatalogViewMode>(catalogView)
 
 	useEffect(() => {
 		authService.getCurrentUser()
@@ -128,17 +126,6 @@ function CatalogContent() {
 		forcedPage: catalogView === '3d' ? catalogPage : 1,
 		onPageChange: setCatalogPage,
 	})
-
-	// При 3D↔2D идёт другой запрос к API — не показываем старую сетку в новом режиме до ответа
-	useEffect(() => {
-		if (prevCatalogViewRef.current !== catalogView) {
-			prevCatalogViewRef.current = catalogView
-			setCatalogListRefetching(true)
-		}
-	}, [catalogView])
-	useEffect(() => {
-		if (!productsLoading) setCatalogListRefetching(false)
-	}, [productsLoading])
 
 	// Получаем все продукты без фильтров для вычисления диапазонов
 	const [filterRangesData, setFilterRangesData] = useState<{
@@ -584,40 +571,21 @@ function CatalogContent() {
 						</div>
 					) : (
 						<>
-							<div className='relative'>
-								{catalogListRefetching && (
-									<div
-										className='absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-white/70 pointer-events-none min-h-[120px]'
-										aria-live='polite'
-									>
-										<span className='text-xs sm:text-sm text-gray'>Обновляем список...</span>
-									</div>
-								)}
-								<div
-									className={`grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 transition-opacity ${
-										catalogListRefetching ? 'opacity-40 pointer-events-none' : ''
-									}`}
-								>
-									{products.map(product => (
-										<ProductCard
-											key={product.id}
-											product={product}
-											catalogDisplayMode={catalogView}
-											onAddToCart={handleAddToCart}
-											isSuperuser={isSuperuser}
-											isAuthenticated={isAuthenticated}
-											onProductUpdated={() => refetchProducts()}
-											onProductDeleted={() => refetchProducts()}
-											onAuthRequired={() => setIsAuthModalOpen(true)}
-										/>
-									))}
-								</div>
+							<div className='grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6'>
+								{products.map(product => (
+									<ProductCard
+										key={product.id}
+										product={product}
+										catalogDisplayMode={catalogView}
+										onAddToCart={handleAddToCart}
+										isSuperuser={isSuperuser}
+										isAuthenticated={isAuthenticated}
+										onProductUpdated={() => refetchProducts()}
+										onProductDeleted={() => refetchProducts()}
+										onAuthRequired={() => setIsAuthModalOpen(true)}
+									/>
+								))}
 							</div>
-							{productsLoading && !catalogListRefetching && (
-								<div className='text-center mt-4 text-xs sm:text-sm text-gray'>
-									Обновляем список...
-								</div>
-							)}
 							{catalogView === '2d' && hasMore && (
 								<div className='mt-6 sm:mt-8 flex justify-center'>
 									<button
