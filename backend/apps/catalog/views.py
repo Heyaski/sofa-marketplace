@@ -41,7 +41,12 @@ from django.db import models
 from django.db.models import Prefetch
 from django.db.models.functions import Concat
 from .models import Product, Category, FileAsset, ProductImage
-from .serializers import ProductSerializer, ProductCatalogLiteSerializer, CategorySerializer
+from .serializers import (
+    ProductSerializer,
+    ProductCatalogLiteSerializer,
+    CategorySerializer,
+    CategoryLiteSerializer,
+)
 
 
 class ProductPagination(PageNumberPagination):
@@ -450,6 +455,11 @@ class ProductViewSet(viewsets.ModelViewSet):
         Лёгкий endpoint для диапазонов фильтров — без загрузки полных товаров.
         Возвращает min/max и списки уникальных значений.
         """
+        cache_key = "catalog_filter_ranges:v2"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
         qs = Product.objects.filter(is_active=True).aggregate(
             price_min=models.Min("price"),
             price_max=models.Max("price"),
@@ -458,9 +468,6 @@ class ProductViewSet(viewsets.ModelViewSet):
             depth_min=models.Min("depth"),
             depth_max=models.Max("depth"),
         )
-        prices = Product.objects.filter(is_active=True, price__gt=0).values_list("price", flat=True)
-        widths = Product.objects.filter(is_active=True, width__gt=0).values_list("width", flat=True).distinct()
-        depths = Product.objects.filter(is_active=True, depth__gt=0).values_list("depth", flat=True).distinct()
         materials = set()
         styles = set()
         colors = set()
@@ -468,21 +475,35 @@ class ProductViewSet(viewsets.ModelViewSet):
             for val, s in zip(p, (materials, styles, colors)):
                 if val:
                     for part in str(val).split(","):
-                        s.add(part.strip())
-        return Response({
+                        part = part.strip()
+                        if part:
+                            s.add(part)
+        payload = {
             "price": {"min": float(qs["price_min"] or 0), "max": float(qs["price_max"] or 100000)},
             "width": {"min": float(qs["width_min"] or 0), "max": float(qs["width_max"] or 500)},
             "depth": {"min": float(qs["depth_min"] or 0), "max": float(qs["depth_max"] or 500)},
             "materials": sorted(materials),
             "styles": sorted(styles),
             "colors": sorted(colors),
-        })
+        }
+        cache.set(cache_key, payload, timeout=600)
+        return Response(payload)
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [AllowAny]  # Разрешаем чтение без авторизации
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return CategoryLiteSerializer
+        return CategorySerializer
+
+    def get_queryset(self):
+        if self.action == "list":
+            return Category.objects.select_related("parent").all()
+        return super().get_queryset()
 
     def get_serializer_context(self):
         """Добавляем request в контекст для правильной генерации URL изображений"""

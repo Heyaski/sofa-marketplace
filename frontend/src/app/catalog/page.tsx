@@ -155,8 +155,12 @@ function CatalogContent() {
 		colors: string[]
 	} | null>(null)
 
+	// Диапазоны фильтров — после первого кадра, чтобы не конкурировать с категориями/товарами на API.
 	useEffect(() => {
-		productService.getFilterRanges().then(setFilterRangesData).catch(() => {})
+		const t = window.setTimeout(() => {
+			productService.getFilterRanges().then(setFilterRangesData).catch(() => {})
+		}, 1500)
+		return () => window.clearTimeout(t)
 	}, [])
 
 	

@@ -28,6 +28,25 @@ class CategorySerializer(serializers.ModelSerializer):
         return None
 
 
+class CategoryLiteSerializer(serializers.ModelSerializer):
+    """Список каталога / вложенная категория товара — без presigned image (ускорение API)."""
+
+    parent_category = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Category
+        fields = ("id", "name", "slug", "parent", "parent_category")
+
+    def get_parent_category(self, obj):
+        if obj.parent:
+            return {
+                "id": obj.parent.id,
+                "name": obj.parent.name,
+                "slug": obj.parent.slug,
+            }
+        return None
+
+
 class ProductImageSerializer(serializers.ModelSerializer):
     """Сериализатор для изображений товара"""
     image_url = serializers.SerializerMethodField()
@@ -52,115 +71,9 @@ class FileAssetSerializer(serializers.ModelSerializer):
     
     def get_file_url(self, obj):
         request = self.context.get("request")
-        if obj.file and hasattr(obj.file, "url"):
-            # Проверяем режим доступа к файлам
-            from django.conf import settings
-            use_signed_urls = getattr(settings, 'S3_FILE_ACCESS_MODE', 'public') == 'signed'
-            
-            if use_signed_urls:
-                # Генерируем подписанный URL для приватных файлов через boto3 напрямую
-                # Это гарантирует правильный формат URL без дублирования пути
-                try:
-                    import boto3
-                    from django.conf import settings
-                    from botocore.client import Config
-                    
-                    endpoint_url = getattr(settings, 'AWS_S3_ENDPOINT_URL', None)
-                    aws_access_key_id = getattr(settings, 'AWS_ACCESS_KEY_ID', None)
-                    aws_secret_access_key = getattr(settings, 'AWS_SECRET_ACCESS_KEY', None)
-                    bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', None)
-                    
-                    if not all([endpoint_url, aws_access_key_id, aws_secret_access_key, bucket_name]):
-                        raise ValueError("Не все настройки S3 указаны для генерации подписанного URL")
-                    
-                    # Создаем клиент с правильной конфигурацией для path-style URL
-                    # Path-style формат: https://endpoint/bucket/path/to/file
-                    # Это избегает проблем с дублированием пути
-                    # Важно: для Beget S3 нужно определить регион из endpoint URL для правильной подписи
-                    # Если endpoint содержит ru1, используем ru1, иначе проверяем настройки
-                    region_for_signature = getattr(settings, 'AWS_S3_REGION_NAME_FOR_SIGNING', None)
-                    
-                    if not region_for_signature:
-                        # Автоматически определяем регион из endpoint URL
-                        if 'ru1' in endpoint_url.lower():
-                            region_for_signature = 'ru1'
-                        elif 'ru' in endpoint_url.lower():
-                            # Извлекаем регион из URL если есть (например, ru1, ru2 и т.д.)
-                            import re
-                            region_match = re.search(r'\.(ru\d+)\.', endpoint_url.lower())
-                            if region_match:
-                                region_for_signature = region_match.group(1)
-                        else:
-                            # Если регион не найден, используем дефолтный (может потребоваться настройка)
-                            region_for_signature = 'us-east-1'
-                    
-                    s3_client = boto3.client(
-                        's3',
-                        endpoint_url=endpoint_url,
-                        aws_access_key_id=aws_access_key_id,
-                        aws_secret_access_key=aws_secret_access_key,
-                        region_name=region_for_signature,
-                        config=Config(
-                            signature_version='s3v4',
-                            s3={
-                                'addressing_style': 'path',  # Используем path-style вместо virtual-hosted-style
-                            }
-                        )
-                    )
-                    
-                    # Генерируем подписанный URL с параметрами для CORS
-                    # Важно: CORS заголовки должны быть настроены на уровне бакета в Beget
-                    # Но мы можем добавить параметры для явного указания нужных заголовков
-                    file_url = s3_client.generate_presigned_url(
-                        'get_object',
-                        Params={
-                            'Bucket': bucket_name,
-                            'Key': obj.file.name,
-                            # Добавляем параметры для CORS (если поддерживается)
-                            # ResponseContentType может помочь некоторым S3-совместимым хранилищам
-                        },
-                        ExpiresIn=3600
-                    )
-                    
-                    # Проверяем, что URL не содержит дублирования пути
-                    if f'/{bucket_name}/{bucket_name}/' in file_url:
-                        import logging
-                        logger = logging.getLogger(__name__)
-                        logger.warning(f"Обнаружено дублирование пути в URL: {file_url}")
-                        # Исправляем URL, убирая дублирование
-                        file_url = file_url.replace(f'/{bucket_name}/{bucket_name}/', f'/{bucket_name}/')
-                    
-                    # Логируем сгенерированный URL для отладки CORS проблем
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.debug(f"Сгенерирован подписанный URL для файла {obj.file.name}: {file_url}")
-                    logger.debug(f"Endpoint URL: {endpoint_url}, Bucket: {bucket_name}, Region: {region_for_signature}")
-                    
-                    return file_url
-                except Exception as e:
-                    # Если не удалось сгенерировать подписанный URL, логируем ошибку
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.error(f"Ошибка генерации подписанного URL через boto3: {e}", exc_info=True)
-                    # Пробуем использовать storage.url() как fallback
-                    if hasattr(obj.file, 'storage') and hasattr(obj.file.storage, 'url'):
-                        try:
-                            file_url = obj.file.storage.url(obj.file.name)
-                            return file_url
-                        except Exception:
-                            pass
-                    # Если ничего не помогло, возвращаем обычный URL (но он не будет работать для приватных файлов)
-                    file_url = obj.file.url
-            else:
-                # Используем обычный URL для публичных файлов
-                file_url = obj.file.url
-            
-            # Если URL уже полный (начинается с http:// или https://), возвращаем как есть
-            if file_url.startswith(('http://', 'https://')):
-                return file_url
-            # Иначе строим абсолютный URL из запроса
-            return request.build_absolute_uri(file_url) if request else file_url
-        return None
+        if not obj.file:
+            return None
+        return resolve_media_field_url(obj.file, request)
 
     def get_file_ext(self, obj):
         """Расширение файла без точки (например glb)."""
@@ -386,7 +299,7 @@ class ProductCatalogLiteSerializer(serializers.ModelSerializer):
     Без presigned URL для каждого FileAsset 3D и без тяжёлых полей моделей.
     """
 
-    category = CategorySerializer(read_only=True)
+    category = CategoryLiteSerializer(read_only=True)
     image = serializers.SerializerMethodField()
     title_display = serializers.SerializerMethodField()
 
@@ -427,9 +340,14 @@ class ProductCatalogLiteSerializer(serializers.ModelSerializer):
         url = resolve_media_field_url(obj.image, request)
         if url:
             return url
-        for product_image in obj.images.all().order_by("order", "created_at")[:3]:
-            url = resolve_media_field_url(product_image.image, request)
-            if url:
-                return url
         photo = (obj.photo_url or "").strip()
-        return photo or None
+        if photo:
+            return photo
+        # Prefetch в get_queryset; не более одного доп. presign на карточку.
+        images = getattr(obj, "images", None)
+        if images is not None:
+            for product_image in images.all().order_by("order", "created_at")[:1]:
+                url = resolve_media_field_url(product_image.image, request)
+                if url:
+                    return url
+        return None
