@@ -209,16 +209,16 @@ class ProductSerializer(serializers.ModelSerializer):
     def get_image(self, obj):
         request = self.context.get("request")
 
-        # 1) ProductImage (импорт)
+        # 1) Product.image — glb2d_*.png и ручная загрузка (главный источник для 2D каталога)
+        url = resolve_media_field_url(obj.image, request)
+        if url:
+            return url
+
+        # 2) ProductImage (импорт)
         for product_image in obj.images.all().order_by("order", "created_at"):
             url = resolve_media_field_url(product_image.image, request)
             if url:
                 return url
-
-        # 2) Product.image — в т.ч. glb2d_*.png из generate_2d_from_glb (нужен storage.url на S3 signed)
-        url = resolve_media_field_url(obj.image, request)
-        if url:
-            return url
 
         # 3) FileAsset-изображения
         for asset in obj.get_image_assets():

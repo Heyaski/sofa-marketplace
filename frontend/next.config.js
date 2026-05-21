@@ -56,6 +56,12 @@ const nextConfig = {
 				hostname: 'api.vizhub.pro',
 				pathname: '/media/**',
 			},
+			// S3 Beget — glb2d_*.png и медиа с бакета
+			{
+				protocol: 'https',
+				hostname: 's3.ru1.storage.beget.cloud',
+				pathname: '/**',
+			},
 		],
 		unoptimized: true,
 	},

@@ -97,7 +97,7 @@ function CatalogContent() {
 
 	const isSuperuser = !!currentUser?.is_superuser
 
-	// 2D и 3D — разные запросы к API; переключатель только меняет, какой список показывать (без перетирания).
+	// 2D и 3D — разные списки: 2D только PNG (лёгкий каталог), 3D только model-viewer (тяжёлый).
 	const filters2d = filters
 	const filters3d = useMemo<ProductFilters>(
 		() =>
@@ -107,38 +107,40 @@ function CatalogContent() {
 		[filters, isSuperuser]
 	)
 
-	const catalogListOpts = {
-		activeCatalogView: catalogView,
-	} as const
+	// Грузим API только для режима, который пользователь уже открывал (меньше нагрузки при старте в 3D).
+	const [fetchList2d, setFetchList2d] = useState(catalogView === '2d')
+	const [fetchList3d, setFetchList3d] = useState(catalogView === '3d')
+	useEffect(() => {
+		if (catalogView === '2d') setFetchList2d(true)
+		if (catalogView === '3d') setFetchList3d(true)
+	}, [catalogView])
 
 	const list2d = useProducts(filters2d, {
-		...catalogListOpts,
-		catalogListMode: '2d',
+		catalogListKey: '2d',
 		paginationMode: 'infinite',
+		enabled: fetchList2d,
 	})
 	const list3d = useProducts(filters3d, {
-		...catalogListOpts,
-		catalogListMode: '3d',
+		catalogListKey: '3d',
 		paginationMode: 'paged',
 		forcedPage: catalogPage,
 		onPageChange: setCatalogPage,
+		enabled: fetchList3d,
 	})
 
 	const activeList = catalogView === '2d' ? list2d : list3d
-	const {
-		products,
-		loading: productsLoading,
-		loadingMore,
-		error: productsError,
-		hasMore,
-		hasPrev,
-		currentPage,
-		totalPages,
-		loadMore,
-		loadNextPage,
-		loadPrevPage,
-	} = activeList
-
+	const products = activeList.products
+	const productsLoading =
+		activeList.loading && activeList.products.length === 0
+	const loadingMore = activeList.loadingMore
+	const productsError = activeList.error
+	const hasMore = activeList.hasMore
+	const hasPrev = activeList.hasPrev
+	const currentPage = activeList.currentPage
+	const totalPages = activeList.totalPages
+	const loadMore = list2d.loadMore
+	const loadNextPage = list3d.loadNextPage
+	const loadPrevPage = list3d.loadPrevPage
 	const refetchProducts = () => {
 		list2d.refetch()
 		list3d.refetch()

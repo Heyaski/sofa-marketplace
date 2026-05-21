@@ -12,7 +12,8 @@ const extractResults = (response: any) => {
 }
 
 export type ProductsPaginationMode = 'infinite' | 'paged'
-export type CatalogProductsListMode = '2d' | '3d'
+/** Ключ списка каталога: 2D (фото) и 3D (model-viewer) — отдельные кэш и состояние. */
+export type CatalogListKey = '2d' | '3d'
 const PRODUCTS_CACHE_TTL_MS = 60_000
 const firstPageProductsCache = new Map<
 	string,
@@ -28,22 +29,16 @@ export const useProducts = (
 		paginationMode?: ProductsPaginationMode
 		forcedPage?: number
 		onPageChange?: (page: number) => void
-		/** Режим списка каталога (2D и 3D — отдельные экземпляры хука, не перетирают друг друга). */
-		catalogListMode?: CatalogProductsListMode
-		/** Текущий переключатель на странице каталога. */
-		activeCatalogView?: CatalogProductsListMode
+		/** 2d | 3d — раздельные списки; не путать кэш и ответы API. */
+		catalogListKey?: CatalogListKey
+		/** false — не запрашивать API (пока пользователь не открыл этот режим). */
+		enabled?: boolean
 	}
 ) => {
 	const paginationMode: ProductsPaginationMode = options?.paginationMode ?? 'infinite'
 	const forcedPage = options?.forcedPage
-	const catalogListMode = options?.catalogListMode
-	const activeCatalogView = options?.activeCatalogView ?? catalogListMode
-	const isCatalogListActive =
-		catalogListMode === undefined ||
-		activeCatalogView === undefined ||
-		activeCatalogView === catalogListMode
-	const isCatalogListActiveRef = useRef(isCatalogListActive)
-	isCatalogListActiveRef.current = isCatalogListActive
+	const catalogListKey = options?.catalogListKey ?? 'default'
+	const enabled = options?.enabled !== false
 	const onPageChangeRef = useRef(options?.onPageChange)
 	onPageChangeRef.current = options?.onPageChange
 	const [products, setProducts] = useState<Product[]>([])
@@ -60,7 +55,7 @@ export const useProducts = (
 	const [totalPages, setTotalPages] = useState(1)
 
 	const filtersKey = JSON.stringify(filters || {})
-	const firstPageCacheKey = `v2:${catalogListMode ?? 'default'}:${paginationMode}:${filtersKey}`
+	const firstPageCacheKey = `v4:${catalogListKey}:${paginationMode}:${filtersKey}`
 	const listFingerprint = `${filtersKey}|${paginationMode}|${forcedPage ?? ''}`
 	const fingerprintLiveRef = useRef(listFingerprint)
 	fingerprintLiveRef.current = listFingerprint
@@ -95,8 +90,7 @@ export const useProducts = (
 					requestOpts?.signal !== undefined ? { signal: requestOpts.signal } : undefined
 				)
 
-				// Отсекаем поздний ответ старого запроса — иначе при смене 3D→2D (учёт фильтров/пагинации)
-				// сетку переписывают объекты товаров без полей превью → массовое «Нет фото», а 3D — «истёкшая ссылка».
+				// Поздний ответ другого запроса (фильтры / страница) — не переписываем актуальный список.
 				if (fingerprintLiveRef.current !== fingerprintAtStart) {
 					return
 				}
@@ -180,8 +174,7 @@ export const useProducts = (
 	)
 
 	useEffect(() => {
-		// Неактивный режим 2D/3D: не грузим и не отменяем запрос при переключении (отдельные списки).
-		if (!isCatalogListActive) {
+		if (!enabled) {
 			return
 		}
 
@@ -216,17 +209,9 @@ export const useProducts = (
 		void fetchProducts(startPage, false, { signal: ac.signal })
 
 		return () => {
-			if (isCatalogListActiveRef.current) {
-				ac.abort()
-			}
+			ac.abort()
 		}
-	}, [
-		fetchProducts,
-		firstPageCacheKey,
-		paginationMode,
-		forcedPage,
-		isCatalogListActive,
-	])
+	}, [enabled, fetchProducts, firstPageCacheKey, paginationMode, forcedPage])
 
 	const loadMore = useCallback(() => {
 		if (paginationMode !== 'infinite') return
