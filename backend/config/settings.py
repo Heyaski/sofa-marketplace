@@ -3,6 +3,7 @@ import os
 from datetime import timedelta
 from urllib.parse import urlparse, unquote
 from corsheaders.defaults import default_headers
+from django.db.backends.signals import connection_created
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -103,6 +104,23 @@ TEMPLATES = [{
 }]
 WSGI_APPLICATION = "config.wsgi.application"
 
+
+def _sqlite_options():
+    return {"timeout": int(get_env("SQLITE_TIMEOUT", "60"))}
+
+
+def _activate_sqlite_wal(sender, connection, **kwargs):
+    """WAL: читатели не блокируют друг друга; без этого 3 воркера Gunicorn → database is locked."""
+    if connection.vendor != "sqlite":
+        return
+    with connection.cursor() as cursor:
+        cursor.execute("PRAGMA journal_mode=WAL;")
+        cursor.execute("PRAGMA synchronous=NORMAL;")
+
+
+connection_created.connect(_activate_sqlite_wal)
+
+
 def _db_from_database_url(url: str):
     """Минимальный парсер DATABASE_URL без внешних зависимостей."""
     parsed = urlparse(url)
@@ -125,9 +143,7 @@ def _db_from_database_url(url: str):
         return {
             "ENGINE": engine,
             "NAME": sqlite_name,
-            "OPTIONS": {
-                "timeout": int(get_env("SQLITE_TIMEOUT", "60")),
-            },
+            "OPTIONS": _sqlite_options(),
         }
 
     return {
@@ -150,9 +166,7 @@ else:
             "default": {
                 "ENGINE": DB_ENGINE,
                 "NAME": get_env("DB_NAME", str(BASE_DIR / "db.sqlite3")),
-                "OPTIONS": {
-                    "timeout": int(get_env("SQLITE_TIMEOUT", "60")),
-                },
+                "OPTIONS": _sqlite_options(),
             }
         }
     else:
