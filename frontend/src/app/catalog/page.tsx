@@ -35,14 +35,20 @@ function CatalogContent() {
 		id: number
 		format: string
 	} | null>(null)
-	const [filters, setFilters] = useState<ProductFilters>({})
+	const [filters, setFilters] = useState<ProductFilters>(() =>
+		parseCatalogSearchParams(searchParams).filters
+	)
 	const [visibleCategoriesCount, setVisibleCategoriesCount] = useState(10)
 	const [openFilter, setOpenFilter] = useState<string | null>(null)
 	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
 	const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
 	const [currentUser, setCurrentUser] = useState<User | null>(null)
-	const [catalogView, setCatalogView] = useState<CatalogViewMode>('2d')
-	const [catalogPage, setCatalogPage] = useState(1)
+	const [catalogView, setCatalogView] = useState<CatalogViewMode>(() =>
+		parseCatalogSearchParams(searchParams).view
+	)
+	const [catalogPage, setCatalogPage] = useState(() =>
+		parseCatalogSearchParams(searchParams).page
+	)
 	const [urlHydrated, setUrlHydrated] = useState(false)
 
 	useEffect(() => {
@@ -109,7 +115,9 @@ function CatalogContent() {
 
 	// 2D грузим сразу (лёгкий список фото); 3D — по первому открытию вкладки 3D.
 	const [fetchList2d, setFetchList2d] = useState(true)
-	const [fetchList3d, setFetchList3d] = useState(catalogView === '3d')
+	const [fetchList3d, setFetchList3d] = useState(
+		() => parseCatalogSearchParams(searchParams).view === '3d'
+	)
 	useEffect(() => {
 		if (catalogView === '3d') setFetchList3d(true)
 	}, [catalogView])

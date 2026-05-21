@@ -47,7 +47,6 @@ export const useProducts = (
 	filtersRef.current = filters
 	const forcedPageRef = useRef(forcedPage)
 	forcedPageRef.current = forcedPage
-	const fetchSerialRef = useRef(0)
 	const [products, setProducts] = useState<Product[]>([])
 	const productsCountRef = useRef(0)
 	useEffect(() => {
@@ -74,7 +73,6 @@ export const useProducts = (
 			requestOpts?: { signal?: AbortSignal }
 		) => {
 			const fingerprintAtStart = fingerprintLiveRef.current
-			const requestSerial = ++fetchSerialRef.current
 			try {
 				const useAppend = paginationMode === 'infinite' && append
 				if (useAppend) {
@@ -173,9 +171,6 @@ export const useProducts = (
 				}
 				setError(err instanceof Error ? err.message : 'Ошибка загрузки продуктов')
 			} finally {
-				if (requestSerial !== fetchSerialRef.current) {
-					return
-				}
 				setLoading(false)
 				setLoadingMore(false)
 			}
