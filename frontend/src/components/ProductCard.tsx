@@ -283,24 +283,16 @@ export default function ProductCard({
 					<ProductModelViewer
 						product={product}
 						variant='card'
-						fallbackPosterUrl={catalogThumbUrl}
+						fallbackPosterUrl={null}
 						onClick={handleCardClick}
 					/>
 				) : (
 					<button
 						type='button'
 						onClick={handleCardClick}
-						className='w-full h-full flex flex-col items-center justify-center text-xs text-gray px-2 text-center gap-1'
+						className='w-full h-full flex items-center justify-center text-xs text-gray px-2 text-center'
 					>
-						<span>Нет 3D</span>
-						{catalogThumbUrl && (
-							// eslint-disable-next-line @next/next/no-img-element
-							<img
-								src={catalogThumbUrl}
-								alt=''
-								className='max-h-[70%] max-w-full object-contain rounded'
-							/>
-						)}
+						Нет 3D
 					</button>
 				)}
 			</div>

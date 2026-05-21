@@ -57,6 +57,65 @@ class IsCatalogEditor(BasePermission):
         )
 
 
+def catalog_has_glb_q() -> models.Q:
+    """Товар с браузерной GLB (поле, превью RFA или FileAsset по id/артикулу)."""
+    glb_ext_q = (
+        models.Q(file__iendswith=".glb")
+        | models.Q(file__iendswith=".gltf")
+        | models.Q(file__iendswith=".usdz")
+    )
+    has_glb_asset_by_model_id_q = models.Exists(
+        FileAsset.objects.filter(file_type="3d_model")
+        .filter(glb_ext_q)
+        .filter(
+            models.Q(asset_id__iexact=models.OuterRef("model_3d_asset_ids"))
+            | models.Q(
+                asset_id__istartswith=Concat(
+                    models.OuterRef("model_3d_asset_ids"), models.Value("_")
+                )
+            )
+            | models.Q(
+                asset_id__istartswith=Concat(
+                    models.OuterRef("model_3d_asset_ids"), models.Value("-")
+                )
+            )
+        )
+    )
+    has_direct_glb_url_q = (
+        (
+            models.Q(model_glb__startswith="http://")
+            | models.Q(model_glb__startswith="https://")
+            | models.Q(model_glb__startswith="/")
+        )
+        & ~models.Q(model_glb="")
+    ) | (
+        (
+            models.Q(model_rfa_glb_preview__startswith="http://")
+            | models.Q(model_rfa_glb_preview__startswith="https://")
+            | models.Q(model_rfa_glb_preview__startswith="/")
+        )
+        & ~models.Q(model_rfa_glb_preview="")
+    )
+    has_glb_via_article_q = (
+        models.Q(article__isnull=False)
+        & ~models.Q(article="")
+        & models.Exists(
+            FileAsset.objects.filter(file_type="3d_model")
+            .filter(glb_ext_q)
+            .filter(
+                models.Q(asset_id__iexact=models.OuterRef("article"))
+                | models.Q(
+                    asset_id__istartswith=Concat(models.OuterRef("article"), models.Value("_"))
+                )
+                | models.Q(
+                    asset_id__istartswith=Concat(models.OuterRef("article"), models.Value("-"))
+                )
+            )
+        )
+    )
+    return has_direct_glb_url_q | has_glb_asset_by_model_id_q | has_glb_via_article_q
+
+
 def build_catalog_list_3d_assets_for_products(products: list[Product]) -> dict[int, list[FileAsset]]:
     """
     Один запрос FileAsset на страницу списка вместо N вызовов get_3d_model_assets()
@@ -236,45 +295,18 @@ class ProductViewSet(viewsets.ModelViewSet):
         model_files = (self.request.query_params.get('model_files') or '').strip().lower()
         if not model_files:
             queryset = self._apply_catalog_common_filters(queryset)
+            if self.action == 'list':
+                list_mode = (self.request.query_params.get('list_mode') or '').strip().lower()
+                if list_mode == '3d':
+                    queryset = queryset.filter(catalog_has_glb_q())
             return queryset
 
+        has_glb_q = catalog_has_glb_q()
         glb_ext_q = (
             models.Q(file__iendswith='.glb')
             | models.Q(file__iendswith='.gltf')
             | models.Q(file__iendswith='.usdz')
         )
-        has_glb_asset_by_model_id_q = models.Exists(
-            FileAsset.objects.filter(file_type='3d_model').filter(glb_ext_q).filter(
-                models.Q(asset_id__iexact=models.OuterRef('model_3d_asset_ids'))
-                | models.Q(asset_id__istartswith=Concat(models.OuterRef('model_3d_asset_ids'), models.Value('_')))
-                | models.Q(asset_id__istartswith=Concat(models.OuterRef('model_3d_asset_ids'), models.Value('-')))
-            )
-        )
-        has_direct_glb_url_q = (
-            (
-                (models.Q(model_glb__startswith='http://') | models.Q(model_glb__startswith='https://') | models.Q(model_glb__startswith='/'))
-                & ~models.Q(model_glb='')
-            )
-            | (
-                (models.Q(model_rfa_glb_preview__startswith='http://') | models.Q(model_rfa_glb_preview__startswith='https://') | models.Q(model_rfa_glb_preview__startswith='/'))
-                & ~models.Q(model_rfa_glb_preview='')
-            )
-        )
-        # GLB в FileAsset по артикулу (имя файла часто Кровать5315_xxx.glb, а model_3d_asset_ids пустой)
-        has_glb_via_article_q = (
-            models.Q(article__isnull=False)
-            & ~models.Q(article='')
-            & models.Exists(
-                FileAsset.objects.filter(file_type='3d_model')
-                .filter(glb_ext_q)
-                .filter(
-                    models.Q(asset_id__iexact=models.OuterRef('article'))
-                    | models.Q(asset_id__istartswith=Concat(models.OuterRef('article'), models.Value('_')))
-                    | models.Q(asset_id__istartswith=Concat(models.OuterRef('article'), models.Value('-')))
-                )
-            )
-        )
-        has_glb_q = has_direct_glb_url_q | has_glb_asset_by_model_id_q | has_glb_via_article_q
         has_model_file_q = (models.Q(model_rfa__isnull=False) & ~models.Q(model_rfa='')) | (
             models.Q(model_ifc__isnull=False) & ~models.Q(model_ifc='')
         )

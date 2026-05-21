@@ -122,6 +122,36 @@ def presigned_s3_object_url(object_key: str, *, expires_in: int = 3600) -> str |
         return public_storage_object_url(key)
 
 
+def resolve_object_key_url(object_key: str, request=None) -> str | None:
+    """URL по ключу в S3/storage (для CharField model_glb и т.п.)."""
+    name = (object_key or "").strip().lstrip("/")
+    if not name:
+        return None
+    if request is not None and getattr(request, "_catalog_list_fast_urls", False):
+        direct = public_storage_object_url(name)
+        if direct:
+            if str(direct).startswith(("http://", "https://")):
+                return direct
+            if hasattr(request, "build_absolute_uri"):
+                return request.build_absolute_uri(direct)
+            return direct
+        signed = presigned_s3_object_url(name)
+        if signed:
+            return signed
+        return None
+    from django.conf import settings
+
+    use_signed = getattr(settings, "S3_FILE_ACCESS_MODE", "public") == "signed"
+    image_url: str | None = presigned_s3_object_url(name) if use_signed else None
+    if not image_url:
+        image_url = public_storage_object_url(name)
+    if image_url and str(image_url).startswith(("http://", "https://")):
+        return image_url
+    if request is not None and image_url:
+        return request.build_absolute_uri(image_url)
+    return image_url
+
+
 def resolve_media_field_url(file_field, request=None) -> str | None:
     """
     Абсолютный URL для ImageField/FileField.
@@ -133,7 +163,7 @@ def resolve_media_field_url(file_field, request=None) -> str | None:
     if not str(name).strip():
         return None
 
-    # Список каталога: без пачки presign на каждую карточку (иначе таймаут 90s на /api/products/).
+    # Список каталога: сначала публичный URL; иначе кэшированный presign (без storage.url на каждую карточку).
     if request is not None and getattr(request, "_catalog_list_fast_urls", False):
         direct = public_storage_object_url(name)
         if direct:
@@ -142,7 +172,9 @@ def resolve_media_field_url(file_field, request=None) -> str | None:
             if hasattr(request, "build_absolute_uri"):
                 return request.build_absolute_uri(direct)
             return direct
-        # На list не дергаем storage.url / presign — иначе 20× S3 на страницу и timeout.
+        signed = presigned_s3_object_url(name)
+        if signed:
+            return signed
         return None
 
     from django.conf import settings
