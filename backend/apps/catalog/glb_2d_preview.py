@@ -292,11 +292,17 @@ def product_has_glb_source(product: Product) -> bool:
     return False
 
 
+def _is_usable_http_photo_url(url: str | None) -> bool:
+    """Импорт из Excel часто кладёт артикул (Пуф1510), а не URL — это не фото для 2D."""
+    u = (url or "").strip()
+    return u.startswith(("http://", "https://"))
+
+
 def product_lacks_catalog_2d(product: Product) -> bool:
-    """True если для карточки 2D нет ни одного реального источника фото."""
+    """True если для режима 2D каталога нет glb2d PNG и нет нормального http-фото."""
     if product.image and getattr(product.image, "name", None):
         return False
-    if (product.photo_url or "").strip():
+    if _is_usable_http_photo_url(product.photo_url):
         return False
     for row in product.images.all():
         if row.image and getattr(row.image, "name", None):

@@ -14,10 +14,20 @@ function isHttpUrl(url: string | null | undefined): boolean {
 	return /^https?:\/\//i.test(String(url).trim())
 }
 
+/** Не подставлять в <img> артикулы вроде «Пуф1510» из битого photo_url. */
+function isLikelyImageUrl(url: string | null | undefined): boolean {
+	if (!url || !String(url).trim()) return false
+	const u = String(url).trim()
+	if (isHttpUrl(u) || u.startsWith('/')) return true
+	if (u.includes('/')) return true
+	if (/\.(png|jpe?g|webp|gif|svg)$/i.test(u.split('?')[0])) return true
+	if (/^glb2d_/i.test(u)) return true
+	return false
+}
+
 /** Первое доступное изображение товара для режима 2D в каталоге */
 export function getProductPrimaryImageUrl(product: Product): string | null {
-	if (product.image && isHttpUrl(product.image)) return absolutize(product.image)
-	if (product.image && product.image.startsWith('/')) return absolutize(product.image)
+	if (product.image && isLikelyImageUrl(product.image)) return absolutize(product.image)
 	if (product.photo_url && isHttpUrl(product.photo_url)) return absolutize(product.photo_url)
 	const fromImages = product.images?.[0]?.image_url
 	if (fromImages) return absolutize(fromImages)

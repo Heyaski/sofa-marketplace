@@ -552,9 +552,8 @@ class ProductViewSet(viewsets.ModelViewSet):
         Кэш JSON на 300 с давал «Нет фото» (2D) при обновлённых превью и «3D истёк» при протухших presigned
         URL в asset_3d_models, тогда как страница товара тянет свежий retrieve.
         """
-        # 3D-список: те же presigned URL, что на странице товара (fast_urls режет GLB/PNG).
-        list_mode = (request.query_params.get("list_mode") or "").strip().lower()
-        request._catalog_list_fast_urls = list_mode != "3d"
+        # Как на странице товара: полные URL (presign кэшируется). fast_urls давал пустой image в 2D.
+        request._catalog_list_fast_urls = False
         return super().list(request, *args, **kwargs)
 
     def retrieve(self, request, *args, **kwargs):

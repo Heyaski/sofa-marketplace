@@ -367,7 +367,10 @@ class ProductCatalogLiteSerializer(serializers.ModelSerializer):
         return ProductSerializer.get_title_display(self, obj)
 
     def get_image(self, obj):
-        """Как ProductSerializer: сначала glb2d/image в storage, photo_url — только валидный http(s)."""
+        """
+        Режим 2D каталога: PNG-превью (glb2d_*.png в Product.image).
+        Не путать со страницей товара — там GLB/IFC в model-viewer.
+        """
         request = self.context.get("request")
         url = resolve_media_field_url(obj.image, request)
         if url:
