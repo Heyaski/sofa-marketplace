@@ -174,7 +174,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def _catalog_has_narrowing_filters(self) -> bool:
         req = self.request
-        skip_keys = {'color_hue', 'page', 'page_size', 'ordering', 'format'}
+        skip_keys = {'color_hue', 'page', 'page_size', 'ordering', 'format', 'list_mode'}
         for key, val in req.query_params.items():
             if key in skip_keys:
                 continue
@@ -185,6 +185,9 @@ class ProductViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         """Список: лёгкий 2D или лёгкий 3D; полный ProductSerializer только для карточки товара."""
         if self.action == 'list':
+            list_mode = (self.request.query_params.get('list_mode') or '').strip().lower()
+            if list_mode == '3d':
+                return ProductCatalog3DSerializer
             mf = (self.request.query_params.get('model_files') or '').strip().lower()
             if not mf:
                 return ProductCatalogLiteSerializer
@@ -206,8 +209,9 @@ class ProductViewSet(viewsets.ModelViewSet):
         page = super().paginate_queryset(queryset)
         self.request._catalog_list_3d_by_product_id = None
         if page is not None and self.action == 'list':
+            list_mode = (self.request.query_params.get('list_mode') or '').strip().lower()
             mf = (self.request.query_params.get('model_files') or '').strip().lower()
-            if mf:
+            if list_mode == '3d' or mf:
                 try:
                     self.request._catalog_list_3d_by_product_id = (
                         build_catalog_list_3d_assets_for_products(list(page))
@@ -230,6 +234,10 @@ class ProductViewSet(viewsets.ModelViewSet):
         # model_files=any  -> хотя бы один из файлов модели (GLB/3D id или RFA/IFC URL)
         # model_files=bundle (full3d/trio) -> GLB + Revit .rfa + .ifc (для витрины в режиме 3D)
         model_files = (self.request.query_params.get('model_files') or '').strip().lower()
+        if not model_files:
+            queryset = self._apply_catalog_common_filters(queryset)
+            return queryset
+
         glb_ext_q = (
             models.Q(file__iendswith='.glb')
             | models.Q(file__iendswith='.gltf')
@@ -336,7 +344,11 @@ class ProductViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(has_glb_q)
             else:
                 queryset = queryset.filter(has_glb_q & has_rfa_q & has_ifc_q)
-        
+
+        return self._apply_catalog_common_filters(queryset)
+
+    def _apply_catalog_common_filters(self, queryset):
+        """Категории, цвет, цена, габариты — без тяжёлых Exists по FileAsset."""
         # Фильтрация по категории (поддержка нескольких: category=1,2,3)
         category_param = self.request.query_params.get('category', None)
         if category_param:
@@ -384,8 +396,8 @@ class ProductViewSet(viewsets.ModelViewSet):
                     near_full_floor = color_scale_total - 42.0  # max >= 418 трактуем как «почти весь диапазон»
                     if scale_min <= 0 and scale_max >= near_full_floor:
                         pass
-                    elif self.action == 'list' and not self._catalog_has_narrowing_filters():
-                        # Только color_hue на весь каталог — Python-scan по всем строкам роняет /api/products/.
+                    elif self.action == 'list':
+                        # Фильтр по радуге на list отключён: полный scan каталога в Python = timeout API.
                         pass
                     else:
                         filtered_ids = []
@@ -651,6 +663,15 @@ class CategoryViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             return Category.objects.select_related("parent").all()
         return super().get_queryset()
+
+    def list(self, request, *args, **kwargs):
+        cache_key = "catalog_categories_list:v1"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+        response = super().list(request, *args, **kwargs)
+        cache.set(cache_key, response.data, timeout=300)
+        return response
 
     def get_serializer_context(self):
         """Добавляем request в контекст для правильной генерации URL изображений"""

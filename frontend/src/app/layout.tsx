@@ -28,7 +28,7 @@ export default function RootLayout({
 			<body className={inter.className}>
 				<Script
 					src={`/model-prefetch.js?api=${encodeURIComponent(API_URL)}`}
-					strategy='beforeInteractive'
+					strategy='lazyOnload'
 				/>
 				{children}
 			</body>

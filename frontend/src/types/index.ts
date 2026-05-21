@@ -226,6 +226,8 @@ export interface ProductFilters {
 	is_active?: boolean
 	is_trending?: boolean
 	model_files?: 'both' | 'any' | 'bundle'
+	/** Сетка 3D-каталога — лёгкий API-ответ без model_files=bundle */
+	list_mode?: '3d'
 	search?: string
 	ordering?: string
 }

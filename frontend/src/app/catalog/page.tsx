@@ -112,12 +112,10 @@ function CatalogContent() {
 
 	// 2D и 3D — разные списки: 2D только PNG (лёгкий каталог), 3D только model-viewer (тяжёлый).
 	const filters2d = filters
+	// 3D: list_mode=3d — лёгкий сериализатор на бэке. НЕ model_files=bundle (тяжёлый SQL по всей БД).
 	const filters3d = useMemo<ProductFilters>(
-		() =>
-			isSuperuser
-				? filters
-				: { ...filters, model_files: 'bundle' as const },
-		[filters, isSuperuser]
+		() => ({ ...filters, list_mode: '3d' as const }),
+		[filters]
 	)
 
 	// 2D грузим сразу (лёгкий список фото); 3D — по первому открытию вкладки 3D.
