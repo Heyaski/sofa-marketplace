@@ -145,6 +145,30 @@ def catalog_stale_cdn_only_q() -> models.Q:
     return has_ephemeral_model_glb & ~catalog_has_glb_q()
 
 
+def catalog_has_2d_photo_q() -> models.Q:
+    """Товар с фото для 2D-каталога (glb2d PNG, http photo_url, ProductImage, FileAsset image)."""
+    has_productimage_q = models.Exists(
+        ProductImage.objects.filter(product_id=models.OuterRef("pk"))
+    )
+    article_asset_prefix_q = (
+        models.Q(asset_id__iexact=models.OuterRef("article"))
+        | models.Q(asset_id__istartswith=Concat(models.OuterRef("article"), models.Value("_")))
+        | models.Q(asset_id__istartswith=Concat(models.OuterRef("article"), models.Value("-")))
+    )
+    has_article_for_asset = models.Q(article__isnull=False) & ~models.Q(article="")
+    has_image_asset_by_article_q = has_article_for_asset & models.Exists(
+        FileAsset.objects.filter(file_type="image").filter(article_asset_prefix_q)
+    )
+    return (
+        (models.Q(image__isnull=False) & ~models.Q(image=""))
+        | models.Q(photo_url__startswith="http://")
+        | models.Q(photo_url__startswith="https://")
+        | (models.Q(image_asset_ids__isnull=False) & ~models.Q(image_asset_ids=""))
+        | has_productimage_q
+        | has_image_asset_by_article_q
+    )
+
+
 def build_catalog_list_3d_assets_for_products(products: list[Product]) -> dict[int, list[FileAsset]]:
     """
     Один запрос FileAsset на страницу списка вместо N вызовов get_3d_model_assets()
@@ -334,8 +358,8 @@ class ProductViewSet(viewsets.ModelViewSet):
                 if list_mode == '3d':
                     queryset = queryset.filter(catalog_has_glb_q())
                 else:
-                    # 2D: убрать «призраков» (только zaohaowu в model_glb, без GLB на S3)
-                    queryset = queryset.exclude(catalog_stale_cdn_only_q())
+                    # 2D: только карточки с реальным фото (не весь Excel без PNG)
+                    queryset = queryset.filter(catalog_has_2d_photo_q())
             return queryset
 
         has_glb_q = catalog_has_glb_q()
@@ -375,12 +399,6 @@ class ProductViewSet(viewsets.ModelViewSet):
             | models.Q(asset_id__istartswith=Concat(models.OuterRef('article'), models.Value('-')))
         )
         has_article_for_asset = models.Q(article__isnull=False) & ~models.Q(article='')
-        has_productimage_q = models.Exists(
-            ProductImage.objects.filter(product_id=models.OuterRef('pk'))
-        )
-        has_image_asset_by_article_q = has_article_for_asset & models.Exists(
-            FileAsset.objects.filter(file_type='image').filter(article_asset_prefix_q)
-        )
         has_rfa_via_article_q = has_article_for_asset & models.Exists(
             FileAsset.objects.filter(file_type='3d_model')
             .filter(rfa_ext_q)
@@ -393,17 +411,10 @@ class ProductViewSet(viewsets.ModelViewSet):
         )
         has_rfa_q = has_rfa_direct_q | has_rfa_asset_by_model_id_q | has_rfa_via_article_q
         has_ifc_q = has_ifc_direct_q | has_ifc_asset_by_model_id_q | has_ifc_via_article_q
-        has_image_q = (
-            (models.Q(image__isnull=False) & ~models.Q(image=''))
-            | (models.Q(photo_url__isnull=False) & ~models.Q(photo_url=''))
-            | (models.Q(image_asset_ids__isnull=False) & ~models.Q(image_asset_ids=''))
-            | has_productimage_q
-            | has_image_asset_by_article_q
-        )
         if model_files == 'both':
             # Только быстрый SQL-фильтр без Python-итерации по всем товарам,
             # иначе каталог в 3D режиме может долго "висеть" на загрузке.
-            queryset = queryset.filter(has_glb_q & has_image_q)
+            queryset = queryset.filter(has_glb_q & catalog_has_2d_photo_q())
         elif model_files == 'any':
             queryset = queryset.filter(has_glb_q | has_model_file_q)
         elif model_files in ('bundle', 'full3d', 'trio'):

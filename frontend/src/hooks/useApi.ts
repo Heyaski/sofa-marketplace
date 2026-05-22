@@ -61,7 +61,7 @@ export const useProducts = (
 	const [totalPages, setTotalPages] = useState(1)
 
 	const filtersKey = JSON.stringify(filters || {})
-	const firstPageCacheKey = `v8:${catalogListKey}:${paginationMode}:${filtersKey}`
+	const firstPageCacheKey = `v9:${catalogListKey}:${paginationMode}:${filtersKey}`
 	const listFingerprint = `${filtersKey}|${paginationMode}|${forcedPage ?? ''}`
 	const fingerprintLiveRef = useRef(listFingerprint)
 	fingerprintLiveRef.current = listFingerprint
