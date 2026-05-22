@@ -311,6 +311,7 @@ def collect_catalog_2d_stats(*, active_only: bool = True) -> dict:
     )
     with_2d = 0
     needs_png_from_glb = 0
+    glb_sql_not_loadable = 0
     no_glb_no_2d = 0
 
     for product in qs.prefetch_related("images").iterator(chunk_size=300):
@@ -318,7 +319,10 @@ def collect_catalog_2d_stats(*, active_only: bool = True) -> dict:
             with_2d += 1
             continue
         if product.pk in glb_ids:
-            needs_png_from_glb += 1
+            if product_has_glb_source(product):
+                needs_png_from_glb += 1
+            else:
+                glb_sql_not_loadable += 1
         else:
             no_glb_no_2d += 1
 
@@ -326,6 +330,7 @@ def collect_catalog_2d_stats(*, active_only: bool = True) -> dict:
         "total_active": total,
         "with_2d_image": with_2d,
         "needs_png_from_glb": needs_png_from_glb,
+        "glb_sql_not_loadable": glb_sql_not_loadable,
         "no_glb_no_2d": no_glb_no_2d,
         "with_glb_in_db": len(glb_ids),
     }

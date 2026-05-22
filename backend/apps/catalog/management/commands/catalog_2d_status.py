@@ -16,10 +16,17 @@ class Command(BaseCommand):
         self.stdout.write(f"  С GLB в БД:               {s['with_glb_in_db']}")
         self.stdout.write(
             self.style.WARNING(
-                f"  Нужен PNG из GLB:         {s['needs_png_from_glb']}  "
+                f"  Нужен PNG (GLB читается): {s['needs_png_from_glb']}  "
                 "→ python manage.py generate_2d_from_glb"
             )
         )
+        if s.get("glb_sql_not_loadable"):
+            self.stdout.write(
+                self.style.WARNING(
+                    f"  GLB в БД, файл недоступен: {s['glb_sql_not_loadable']}  "
+                    "→ backfill_model_glb_from_assets / загрузить .glb в FileAsset"
+                )
+            )
         self.stdout.write(
             self.style.ERROR(
                 f"  Нет фото и нет GLB:       {s['no_glb_no_2d']}  "

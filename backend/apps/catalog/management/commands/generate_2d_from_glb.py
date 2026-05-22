@@ -98,7 +98,8 @@ class Command(BaseCommand):
         stats = collect_catalog_2d_stats()
         self.stdout.write(
             f"Каталог: активных {stats['total_active']}, с фото 2D {stats['with_2d_image']}, "
-            f"ждут PNG из GLB {stats['needs_png_from_glb']}, без GLB и без фото {stats['no_glb_no_2d']}"
+            f"ждут PNG {stats['needs_png_from_glb']}, GLB в БД но файл недоступен "
+            f"{stats.get('glb_sql_not_loadable', 0)}, без GLB {stats['no_glb_no_2d']}"
         )
 
         product_ids = self._collect_ids(pid, force)
