@@ -298,6 +298,39 @@ def _is_usable_http_photo_url(url: str | None) -> bool:
     return u.startswith(("http://", "https://"))
 
 
+def collect_catalog_2d_stats(*, active_only: bool = True) -> dict:
+    """
+    Сводка для 2D-каталога: сколько товаров с фото, сколько ждут PNG из GLB, сколько без GLB.
+    """
+    qs = Product.objects.filter(is_active=True) if active_only else Product.objects.all()
+    total = qs.count()
+    glb_ids = set(
+        products_with_browser_glb_queryset()
+        .filter(is_active=True)
+        .values_list("pk", flat=True)
+    )
+    with_2d = 0
+    needs_png_from_glb = 0
+    no_glb_no_2d = 0
+
+    for product in qs.prefetch_related("images").iterator(chunk_size=300):
+        if not product_lacks_catalog_2d(product):
+            with_2d += 1
+            continue
+        if product.pk in glb_ids:
+            needs_png_from_glb += 1
+        else:
+            no_glb_no_2d += 1
+
+    return {
+        "total_active": total,
+        "with_2d_image": with_2d,
+        "needs_png_from_glb": needs_png_from_glb,
+        "no_glb_no_2d": no_glb_no_2d,
+        "with_glb_in_db": len(glb_ids),
+    }
+
+
 def product_lacks_catalog_2d(product: Product) -> bool:
     """True если для режима 2D каталога нет glb2d PNG и нет нормального http-фото."""
     if product.image and getattr(product.image, "name", None):

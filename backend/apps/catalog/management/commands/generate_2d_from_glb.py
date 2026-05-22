@@ -14,6 +14,7 @@ import django
 from django.core.management.base import BaseCommand
 
 from apps.catalog.glb_2d_preview import (
+    collect_catalog_2d_stats,
     load_primary_glb_bytes,
     product_has_glb_source,
     product_lacks_catalog_2d,
@@ -94,9 +95,15 @@ class Command(BaseCommand):
                 )
             )
 
+        stats = collect_catalog_2d_stats()
+        self.stdout.write(
+            f"Каталог: активных {stats['total_active']}, с фото 2D {stats['with_2d_image']}, "
+            f"ждут PNG из GLB {stats['needs_png_from_glb']}, без GLB и без фото {stats['no_glb_no_2d']}"
+        )
+
         product_ids = self._collect_ids(pid, force)
         total = len(product_ids)
-        self.stdout.write(f"Товаров для обработки: {total}")
+        self.stdout.write(f"Товаров для обработки в этом прогоне: {total}")
         if total == 0:
             self.stdout.write(
                 self.style.WARNING(

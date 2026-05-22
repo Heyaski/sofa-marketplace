@@ -358,8 +358,15 @@ if USE_S3_STORAGE:
             is_regional_endpoint = '.ru' in endpoint_domain or '.storage.beget.cloud' in endpoint_domain
             
             if custom_domain_raw:
-                # Пользователь явно указал custom domain - используем его
-                AWS_S3_CUSTOM_DOMAIN = custom_domain_raw
+                # Endpoint Beget (s3.ru1.storage.beget.cloud) ≠ публичный URL бакета — иначе URL без /bucket/ → 404
+                if is_regional_endpoint and custom_domain_raw == endpoint_domain:
+                    AWS_S3_CUSTOM_DOMAIN = None
+                    print(
+                        f"⚠️ AWS_S3_CUSTOM_DOMAIN совпадает с endpoint ({endpoint_domain}) — "
+                        "отключён, используется path-style: endpoint/bucket/файл"
+                    )
+                else:
+                    AWS_S3_CUSTOM_DOMAIN = custom_domain_raw
             elif is_regional_endpoint:
                 # Для региональных endpoints НЕ формируем custom domain автоматически
                 # Используем path-style addressing с endpoint URL
