@@ -146,27 +146,19 @@ def catalog_stale_cdn_only_q() -> models.Q:
 
 
 def catalog_has_2d_photo_q() -> models.Q:
-    """Товар с фото для 2D-каталога (glb2d PNG, http photo_url, ProductImage, FileAsset image)."""
+    """
+    Товар с реальным фото для 2D-витрины (как product_lacks_catalog_2d).
+    Не использовать image_asset_ids из Excel — там ID без файла у ~22k товаров.
+    """
     has_productimage_q = models.Exists(
         ProductImage.objects.filter(product_id=models.OuterRef("pk"))
     )
-    article_asset_prefix_q = (
-        models.Q(asset_id__iexact=models.OuterRef("article"))
-        | models.Q(asset_id__istartswith=Concat(models.OuterRef("article"), models.Value("_")))
-        | models.Q(asset_id__istartswith=Concat(models.OuterRef("article"), models.Value("-")))
-    )
-    has_article_for_asset = models.Q(article__isnull=False) & ~models.Q(article="")
-    has_image_asset_by_article_q = has_article_for_asset & models.Exists(
-        FileAsset.objects.filter(file_type="image").filter(article_asset_prefix_q)
-    )
-    return (
-        (models.Q(image__isnull=False) & ~models.Q(image=""))
-        | models.Q(photo_url__startswith="http://")
+    has_main_image_q = models.Q(image__isnull=False) & ~models.Q(image="")
+    has_http_photo_q = (
+        models.Q(photo_url__startswith="http://")
         | models.Q(photo_url__startswith="https://")
-        | (models.Q(image_asset_ids__isnull=False) & ~models.Q(image_asset_ids=""))
-        | has_productimage_q
-        | has_image_asset_by_article_q
     )
+    return has_main_image_q | has_http_photo_q | has_productimage_q
 
 
 def build_catalog_list_3d_assets_for_products(products: list[Product]) -> dict[int, list[FileAsset]]:
