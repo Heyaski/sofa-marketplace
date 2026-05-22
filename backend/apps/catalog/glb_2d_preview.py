@@ -25,6 +25,23 @@ from django.core.files.base import ContentFile
 
 from apps.catalog.file_urls import is_ephemeral_external_model_url
 from apps.catalog.models import Product
+
+
+def _exclude_ephemeral_url_field_q(field_name: str) -> "Q":
+    """SQL-фильтр: не считать протухшие CDN-ссылки за «есть GLB в БД»."""
+    from django.db.models import Q
+
+    blocked = Q()
+    for fragment in (
+        "auth_key=",
+        "zaohaowu",
+        "zaonaowu",
+        "hitem3dstatic",
+        "volcengine.com",
+        "volccdn.com",
+    ):
+        blocked |= Q(**{f"{field_name}__icontains": fragment})
+    return ~blocked
 from apps.catalog.rfa_converter import _build_command_args, _load_file_bytes
 
 logger = logging.getLogger(__name__)
@@ -252,6 +269,7 @@ def products_with_browser_glb_queryset():
             | Q(model_glb__startswith="/")
         )
         & ~Q(model_glb="")
+        & _exclude_ephemeral_url_field_q("model_glb")
     ) | (
         (
             Q(model_rfa_glb_preview__startswith="http://")
@@ -259,6 +277,7 @@ def products_with_browser_glb_queryset():
             | Q(model_rfa_glb_preview__startswith="/")
         )
         & ~Q(model_rfa_glb_preview="")
+        & _exclude_ephemeral_url_field_q("model_rfa_glb_preview")
     )
     has_glb_via_article_q = (
         Q(article__isnull=False)
@@ -277,18 +296,29 @@ def products_with_browser_glb_queryset():
     return Product.objects.filter(has_glb_q)
 
 
+def find_stable_glb_url_for_product(product: Product) -> str | None:
+    """Стабильный URL GLB из FileAsset (S3) или preview после RFA — для backfill model_glb."""
+    for asset in product.get_3d_model_assets():
+        name = (getattr(asset.file, "name", "") or "").lower()
+        if not name.endswith((".glb", ".gltf")):
+            continue
+        if asset.file:
+            url = (asset.file.url or "").strip()
+            if url and not is_ephemeral_external_model_url(url):
+                return url
+    preview = (product.model_rfa_glb_preview or "").strip()
+    if preview and _url_ok(preview) and not is_ephemeral_external_model_url(preview):
+        return preview
+    return None
+
+
 def product_has_glb_source(product: Product) -> bool:
     """Есть ли источник GLB/GLTF без скачивания (для отбора товаров в management command)."""
+    if find_stable_glb_url_for_product(product):
+        return True
     mg = (product.model_glb or "").strip()
     if mg and _url_ok(mg) and not is_ephemeral_external_model_url(mg):
         return True
-    preview = (product.model_rfa_glb_preview or "").strip()
-    if preview and _url_ok(preview):
-        return True
-    for asset in product.get_3d_model_assets():
-        name = (getattr(asset.file, "name", "") or "").lower()
-        if name.endswith((".glb", ".gltf")):
-            return True
     return False
 
 

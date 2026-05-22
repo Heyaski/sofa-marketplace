@@ -23,8 +23,8 @@ class Command(BaseCommand):
         if s.get("glb_sql_not_loadable"):
             self.stdout.write(
                 self.style.WARNING(
-                    f"  GLB в БД, файл недоступен: {s['glb_sql_not_loadable']}  "
-                    "→ backfill_model_glb_from_assets / загрузить .glb в FileAsset"
+                    f"  Протухший CDN / нет FileAsset: {s['glb_sql_not_loadable']}  "
+                    "→ загрузить .glb в FileAsset + backfill_model_glb_from_assets --verbose"
                 )
             )
         self.stdout.write(

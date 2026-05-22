@@ -1,89 +1,72 @@
 """
-Подставить стабильный GLB в поле model_glb, если там «протухший» внешний URL,
-а реальный файл уже есть в FileAsset (.glb) или model_rfa_glb_preview (наш S3).
+Подставить стабильный GLB в поле model_glb из FileAsset (S3) или model_rfa_glb_preview.
 
-Запуск после синхронизации или импорта, если в каталоге 403 по zaohaowu/hitem3dstatic.
+1) Заменить протухшие CDN-ссылки (zaohaowu, auth_key=…).
+2) Заполнить пустой model_glb, если .glb уже есть в FileAsset по артикулу.
 """
 
 from django.core.cache import cache
 from django.core.management.base import BaseCommand
 
 from apps.catalog.file_urls import is_ephemeral_external_model_url
+from apps.catalog.glb_2d_preview import find_stable_glb_url_for_product, products_with_browser_glb_queryset
 from apps.catalog.models import Product
 
 
 class Command(BaseCommand):
     help = (
-        "Заменить model_glb с временным CDN (auth_key и т.п.) на URL из FileAsset .glb "
-        "или стабильное model_rfa_glb_preview."
+        "Записать в model_glb стабильный URL из FileAsset .glb или preview; "
+        "убрать протухшие внешние CDN."
     )
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            "--dry-run",
-            action="store_true",
-            help="Только показать, что бы изменилось, без записи в БД",
-        )
-        parser.add_argument(
-            "--verbose",
-            action="store_true",
-            help="Печатать товары, для которых не нашлось стабильной замены",
-        )
-        parser.add_argument(
-            "--limit",
-            type=int,
-            default=0,
-            help="Максимум товаров для обхода (0 = без лимита)",
-        )
+        parser.add_argument("--dry-run", action="store_true")
+        parser.add_argument("--verbose", action="store_true")
+        parser.add_argument("--limit", type=int, default=0)
 
     def handle(self, *args, **options):
         dry_run = options.get("dry_run", False)
         limit = max(0, int(options.get("limit") or 0))
-
-        qs = Product.objects.exclude(model_glb="").order_by("id")
-        if limit:
-            qs = qs[:limit]
+        verbose = options.get("verbose", False)
 
         updated = 0
-        skipped_stable = 0
-        no_replacement = 0
+        skipped_ok = 0
+        no_fileasset = 0
 
-        for p in qs.iterator(chunk_size=500):
+        qs = products_with_browser_glb_queryset().filter(is_active=True).order_by("id")
+        if limit:
+            qs = qs[: limit * 3]
+
+        seen = 0
+        for p in qs.iterator(chunk_size=300):
+            if limit and updated >= limit:
+                break
+            seen += 1
             mg = (p.model_glb or "").strip()
-            if not mg or not is_ephemeral_external_model_url(mg):
-                skipped_stable += 1
-                continue
+            stable = find_stable_glb_url_for_product(p)
 
-            new_url = None
-            for asset in p.get_3d_model_assets():
-                name = (getattr(asset.file, "name", "") or "").lower()
-                if not name.endswith(".glb"):
-                    continue
-                if asset.file:
-                    new_url = (asset.file.url or "").strip()
-                    if new_url:
-                        break
-
-            if not new_url:
-                prev = (p.model_rfa_glb_preview or "").strip()
-                if prev and not is_ephemeral_external_model_url(prev):
-                    new_url = prev
-
-            if not new_url or new_url == mg:
-                no_replacement += 1
-                if options.get("verbose"):
+            if not stable:
+                no_fileasset += 1
+                if verbose:
                     self.stdout.write(
                         self.style.WARNING(
-                            f"id={p.pk} article={p.article!r}: нет стабильного GLB в ассетах/превью"
+                            f"id={p.pk} article={p.article!r}: нет .glb в FileAsset на S3"
                         )
                     )
                 continue
 
-            self.stdout.write(
-                f"id={p.pk} article={p.article!r}\n  было: {mg[:100]}...\n  стало: {new_url[:100]}..."
-            )
+            if mg == stable:
+                skipped_ok += 1
+                continue
+
+            if verbose or is_ephemeral_external_model_url(mg) or not mg:
+                self.stdout.write(
+                    f"id={p.pk} article={p.article!r}\n"
+                    f"  было: {(mg or '—')[:120]}\n"
+                    f"  стало: {stable[:120]}"
+                )
             if not dry_run:
-                Product.objects.filter(pk=p.pk).update(model_glb=new_url)
+                Product.objects.filter(pk=p.pk).update(model_glb=stable)
             updated += 1
 
         if not dry_run and updated > 0:
@@ -94,9 +77,10 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Готово. Обновлено: {updated}"
-                + (f" (dry-run)" if dry_run else "")
-                + f" | пропущено (уже стабильный): {skipped_stable}"
-                + f" | не с чем заменить: {no_replacement}"
+                f"Готово. Обновлено model_glb: {updated}"
+                + (" (dry-run)" if dry_run else "")
+                + f" | уже ок: {skipped_ok}"
+                + f" | нет FileAsset .glb: {no_fileasset}"
+                + f" | просмотрено: {seen}"
             )
         )

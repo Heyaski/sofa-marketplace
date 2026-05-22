@@ -9,21 +9,10 @@
 """
 import multiprocessing
 import os
+import time
 
 import django
 from django.core.management.base import BaseCommand
-
-from apps.catalog.glb_2d_preview import (
-    collect_catalog_2d_stats,
-    load_primary_glb_bytes,
-    product_has_glb_source,
-    product_lacks_catalog_2d,
-    products_with_browser_glb_queryset,
-    render_glb_bytes_to_png,
-    run_glb_2d_preview_for_product_id,
-    PlaywrightSession,
-)
-from apps.catalog.models import Product
 
 
 def _uses_sqlite() -> bool:
@@ -82,6 +71,16 @@ class Command(BaseCommand):
     # ------------------------------------------------------------------ #
 
     def _run_single(self, options):
+        from apps.catalog.glb_2d_preview import (
+            PlaywrightSession,
+            collect_catalog_2d_stats,
+            product_has_glb_source,
+            product_lacks_catalog_2d,
+            products_with_browser_glb_queryset,
+        )
+        from apps.catalog.management.commands.generate_2d_worker import render_one
+        from apps.catalog.models import Product
+
         pid = options["product_id"]
         limit = options["limit"]
         force = options["force"]
@@ -108,7 +107,8 @@ class Command(BaseCommand):
         if total == 0:
             self.stdout.write(
                 self.style.WARNING(
-                    "Нет товаров с GLB. Проверьте model_glb / FileAsset или укажите --product-id ID."
+                    "Очередь пуста. Сначала: python manage.py backfill_model_glb_from_assets --verbose\n"
+                    "Если «нет FileAsset» — загрузите .glb и синхронизируйте FileAsset с товарами."
                 )
             )
             return
@@ -144,7 +144,7 @@ class Command(BaseCommand):
             for product_id in product_ids:
                 if limit is not None and done >= limit:
                     break
-                result = _render_one(product_id, force=force, session=session)
+                result = render_one(product_id, force=force, session=session)
                 st = result.get("status")
                 renderer = result.get("renderer", "?")
                 if st == "ok":
@@ -181,6 +181,8 @@ class Command(BaseCommand):
     # ------------------------------------------------------------------ #
 
     def _run_parallel(self, options, workers: int):
+        from apps.catalog.management.commands.generate_2d_worker import worker_process
+
         pid = options["product_id"]
         limit = options["limit"]
         force = options["force"]
@@ -190,8 +192,14 @@ class Command(BaseCommand):
             product_ids = product_ids[:limit]
         total = len(product_ids)
         self.stdout.write(f"Товаров: {total}, воркеров: {workers}")
+        if total == 0:
+            self.stdout.write(
+                self.style.WARNING(
+                    "Очередь пуста. Сначала: python manage.py backfill_model_glb_from_assets --verbose"
+                )
+            )
+            return
 
-        # Делим на чанки
         chunks = [product_ids[i::workers] for i in range(workers)]
 
         ctx = multiprocessing.get_context("spawn")
@@ -200,7 +208,7 @@ class Command(BaseCommand):
         for chunk in chunks:
             q = ctx.Queue()
             queues.append(q)
-            p = ctx.Process(target=_worker_process, args=(chunk, force, q), daemon=True)
+            p = ctx.Process(target=worker_process, args=(chunk, force, q), daemon=True)
             p.start()
             procs.append(p)
 
@@ -231,7 +239,7 @@ class Command(BaseCommand):
                         self.stdout.write(self.style.ERROR(f"id={product_id}: error"))
                 if not finished[i] and not proc.is_alive():
                     finished[i] = True
-            import time; time.sleep(0.1)
+            time.sleep(0.1)
 
         for p in procs:
             p.join(timeout=10)
@@ -244,6 +252,13 @@ class Command(BaseCommand):
         )
 
     def _collect_ids(self, pid, force) -> list[int]:
+        from apps.catalog.glb_2d_preview import (
+            product_has_glb_source,
+            product_lacks_catalog_2d,
+            products_with_browser_glb_queryset,
+        )
+        from apps.catalog.models import Product
+
         if pid is not None:
             product = (
                 Product.objects.filter(pk=pid).prefetch_related("images").first()
@@ -310,6 +325,13 @@ class Command(BaseCommand):
     # ------------------------------------------------------------------ #
 
     def _run_check(self):
+        from apps.catalog.glb_2d_preview import (
+            load_primary_glb_bytes,
+            product_has_glb_source,
+            products_with_browser_glb_queryset,
+            render_glb_bytes_to_png,
+        )
+
         self.stdout.write("=== Проверка рендерера (--check) ===")
         product = None
         glb_bytes = None
@@ -346,107 +368,3 @@ class Command(BaseCommand):
                 "Playwright не сработал — см. лог выше."
             ))
         self.stdout.write("PNG не сохранён в БД.")
-
-
-# ------------------------------------------------------------------ #
-# Вспомогательные функции для multiprocessing (должны быть на уровне  #
-# модуля чтобы pickle работал с spawn)                                #
-# ------------------------------------------------------------------ #
-
-def _save_product_preview_png(product_id: int, png: bytes) -> None:
-    """Сохранить PNG в Product.image; повтор при блокировке SQLite."""
-    import time
-
-    from django.core.files.base import ContentFile
-    from django.db import close_old_connections
-    from django.db.utils import OperationalError
-
-    from apps.catalog.glb_2d_preview import _invalidate_product_cache
-    from apps.catalog.models import Product
-
-    name = f"glb2d_{product_id}.png"
-    max_attempts = 12
-    for attempt in range(max_attempts):
-        close_old_connections()
-        try:
-            product = Product.objects.filter(pk=product_id).first()
-            if not product:
-                raise ValueError("no-product")
-            product.image.save(name, ContentFile(png), save=True)
-            _invalidate_product_cache(product_id)
-            return
-        except OperationalError as exc:
-            msg = str(exc).lower()
-            if "locked" not in msg or attempt >= max_attempts - 1:
-                raise
-            time.sleep(min(30.0, 0.75 * (attempt + 1)))
-
-
-def _render_one(product_id: int, force: bool, session) -> dict:
-    """Рендер одного продукта. session=PlaywrightSession или None."""
-    from django.db import close_old_connections
-
-    from apps.catalog.glb_2d_preview import (
-        load_primary_glb_bytes,
-        render_glb_bytes_to_png,
-        _infer_load_file_type,
-    )
-    from apps.catalog.models import Product
-
-    if session is not None:
-        _allow_sync_orm_with_playwright()
-
-    product = Product.objects.filter(pk=product_id).first()
-    if not product:
-        return {"status": "error", "reason": "no-product"}
-    raw = load_primary_glb_bytes(product)
-    if not raw:
-        return {"status": "skipped", "reason": "no-glb"}
-
-    # Долгий рендер без удержания соединения с SQLite
-    close_old_connections()
-
-    try:
-        if session is not None:
-            ext = _infer_load_file_type(raw)
-            png = session.render(raw, ext)
-            renderer = "playwright"
-        else:
-            png, renderer = render_glb_bytes_to_png(raw)
-    except Exception as e:
-        return {"status": "error", "reason": str(e)[:300]}
-
-    try:
-        _save_product_preview_png(product_id, png)
-    except Exception as e:
-        return {"status": "error", "reason": str(e)[:300]}
-
-    return {"status": "ok", "renderer": renderer}
-
-
-def _worker_process(product_ids: list, force: bool, result_queue):
-    """Дочерний процесс: инициализирует Django, запускает PlaywrightSession."""
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
-    django.setup()
-
-    from django.conf import settings as dj_settings
-    from apps.catalog.glb_2d_preview import PlaywrightSession
-
-    use_pw = getattr(dj_settings, "GLB_2D_USE_PLAYWRIGHT", True)
-    try:
-        if use_pw:
-            _allow_sync_orm_with_playwright()
-        session = PlaywrightSession().__enter__() if use_pw else None
-    except Exception:
-        session = None
-
-    try:
-        for product_id in product_ids:
-            result = _render_one(product_id, force=force, session=session)
-            st = result.get("status", "error")
-            renderer = result.get("renderer", "?")
-            result_queue.put((product_id, st, renderer))
-    finally:
-        if session:
-            session.__exit__(None, None, None)
-        result_queue.put(None)  # сигнал завершения
