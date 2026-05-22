@@ -119,6 +119,32 @@ def catalog_has_glb_q() -> models.Q:
     return has_direct_glb_url_q | has_glb_asset_by_model_id_q | has_glb_via_article_q
 
 
+def catalog_stale_cdn_only_q() -> models.Q:
+    """
+    Товар попал в старый 3D-список только из-за протухшего CDN в model_glb,
+    без FileAsset/стабильного GLB на S3.
+    """
+    blocked = models.Q()
+    for fragment in (
+        "auth_key=",
+        "zaohaowu",
+        "zaonaowu",
+        "hitem3dstatic",
+        "volcengine.com",
+        "volccdn.com",
+    ):
+        blocked |= models.Q(model_glb__icontains=fragment)
+    has_ephemeral_model_glb = (
+        (
+            models.Q(model_glb__startswith="http://")
+            | models.Q(model_glb__startswith="https://")
+        )
+        & ~models.Q(model_glb="")
+        & blocked
+    )
+    return has_ephemeral_model_glb & ~catalog_has_glb_q()
+
+
 def build_catalog_list_3d_assets_for_products(products: list[Product]) -> dict[int, list[FileAsset]]:
     """
     Один запрос FileAsset на страницу списка вместо N вызовов get_3d_model_assets()
@@ -307,6 +333,9 @@ class ProductViewSet(viewsets.ModelViewSet):
                 list_mode = (self.request.query_params.get('list_mode') or '').strip().lower()
                 if list_mode == '3d':
                     queryset = queryset.filter(catalog_has_glb_q())
+                else:
+                    # 2D: убрать «призраков» (только zaohaowu в model_glb, без GLB на S3)
+                    queryset = queryset.exclude(catalog_stale_cdn_only_q())
             return queryset
 
         has_glb_q = catalog_has_glb_q()
