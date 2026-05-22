@@ -302,10 +302,23 @@ class Command(BaseCommand):
 
         self.stdout.write(f"  Проверено {scanned}, с GLB для рендера: {len(ids)}.")
         if len(ids) == 0:
-            self._hint_products_with_glb()
+            from apps.catalog.glb_2d_preview import collect_catalog_2d_stats
+
+            stats = collect_catalog_2d_stats()
+            if stats["needs_png_from_glb"] == 0 and stats["with_glb_in_db"] > 0:
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        "Все товары с GLB уже имеют фото 2D. "
+                        "Перегенерация: python manage.py generate_2d_from_glb --force"
+                    )
+                )
+            else:
+                self._hint_products_with_glb()
         return ids
 
     def _hint_products_with_glb(self) -> None:
+        from apps.catalog.glb_2d_preview import products_with_browser_glb_queryset
+
         sample = list(
             products_with_browser_glb_queryset()
             .order_by("id")
