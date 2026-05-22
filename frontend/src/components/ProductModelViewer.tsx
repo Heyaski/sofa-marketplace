@@ -67,12 +67,15 @@ function normalizeModelUrl(url: string): string {
 function isEphemeralExternalModelUrl(url: string): boolean {
 	const low = url.toLowerCase()
 	if (low.includes('auth_key=')) return true
-	if (
-		low.includes('zaohaowu.net') ||
-		low.includes('zaonaowu.net') ||
-		low.includes('hitem3dstatic')
-	)
-		return true
+	for (const host of [
+		'zaohaowu.net',
+		'zaonaowu.net',
+		'hitem3dstatic',
+		'volcengine.com',
+		'volccdn.com',
+	]) {
+		if (low.includes(host)) return true
+	}
 	return false
 }
 
@@ -113,9 +116,6 @@ function collectGlbUrls(product: Product): string[] {
 		for (const a of scored) push(a.file_url, a.file_ext)
 	}
 
-	if (mg && isValidUrl(mg) && isEphemeralExternalModelUrl(mg)) push(mg, 'glb')
-	/* Как get_model_glb на бэкенде (шаг 4): если других кандидатов нет — пробуем то, что в поле. */
-	if (!out.length && mg && isValidUrl(mg)) push(mg, 'glb')
 	return out
 }
 

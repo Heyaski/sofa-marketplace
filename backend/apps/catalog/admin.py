@@ -816,7 +816,11 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
                         article_clean = article.strip().upper()
                         product = Product.objects.filter(article__iexact=article_clean).first()
                         if not product and (files_data.get('models') or files_data.get('images')):
-                            first_asset = files_data.get('models', [None])[0] or files_data.get('images', [None])[0]
+                            models_list = files_data.get('models') or []
+                            images_list = files_data.get('images') or []
+                            first_asset = (models_list[0] if models_list else None) or (
+                                images_list[0] if images_list else None
+                            )
                             if first_asset and first_asset.asset_id != article:
                                 product = Product.objects.filter(article__iexact=first_asset.asset_id).first()
                             # Id 3d (столбец U) может отличаться от артикула

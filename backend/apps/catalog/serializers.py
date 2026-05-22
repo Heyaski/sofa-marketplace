@@ -225,15 +225,12 @@ class ProductSerializer(serializers.ModelSerializer):
         # 3) Превью из RFA (после convert_rfa_to_glb)
         preview = (obj.model_rfa_glb_preview or "").strip()
         if preview and url_looks_like_browser_model_file(preview):
-            if is_valid_url(preview):
+            if is_valid_url(preview) and not is_ephemeral_external_model_url(preview):
                 return preview
             key_url = resolve_object_key_url(preview, request)
             if key_url:
                 return key_url
 
-        # 4) Fallback: временный CDN в model_glb
-        if mg and is_valid_url(mg) and url_looks_like_browser_model_file(mg):
-            return mg
         return None
 
     def get_asset_images(self, obj):

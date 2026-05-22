@@ -15,6 +15,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
 from rest_framework.response import Response
 
+from .glb_2d_preview import _exclude_ephemeral_url_field_q
 from .models import Category, FileAsset, Product, ProductImage
 from .serializers import (
     CategoryLiteSerializer,
@@ -88,6 +89,7 @@ def catalog_has_glb_q() -> models.Q:
             | models.Q(model_glb__startswith="/")
         )
         & ~models.Q(model_glb="")
+        & _exclude_ephemeral_url_field_q("model_glb")
     ) | (
         (
             models.Q(model_rfa_glb_preview__startswith="http://")
@@ -95,6 +97,7 @@ def catalog_has_glb_q() -> models.Q:
             | models.Q(model_rfa_glb_preview__startswith="/")
         )
         & ~models.Q(model_rfa_glb_preview="")
+        & _exclude_ephemeral_url_field_q("model_rfa_glb_preview")
     )
     has_glb_via_article_q = (
         models.Q(article__isnull=False)
