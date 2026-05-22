@@ -66,12 +66,24 @@ def public_storage_object_url(object_key: str) -> str | None:
         return None
     from django.conf import settings
 
+    endpoint = getattr(settings, "AWS_S3_ENDPOINT_URL", None)
+    bucket = getattr(settings, "AWS_STORAGE_BUCKET_NAME", None)
+    endpoint_host = (
+        str(endpoint).replace("https://", "").replace("http://", "").strip("/")
+        if endpoint
+        else ""
+    )
+
     custom = getattr(settings, "AWS_S3_CUSTOM_DOMAIN", None)
     if custom:
         domain = str(custom).replace("https://", "").replace("http://", "").strip("/")
+        # Beget ru1: в .env часто указывают endpoint (s3.ru1.storage.beget.cloud) как custom domain —
+        # без имени бакета URL 404. Тот же path-style, что у storage.url.
+        if bucket and endpoint_host and domain == endpoint_host:
+            base = str(endpoint).rstrip("/")
+            return f"{base}/{bucket}/{key}"
         return f"https://{domain}/{key}"
-    endpoint = getattr(settings, "AWS_S3_ENDPOINT_URL", None)
-    bucket = getattr(settings, "AWS_STORAGE_BUCKET_NAME", None)
+
     if endpoint and bucket:
         base = str(endpoint).rstrip("/")
         return f"{base}/{bucket}/{key}"
