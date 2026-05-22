@@ -600,6 +600,24 @@ export const messageService = {
 		return response.data
 	},
 
+	// Отправить голосовое сообщение
+	sendVoiceMessage: async (
+		chatId: number,
+		audioFile: File,
+		durationSeconds: number
+	): Promise<Message> => {
+		const formData = new FormData()
+		formData.append('chat', String(chatId))
+		formData.append('message_type', 'voice')
+		formData.append('content', '')
+		formData.append('voice_file', audioFile)
+		formData.append('voice_duration', String(Math.max(0, durationSeconds)))
+		const response = await apiClient.post('/api/messages/', formData, {
+			headers: { 'Content-Type': 'multipart/form-data' },
+		})
+		return response.data
+	},
+
 	// Отметить сообщение как прочитанное
 	markRead: async (messageId: number): Promise<{ is_read: boolean }> => {
 		const response = await apiClient.post(

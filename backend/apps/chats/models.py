@@ -109,12 +109,23 @@ class Message(models.Model):
         ('text', 'Текст'),
         ('product', 'Товар'),
         ('basket', 'Корзина'),
+        ('voice', 'Голосовое'),
     ]
 
     chat = models.ForeignKey(Chat, related_name="messages", on_delete=models.CASCADE, verbose_name="Чат")
     sender = models.ForeignKey(User, related_name="sent_messages", on_delete=models.CASCADE, verbose_name="Отправитель")
     message_type = models.CharField(max_length=10, choices=MESSAGE_TYPES, default='text', verbose_name="Тип сообщения")
     content = models.TextField(blank=True, verbose_name="Содержание")
+    voice_file = models.FileField(
+        upload_to='chat_voice/',
+        blank=True,
+        null=True,
+        verbose_name="Голосовое сообщение",
+    )
+    voice_duration = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Длительность голосового (сек)",
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
     is_read = models.BooleanField(default=False, verbose_name="Прочитано")
 

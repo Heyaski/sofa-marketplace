@@ -65,6 +65,9 @@ export default function ChatsList({
 		if (chat.last_message.message_type === 'basket') {
 			return 'Корзина'
 		}
+		if (chat.last_message.message_type === 'voice') {
+			return 'Голосовое сообщение'
+		}
 		return chat.last_message.content || ''
 	}
 

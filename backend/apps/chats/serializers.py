@@ -38,14 +38,25 @@ class MessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True)
     products = MessageProductSerializer(many=True, read_only=True)
     baskets = MessageBasketSerializer(many=True, read_only=True)
+    voice_file_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
         fields = [
             'id', 'chat', 'sender', 'message_type', 'content',
-            'created_at', 'is_read', 'products', 'baskets'
+            'created_at', 'is_read', 'products', 'baskets',
+            'voice_file_url', 'voice_duration',
         ]
         read_only_fields = ['sender', 'created_at']
+
+    def get_voice_file_url(self, obj):
+        if not obj.voice_file:
+            return None
+        request = self.context.get('request')
+        url = obj.voice_file.url
+        if request:
+            return request.build_absolute_uri(url)
+        return url
 
 
 class MessageCreateSerializer(serializers.ModelSerializer):
@@ -65,12 +76,15 @@ class MessageCreateSerializer(serializers.ModelSerializer):
         default=dict
     )
     basket_id = serializers.IntegerField(required=False, write_only=True, allow_null=True)
+    voice_file = serializers.FileField(required=False, write_only=True)
+    voice_duration = serializers.IntegerField(required=False, write_only=True, min_value=0)
 
     class Meta:
         model = Message
         fields = [
             'chat', 'message_type', 'content',
-            'product_ids', 'selected_formats', 'basket_id'
+            'product_ids', 'selected_formats', 'basket_id',
+            'voice_file', 'voice_duration',
         ]
         extra_kwargs = {
             'chat': {'required': True},
@@ -105,9 +119,21 @@ class MessageCreateSerializer(serializers.ModelSerializer):
     
     def validate_message_type(self, value):
         """Проверяем, что тип сообщения валидный"""
-        valid_types = ['text', 'product', 'basket']
+        valid_types = ['text', 'product', 'basket', 'voice']
         if value not in valid_types:
             raise serializers.ValidationError(f"Тип сообщения должен быть одним из: {', '.join(valid_types)}")
+        return value
+
+    def validate_voice_file(self, value):
+        if value is None:
+            return value
+        max_size = 10 * 1024 * 1024  # 10 MB
+        if value.size > max_size:
+            raise serializers.ValidationError("Размер голосового сообщения не должен превышать 10 МБ")
+        content_type = getattr(value, 'content_type', '') or ''
+        allowed = content_type.startswith('audio/') or content_type == 'video/webm'
+        if content_type and not allowed:
+            raise serializers.ValidationError("Файл должен быть аудио")
         return value
     
     def validate(self, attrs):
@@ -116,20 +142,24 @@ class MessageCreateSerializer(serializers.ModelSerializer):
         content = attrs.get('content', '')
         product_ids = attrs.get('product_ids', [])
         basket_id = attrs.get('basket_id')
-        
+        voice_file = attrs.get('voice_file')
+
         # Для текстового сообщения content не обязателен, но желателен
         if message_type == 'text' and not content.strip() and not product_ids and not basket_id:
             # Разрешаем пустое текстовое сообщение
             pass
-        
+
         # Для сообщения с товарами должны быть product_ids
         if message_type == 'product' and not product_ids:
             raise serializers.ValidationError({"product_ids": "Для сообщения с товарами необходимо указать хотя бы один товар"})
-        
+
         # Для сообщения с корзиной должен быть basket_id
         if message_type == 'basket' and not basket_id:
             raise serializers.ValidationError({"basket_id": "Для сообщения с корзиной необходимо указать корзину"})
-        
+
+        if message_type == 'voice' and not voice_file:
+            raise serializers.ValidationError({"voice_file": "Для голосового сообщения необходимо прикрепить аудиофайл"})
+
         return attrs
 
     def create(self, validated_data):
@@ -137,10 +167,14 @@ class MessageCreateSerializer(serializers.ModelSerializer):
         product_ids = validated_data.pop('product_ids', None) or []
         selected_formats = validated_data.pop('selected_formats', None) or {}
         basket_id = validated_data.pop('basket_id', None)
+        voice_duration = validated_data.pop('voice_duration', None) or 0
 
         # Получаем пользователя из контекста
         user = self.context['request'].user
-        
+
+        if validated_data.get('message_type') == 'voice':
+            validated_data['voice_duration'] = max(0, int(voice_duration))
+
         # Создаем сообщение
         message = Message.objects.create(
             sender=user,

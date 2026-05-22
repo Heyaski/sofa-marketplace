@@ -273,12 +273,14 @@ export interface Message {
 	id: number
 	chat: number
 	sender: User
-	message_type: 'text' | 'product' | 'basket'
+	message_type: 'text' | 'product' | 'basket' | 'voice'
 	content: string
 	created_at: string
 	is_read: boolean
 	products?: MessageProduct[]
 	baskets?: MessageBasket[]
+	voice_file_url?: string | null
+	voice_duration?: number
 }
 
 export interface MessageProduct {

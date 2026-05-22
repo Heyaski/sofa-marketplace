@@ -1,11 +1,16 @@
 'use client'
 
+import VoiceMessage from '@/components/VoiceMessage'
+import { useVoiceRecorder } from '@/hooks/useVoiceRecorder'
 import { basketService, messageService } from '@/services/api'
 import { Basket, Chat, Message } from '@/types'
+import { formatAudioDuration } from '@/utils/formatAudioDuration'
 import { getTitleWithoutBrand } from '@/utils/productTitle'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
+
+type InputMode = 'text' | 'voice'
 
 interface ChatDetailProps {
 	chat: Chat | null
@@ -22,10 +27,13 @@ export default function ChatDetail({
 	const [messages, setMessages] = useState<Message[]>([])
 	const [loading, setLoading] = useState(true)
 	const [messageText, setMessageText] = useState('')
+	const [inputMode, setInputMode] = useState<InputMode>('text')
+	const [sendingVoice, setSendingVoice] = useState(false)
 	const [baskets, setBaskets] = useState<Basket[]>([])
 	const [showBasketSelector, setShowBasketSelector] = useState(false)
 	const messagesEndRef = useRef<HTMLDivElement>(null)
 	const messagesContainerRef = useRef<HTMLDivElement>(null)
+	const voiceRecorder = useVoiceRecorder()
 
 	useEffect(() => {
 		if (chat) {
@@ -142,6 +150,42 @@ export default function ChatDetail({
 		}
 	}
 
+	const handleSendVoice = async () => {
+		if (!chat) return
+		const file = voiceRecorder.getFileForUpload()
+		if (!file) return
+
+		setSendingVoice(true)
+		try {
+			const newMessage = await messageService.sendVoiceMessage(
+				chat.id,
+				file,
+				voiceRecorder.duration
+			)
+			if (newMessage?.sender) {
+				setMessages(prev => [...(prev || []), newMessage])
+			} else {
+				await fetchMessages()
+			}
+			voiceRecorder.clearPreview()
+			setInputMode('text')
+		} catch (error) {
+			console.error('Ошибка при отправке голосового:', error)
+		} finally {
+			setSendingVoice(false)
+		}
+	}
+
+	const switchInputMode = (mode: InputMode) => {
+		if (voiceRecorder.isRecording) {
+			voiceRecorder.cancelRecording()
+		}
+		if (mode === 'text') {
+			voiceRecorder.clearPreview()
+		}
+		setInputMode(mode)
+	}
+
 	const formatTime = (dateString: string) => {
 		const date = new Date(dateString)
 		const hours = date.getHours().toString().padStart(2, '0')
@@ -245,6 +289,16 @@ export default function ChatDetail({
 										{message.message_type === 'text' && (
 											<p className='text-sm'>{message.content}</p>
 										)}
+
+										{/* Voice message */}
+										{message.message_type === 'voice' &&
+											message.voice_file_url && (
+												<VoiceMessage
+													url={message.voice_file_url}
+													duration={message.voice_duration || 0}
+													isOwn={isOwn}
+												/>
+											)}
 
 										{/* Product message */}
 										{message.message_type === 'product' &&
@@ -387,49 +441,186 @@ export default function ChatDetail({
 					</div>
 				) : null}
 
-				<div className='flex items-center gap-1.5 sm:gap-2 min-w-0'>
-					<input
-						type='text'
-						value={messageText}
-						onChange={e => setMessageText(e.target.value)}
-						onKeyDown={e => {
-							if (e.key === 'Enter') {
-								handleSendMessage()
-							}
-						}}
-						placeholder='Введите сообщение'
-						className='flex-1 min-w-0 px-3 py-2 sm:px-4 rounded-lg bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 text-sm sm:text-base'
-					/>
+				{voiceRecorder.error && (
+					<p className='text-sm text-red-600 mb-2'>{voiceRecorder.error}</p>
+				)}
+
+				<div className='flex items-center gap-1 sm:gap-1.5 mb-2'>
 					<button
-						onClick={() => setShowBasketSelector(!showBasketSelector)}
-						className='p-2 flex-shrink-0 text-gray hover:text-main1 transition-colors'
-						title='Отправить корзину'
+						type='button'
+						onClick={() => switchInputMode('text')}
+						className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+							inputMode === 'text'
+								? 'bg-main1 text-white'
+								: 'bg-gray-bg text-gray hover:text-black'
+						}`}
 					>
-						<svg
-							className='w-5 h-5'
-							fill='none'
-							stroke='currentColor'
-							viewBox='0 0 24 24'
-						>
-							<path
-								strokeLinecap='round'
-								strokeLinejoin='round'
-								strokeWidth={2}
-								d='M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13'
-							/>
-						</svg>
+						Текст
 					</button>
 					<button
-						onClick={handleSendMessage}
-						disabled={!messageText.trim()}
-						title='Отправить'
-						aria-label='Отправить'
-						className='bg-main1 text-white px-3 py-2 sm:px-5 rounded-lg font-medium hover:bg-main2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm flex-shrink-0'
+						type='button'
+						onClick={() => switchInputMode('voice')}
+						className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+							inputMode === 'voice'
+								? 'bg-main1 text-white'
+								: 'bg-gray-bg text-gray hover:text-black'
+						}`}
 					>
-						<span className='hidden sm:inline'>Отправить</span>
-						<svg className='w-5 h-5 sm:hidden' fill='currentColor' viewBox='0 0 24 24' aria-hidden><path d='M2.01 21L23 12 2.01 3 2 10l15 2-15 2z'/></svg>
+						Голос
 					</button>
 				</div>
+
+				{inputMode === 'text' ? (
+					<div className='flex items-center gap-1.5 sm:gap-2 min-w-0'>
+						<input
+							type='text'
+							value={messageText}
+							onChange={e => setMessageText(e.target.value)}
+							onKeyDown={e => {
+								if (e.key === 'Enter') {
+									handleSendMessage()
+								}
+							}}
+							placeholder='Введите сообщение'
+							className='flex-1 min-w-0 px-3 py-2 sm:px-4 rounded-lg bg-gray-bg text-black placeholder-gray focus:outline-none focus:ring-2 focus:ring-main1 text-sm sm:text-base'
+						/>
+						<button
+							onClick={() => setShowBasketSelector(!showBasketSelector)}
+							className='p-2 flex-shrink-0 text-gray hover:text-main1 transition-colors'
+							title='Отправить корзину'
+						>
+							<svg
+								className='w-5 h-5'
+								fill='none'
+								stroke='currentColor'
+								viewBox='0 0 24 24'
+							>
+								<path
+									strokeLinecap='round'
+									strokeLinejoin='round'
+									strokeWidth={2}
+									d='M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13'
+								/>
+							</svg>
+						</button>
+						<button
+							onClick={handleSendMessage}
+							disabled={!messageText.trim()}
+							title='Отправить'
+							aria-label='Отправить'
+							className='bg-main1 text-white px-3 py-2 sm:px-5 rounded-lg font-medium hover:bg-main2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm flex-shrink-0'
+						>
+							<span className='hidden sm:inline'>Отправить</span>
+							<svg
+								className='w-5 h-5 sm:hidden'
+								fill='currentColor'
+								viewBox='0 0 24 24'
+								aria-hidden
+							>
+								<path d='M2.01 21L23 12 2.01 3 2 10l15 2-15 2z' />
+							</svg>
+						</button>
+					</div>
+				) : (
+					<div className='flex flex-col gap-3'>
+						{voiceRecorder.previewUrl ? (
+							<div className='flex items-center gap-3 p-3 bg-gray-bg rounded-lg'>
+								<audio
+									src={voiceRecorder.previewUrl}
+									controls
+									className='flex-1 h-9 min-w-0'
+								/>
+								<span className='text-sm text-gray flex-shrink-0'>
+									{formatAudioDuration(voiceRecorder.duration)}
+								</span>
+							</div>
+						) : (
+							<div className='flex items-center justify-center gap-4 py-2'>
+								{voiceRecorder.isRecording ? (
+									<>
+										<span className='w-2 h-2 rounded-full bg-red-500 animate-pulse' />
+										<span className='text-sm font-medium text-black'>
+											Запись {formatAudioDuration(voiceRecorder.duration)}
+										</span>
+									</>
+								) : (
+									<p className='text-sm text-gray'>
+										Нажмите кнопку, чтобы начать запись
+									</p>
+								)}
+							</div>
+						)}
+
+						<div className='flex items-center justify-center gap-3'>
+							{voiceRecorder.previewUrl ? (
+								<>
+									<button
+										type='button'
+										onClick={voiceRecorder.clearPreview}
+										className='px-4 py-2 rounded-lg bg-gray-bg text-gray hover:text-black text-sm'
+									>
+										Удалить
+									</button>
+									<button
+										type='button'
+										onClick={handleSendVoice}
+										disabled={sendingVoice}
+										className='px-5 py-2 rounded-lg bg-main1 text-white font-medium hover:bg-main2 disabled:opacity-50 text-sm'
+									>
+										{sendingVoice ? 'Отправка…' : 'Отправить'}
+									</button>
+								</>
+							) : (
+								<>
+									{voiceRecorder.isRecording && (
+										<button
+											type='button'
+											onClick={voiceRecorder.cancelRecording}
+											className='px-4 py-2 rounded-lg bg-gray-bg text-gray hover:text-black text-sm'
+										>
+											Отмена
+										</button>
+									)}
+									<button
+										type='button'
+										onClick={
+											voiceRecorder.isRecording
+												? voiceRecorder.stopRecording
+												: voiceRecorder.startRecording
+										}
+										className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors ${
+											voiceRecorder.isRecording
+												? 'bg-red-500 hover:bg-red-600 text-white'
+												: 'bg-main1 hover:bg-main2 text-white'
+										}`}
+										title={
+											voiceRecorder.isRecording
+												? 'Остановить запись'
+												: 'Начать запись'
+										}
+										aria-label={
+											voiceRecorder.isRecording
+												? 'Остановить запись'
+												: 'Начать запись'
+										}
+									>
+										{voiceRecorder.isRecording ? (
+											<span className='w-4 h-4 bg-white rounded-sm' />
+										) : (
+											<svg
+												className='w-6 h-6'
+												fill='currentColor'
+												viewBox='0 0 24 24'
+											>
+												<path d='M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-2.08c3.39-.49 6-3.39 6-6.92h-2z' />
+											</svg>
+										)}
+									</button>
+								</>
+							)}
+						</div>
+					</div>
+				)}
 			</div>
 		</div>
 	)
