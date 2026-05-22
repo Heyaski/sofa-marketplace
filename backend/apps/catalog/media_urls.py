@@ -90,7 +90,9 @@ def public_storage_object_url(object_key: str) -> str | None:
     return None
 
 
-def presigned_s3_object_url(object_key: str, *, expires_in: int = 3600) -> str | None:
+def presigned_s3_object_url(
+    object_key: str, *, expires_in: int = 3600, force: bool = False
+) -> str | None:
     """Подписанный URL для приватного S3 (кэш + один boto3-клиент)."""
     key = (object_key or "").strip().lstrip("/")
     if not key:
@@ -98,7 +100,7 @@ def presigned_s3_object_url(object_key: str, *, expires_in: int = 3600) -> str |
 
     from django.conf import settings
 
-    if getattr(settings, "S3_FILE_ACCESS_MODE", "public") != "signed":
+    if not force and getattr(settings, "S3_FILE_ACCESS_MODE", "public") != "signed":
         return public_storage_object_url(key)
 
     now = time.time()
@@ -184,18 +186,26 @@ def resolve_media_field_url(file_field, request=None) -> str | None:
             if hasattr(request, "build_absolute_uri"):
                 return request.build_absolute_uri(direct)
             return direct
-        signed = presigned_s3_object_url(name)
+        signed = presigned_s3_object_url(name, force=True)
         if signed:
             return signed
+        direct = public_storage_object_url(name)
+        if direct:
+            if str(direct).startswith(("http://", "https://")):
+                return direct
+            if hasattr(request, "build_absolute_uri"):
+                return request.build_absolute_uri(direct)
+            return direct
         return None
 
     from django.conf import settings
 
-    use_signed = getattr(settings, "S3_FILE_ACCESS_MODE", "public") == "signed"
+    use_s3 = bool(getattr(settings, "USE_S3_STORAGE", False))
     image_url: str | None = None
 
-    if use_signed:
-        image_url = presigned_s3_object_url(name)
+    # Beget: бакет часто приватный (AccessDenied на «публичном» path-style URL).
+    if use_s3:
+        image_url = presigned_s3_object_url(name, force=True)
 
     if not image_url:
         try:
