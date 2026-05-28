@@ -290,6 +290,10 @@ YOOKASSA_TEST_MODE = bool(int(get_env("YOOKASSA_TEST_MODE", "1")))  # По ум�
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Каталог, куда upload3d кладёт файлы по SFTP (обрабатывает manage.py sync_upload3d_models)
+UPLOAD3D_MODELS_INCOMING_DIR = get_env("UPLOAD3D_MODELS_INCOMING_DIR", "/home/upload3d/models")
+UPLOAD3D_MODELS_IMPORTED_SUBDIR = get_env("UPLOAD3D_MODELS_IMPORTED_SUBDIR", "imported")
+
 # Настройка хранилища файлов (Django 5.2+)
 # По умолчанию используем локальное хранилище
 STORAGES = {

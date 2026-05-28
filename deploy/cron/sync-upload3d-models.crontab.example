@@ -1,0 +1,7 @@
+# Импорт файлов из SFTP-каталога upload3d в каталог Django (как admin import-files).
+# Пользователь upload3d должен иметь право читать файлы; deploy — запускать команду.
+#
+# crontab -e (пользователь deploy):
+#
+# TZ=Asia/Vladivostok
+# */10 * * * * cd /home/deploy/sofa-marketplace/backend && /home/deploy/sofa-marketplace/backend/venv/bin/python manage.py sync_upload3d_models >> /home/deploy/sofa-marketplace/backend/logs/upload3d_sync.log 2>&1

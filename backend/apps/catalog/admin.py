@@ -999,19 +999,9 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
 
 
 def _product_model_files_q_components():
-    """Условия для GLB / RFA / IFC на полях модели (как счётчики папок и bundle в API)."""
-    has_glb = Q(model_glb__isnull=False) & ~Q(model_glb="")
-    has_rfa = (
-        Q(model_rfa__isnull=False)
-        & ~Q(model_rfa="")
-        & (Q(model_rfa__iendswith=".rfa") | Q(model_rfa__icontains=".rfa?"))
-    )
-    has_ifc = (
-        Q(model_ifc__isnull=False)
-        & ~Q(model_ifc="")
-        & (Q(model_ifc__iendswith=".ifc") | Q(model_ifc__icontains=".ifc?"))
-    )
-    return has_glb, has_rfa, has_ifc
+    from apps.catalog.product_model_files import product_model_files_q_components
+
+    return product_model_files_q_components()
 
 
 def _product_has_fbx_q():
@@ -1187,17 +1177,17 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                 label,
             )
 
-        glb = (
-            url_looks_like_browser_model_file(obj.model_glb)
-            or url_looks_like_browser_model_file(obj.model_rfa_glb_preview)
-            or url_looks_like_browser_model_file(obj.model_ar_glb)
+        from apps.catalog.product_model_files import (
+            product_has_fbx,
+            product_has_glb,
+            product_has_ifc,
+            product_has_rfa,
         )
-        rfa_raw = (obj.model_rfa or "").strip()
-        has_rfa = bool(rfa_raw) and rfa_raw.lower().split("?")[0].endswith(".rfa")
-        ifc_raw = (obj.model_ifc or "").strip()
-        has_ifc = bool(ifc_raw) and ifc_raw.lower().split("?")[0].endswith(".ifc")
-        fbx_raw = (obj.model_fbx or "").strip()
-        has_fbx = bool(fbx_raw) and fbx_raw.lower().split("?")[0].endswith(".fbx")
+
+        glb = product_has_glb(obj)
+        has_rfa = product_has_rfa(obj)
+        has_ifc = product_has_ifc(obj)
+        has_fbx = product_has_fbx(obj)
         return format_html(
             "{} {} {} {}",
             badge("GLB", glb),

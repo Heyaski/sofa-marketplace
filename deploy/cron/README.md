@@ -1,5 +1,26 @@
 # Cron / systemd для бэкенда
 
+## SFTP upload3d → каталог (FileAsset + товары)
+
+Заказчик заливает `.glb` / `.rfa` / `.ifc` / фото на сервер по SFTP в каталог **`/home/upload3d/models`** (пользователь `upload3d`). Django сам не видит эту папку, пока не запустить:
+
+```bash
+python manage.py sync_upload3d_models
+```
+
+Та же логика, что [массовый импорт ZIP](https://api.vizhub.pro/admin/catalog/fileasset/import-files/) в админке: FileAsset в S3, привязка по артикулу из имени файла (`IMR-556065.glb` и т.д.), поля `model_glb` / `model_rfa` / `model_ifc`.
+
+Переменные в `.env` (опционально):
+
+- `UPLOAD3D_MODELS_INCOMING_DIR=/home/upload3d/models`
+- `UPLOAD3D_MODELS_IMPORTED_SUBDIR=imported` — сюда переносятся обработанные файлы
+
+Автоматически каждые 10 минут: см. `sync-upload3d-models.crontab.example`.
+
+**Права:** пользователь `deploy` должен читать `/home/upload3d/models` (например, группа `upload3d` и `chmod g+rx`).
+
+---
+
 ## Обновление цен и наличия с INMYROOM (каждый день)
 
 Команда уже есть в проекте: `manage.py sync_inmyroom_prices` (`backend/apps/catalog/management/commands/sync_inmyroom_prices.py`).
