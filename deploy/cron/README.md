@@ -15,9 +15,35 @@ python manage.py sync_upload3d_models
 - `UPLOAD3D_MODELS_INCOMING_DIR=/home/upload3d/models`
 - `UPLOAD3D_MODELS_IMPORTED_SUBDIR=imported` — сюда переносятся обработанные файлы
 
-Автоматически каждые 10 минут: см. `sync-upload3d-models.crontab.example`.
+Автоматически:
+- событие по появлению/изменению файлов в `/home/upload3d/models` (systemd path watcher, см. ниже),
+- или каждые 10 минут через cron: `sync-upload3d-models.crontab.example`.
 
 **Права:** пользователь `deploy` должен читать `/home/upload3d/models` (например, группа `upload3d` и `chmod g+rx`).
+
+### Вариант: systemd path (рекомендуется — по событию)
+
+1. Установите unit-файлы:
+
+```bash
+sudo cp deploy/systemd/sofa-sync-upload3d-models.service.example /etc/systemd/system/sofa-sync-upload3d-models.service
+sudo cp deploy/systemd/sofa-sync-upload3d-models.path.example /etc/systemd/system/sofa-sync-upload3d-models.path
+```
+
+2. Включите watcher:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now sofa-sync-upload3d-models.path
+sudo systemctl status sofa-sync-upload3d-models.path --no-pager
+```
+
+3. Проверка:
+
+```bash
+sudo systemctl start sofa-sync-upload3d-models.service
+journalctl -u sofa-sync-upload3d-models.service -n 50 --no-pager
+```
 
 ---
 

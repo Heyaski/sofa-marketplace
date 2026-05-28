@@ -1,0 +1,11 @@
+[Unit]
+Description=Watch upload3d directory and trigger catalog import
+
+[Path]
+# Срабатывает при изменениях в директории (добавление/изменение файлов)
+PathModified=/home/upload3d/models
+PathChanged=/home/upload3d/models
+Unit=sofa-sync-upload3d-models.service
+
+[Install]
+WantedBy=multi-user.target
