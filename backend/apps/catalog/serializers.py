@@ -102,7 +102,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = (
             "id", "title", "article", "category", "subcategory", "description", "price",
             "material", "style", "color", "color_rgb", "brand", "country",
-            "width", "height", "depth", "weight", "availability",
+            "width", "height", "depth", "weight",
             "is_active", "is_trending", "photo_url",
             "image_asset_ids", "model_3d_asset_ids", "model_3d_id", "title_display",
             "model_glb", "model_fbx", "model_rfa", "model_ifc", "model_rfa_glb_preview",
@@ -351,7 +351,6 @@ class ProductCatalogLiteSerializer(serializers.ModelSerializer):
             "height",
             "depth",
             "weight",
-            "availability",
             "is_active",
             "is_trending",
             "photo_url",

@@ -1,9 +1,11 @@
 # Cron / systemd для бэкенда
 
-## Обновление цен с INMYROOM (каждый день)
+## Обновление цен и наличия с INMYROOM (каждый день)
 
 Команда уже есть в проекте: `manage.py sync_inmyroom_prices` (`backend/apps/catalog/management/commands/sync_inmyroom_prices.py`).
 Сайт-источник: карточки **inmyroom.ru** по `shop_url` или артикулу вида **IMR-…**.
+
+Помимо `price` в БД пишется `availability` (`in_stock` / `on_order` / `out_of_stock`) — для админки и будущего скрытия «нет в наличии»; в публичном API поле не отдаётся.
 
 ### Вариант: crontab
 

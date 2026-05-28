@@ -1,8 +1,11 @@
 """
-Обновить поле price у товаров по актуальным ценам с INMYROOM.ru.
+Обновить price и availability у товаров по данным с INMYROOM.ru.
 
 Для каждого товара URL страницы берётся из shop_url (если это ссылка на карточку inmyroom),
 иначе строится из артикула IMR-XXXXXXXX: https://www.inmyroom.ru/products/<цифры>-
+
+Наличие сохраняется в БД (in_stock / on_order / out_of_stock), на витрину не отдаётся —
+пригодно для будущего скрытия карточек «нет в наличии».
 
 Ежедневный запуск на сервере: см. `deploy/cron/README.md` (crontab или systemd timer).
 
@@ -21,7 +24,7 @@ from apps.catalog.inmyroom_price import (
     resolve_inmyroom_url,
     inmyroom_skip_reason,
     warm_up_inmyroom_session,
-    fetch_inmyroom_price_rub,
+    fetch_inmyroom_page_data,
     is_inmyroom_product_url,
     build_inmyroom_url_from_article,
 )
@@ -29,7 +32,7 @@ from apps.catalog.models import Product
 
 
 class Command(BaseCommand):
-    help = "Подтянуть цены с INMYROOM.ru по shop_url или артикулу IMR-*"
+    help = "Подтянуть цены и наличие с INMYROOM.ru по shop_url или артикулу IMR-*"
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -114,7 +117,7 @@ class Command(BaseCommand):
                     new_shop = build_inmyroom_url_from_article(product.article) if product.article else None
 
                 try:
-                    price = fetch_inmyroom_price_rub(url, session=session)
+                    page = fetch_inmyroom_page_data(url, session=session)
                 except Exception as e:
                     errors.append((product.pk, product.article or "", str(e)))
                     if sleep_s:
@@ -122,21 +125,35 @@ class Command(BaseCommand):
                     continue
 
                 old_price = product.price
+                old_availability = product.availability
+                price = page.price
+                new_availability = page.availability
+
                 changed = old_price != price
+                if new_availability and new_availability != old_availability:
+                    changed = True
                 if new_shop and not product.shop_url:
-                    changed = changed or True
+                    changed = True
 
                 if dry:
                     line = (
                         f"id={product.pk} article={product.article!r} url={url} "
                         f"price {old_price} -> {price}"
                     )
+                    if new_availability and new_availability != old_availability:
+                        line += f" | availability {old_availability} -> {new_availability}"
+                    elif new_availability:
+                        line += f" | availability={new_availability}"
+                    elif not new_availability:
+                        line += " | availability=?"
                     if new_shop and not product.shop_url:
                         line += f" | shop_url -> {new_shop}"
                     self.stdout.write(line)
                 else:
                     if changed:
                         product.price = price
+                        if new_availability:
+                            product.availability = new_availability
                         if new_shop and not product.shop_url:
                             product.shop_url = new_shop
                         updated.append(product)
@@ -148,7 +165,7 @@ class Command(BaseCommand):
                 with transaction.atomic():
                     Product.objects.bulk_update(
                         updated,
-                        ["price", "shop_url"],
+                        ["price", "availability", "shop_url"],
                         batch_size=100,
                     )
 
