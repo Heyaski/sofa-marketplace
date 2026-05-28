@@ -1,5 +1,5 @@
 [Unit]
-Description=Sofa Marketplace — sync product prices from INMYROOM.ru
+Description=Sofa Marketplace — sync prices and availability from INMYROOM.ru
 After=network-online.target postgresql.service
 Wants=network-online.target
 

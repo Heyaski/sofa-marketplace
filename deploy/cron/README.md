@@ -7,6 +7,16 @@
 
 Помимо `price` в БД пишется `availability` (`in_stock` / `on_order` / `out_of_stock`) — для админки и будущего скрытия «нет в наличии»; в публичном API поле не отдаётся.
 
+**Ручной запуск** (из каталога `backend`, с активированным venv):
+
+```bash
+python manage.py sync_inmyroom_prices --sleep 1 --set-shop-url
+```
+
+Пробный прогон без записи в БД: `--dry-run` (можно добавить `--verbose`).
+
+**Автоматически:** каждый день в **00:00** по времени сервера — через crontab или systemd timer (см. ниже).
+
 ### Вариант: crontab
 
 См. `sync-inmyroom-prices.crontab.example`: скопируйте строку, поправьте пути к `backend`, venv и к файлу логов.
@@ -26,7 +36,7 @@ mkdir -p /home/deploy/sofa-marketplace/backend/logs
    sudo cp deploy/systemd/sofa-sync-inmyroom-prices.timer.example /etc/systemd/system/sofa-sync-inmyroom-prices.timer
    ```
 
-2. В `sofa-sync-inmyroom-prices.timer` можно задать время, например `OnCalendar=*-*-* 03:15:00`.
+2. Таймер по умолчанию: `OnCalendar=*-*-* 00:00:00` (полночь, локальное время сервера).
 
 3. Включение:
 

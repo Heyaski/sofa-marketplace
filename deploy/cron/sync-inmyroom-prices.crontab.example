@@ -1,8 +1,8 @@
-# Ежедневное обновление цен с INMYROOM.ru для товаров с подходящим shop_url или артикулом IMR-*.
+# Ежедневное обновление цен и наличия с INMYROOM.ru (shop_url или артикул IMR-*).
 # Скопируйте строку на сервер под пользователем deploy и подставьте пути к venv и к backend.
 #
 # crontab -e
 #
 
-# Один раз в сутки в 03:15 (локальное время сервера)
-15 3 * * * cd /home/deploy/sofa-marketplace/backend && /home/deploy/sofa-marketplace/backend/.venv/bin/python manage.py sync_inmyroom_prices --sleep 1 --set-shop-url >> /home/deploy/sofa-marketplace/backend/logs/inmyroom_sync.log 2>&1
+# Каждый день в 00:00 (локальное время сервера)
+0 0 * * * cd /home/deploy/sofa-marketplace/backend && /home/deploy/sofa-marketplace/backend/.venv/bin/python manage.py sync_inmyroom_prices --sleep 1 --set-shop-url >> /home/deploy/sofa-marketplace/backend/logs/inmyroom_sync.log 2>&1

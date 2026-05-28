@@ -1,8 +1,8 @@
 [Unit]
-Description=Daily — sync INMYROOM prices for Sofa Marketplace
+Description=Daily — sync INMYROOM prices and availability for Sofa Marketplace
 
 [Timer]
-OnCalendar=*-*-* 03:15
+OnCalendar=*-*-* 00:00:00
 Persistent=true
 
 [Install]
