@@ -113,12 +113,35 @@ def build_inmyroom_url_from_article(article: str) -> str | None:
     return f"https://www.inmyroom.ru/products/{nid}-"
 
 
+def canonical_inmyroom_url(url: str) -> str:
+    """Один ключ на карточку витрины (варианты IMR-* и разные slug → один id)."""
+    m = re.search(r"/products/(\d+)", url or "", re.I)
+    if m:
+        return f"https://www.inmyroom.ru/products/{m.group(1)}-"
+    return (url or "").strip()
+
+
 def resolve_inmyroom_url(product: Product) -> str | None:
     if product.shop_url and is_inmyroom_product_url(product.shop_url):
-        return product.shop_url.strip()
+        return canonical_inmyroom_url(product.shop_url.strip())
     if product.article:
-        return build_inmyroom_url_from_article(product.article)
+        built = build_inmyroom_url_from_article(product.article)
+        return canonical_inmyroom_url(built) if built else None
     return None
+
+
+def filter_products_for_inmyroom_sync(qs):
+    """
+    Товары, у которых теоретически есть карточка INMYROOM (без HTTP).
+    Сужает выборку перед массовым парсингом.
+    """
+    from django.db.models import Q
+
+    return qs.filter(
+        Q(shop_url__icontains="inmyroom.ru")
+        | Q(article__iregex=r"^IMR")
+        | Q(article__iregex=r"IMR[\s_-]?\d")
+    ).distinct()
 
 
 def inmyroom_skip_reason(product: Product) -> str:
