@@ -460,6 +460,8 @@ else:
 
 # gltfpack: целевой размер 20 MB (баланс качества и скорости)
 GLB_TARGET_MB = float(get_env("GLB_TARGET_MB", "20"))
+# При сохранении GLB в S3 (GLBOptimizingS3Storage). Для массового SFTP-импорта: 0
+GLB_OPTIMIZE_ON_SAVE = bool(int(get_env("GLB_OPTIMIZE_ON_SAVE", "1")))
 
 # Настройки для загрузки больших файлов (3D модели могут быть очень большими)
 # ВАЖНО: FILE_UPLOAD_MAX_MEMORY_SIZE должен быть НЕБОЛЬШИМ, чтобы файлы сразу писались на диск

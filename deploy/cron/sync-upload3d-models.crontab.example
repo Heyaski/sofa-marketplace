@@ -5,3 +5,4 @@
 #
 # TZ=Asia/Vladivostok
 # */10 * * * * cd /home/deploy/sofa-marketplace/backend && /home/deploy/sofa-marketplace/backend/venv/bin/python manage.py sync_upload3d_models >> /home/deploy/sofa-marketplace/backend/logs/upload3d_sync.log 2>&1
+# (gltfpack при импорте выключен по умолчанию; в .env можно GLB_OPTIMIZE_ON_SAVE=0)

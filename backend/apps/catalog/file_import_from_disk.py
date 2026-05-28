@@ -8,7 +8,7 @@ import os
 import re
 import shutil
 from collections import defaultdict
-from typing import Any
+from typing import Any, Callable
 
 from django.conf import settings
 from django.core.files.base import ContentFile
@@ -185,6 +185,7 @@ def import_directory(
     *,
     dry_run: bool = False,
     move_imported: bool = True,
+    progress: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
     """
     Обойти каталог (SFTP incoming), загрузить в FileAsset + привязать к товарам.
@@ -207,6 +208,7 @@ def import_directory(
     paths_by_article: dict[str, list[str]] = defaultdict(list)
 
     imported_name = imported_subdir_name()
+    processed = 0
 
     for dirpath, dirnames, filenames in os.walk(root_dir):
         dirnames[:] = [
@@ -256,8 +258,20 @@ def import_directory(
                 articles_files[base_article]["models"].append(file_asset)
             paths_by_article[base_article].append(full_path)
 
+            processed += 1
+            if progress and processed % 25 == 0:
+                progress(
+                    f"  … загружено в S3: {processed} файлов "
+                    f"(создано {stats['created']}, обновлено {stats['updated']})"
+                )
+
     if dry_run:
         return stats
+
+    if progress:
+        progress(
+            f"Привязка к товарам: {len(articles_files)} артикул(ов)…"
+        )
 
     for article, files_data in articles_files.items():
         try:
