@@ -262,25 +262,25 @@ export default function ProductPage({ params }: ProductPageProps) {
 
 							{/* Размеры (без веса) */}
 							{(product.width || product.height || product.depth) && (
-								<div className='space-y-2 text-sm'>
-									<div className='text-sm font-medium text-black'>Размеры:</div>
-									<div className='grid grid-cols-2 gap-2 text-sm'>
+								<div className='rounded-lg border border-gray2 bg-gray-bg/40 p-3 sm:p-4'>
+									<div className='text-sm font-semibold text-black mb-2'>Характеристики</div>
+									<div className='space-y-1.5 text-sm'>
 										{product.width != null && (
-											<div className='flex justify-between'>
-												<span className='text-gray'>Ширина:</span>
-												<span className='text-black'>{formatDimension(product.width)} см</span>
+											<div className='grid grid-cols-[1fr_auto] items-center gap-4'>
+												<span className='text-gray'>Ширина</span>
+												<span className='text-black font-medium'>{formatDimension(product.width)} см</span>
 											</div>
 										)}
 										{product.height != null && (
-											<div className='flex justify-between'>
-												<span className='text-gray'>Высота:</span>
-												<span className='text-black'>{formatDimension(product.height)} см</span>
+											<div className='grid grid-cols-[1fr_auto] items-center gap-4'>
+												<span className='text-gray'>Высота</span>
+												<span className='text-black font-medium'>{formatDimension(product.height)} см</span>
 											</div>
 										)}
 										{product.depth != null && (
-											<div className='flex justify-between'>
-												<span className='text-gray'>Глубина:</span>
-												<span className='text-black'>{formatDimension(product.depth)} см</span>
+											<div className='grid grid-cols-[1fr_auto] items-center gap-4'>
+												<span className='text-gray'>Глубина</span>
+												<span className='text-black font-medium'>{formatDimension(product.depth)} см</span>
 											</div>
 										)}
 									</div>
