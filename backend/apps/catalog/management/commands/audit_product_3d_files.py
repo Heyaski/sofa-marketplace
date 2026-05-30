@@ -28,26 +28,50 @@ class Command(BaseCommand):
             default=[],
             help="Фильтр по подстроке в названии категории (можно несколько раз)",
         )
+        parser.add_argument(
+            "--category-id",
+            type=int,
+            default=None,
+            help="Точный id категории (надёжнее кириллицы в SSH)",
+        )
         parser.add_argument("--limit", type=int, default=15, help="Примеров в каждом блоке")
 
     def handle(self, *args, **options):
         needles = [n.strip().lower() for n in options["category"] if n and n.strip()]
+        category_id = options.get("category_id")
         limit = max(1, options["limit"])
 
         has_glb, has_rfa, has_ifc = product_model_files_q_components()
         has_fbx = Q(model_fbx__isnull=False) & ~Q(model_fbx="")
 
         cats = Category.objects.all().order_by("order", "id")
-        if needles:
+        if category_id is not None:
+            cats = cats.filter(pk=category_id)
+        elif needles:
             q_cat = Q()
             for n in needles:
                 q_cat |= Q(name__icontains=n)
             cats = cats.filter(q_cat)
 
+        if not cats.exists():
+            self.stdout.write(
+                self.style.WARNING(
+                    "Категории не найдены по фильтру. "
+                    "Попробуйте --category-id 14 или audit без фильтра. "
+                    "В SSH кириллица в --category часто ломается — используйте id."
+                )
+            )
+            self.stdout.write("Все категории в БД:")
+            for c in Category.objects.all().order_by("order", "id"):
+                n = Product.objects.filter(category_id=c.id).count()
+                self.stdout.write(f"  id={c.id}  {c.name!r}  товаров={n}")
+            return
+
         self.stdout.write(self.style.MIGRATE_HEADING("Категории (как «папки» в админке)"))
         self.stdout.write(
             f"{'ID':>6}  {'Категория':<40}  {'всего':>6}  {'GLB':>6}  {'RFA':>6}  {'IFC':>6}  {'комплект':>8}"
         )
+        rows_shown = 0
         for cat in cats:
             agg = Product.objects.filter(category_id=cat.id).aggregate(
                 total=Count("id"),
@@ -56,12 +80,23 @@ class Command(BaseCommand):
                 n_ifc=Count("id", filter=has_ifc),
                 n_bundle=Count("id", filter=has_glb & has_rfa & has_ifc),
             )
-            if agg["total"] == 0 and needles:
+            if agg["total"] == 0 and (needles or category_id is not None):
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"{cat.id:6d}  {cat.name[:40]:<40}  {agg['total']:6d}  "
+                        f"(категория есть, но товаров с category_id={cat.id} нет в БД)"
+                    )
+                )
+                rows_shown += 1
                 continue
             self.stdout.write(
                 f"{cat.id:6d}  {cat.name[:40]:<40}  {agg['total']:6d}  "
                 f"{agg['n_glb']:6d}  {agg['n_rfa']:6d}  {agg['n_ifc']:6d}  {agg['n_bundle']:8d}"
             )
+            rows_shown += 1
+
+        if rows_shown == 0:
+            self.stdout.write(self.style.WARNING("  (нет строк — см. список категорий выше при пустом фильтре)"))
 
         base_qs = Product.objects.all()
         if needles:
