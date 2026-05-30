@@ -5,7 +5,8 @@ import re
 from functools import reduce
 
 from django.core.cache import cache
-from django.db import models
+from django.db import connection, models
+from django.db.models.expressions import RawSQL
 from django.db.models import Prefetch, Q
 from django.db.models.functions import Concat
 from django_filters.rest_framework import DjangoFilterBackend
@@ -116,7 +117,48 @@ def catalog_has_glb_q() -> models.Q:
             )
         )
     )
-    return has_direct_glb_url_q | has_glb_asset_by_model_id_q | has_glb_via_article_q
+    # Артикул с суффиксом цвета (IMR-1871152BLK) ↔ файл IMR-1871152.glb
+    has_glb_via_article_prefix_q = models.Q()
+    if connection.vendor == "postgresql":
+        asset_table = FileAsset._meta.db_table
+        has_glb_via_article_prefix_q = models.Exists(
+            FileAsset.objects.filter(file_type="3d_model")
+            .filter(glb_ext_q)
+            .annotate(
+                _article_prefix=RawSQL(
+                    f"CASE WHEN LENGTH({asset_table}.asset_id) >= 4 "
+                    f"AND LEFT(LOWER(%s), LENGTH({asset_table}.asset_id)) = LOWER({asset_table}.asset_id) "
+                    f"THEN 1 ELSE 0 END",
+                    [models.OuterRef("article")],
+                )
+            )
+            .filter(_article_prefix=1)
+        )
+    # GLB в FileAsset по коду из названия (Стол4617), если артикул IMR-* не совпал с именем файла.
+    has_glb_via_title_q = models.Q()
+    if connection.vendor == "postgresql":
+        asset_table = FileAsset._meta.db_table
+        has_glb_via_title_q = models.Exists(
+            FileAsset.objects.filter(file_type="3d_model")
+            .filter(glb_ext_q)
+            .annotate(
+                _title_match=RawSQL(
+                    f"CASE WHEN LENGTH({asset_table}.asset_id) >= 4 "
+                    f"AND {asset_table}.asset_id ~ '[0-9]' "
+                    f"AND POSITION(LOWER({asset_table}.asset_id) IN LOWER(%s)) > 0 "
+                    f"THEN 1 ELSE 0 END",
+                    [models.OuterRef("title")],
+                )
+            )
+            .filter(_title_match=1)
+        )
+    return (
+        has_direct_glb_url_q
+        | has_glb_asset_by_model_id_q
+        | has_glb_via_article_q
+        | has_glb_via_article_prefix_q
+        | has_glb_via_title_q
+    )
 
 
 def catalog_stale_cdn_only_q() -> models.Q:

@@ -632,25 +632,13 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
                     # После создания всех FileAsset, привязываем их к существующим товарам по артикулу
                     for article, files_data in articles_files.items():
                         try:
-                            # Ищем товар: по base article, по полному ID или по model_3d_asset_ids (столбец U)
-                            product = Product.objects.filter(article__iexact=article).first()
-                            if not product and files_data.get('models'):
-                                first_asset_id = files_data['models'][0].asset_id
-                                if first_asset_id != article:
-                                    product = Product.objects.filter(article__iexact=first_asset_id).first()
-                                # Id 3d (столбец U) может отличаться от артикула — ищем по model_3d_asset_ids
-                                if not product:
-                                    mid = first_asset_id.strip()
-                                    product = Product.objects.filter(
-                                        Q(model_3d_asset_ids__iexact=mid) |
-                                        Q(model_3d_asset_ids__istartswith=mid + ',') |
-                                        Q(model_3d_asset_ids__iendswith=',' + mid) |
-                                        Q(model_3d_asset_ids__icontains=',' + mid + ',')
-                                    ).first()
-                            if not product and files_data.get('images'):
-                                first_asset_id = files_data['images'][0].asset_id
-                                if first_asset_id != article:
-                                    product = Product.objects.filter(article__iexact=first_asset_id).first()
+                            from apps.catalog.asset_matching import find_product_for_file_asset_id
+
+                            product = find_product_for_file_asset_id(article)
+                            if not product and files_data.get("models"):
+                                product = find_product_for_file_asset_id(files_data["models"][0].asset_id)
+                            if not product and files_data.get("images"):
+                                product = find_product_for_file_asset_id(files_data["images"][0].asset_id)
                             
                             if product:
                                 # Привязываем изображения
@@ -812,34 +800,13 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
                 # Привязываем файлы к товарам
                 for article, files_data in articles_files.items():
                     try:
-                        # Ищем товар по артикулу (base/полный ID) или по model_3d_asset_ids (столбец U)
-                        article_clean = article.strip().upper()
-                        product = Product.objects.filter(article__iexact=article_clean).first()
-                        if not product and (files_data.get('models') or files_data.get('images')):
-                            models_list = files_data.get('models') or []
-                            images_list = files_data.get('images') or []
-                            first_asset = (models_list[0] if models_list else None) or (
-                                images_list[0] if images_list else None
-                            )
-                            if first_asset and first_asset.asset_id != article:
-                                product = Product.objects.filter(article__iexact=first_asset.asset_id).first()
-                            # Id 3d (столбец U) может отличаться от артикула
-                            if not product and files_data.get('models'):
-                                mid = files_data['models'][0].asset_id.strip()
-                                product = Product.objects.filter(
-                                    Q(model_3d_asset_ids__iexact=mid) |
-                                    Q(model_3d_asset_ids__istartswith=mid + ',') |
-                                    Q(model_3d_asset_ids__iendswith=',' + mid) |
-                                    Q(model_3d_asset_ids__icontains=',' + mid + ',')
-                                ).first()
-                        # Если не найдено, пробуем поиск без учета пробелов в артикуле товара
-                        if not product:
-                            # Ищем товары, у которых артикул совпадает после удаления пробелов
-                            all_products = Product.objects.all()
-                            for p in all_products:
-                                if p.article and p.article.strip().upper().replace(' ', '') == article_clean.replace(' ', ''):
-                                    product = p
-                                    break
+                        from apps.catalog.asset_matching import find_product_for_file_asset_id
+
+                        product = find_product_for_file_asset_id(article)
+                        if not product and files_data.get("models"):
+                            product = find_product_for_file_asset_id(files_data["models"][0].asset_id)
+                        if not product and files_data.get("images"):
+                            product = find_product_for_file_asset_id(files_data["images"][0].asset_id)
                         
                         if product:
                             # Привязываем изображения

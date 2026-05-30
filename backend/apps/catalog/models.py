@@ -167,10 +167,16 @@ class Product(models.Model):
         """3D-модели FileAsset: сначала model_3d_asset_ids, иначе — привязка по артикулу (как у изображений)."""
         raw = (self.model_3d_asset_ids or "").strip()
         if not raw:
-            return self._get_assets_by_article_fallback('3d_model')
+            article_assets = self._get_assets_by_article_fallback('3d_model')
+            if article_assets.exists():
+                return article_assets
+            return self._get_assets_by_title_token_fallback('3d_model')
         ids = [i.strip() for i in raw.split(',') if i.strip()]
         if not ids:
-            return self._get_assets_by_article_fallback('3d_model')
+            article_assets = self._get_assets_by_article_fallback('3d_model')
+            if article_assets.exists():
+                return article_assets
+            return self._get_assets_by_title_token_fallback('3d_model')
         # Собираем все варианты для поиска: точный id + вариант с пробелом (ДиванП7682 -> Диван П7682)
         import re
         ordered_keys = []
@@ -246,7 +252,27 @@ class Product(models.Model):
                 )
             return qs
 
-        return self._get_assets_by_article_fallback('3d_model')
+        article_assets = self._get_assets_by_article_fallback('3d_model')
+        if article_assets.exists():
+            return article_assets
+        return self._get_assets_by_title_token_fallback('3d_model')
+
+    def _get_assets_by_title_token_fallback(self, file_type: str):
+        """FileAsset по кодам из названия (Стол4617), когда артикул IMR-* ≠ имени файла."""
+        from apps.catalog.asset_matching import asset_id_search_variants, title_tokens_for_asset_match
+
+        tokens = title_tokens_for_asset_match(self.title)
+        if not tokens:
+            return FileAsset.objects.none()
+
+        q = Q()
+        for tok in tokens:
+            for variant in asset_id_search_variants(tok):
+                q |= Q(asset_id__iexact=variant)
+                q |= Q(asset_id__istartswith=f"{variant}_")
+                q |= Q(asset_id__istartswith=f"{variant}-")
+
+        return FileAsset.objects.filter(file_type=file_type).filter(q).order_by('asset_id')
     
     def get_glb_url(self):
         """Получить URL GLB модели (приоритет: model_glb, затем FileAsset)"""
