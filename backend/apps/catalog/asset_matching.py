@@ -57,6 +57,7 @@ def file_asset_lookup_q(asset_id: str) -> Q:
         q |= Q(model_3d_asset_ids__iendswith=f",{variant}")
         q |= Q(model_3d_asset_ids__icontains=f",{variant},")
         q |= Q(title__icontains=variant)
+        q |= Q(model_glb__iexact=variant)
 
     return q
 

@@ -2,7 +2,8 @@
 Опубликовать товары на витрину после заливки FileAsset (SFTP / админка).
 
   python manage.py publish_catalog_assets --category-id 14
-  python manage.py publish_catalog_assets --category-id 14 --generate-2d --workers 2
+  python manage.py publish_catalog_assets --category-id 14 --link-orphans
+  python manage.py publish_catalog_assets --category-id 14 --verbose --generate-2d --workers 2
 """
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
@@ -10,7 +11,9 @@ from django.core.management.base import BaseCommand
 from apps.catalog.catalog_asset_publish import (
     backfill_queryset,
     catalog_visibility_counts,
+    diagnose_category_vs_pouf,
     format_counts,
+    link_orphan_glb_assets,
 )
 from apps.catalog.models import Product
 
@@ -22,6 +25,16 @@ class Command(BaseCommand):
         parser.add_argument("--category-id", type=int, default=None)
         parser.add_argument("--category", type=str, default="", help="Подстрока в названии категории")
         parser.add_argument("--dry-run", action="store_true")
+        parser.add_argument(
+            "--link-orphans",
+            action="store_true",
+            help="Обратная привязка: каждый GLB FileAsset → товар (как у пуфов)",
+        )
+        parser.add_argument(
+            "--verbose",
+            action="store_true",
+            help="Примеры полей vs рабочий пуф",
+        )
         parser.add_argument(
             "--generate-2d",
             action="store_true",
@@ -43,8 +56,26 @@ class Command(BaseCommand):
         if limit:
             qs = qs[:limit]
 
+        if options["verbose"] and category_id is not None:
+            self.stdout.write(self.style.MIGRATE_HEADING("Сравнение с рабочим пуфом"))
+            for line in diagnose_category_vs_pouf(category_id):
+                self.stdout.write(line)
+            self.stdout.write("")
+
         before = catalog_visibility_counts(qs)
         self.stdout.write(format_counts("До", before))
+
+        if options["link_orphans"]:
+            stats = link_orphan_glb_assets(
+                category_id=category_id,
+                dry_run=options["dry_run"],
+            )
+            self.stdout.write(
+                f"Link orphans: scanned={stats['scanned']} "
+                f"matched_in_category={stats['matched_in_category']} "
+                f"linked={stats['linked']} "
+                f"glb_without_product={stats['orphans_no_product']}"
+            )
 
         updated, seen = backfill_queryset(qs, dry_run=options["dry_run"])
         self.stdout.write(
@@ -62,18 +93,15 @@ class Command(BaseCommand):
 
         if options["generate_2d"]:
             self.stdout.write("Генерация 2D-превью из GLB…")
-            gen_kwargs = {"workers": max(1, options["workers"])}
-            if category_id is not None:
-                # generate_2d не фильтрует категорию — ограничим по id товаров с GLB без фото
-                pass
-            call_command("generate_2d_from_glb", **gen_kwargs)
+            call_command("generate_2d_from_glb", workers=max(1, options["workers"]))
             final = catalog_visibility_counts(qs)
             self.stdout.write(format_counts("После 2D", final))
 
         if after["visible_3d"] == 0 and before["total"] > 0:
             self.stdout.write(
                 self.style.WARNING(
-                    "На витрине 3D по-прежнему 0: проверьте, что .glb в FileAsset "
-                    "и имя файла совпадает с артикулом / кодом в title (Стол4617)."
+                    "На витрине 3D = 0. Категория в БД есть (товары привязаны), но нет связки "
+                    "FileAsset ↔ товар. Имена файлов должны совпадать с кодом в title/model_3d_asset_ids "
+                    "(как Пуф1510.glb у пуфов), либо с артикулом IMR-* без суффикса цвета."
                 )
             )

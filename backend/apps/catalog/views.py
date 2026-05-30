@@ -117,10 +117,42 @@ def catalog_has_glb_q() -> models.Q:
             )
         )
     )
-    # Артикул с суффиксом цвета (IMR-1871152BLK) ↔ файл IMR-1871152.glb
+    # model_glb = «Стол4617» (код из Excel), FileAsset на S3 с тем же asset_id
+    has_glb_model_glb_code_q = (
+        models.Q(model_glb__isnull=False)
+        & ~models.Q(model_glb="")
+        & ~models.Q(model_glb__startswith="http://")
+        & ~models.Q(model_glb__startswith="https://")
+        & ~models.Q(model_glb__startswith="/")
+        & models.Exists(
+            FileAsset.objects.filter(file_type="3d_model")
+            .filter(glb_ext_q)
+            .filter(
+                models.Q(asset_id__iexact=models.OuterRef("model_glb"))
+                | models.Q(
+                    asset_id__istartswith=Concat(models.OuterRef("model_glb"), models.Value("_"))
+                )
+                | models.Q(
+                    asset_id__istartswith=Concat(models.OuterRef("model_glb"), models.Value("-"))
+                )
+            )
+        )
+    )
+    has_glb_in_csv_model_ids_q = models.Q()
     has_glb_via_article_prefix_q = models.Q()
     if connection.vendor == "postgresql":
         asset_table = FileAsset._meta.db_table
+        product_table = Product._meta.db_table
+        has_glb_in_csv_model_ids_q = models.Exists(
+            FileAsset.objects.filter(file_type="3d_model")
+            .filter(glb_ext_q)
+            .extra(
+                where=[
+                    f"POSITION(',' || LOWER({asset_table}.asset_id) || ',' IN "
+                    f"',' || LOWER(REPLACE(COALESCE({product_table}.model_3d_asset_ids, ''), ' ', '')) || ',') > 0"
+                ]
+            )
+        )
         has_glb_via_article_prefix_q = models.Exists(
             FileAsset.objects.filter(file_type="3d_model")
             .filter(glb_ext_q)
@@ -155,6 +187,8 @@ def catalog_has_glb_q() -> models.Q:
     return (
         has_direct_glb_url_q
         | has_glb_asset_by_model_id_q
+        | has_glb_in_csv_model_ids_q
+        | has_glb_model_glb_code_q
         | has_glb_via_article_q
         | has_glb_via_article_prefix_q
         | has_glb_via_title_q
