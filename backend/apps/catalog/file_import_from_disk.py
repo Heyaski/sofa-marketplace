@@ -12,8 +12,8 @@ from typing import Any, Callable
 
 from django.conf import settings
 from django.core.files.base import ContentFile
-from django.db.models import Q
 
+from apps.catalog.asset_matching import find_product_for_file_asset_id
 from apps.catalog.file_urls import should_replace_product_model_url_with_asset
 from apps.catalog.models import FileAsset, Product, ProductImage
 
@@ -90,33 +90,21 @@ def upsert_fileasset_from_path(full_path: str, filename: str) -> tuple[FileAsset
 def link_article_files_to_product(
     article: str,
     files_data: dict[str, list[FileAsset]],
-) -> tuple[bool, list[str]]:
-    """Привязать FileAsset к товару по артикулу. Returns (linked, errors)."""
+) -> tuple[bool, list[str], int | None]:
+    """Привязать FileAsset к товару. Returns (linked, errors, product_pk)."""
     errors: list[str] = []
-    product = Product.objects.filter(article__iexact=article).first()
+    product = find_product_for_file_asset_id(article)
     if not product and files_data.get("models"):
-        first_asset_id = files_data["models"][0].asset_id
-        if first_asset_id != article:
-            product = Product.objects.filter(article__iexact=first_asset_id).first()
-        if not product:
-            mid = first_asset_id.strip()
-            product = Product.objects.filter(
-                Q(model_3d_asset_ids__iexact=mid)
-                | Q(model_3d_asset_ids__istartswith=mid + ",")
-                | Q(model_3d_asset_ids__iendswith="," + mid)
-                | Q(model_3d_asset_ids__icontains="," + mid + ",")
-            ).first()
+        product = find_product_for_file_asset_id(files_data["models"][0].asset_id)
     if not product and files_data.get("images"):
-        first_asset_id = files_data["images"][0].asset_id
-        if first_asset_id != article:
-            product = Product.objects.filter(article__iexact=first_asset_id).first()
+        product = find_product_for_file_asset_id(files_data["images"][0].asset_id)
 
     if not product:
         if files_data["images"] or files_data["models"]:
             errors.append(
                 f"Товар с артикулом '{article}' не найден. FileAsset создан, привязки нет."
             )
-        return False, errors
+        return False, errors, None
 
     if files_data["images"]:
         sorted_images = sorted(files_data["images"], key=lambda x: x.asset_id)
@@ -177,7 +165,10 @@ def link_article_files_to_product(
             "model_ifc",
         ]
     )
-    return True, errors
+    from apps.catalog.catalog_asset_publish import apply_model_urls_from_assets
+
+    apply_model_urls_from_assets(product)
+    return True, errors, product.pk
 
 
 def import_directory(
@@ -199,6 +190,7 @@ def import_directory(
         "updated": 0,
         "skipped": 0,
         "products_linked": 0,
+        "linked_product_ids": [],
         "files_moved": 0,
         "errors": [],
     }
@@ -275,10 +267,12 @@ def import_directory(
 
     for article, files_data in articles_files.items():
         try:
-            linked, errs = link_article_files_to_product(article, files_data)
+            linked, errs, product_pk = link_article_files_to_product(article, files_data)
             stats["errors"].extend(errs)
             if linked:
                 stats["products_linked"] += 1
+                if product_pk:
+                    stats["linked_product_ids"].append(product_pk)
                 if move_imported:
                     dest_dir = os.path.join(root_dir, imported_name)
                     os.makedirs(dest_dir, exist_ok=True)

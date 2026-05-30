@@ -81,6 +81,19 @@ class Command(BaseCommand):
                 f"файлов в imported/: {stats['files_moved']}"
             )
         )
+
+        linked_ids = stats.get("linked_product_ids") or []
+        if linked_ids:
+            from apps.catalog.catalog_asset_publish import backfill_queryset
+            from apps.catalog.models import Product
+
+            qs = Product.objects.filter(pk__in=linked_ids, is_active=True)
+            updated, _ = backfill_queryset(qs)
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Backfill model_glb/rfa/ifc для привязанных товаров: обновлено {updated}"
+                )
+            )
         for err in stats["errors"][:30]:
             self.stdout.write(self.style.WARNING(err))
         if len(stats["errors"]) > 30:

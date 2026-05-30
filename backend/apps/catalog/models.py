@@ -265,14 +265,27 @@ class Product(models.Model):
         if not tokens:
             return FileAsset.objects.none()
 
-        q = Q()
+        variants: set[str] = set()
         for tok in tokens:
-            for variant in asset_id_search_variants(tok):
-                q |= Q(asset_id__iexact=variant)
-                q |= Q(asset_id__istartswith=f"{variant}_")
-                q |= Q(asset_id__istartswith=f"{variant}-")
+            variants.update(asset_id_search_variants(tok))
+        if not variants:
+            return FileAsset.objects.none()
 
-        return FileAsset.objects.filter(file_type=file_type).filter(q).order_by('asset_id')
+        variants_list = list(variants)[:40]
+        exact_pks = set(
+            FileAsset.objects.filter(file_type=file_type, asset_id__in=variants_list).values_list(
+                "pk", flat=True
+            )
+        )
+        for v in variants_list[:8]:
+            for pk in FileAsset.objects.filter(file_type=file_type).filter(
+                Q(asset_id__istartswith=f"{v}_") | Q(asset_id__istartswith=f"{v}-")
+            ).values_list("pk", flat=True)[:10]:
+                exact_pks.add(pk)
+
+        if not exact_pks:
+            return FileAsset.objects.none()
+        return FileAsset.objects.filter(pk__in=exact_pks).order_by("asset_id")
     
     def get_glb_url(self):
         """Получить URL GLB модели (приоритет: model_glb, затем FileAsset)"""

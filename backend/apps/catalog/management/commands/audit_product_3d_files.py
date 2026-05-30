@@ -99,7 +99,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("  (нет строк — см. список категорий выше при пустом фильтре)"))
 
         base_qs = Product.objects.all()
-        if needles:
+        if needles or category_id is not None:
             base_qs = base_qs.filter(category__in=cats)
 
         self.stdout.write("")

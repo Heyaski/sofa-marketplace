@@ -34,6 +34,34 @@ def is_ephemeral_external_model_url(url: str | None) -> bool:
     return False
 
 
+def url_is_trusted_storage(url: str | None) -> bool:
+    """URL ведёт на наш S3 / media, а не на чужой CDN из Excel."""
+    low = (url or "").lower().strip()
+    if not low.startswith(("http://", "https://")):
+        return False
+    try:
+        from django.conf import settings
+
+        bucket = (getattr(settings, "AWS_STORAGE_BUCKET_NAME", None) or "").lower()
+        if bucket and bucket in low:
+            return True
+        endpoint = (getattr(settings, "AWS_S3_ENDPOINT_URL", None) or "").lower()
+        if endpoint:
+            host = endpoint.replace("https://", "").replace("http://", "").split("/")[0]
+            if host and host in low:
+                return True
+        custom = (getattr(settings, "AWS_S3_CUSTOM_DOMAIN", None) or "").lower()
+        if custom and custom in low:
+            return True
+    except Exception:
+        pass
+    if "storage.beget.cloud" in low and ("/assets/" in low or "/products/" in low):
+        return True
+    if low.startswith("/media/") or "/media/assets/" in low:
+        return True
+    return False
+
+
 def should_replace_product_model_url_with_asset(existing: str | None, asset_url: str) -> bool:
     """Обновлять ли поле товара URL-ом из загруженного в storage FileAsset."""
     ex = (existing or "").strip()
@@ -44,4 +72,12 @@ def should_replace_product_model_url_with_asset(existing: str | None, asset_url:
         return True
     if ex == au:
         return False
-    return is_ephemeral_external_model_url(ex)
+    if is_ephemeral_external_model_url(ex):
+        return True
+    # Excel часто кладёт не-GLB или не-http — не блокируем подстановку S3.
+    if not url_looks_like_browser_model_file(ex):
+        return True
+    # Уже есть чужой http, а в FileAsset — наш S3.
+    if url_is_trusted_storage(au) and not url_is_trusted_storage(ex):
+        return True
+    return False
