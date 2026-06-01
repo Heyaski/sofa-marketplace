@@ -94,6 +94,13 @@ class Command(BaseCommand):
                     f"Backfill model_glb/rfa/ifc для привязанных товаров: обновлено {updated}"
                 )
             )
+            from apps.catalog.glb_2d_preview import queue_glb_2d_previews_for_product_ids
+
+            queued_2d = queue_glb_2d_previews_for_product_ids(linked_ids)
+            if queued_2d:
+                self.stdout.write(
+                    self.style.SUCCESS(f"2D-превью поставлено в очередь: {queued_2d}")
+                )
         for err in stats["errors"][:30]:
             self.stdout.write(self.style.WARNING(err))
         if len(stats["errors"]) > 30:

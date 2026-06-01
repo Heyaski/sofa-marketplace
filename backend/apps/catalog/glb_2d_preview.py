@@ -17,6 +17,7 @@ import subprocess
 import tempfile
 import threading
 import urllib.request
+from collections.abc import Iterable
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 
@@ -379,6 +380,39 @@ def product_lacks_catalog_2d(product: Product) -> bool:
         if asset.file and getattr(asset.file, "name", None):
             return False
     return True
+
+
+def maybe_queue_glb_2d_preview(product: Product) -> bool:
+    """
+    Поставить Celery-задачу на PNG из GLB, если товару не хватает 2D-превью.
+    Вызывается из signals, импорта файлов и backfill model_glb.
+    """
+    if not getattr(settings, "GLB_2D_PREVIEW_ENABLED", True):
+        return False
+    if not getattr(settings, "GLB_2D_PREVIEW_AUTO_QUEUE", True):
+        return False
+    if not product_lacks_catalog_2d(product):
+        return False
+    if not load_primary_glb_bytes(product):
+        return False
+    from apps.catalog.tasks import generate_glb_2d_preview_task
+
+    generate_glb_2d_preview_task.delay(product.pk)
+    return True
+
+
+def queue_glb_2d_previews_for_product_ids(product_ids: Iterable[int]) -> int:
+    """После импорта/SFTP — явно поставить 2D-рендер для привязанных товаров."""
+    queued = 0
+    seen: set[int] = set()
+    for pk in product_ids:
+        if not pk or pk in seen:
+            continue
+        seen.add(pk)
+        product = Product.objects.filter(pk=pk).first()
+        if product and maybe_queue_glb_2d_preview(product):
+            queued += 1
+    return queued
 
 
 def load_primary_glb_bytes(product: Product) -> bytes | None:

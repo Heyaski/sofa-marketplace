@@ -515,6 +515,7 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
                     updated_count = 0
                     skipped_count = 0
                     products_linked_count = 0
+                    linked_product_ids = []
                     errors = []
                     
                     # Расширения файлов для определения типа
@@ -714,6 +715,7 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
                                 # Сохраняем товар
                                 product.save(update_fields=['image_asset_ids', 'model_3d_asset_ids', 'model_glb', 'model_fbx', 'model_usdz', 'model_rfa', 'model_ifc'])
                                 products_linked_count += 1
+                                linked_product_ids.append(product.pk)
                             else:
                                 # Товар не найден - добавляем в ошибки для информации
                                 if files_data['images'] or files_data['models']:
@@ -721,8 +723,13 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
                                 
                         except Exception as e:
                             errors.append(f"Ошибка при привязке файлов к товару с артикулом '{article}': {str(e)}")
-                    
-                    
+
+                    queued_2d = 0
+                    if linked_product_ids:
+                        from apps.catalog.glb_2d_preview import queue_glb_2d_previews_for_product_ids
+
+                        queued_2d = queue_glb_2d_previews_for_product_ids(linked_product_ids)
+
                     # Формируем сообщение
                     success_parts = []
                     if created_count > 0:
@@ -731,6 +738,10 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
                         success_parts.append(f"файлов обновлено: {updated_count}")
                     if products_linked_count > 0:
                         success_parts.append(f"товаров обновлено: {products_linked_count}")
+                    if queued_2d > 0:
+                        success_parts.append(
+                            f"2D-превью в очереди: {queued_2d} (Celery worker + Playwright)"
+                        )
                     if skipped_count > 0:
                         success_parts.append(f"файлов пропущено: {skipped_count}")
                     
@@ -794,6 +805,7 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
                         articles_files[base_article]['models'].append(asset)
                 
                 products_linked_count = 0
+                linked_product_ids = []
                 images_attached_count = 0
                 errors = []
                 
@@ -879,12 +891,21 @@ class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
                             # Сохраняем товар
                             product.save(update_fields=['image_asset_ids', 'model_3d_asset_ids', 'model_glb', 'model_fbx', 'model_usdz', 'model_rfa', 'model_ifc'])
                             products_linked_count += 1
+                            linked_product_ids.append(product.pk)
                             
                     except Exception as e:
                         errors.append(f"Ошибка при привязке файлов к товару с артикулом '{article}': {str(e)}")
                 
                 # Формируем сообщение
+                queued_2d = 0
+                if linked_product_ids:
+                    from apps.catalog.glb_2d_preview import queue_glb_2d_previews_for_product_ids
+
+                    queued_2d = queue_glb_2d_previews_for_product_ids(linked_product_ids)
+
                 success_msg = f"Синхронизация завершена! Товаров обновлено: {products_linked_count}"
+                if queued_2d > 0:
+                    success_msg += f", 2D-превью в очереди: {queued_2d}"
                 if images_attached_count > 0:
                     success_msg += f", изображений привязано: {images_attached_count}"
                 

@@ -29,6 +29,7 @@ def apply_model_urls_from_assets(product: Product) -> list[str]:
     new_glb = product.model_glb
     new_rfa = product.model_rfa
     new_ifc = product.model_ifc
+    old_glb = product.model_glb
 
     for asset in assets:
         if not asset.file or not hasattr(asset.file, "url"):
@@ -64,6 +65,10 @@ def apply_model_urls_from_assets(product: Product) -> list[str]:
     product.model_glb = new_glb
     product.model_rfa = new_rfa
     product.model_ifc = new_ifc
+    if "glb" in changes and (new_glb or "").strip() != (old_glb or "").strip():
+        from apps.catalog.glb_2d_preview import maybe_queue_glb_2d_preview
+
+        maybe_queue_glb_2d_preview(product)
     return changes
 
 

@@ -9,7 +9,7 @@ from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 
 from apps.catalog.models import FileAsset, Product
-from apps.catalog.tasks import convert_rfa_to_glb_task, generate_glb_2d_preview_task
+from apps.catalog.tasks import convert_rfa_to_glb_task
 
 
 def _is_revit_rfa_url(url: str | None) -> bool:
@@ -58,22 +58,14 @@ def queue_glb_2d_catalog_preview(sender, instance: Product, created: bool, **kwa
     """
     if kwargs.get("raw"):
         return
-    if not getattr(settings, "GLB_2D_PREVIEW_ENABLED", True):
-        return
-    if not getattr(settings, "GLB_2D_PREVIEW_AUTO_QUEUE", True):
-        return
     if not created:
         old_glb = getattr(instance, "_old_model_glb", None)
         if old_glb == instance.model_glb:
             return
 
-    from apps.catalog.glb_2d_preview import load_primary_glb_bytes, product_lacks_catalog_2d
+    from apps.catalog.glb_2d_preview import maybe_queue_glb_2d_preview
 
-    if not product_lacks_catalog_2d(instance):
-        return
-    if not load_primary_glb_bytes(instance):
-        return
-    generate_glb_2d_preview_task.delay(instance.pk)
+    maybe_queue_glb_2d_preview(instance)
 
 
 def _asset_id_search_keys(asset_id: str) -> list[str]:
@@ -161,11 +153,9 @@ def iter_products_linked_to_3d_file_asset(asset: FileAsset):
 @receiver(post_save, sender=FileAsset)
 def queue_glb_2d_on_file_asset(sender, instance: FileAsset, created: bool, **kwargs):
     """
-    Автоматически генерировать 2D превью когда к товару добавляется GLB FileAsset.
-    Срабатывает только для 3d_model-ассетов с расширением .glb/.gltf.
+    Автоматически генерировать 2D превью когда к товару добавляется/обновляется GLB FileAsset.
+    Срабатывает для 3d_model-ассетов с расширением .glb/.gltf (в т.ч. повторная загрузка).
     """
-    if not created:
-        return
     if kwargs.get("raw"):
         return
     if not getattr(settings, "GLB_2D_PREVIEW_ENABLED", True):
@@ -178,12 +168,8 @@ def queue_glb_2d_on_file_asset(sender, instance: FileAsset, created: bool, **kwa
     if not fname.endswith((".glb", ".gltf")):
         return
 
-    from apps.catalog.glb_2d_preview import load_primary_glb_bytes, product_lacks_catalog_2d
+    from apps.catalog.glb_2d_preview import maybe_queue_glb_2d_preview
 
     for product in iter_products_linked_to_3d_file_asset(instance):
-        if not product_lacks_catalog_2d(product):
-            continue
-        if not load_primary_glb_bytes(product):
-            continue
-        generate_glb_2d_preview_task.delay(product.pk)
+        maybe_queue_glb_2d_preview(product)
 

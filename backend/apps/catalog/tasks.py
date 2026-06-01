@@ -49,6 +49,11 @@ def convert_rfa_to_glb_task(self, product_id: int):
         model_rfa_convert_error="",
     )
     _invalidate_product_cache(product_id)
+    product = Product.objects.filter(pk=product_id).first()
+    if product:
+        from apps.catalog.glb_2d_preview import maybe_queue_glb_2d_preview
+
+        maybe_queue_glb_2d_preview(product)
     return {"status": "ready", "preview": preview_url}
 
 
