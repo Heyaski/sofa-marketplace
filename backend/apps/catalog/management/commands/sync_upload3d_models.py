@@ -47,6 +47,12 @@ class Command(BaseCommand):
         dry = options["dry_run"]
         move = not options["no_move"]
 
+        from apps.catalog.file_import_from_disk import sftp_upload_dir
+
+        self.stdout.write(f"Рекомендуемая папка для новых SFTP-файлов: {sftp_upload_dir()}")
+        self.stdout.write(
+            "Папка imported/ тоже сканируется (если заливаете туда — после деплоя правок)."
+        )
         self.stdout.write("Каталоги SFTP для импорта:")
         for r in roots:
             exists = "OK" if os.path.isdir(r) else "НЕТ ПАПКИ"

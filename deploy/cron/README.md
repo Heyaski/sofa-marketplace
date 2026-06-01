@@ -16,7 +16,12 @@ python manage.py sync_upload3d_models
 - `UPLOAD3D_MODELS_INCOMING_DIRS=/models` — второй каталог, если Cursor кладёт в `/models`
 - `UPLOAD3D_MODELS_IMPORTED_SUBDIR=imported` — сюда переносятся обработанные файлы
 
-**Важно:** заливка по SFTP ≠ импорт в каталог. После загрузки файлов обязателен `sync_upload3d_models` (или systemd path / cron). Админка ZIP делает импорт сразу; SFTP — в два шага.
+**Куда класть файлы в Cursor/SFTP:**
+- лучше: `/home/upload3d/models/incoming/`
+- можно: `/home/upload3d/models/` (корень)
+- **`imported/`** — архив после импорта; если заливаете сюда (как на скриншоте), с **новым кодом** sync тоже обрабатывает эту папку
+
+**Автоимпорт:** `sudo bash deploy/install-upload3d-auto-sync.sh` — без ручного `sync_upload3d_models`.
 
 **Вручную** (если автоматика не включена): после каждой заливки `python manage.py sync_upload3d_models`.
 

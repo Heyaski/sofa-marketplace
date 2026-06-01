@@ -8,7 +8,13 @@ DEPLOY_USER="${SOFA_DEPLOY_USER:-deploy}"
 DEPLOY_HOME="$(getent passwd "$DEPLOY_USER" | cut -d: -f6)"
 BACKEND="${SOFA_BACKEND_DIR:-$DEPLOY_HOME/sofa-marketplace/backend}"
 WATCH_PRIMARY="${UPLOAD3D_MODELS_INCOMING_DIR:-/home/upload3d/models}"
+WATCH_INCOMING="${WATCH_PRIMARY}/incoming"
+WATCH_IMPORTED="${WATCH_PRIMARY}/imported"
 WATCH_EXTRA="${UPLOAD3D_MODELS_INCOMING_DIRS:-/models}"
+
+mkdir -p "$WATCH_PRIMARY/incoming" "$WATCH_PRIMARY/imported" 2>/dev/null || true
+chown "${DEPLOY_USER}:upload3d" "$WATCH_PRIMARY/incoming" 2>/dev/null || true
+chmod 2775 "$WATCH_PRIMARY/incoming" 2>/dev/null || true
 
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "Запустите с sudo: sudo bash deploy/install-upload3d-auto-sync.sh" >&2
@@ -39,6 +45,10 @@ render_unit "$REPO_ROOT/deploy/systemd/sofa-sync-upload3d-models.service.example
   echo "[Path]"
   echo "PathExists=$WATCH_PRIMARY"
   echo "PathChanged=$WATCH_PRIMARY"
+  echo "PathExists=$WATCH_INCOMING"
+  echo "PathChanged=$WATCH_INCOMING"
+  echo "PathExists=$WATCH_IMPORTED"
+  echo "PathChanged=$WATCH_IMPORTED"
   if [[ -n "$WATCH_EXTRA" && "$WATCH_EXTRA" != "$WATCH_PRIMARY" ]]; then
     if [[ -d "$WATCH_EXTRA" ]]; then
       echo "PathExists=$WATCH_EXTRA"
@@ -61,6 +71,11 @@ systemctl enable --now sofa-sync-upload3d-models.timer
 
 echo ""
 echo "Готово. После заливки по SFTP импорт запустится сам (~45 с пауза + sync)."
+echo ""
+echo "Куда класть файлы в Cursor/SFTP:"
+echo "  Рекомендуется: $WATCH_INCOMING"
+echo "  Можно:         $WATCH_PRIMARY (корень models/)"
+echo "  Тоже обработается: $WATCH_IMPORTED (у вас файлы уже здесь)"
 echo "  path:  $(systemctl is-active sofa-sync-upload3d-models.path)"
 echo "  timer: $(systemctl is-active sofa-sync-upload3d-models.timer) (каждые ~5 мин резерв)"
 echo ""

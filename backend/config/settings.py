@@ -296,6 +296,8 @@ UPLOAD3D_MODELS_INCOMING_DIR = get_env("UPLOAD3D_MODELS_INCOMING_DIR", "/home/up
 # Доп. каталоги через запятую, напр. /models если SFTP-chroot отличается от INCOMING_DIR
 UPLOAD3D_MODELS_INCOMING_DIRS = get_env("UPLOAD3D_MODELS_INCOMING_DIRS", "/models")
 UPLOAD3D_MODELS_IMPORTED_SUBDIR = get_env("UPLOAD3D_MODELS_IMPORTED_SUBDIR", "imported")
+# Куда класть новые файлы по SFTP (создаётся install-upload3d-auto-sync.sh)
+UPLOAD3D_SFTP_UPLOAD_SUBDIR = get_env("UPLOAD3D_SFTP_UPLOAD_SUBDIR", "incoming")
 
 # Настройка хранилища файлов (Django 5.2+)
 # По умолчанию используем локальное хранилище

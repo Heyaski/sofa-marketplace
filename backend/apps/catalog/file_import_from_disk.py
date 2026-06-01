@@ -21,7 +21,8 @@ IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", 
 MODEL_EXTENSIONS = frozenset(
     {".glb", ".gltf", ".fbx", ".obj", ".usdz", ".rfa", ".ifc", ".dae", ".3ds"}
 )
-SKIP_DIR_NAMES = frozenset({"imported", "__macosx"})
+SKIP_DIR_NAMES = frozenset({"__macosx"})
+# «imported» — архив после импорта; SFTP часто кладёт сюда напрямую — обрабатываем отдельным проходом
 
 
 def default_incoming_dir() -> str:
@@ -29,10 +30,19 @@ def default_incoming_dir() -> str:
     return dirs[0] if dirs else "/home/upload3d/models"
 
 
+def sftp_upload_dir() -> str:
+    """Куда класть новые файлы по SFTP (не в imported/ — туда sync переносит после обработки)."""
+    base = (getattr(settings, "UPLOAD3D_MODELS_INCOMING_DIR", "/home/upload3d/models") or "").strip()
+    sub = (getattr(settings, "UPLOAD3D_SFTP_UPLOAD_SUBDIR", "incoming") or "incoming").strip()
+    if not sub:
+        return os.path.abspath(base)
+    return os.path.abspath(os.path.join(base, sub))
+
+
 def resolve_upload3d_incoming_dirs() -> list[str]:
     """
-    Каталоги SFTP для sync_upload3d_models.
-    Cursor/скрипты часто кладут в /models (chroot upload3d), Django — в /home/upload3d/models.
+    Корни для sync_upload3d_models (обходят корень + подпапку imported/).
+    Cursor/скрипты: /home/upload3d/models или chroot /models.
     """
     seen: set[str] = set()
     ordered: list[str] = []
@@ -45,6 +55,7 @@ def resolve_upload3d_incoming_dirs() -> list[str]:
         ordered.append(ab)
 
     add(getattr(settings, "UPLOAD3D_MODELS_INCOMING_DIR", "/home/upload3d/models"))
+    add(sftp_upload_dir())
     extra = (getattr(settings, "UPLOAD3D_MODELS_INCOMING_DIRS", None) or "").strip()
     for part in extra.split(","):
         add(part)
@@ -52,6 +63,16 @@ def resolve_upload3d_incoming_dirs() -> list[str]:
         if os.path.isdir(candidate):
             add(candidate)
     return ordered
+
+
+def _file_already_in_imported_subdir(file_path: str, root_dir: str) -> bool:
+    imported_name = imported_subdir_name()
+    try:
+        rel = os.path.relpath(os.path.abspath(file_path), os.path.abspath(root_dir))
+    except ValueError:
+        return False
+    parts = rel.replace("\\", "/").split("/")
+    return bool(parts) and parts[0] == imported_name
 
 
 def imported_subdir_name() -> str:
@@ -198,44 +219,34 @@ def link_article_files_to_product(
     return True, errors, product.pk
 
 
-def import_directory(
-    root_dir: str,
+def _scan_tree_into_batch(
+    scan_root: str,
+    catalog_root: str,
     *,
-    dry_run: bool = False,
-    move_imported: bool = True,
-    progress: Callable[[str], None] | None = None,
-) -> dict[str, Any]:
-    """
-    Обойти каталог (SFTP incoming), загрузить в FileAsset + привязать к товарам.
-    """
-    root_dir = os.path.abspath(root_dir)
-    if not os.path.isdir(root_dir):
-        raise FileNotFoundError(f"Каталог не найден: {root_dir}")
-
-    stats: dict[str, Any] = {
-        "created": 0,
-        "updated": 0,
-        "skipped": 0,
-        "products_linked": 0,
-        "linked_product_ids": [],
-        "files_moved": 0,
-        "errors": [],
-    }
-    articles_files: dict[str, dict[str, list[FileAsset]]] = defaultdict(
-        lambda: {"images": [], "models": []}
-    )
-    paths_by_article: dict[str, list[str]] = defaultdict(list)
-
+    skip_imported_subtree: bool,
+    dry_run: bool,
+    stats: dict[str, Any],
+    articles_files: dict[str, dict[str, list[FileAsset]]],
+    paths_by_article: dict[str, list[str]],
+    progress: Callable[[str], None] | None,
+    processed_counter: list[int],
+) -> None:
+    """Собрать файлы с диска в batch для link_article_files_to_product."""
     imported_name = imported_subdir_name()
-    processed = 0
+    for dirpath, dirnames, filenames in os.walk(scan_root):
+        pruned = []
+        for d in dirnames:
+            if d.startswith("."):
+                continue
+            if d.lower() in SKIP_DIR_NAMES:
+                continue
+            if skip_imported_subtree and d.lower() == imported_name:
+                continue
+            pruned.append(d)
+        dirnames[:] = pruned
 
-    for dirpath, dirnames, filenames in os.walk(root_dir):
-        dirnames[:] = [
-            d
-            for d in dirnames
-            if d.lower() not in SKIP_DIR_NAMES and not d.startswith(".")
-        ]
-        if imported_name in dirpath.replace("\\", "/").split("/"):
+        norm = dirpath.replace("\\", "/").split("/")
+        if skip_imported_subtree and imported_name in norm:
             continue
 
         for filename in filenames:
@@ -270,7 +281,6 @@ def import_directory(
             elif status == "updated":
                 stats["updated"] += 1
 
-            # Ключ = полное имя файла (как в админке), не урезанный IMR-* без цвета
             group_key = (file_asset.asset_id or "").strip()
             if file_asset.file_type == "image":
                 articles_files[group_key]["images"].append(file_asset)
@@ -278,12 +288,71 @@ def import_directory(
                 articles_files[group_key]["models"].append(file_asset)
             paths_by_article[group_key].append(full_path)
 
-            processed += 1
-            if progress and processed % 25 == 0:
+            processed_counter[0] += 1
+            if progress and processed_counter[0] % 25 == 0:
                 progress(
-                    f"  … загружено в S3: {processed} файлов "
+                    f"  … загружено в S3: {processed_counter[0]} файлов "
                     f"(создано {stats['created']}, обновлено {stats['updated']})"
                 )
+
+
+def import_directory(
+    root_dir: str,
+    *,
+    dry_run: bool = False,
+    move_imported: bool = True,
+    progress: Callable[[str], None] | None = None,
+    scan_imported_subdir: bool = True,
+) -> dict[str, Any]:
+    """
+    Обойти каталог SFTP: корень + (опционально) imported/, куда часто кладут файлы с SFTP.
+    """
+    root_dir = os.path.abspath(root_dir)
+    if not os.path.isdir(root_dir):
+        raise FileNotFoundError(f"Каталог не найден: {root_dir}")
+
+    stats: dict[str, Any] = {
+        "created": 0,
+        "updated": 0,
+        "skipped": 0,
+        "products_linked": 0,
+        "linked_product_ids": [],
+        "files_moved": 0,
+        "errors": [],
+    }
+    articles_files: dict[str, dict[str, list[FileAsset]]] = defaultdict(
+        lambda: {"images": [], "models": []}
+    )
+    paths_by_article: dict[str, list[str]] = defaultdict(list)
+    imported_name = imported_subdir_name()
+    processed_counter = [0]
+
+    _scan_tree_into_batch(
+        root_dir,
+        root_dir,
+        skip_imported_subtree=True,
+        dry_run=dry_run,
+        stats=stats,
+        articles_files=articles_files,
+        paths_by_article=paths_by_article,
+        progress=progress,
+        processed_counter=processed_counter,
+    )
+    imported_path = os.path.join(root_dir, imported_name)
+    if scan_imported_subdir and os.path.isdir(imported_path):
+        if progress:
+            progress(f"Сканирование SFTP-архива: {imported_path}")
+        _scan_tree_into_batch(
+            imported_path,
+            root_dir,
+            skip_imported_subtree=False,
+            dry_run=dry_run,
+            stats=stats,
+            articles_files=articles_files,
+            paths_by_article=paths_by_article,
+            progress=progress,
+            processed_counter=processed_counter,
+        )
 
     if dry_run:
         return stats
@@ -306,6 +375,8 @@ def import_directory(
                     os.makedirs(dest_dir, exist_ok=True)
                     for src in paths_by_article[article]:
                         if not os.path.isfile(src):
+                            continue
+                        if _file_already_in_imported_subdir(src, root_dir):
                             continue
                         dest = os.path.join(dest_dir, os.path.basename(src))
                         if os.path.abspath(src) == os.path.abspath(dest):
