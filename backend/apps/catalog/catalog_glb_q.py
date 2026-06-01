@@ -136,9 +136,14 @@ def catalog_has_glb_q() -> models.Q:
                 _title_match=RawSQL(
                     f"CASE WHEN LENGTH({asset_table}.asset_id) >= 4 "
                     f"AND {asset_table}.asset_id ~ '[0-9]' "
-                    f"AND POSITION(LOWER({asset_table}.asset_id) IN LOWER(%s)) > 0 "
-                    f"THEN 1 ELSE 0 END",
-                    [models.OuterRef("title")],
+                    f"AND ("
+                    f"POSITION(LOWER({asset_table}.asset_id) IN LOWER(%s)) > 0 "
+                    f"OR POSITION("
+                    f"LOWER(REPLACE({asset_table}.asset_id, ' ', '')) "
+                    f"IN LOWER(REPLACE(%s, ' ', ''))"
+                    f") > 0"
+                    f") THEN 1 ELSE 0 END",
+                    [models.OuterRef("title"), models.OuterRef("title")],
                 )
             )
             .filter(_title_match=1)

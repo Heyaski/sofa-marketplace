@@ -13,7 +13,12 @@ Cron (каждые 5–15 мин) или systemd path — см. deploy/cron/READ
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from apps.catalog.file_import_from_disk import import_directory, resolve_upload3d_incoming_dirs
+from apps.catalog.file_import_from_disk import (
+    import_directory,
+    resolve_upload3d_scan_roots,
+    sftp_upload_dir,
+    stage_loose_uploads_into_incoming,
+)
 
 
 class Command(BaseCommand):
@@ -37,23 +42,40 @@ class Command(BaseCommand):
             action="store_true",
             help="Оптимизировать GLB через gltfpack при загрузке (медленно; по умолчанию выкл.)",
         )
+        parser.add_argument(
+            "--full-tree",
+            action="store_true",
+            help="Сканировать весь /home/upload3d/models (медленно; по умолчанию только incoming + imported)",
+        )
 
     def handle(self, *args, **options):
         if (options["path"] or "").strip():
             roots = [options["path"].strip()]
-        else:
+        elif options["full_tree"]:
+            from apps.catalog.file_import_from_disk import resolve_upload3d_incoming_dirs
+
             roots = resolve_upload3d_incoming_dirs()
+        else:
+            roots = resolve_upload3d_scan_roots()
 
         dry = options["dry_run"]
         move = not options["no_move"]
 
-        from apps.catalog.file_import_from_disk import sftp_upload_dir
-
-        self.stdout.write(f"Рекомендуемая папка для новых SFTP-файлов: {sftp_upload_dir()}")
+        self.stdout.write(f"Заливайте SFTP сюда (лучше): {sftp_upload_dir()}")
         self.stdout.write(
-            "Папка imported/ тоже сканируется (если заливаете туда — после деплоя правок)."
+            "  Также сканируется backend/media/assets/ — если Cursor открывает эту папку."
         )
-        self.stdout.write("Каталоги SFTP для импорта:")
+        if not dry and not (options["path"] or "").strip():
+            staged = stage_loose_uploads_into_incoming(
+                progress=self.stdout.write if not dry else None
+            )
+            if staged:
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"Из корня models/ подготовлено в incoming: {len(staged)} файл(ов)"
+                    )
+                )
+        self.stdout.write("Сканирование:")
         for r in roots:
             exists = "OK" if os.path.isdir(r) else "НЕТ ПАПКИ"
             self.stdout.write(f"  [{exists}] {r}")
@@ -92,6 +114,7 @@ class Command(BaseCommand):
                         root,
                         dry_run=dry,
                         move_imported=move,
+                        scan_imported_subdir=False,
                         progress=self.stdout.write if not dry else None,
                     )
                 except FileNotFoundError as e:
@@ -118,6 +141,12 @@ class Command(BaseCommand):
 
         if dry:
             return
+
+        if totals["created"] + totals["updated"] + totals["products_linked"] + totals["files_moved"] > 0:
+            self.stdout.write("Пересчёт флагов «Сайт 3D» / 2D (как в блоке папок админки)...")
+            from django.core.management import call_command
+
+            call_command("refresh_catalog_visibility", stdout=self.stdout)
 
         self.stdout.write(
             self.style.SUCCESS(

@@ -65,7 +65,7 @@
             <li style="margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #e8e8e8;">
                 📂 <strong>GLB (3D-каталог)</strong> — {{ row.n_glb }}{% if row.total %} / {{ row.total }}{% endif %}
                 {% if row.n_site_3d != row.n_glb %}
-                <span style="color:#b45309;font-size:12px;"> — флаг сайта: {{ row.n_site_3d }}, запустите refresh_catalog_visibility</span>
+                <span style="color:#b45309;font-size:12px;"> — на сайте в 3D: {{ row.n_site_3d }} (не совпадает с GLB; после SFTP подождите авто-sync или действие «Пересчитать видимость на сайте»)</span>
                 {% endif %}
                 {% if row.n_glb %}
                 — <a href="{% url 'admin:catalog_product_changelist' %}?category__id__exact={{ row.category.id }}&model_files_kind=glb">открыть список</a>

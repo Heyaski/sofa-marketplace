@@ -45,11 +45,65 @@ def sftp_upload_dir() -> str:
     return os.path.abspath(os.path.join(base, sub))
 
 
+def upload3d_models_root() -> str:
+    return os.path.abspath(
+        (getattr(settings, "UPLOAD3D_MODELS_INCOMING_DIR", "/home/upload3d/models") or "").strip()
+    )
+
+
+def upload3d_imported_dir() -> str:
+    return os.path.join(upload3d_models_root(), imported_subdir_name())
+
+
+def sftp_archive_dir_for_scan_root(scan_root: str) -> str:
+    """Куда переносить файлы после обработки (sibling imported/, не incoming/imported/)."""
+    scan_root = os.path.abspath(scan_root)
+    imp_name = imported_subdir_name()
+    if os.path.basename(scan_root) == imp_name:
+        return scan_root
+    if os.path.basename(scan_root) == os.path.basename(sftp_upload_dir()):
+        return upload3d_imported_dir()
+    media_assets = os.path.join(str(settings.MEDIA_ROOT), "assets")
+    if scan_root == os.path.abspath(media_assets) or scan_root.startswith(
+        os.path.abspath(media_assets) + os.sep
+    ):
+        return os.path.join(media_assets, imp_name)
+    return os.path.join(scan_root, imp_name)
+
+
+def resolve_upload3d_scan_roots() -> list[str]:
+    """
+    Только incoming + imported — сюда кладут SFTP; без обхода всего models/ (xlsx, мусор).
+    """
+    seen: set[str] = set()
+    ordered: list[str] = []
+
+    def add(path: str) -> None:
+        ab = os.path.abspath((path or "").strip())
+        if not ab or ab in seen or not os.path.isdir(ab):
+            return
+        seen.add(ab)
+        ordered.append(ab)
+
+    add(sftp_upload_dir())
+    add(upload3d_imported_dir())
+    # Cursor/SFTP часто открывает backend/media/assets — тоже обрабатываем
+    media_assets = os.path.join(str(settings.MEDIA_ROOT), "assets")
+    if os.path.isdir(media_assets):
+        add(media_assets)
+        media_incoming = os.path.join(media_assets, "incoming")
+        if os.path.isdir(media_incoming):
+            add(media_incoming)
+    extra = (getattr(settings, "UPLOAD3D_MODELS_INCOMING_DIRS", None) or "").strip()
+    for part in extra.split(","):
+        if part.strip():
+            add(os.path.join(part.strip(), "incoming"))
+            add(os.path.join(part.strip(), imported_subdir_name()))
+    return ordered
+
+
 def resolve_upload3d_incoming_dirs() -> list[str]:
-    """
-    Корни для sync_upload3d_models (обходят корень + подпапку imported/).
-    Cursor/скрипты: /home/upload3d/models или chroot /models.
-    """
+    """Совместимость: корень models + scan roots."""
     seen: set[str] = set()
     ordered: list[str] = []
 
@@ -60,14 +114,9 @@ def resolve_upload3d_incoming_dirs() -> list[str]:
         seen.add(ab)
         ordered.append(ab)
 
-    add(getattr(settings, "UPLOAD3D_MODELS_INCOMING_DIR", "/home/upload3d/models"))
-    add(sftp_upload_dir())
-    extra = (getattr(settings, "UPLOAD3D_MODELS_INCOMING_DIRS", None) or "").strip()
-    for part in extra.split(","):
-        add(part)
-    for candidate in ("/home/upload3d/models", "/models"):
-        if os.path.isdir(candidate):
-            add(candidate)
+    add(upload3d_models_root())
+    for p in resolve_upload3d_scan_roots():
+        add(p)
     return ordered
 
 
@@ -83,6 +132,86 @@ def _file_already_in_imported_subdir(file_path: str, root_dir: str) -> bool:
 
 def imported_subdir_name() -> str:
     return getattr(settings, "UPLOAD3D_MODELS_IMPORTED_SUBDIR", "imported")
+
+
+def _stage_loose_files(root: str, incoming: str, progress: Callable[[str], None] | None, label: str) -> list[str]:
+    os.makedirs(incoming, exist_ok=True)
+    skip_dirs = {imported_subdir_name(), os.path.basename(incoming.rstrip("/"))}
+    staged: list[str] = []
+    if not os.path.isdir(root):
+        return staged
+    for name in os.listdir(root):
+        if name in skip_dirs or name.startswith("."):
+            continue
+        src = os.path.join(root, name)
+        if not os.path.isfile(src):
+            continue
+        ext = os.path.splitext(name)[1].lower()
+        if _file_type_for_ext(ext) is None:
+            continue
+        dest = os.path.join(incoming, name)
+        if os.path.isfile(dest):
+            staged.append(name)
+            continue
+        try:
+            shutil.copy2(src, dest)
+            staged.append(name)
+            if progress:
+                progress(f"  {label} → {incoming}: {name}")
+            try:
+                os.remove(src)
+            except OSError:
+                if progress:
+                    progress(f"    (исходник оставлен: {src})")
+        except OSError as e:
+            if progress:
+                progress(f"  ⚠ Не скопирован {name}: {e}")
+    return staged
+
+
+def stage_loose_uploads_into_incoming(
+    progress: Callable[[str], None] | None = None,
+) -> list[str]:
+    """
+    SFTP кладёт .glb в корень models/ или media/assets/ — собираем в */incoming/.
+    """
+    staged: list[str] = []
+    staged.extend(
+        _stage_loose_files(
+            upload3d_models_root(),
+            sftp_upload_dir(),
+            progress,
+            "models/",
+        )
+    )
+    media_assets = os.path.join(str(settings.MEDIA_ROOT), "assets")
+    media_incoming = os.path.join(media_assets, "incoming")
+    staged.extend(
+        _stage_loose_files(media_assets, media_incoming, progress, "media/assets/")
+    )
+    return staged
+
+
+def _archive_source_file(src: str, dest_dir: str) -> tuple[bool, str | None]:
+    """Перенос в imported/; при Permission denied — копия (импорт уже прошёл)."""
+    dest = os.path.join(dest_dir, os.path.basename(src))
+    if os.path.abspath(src) == os.path.abspath(dest):
+        return True, None
+    try:
+        if os.path.exists(dest):
+            os.remove(dest)
+        shutil.move(src, dest)
+        return True, None
+    except OSError:
+        try:
+            shutil.copy2(src, dest)
+            try:
+                os.remove(src)
+            except OSError:
+                pass
+            return True, None
+        except OSError as e:
+            return False, str(e)
 
 
 def extract_base_article(asset_id: str) -> str:
@@ -244,6 +373,9 @@ def link_article_files_to_product(
     from apps.catalog.catalog_asset_publish import apply_model_urls_from_assets
 
     apply_model_urls_from_assets(product)
+    from apps.catalog.catalog_visibility import refresh_product_visibility_flags
+
+    refresh_product_visibility_flags(product, save=True)
     return True, errors, product.pk
 
 
@@ -331,11 +463,14 @@ def import_directory(
     move_imported: bool = True,
     progress: Callable[[str], None] | None = None,
     scan_imported_subdir: bool = True,
+    archive_dir: str | None = None,
 ) -> dict[str, Any]:
     """
     Обойти каталог SFTP: корень + (опционально) imported/, куда часто кладут файлы с SFTP.
+  archive_dir — куда переносить после привязки (по умолчанию imported/ рядом с models).
     """
     root_dir = os.path.abspath(root_dir)
+    archive_dir = os.path.abspath(archive_dir or sftp_archive_dir_for_scan_root(root_dir))
     if not os.path.isdir(root_dir):
         raise FileNotFoundError(f"Каталог не найден: {root_dir}")
 
@@ -399,7 +534,7 @@ def import_directory(
                 if product_pk:
                     stats["linked_product_ids"].append(product_pk)
                 if move_imported:
-                    dest_dir = os.path.join(root_dir, imported_name)
+                    dest_dir = archive_dir
                     os.makedirs(dest_dir, exist_ok=True)
                     for src in paths_by_article[article]:
                         if not os.path.isfile(src):
@@ -409,13 +544,11 @@ def import_directory(
                         dest = os.path.join(dest_dir, os.path.basename(src))
                         if os.path.abspath(src) == os.path.abspath(dest):
                             continue
-                        try:
-                            if os.path.exists(dest):
-                                os.remove(dest)
-                            shutil.move(src, dest)
+                        ok, err = _archive_source_file(src, dest_dir)
+                        if ok:
                             stats["files_moved"] += 1
-                        except Exception as e:
-                            stats["errors"].append(f"move {src}: {e}")
+                        elif err:
+                            stats["errors"].append(f"move {src}: {err}")
         except Exception as e:
             stats["errors"].append(f"Привязка '{article}': {e}")
 
