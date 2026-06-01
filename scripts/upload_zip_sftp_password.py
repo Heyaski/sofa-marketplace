@@ -20,7 +20,7 @@ def main() -> int:
     parser.add_argument("--user", default=os.environ.get("SFTP_USER", "upload3d"))
     parser.add_argument(
         "--remote-dir",
-        default=os.environ.get("REMOTE_DIR", "/home/upload3d/models"),
+        default=os.environ.get("REMOTE_DIR", "/home/upload3d/models/incoming"),
     )
     args = parser.parse_args()
 

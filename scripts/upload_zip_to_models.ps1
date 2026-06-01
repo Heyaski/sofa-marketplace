@@ -7,7 +7,7 @@ param(
     [string]$ServerHost = "45.12.74.57",
     [int]$Port = 22,
     [string]$User = "upload3d",
-    [string]$RemoteDir = "/home/upload3d/models",
+    [string]$RemoteDir = "/home/upload3d/models/incoming",
     [string]$KeyPath = "$env:USERPROFILE\.ssh\upload3d_ed25519"
 )
 

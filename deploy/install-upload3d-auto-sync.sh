@@ -12,6 +12,11 @@ WATCH_INCOMING="${WATCH_PRIMARY}/incoming"
 WATCH_IMPORTED="${WATCH_PRIMARY}/imported"
 WATCH_EXTRA="${UPLOAD3D_MODELS_INCOMING_DIRS:-/models}"
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$SCRIPT_DIR/setup-upload3d-sftp.sh" ]]; then
+  bash "$SCRIPT_DIR/setup-upload3d-sftp.sh"
+fi
+
 mkdir -p "$WATCH_PRIMARY/incoming" "$WATCH_PRIMARY/imported" 2>/dev/null || true
 chown "${DEPLOY_USER}:upload3d" "$WATCH_PRIMARY/incoming" 2>/dev/null || true
 chmod 2775 "$WATCH_PRIMARY/incoming" 2>/dev/null || true
@@ -72,10 +77,8 @@ systemctl enable --now sofa-sync-upload3d-models.timer
 echo ""
 echo "Готово. После заливки по SFTP импорт запустится сам (~45 с пауза + sync)."
 echo ""
-echo "Куда класть файлы в Cursor/SFTP:"
-echo "  Рекомендуется: $WATCH_INCOMING"
-echo "  Можно:         $WATCH_PRIMARY (корень models/)"
-echo "  Тоже обработается: $WATCH_IMPORTED (у вас файлы уже здесь)"
+echo "SFTP (Cursor): remotePath /incoming  →  $WATCH_INCOMING"
+echo "  (см. .vscode/sftp.json.example; на сервере: setup-upload3d-sftp.sh)"
 echo "  path:  $(systemctl is-active sofa-sync-upload3d-models.path)"
 echo "  timer: $(systemctl is-active sofa-sync-upload3d-models.timer) (каждые ~5 мин резерв)"
 echo ""

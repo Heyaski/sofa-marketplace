@@ -28,6 +28,12 @@ python manage.py migrate
 python manage.py import_existing_pages 2>/dev/null || true
 python manage.py collectstatic --noinput
 
+# SFTP → каталог без ручного sync (path unit + таймер; см. deploy/cron/README.md)
+if [ -f "$PROJECT_DIR/deploy/install-upload3d-auto-sync.sh" ]; then
+    echo "Автоимпорт SFTP (systemd path + timer)..."
+    sudo bash "$PROJECT_DIR/deploy/install-upload3d-auto-sync.sh" || echo "⚠️  install-upload3d-auto-sync.sh — проверьте sudo"
+fi
+
 # Перезапуск Backend
 echo "Перезапуск Backend..."
 sudo systemctl restart sofa-backend

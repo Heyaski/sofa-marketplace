@@ -1,6 +1,10 @@
-# Загрузка моделей на SFTP-сервер (/home/upload3d/models)
+# Загрузка моделей на SFTP-сервер
 
-На сервере после загрузки: `python manage.py sync_upload3d_models` (та же логика, что ZIP в админке).
+**Куда:** `/home/upload3d/models/incoming/` (в Cursor: `remotePath` = `/incoming`, см. `.vscode/sftp.json.example`).  
+**Не сюда:** `backend/media/assets` — импорт не читает.
+
+На сервере один раз: `sudo bash deploy/setup-upload3d-sftp.sh` и `sudo bash deploy/install-upload3d-auto-sync.sh`.  
+Дальше импорт после заливки автоматический.
 
 **Важно:** на удалённую сторону нужно отправлять **распакованные файлы** (`.glb`, `.rfa`, `.ifc`, изображения и т.д.), а не сам ZIP-архив. Если залить `.zip`, на сервере окажется один артефакт-архив, а приложения модели из него не увидят.
 

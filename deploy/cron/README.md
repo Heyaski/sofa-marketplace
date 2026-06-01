@@ -2,7 +2,14 @@
 
 ## SFTP upload3d → каталог (FileAsset + товары)
 
-Заказчик заливает `.glb` / `.rfa` / `.ifc` / фото на сервер по SFTP (пользователь `upload3d`) в **`/home/upload3d/models`** или **`/models`** (chroot). Django сам не видит файлы, пока не запустить:
+Заказчик заливает файлы по SFTP (пользователь `upload3d`) **только** в **`/home/upload3d/models/incoming/`** (в SFTP-клиенте после chroot это папка **`/incoming`**). Не в `backend/media/assets`.
+
+Настройка SFTP на VPS (один раз): `sudo bash deploy/setup-upload3d-sftp.sh`  
+В Cursor: скопировать `.vscode/sftp.json.example` → `sftp.json`, `remotePath`: `/incoming`.
+
+`sync_upload3d_models` читает incoming → S3 → товар на сайте. Без ручных команд, если включён автоимпорт:
+
+Django сам не подхватывает SFTP, пока не запустить (или не включить path unit):
 
 ```bash
 python manage.py sync_upload3d_models

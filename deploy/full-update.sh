@@ -21,6 +21,10 @@ cd "$PROJECT_DIR/backend"
 source venv/bin/activate
 pip install -r requirements.txt --quiet
 python manage.py migrate
+if [ -f "$PROJECT_DIR/deploy/install-upload3d-auto-sync.sh" ]; then
+    echo "Автоимпорт SFTP..."
+    sudo bash "$PROJECT_DIR/deploy/install-upload3d-auto-sync.sh" || true
+fi
 sudo systemctl restart sofa-backend
 
 echo ""

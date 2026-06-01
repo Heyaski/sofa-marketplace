@@ -36,11 +36,11 @@
             <li>Файлы могут быть в корне архива или в подпапках</li>
         </ul>
         <p style="margin: 12px 0 0 0; font-size: 13px;">
-            <strong>SFTP (Cursor / upload3d):</strong> тот же импорт, что и ZIP выше. Новые файлы — в
-            <code>/home/upload3d/models/incoming/</code> (не обязательно в <code>imported/</code> — это архив).
-            На сервере один раз:
-            <code>sudo bash deploy/install-upload3d-auto-sync.sh</code> — дальше импорт идёт сам.
-            Имя файла = код товара: <code>Кресло4052.glb</code>, не только артикул IMR-*.
+            <strong>SFTP (Cursor / upload3d):</strong> только
+            <code>/home/upload3d/models/incoming/</code> (в клиенте часто путь <code>/incoming</code>).
+            <strong>Не</strong> в <code>backend/media/assets</code> — импорт туда не смотрит.
+            Один раз на сервере: <code>sudo bash deploy/setup-upload3d-sftp.sh</code> и
+            <code>sudo bash deploy/install-upload3d-auto-sync.sh</code> — дальше заливка сама попадает в каталог.
         </p>
     </div>
 

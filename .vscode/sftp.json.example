@@ -1,0 +1,11 @@
+{
+  "name": "Sofa 3D models (upload3d)",
+  "host": "ВАШ_СЕРВЕР",
+  "protocol": "sftp",
+  "port": 22,
+  "username": "upload3d",
+  "privateKeyPath": "~/.ssh/upload3d_ed25519",
+  "remotePath": "/incoming",
+  "uploadOnSave": false,
+  "ignore": [".vscode", ".git", "**/__pycache__"]
+}

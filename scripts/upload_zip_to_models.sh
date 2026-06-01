@@ -12,7 +12,7 @@ fi
 SERVER_HOST="${SFTP_HOST:-45.12.74.57}"
 PORT="${SFTP_PORT:-22}"
 USER_NAME="${SFTP_USER:-upload3d}"
-REMOTE_DIR="${REMOTE_DIR:-/home/upload3d/models}"
+REMOTE_DIR="${REMOTE_DIR:-/home/upload3d/models/incoming}"
 KEY_PATH="${SFTP_KEY:-$HOME/.ssh/upload3d_ed25519}"
 
 if [[ ! -f "${KEY_PATH}" ]]; then
