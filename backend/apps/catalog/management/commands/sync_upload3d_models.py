@@ -94,6 +94,7 @@ class Command(BaseCommand):
             "linked_product_ids": [],
             "backfill_updated": 0,
             "visibility_refreshed": 0,
+            "synced_2d_previews": 0,
             "queued_2d_previews": 0,
             "rfa_glb_queued": 0,
         }
@@ -159,8 +160,14 @@ class Command(BaseCommand):
             self.stdout.write(f"Backfill model_glb/rfa/ifc: {totals['backfill_updated']}")
         if totals["visibility_refreshed"]:
             self.stdout.write(f"Флаги catalog_visible обновлены: {totals['visibility_refreshed']}")
+        if totals.get("synced_2d_previews"):
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"2D-превью сгенерировано сразу: {totals['synced_2d_previews']}"
+                )
+            )
         if totals["queued_2d_previews"]:
-            self.stdout.write(f"2D-превью в очереди: {totals['queued_2d_previews']}")
+            self.stdout.write(f"2D-превью в очереди Celery: {totals['queued_2d_previews']}")
         if totals["rfa_glb_queued"]:
             self.stdout.write(
                 self.style.WARNING(

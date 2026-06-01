@@ -17,7 +17,7 @@ import subprocess
 import tempfile
 import threading
 import urllib.request
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 
@@ -402,7 +402,7 @@ def maybe_queue_glb_2d_preview(product: Product) -> bool:
 
 
 def queue_glb_2d_previews_for_product_ids(product_ids: Iterable[int]) -> int:
-    """После импорта/SFTP — явно поставить 2D-рендер для привязанных товаров."""
+    """После импорта/SFTP — Celery-очередь для товаров без 2D (если sync не сделал PNG)."""
     queued = 0
     seen: set[int] = set()
     for pk in product_ids:
@@ -413,6 +413,54 @@ def queue_glb_2d_previews_for_product_ids(product_ids: Iterable[int]) -> int:
         if product and maybe_queue_glb_2d_preview(product):
             queued += 1
     return queued
+
+
+def generate_2d_previews_for_product_ids(
+    product_ids: Iterable[int],
+    *,
+    progress: Callable[[str], None] | None = None,
+) -> dict[str, int]:
+    """
+    PNG из GLB сразу при импорте (SFTP/ZIP), без ожидания Celery.
+    До GLB_2D_PREVIEW_SYNC_ON_IMPORT_MAX товаров — синхронно; остальные — в Celery.
+    """
+    unique_ids = list(dict.fromkeys(pk for pk in product_ids if pk))
+    if not unique_ids or not getattr(settings, "GLB_2D_PREVIEW_ENABLED", True):
+        return {"synced_2d": 0, "queued_2d": 0, "skipped_2d": 0}
+
+    use_sync = getattr(settings, "GLB_2D_PREVIEW_SYNC_ON_IMPORT", True)
+    sync_max = max(1, int(getattr(settings, "GLB_2D_PREVIEW_SYNC_ON_IMPORT_MAX", 30)))
+    synced = queued = skipped = 0
+
+    for idx, pk in enumerate(unique_ids):
+        product = Product.objects.filter(pk=pk).first()
+        if not product:
+            skipped += 1
+            continue
+        if not product_lacks_catalog_2d(product):
+            skipped += 1
+            continue
+        if use_sync and idx < sync_max:
+            if progress:
+                progress(f"  2D-превью (сразу): {product.title or pk}…")
+            result = run_glb_2d_preview_for_product_id(pk)
+            if result.get("status") == "ok":
+                synced += 1
+                continue
+            if result.get("status") == "skipped" and result.get("reason") == "has-2d":
+                skipped += 1
+                continue
+            if progress:
+                progress(
+                    f"  ⚠ 2D sync не удался ({result.get('reason', '?')}), "
+                    f"пробуем Celery…"
+                )
+        if maybe_queue_glb_2d_preview(product):
+            queued += 1
+        else:
+            skipped += 1
+
+    return {"synced_2d": synced, "queued_2d": queued, "skipped_2d": skipped}
 
 
 def load_primary_glb_bytes(product: Product) -> bytes | None:
@@ -701,5 +749,8 @@ def run_glb_2d_preview_for_product_id(product_id: int, *, force: bool = False) -
 
     name = f"glb2d_{product_id}.png"
     product.image.save(name, ContentFile(png), save=True)
+    from apps.catalog.catalog_visibility import refresh_product_visibility_flags
+
+    refresh_product_visibility_flags(product, save=True)
     _invalidate_product_cache(product_id)
     return {"status": "ok", "image": product.image.name, "renderer": renderer}

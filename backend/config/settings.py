@@ -208,6 +208,9 @@ GLB_TO_RFA_TIMEOUT_SEC = int(get_env("GLB_TO_RFA_TIMEOUT_SEC", "900"))
 # 2D-превью каталога из GLB (заполняется Product.image; сами GLB не трогаем)
 GLB_2D_PREVIEW_ENABLED = bool(int(get_env("GLB_2D_PREVIEW_ENABLED", "1")))
 GLB_2D_PREVIEW_AUTO_QUEUE = bool(int(get_env("GLB_2D_PREVIEW_AUTO_QUEUE", "1")))
+# Сразу при SFTP/ZIP-импорте (не ждать Celery). Для массового архива > MAX — остаток в очередь.
+GLB_2D_PREVIEW_SYNC_ON_IMPORT = bool(int(get_env("GLB_2D_PREVIEW_SYNC_ON_IMPORT", "1")))
+GLB_2D_PREVIEW_SYNC_ON_IMPORT_MAX = int(get_env("GLB_2D_PREVIEW_SYNC_ON_IMPORT_MAX", "30"))
 # Опционально: внешняя команда вместо trimesh+matplotlib; нужны плейсхолдеры {input} и {output}
 GLB_PREVIEW_COMMAND = get_env("GLB_PREVIEW_COMMAND", "").strip()
 GLB_PREVIEW_COMMAND_TIMEOUT_SEC = int(get_env("GLB_PREVIEW_COMMAND_TIMEOUT_SEC", "300"))

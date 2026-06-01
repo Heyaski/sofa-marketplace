@@ -554,12 +554,16 @@ def import_directory(
 
     linked = stats.get("linked_product_ids") or []
     if linked:
-        stats.update(finalize_imported_products(linked))
+        stats.update(finalize_imported_products(linked, progress=progress))
 
     return stats
 
 
-def finalize_imported_products(product_ids: list[int]) -> dict[str, int]:
+def finalize_imported_products(
+    product_ids: list[int],
+    *,
+    progress: Callable[[str], None] | None = None,
+) -> dict[str, int]:
     """
     После импорта (SFTP или ZIP в админке): backfill URL, флаги витрины, 2D, RFA→GLB.
     """
@@ -570,18 +574,19 @@ def finalize_imported_products(product_ids: list[int]) -> dict[str, int]:
         enqueue_rfa_glb_previews,
     )
     from apps.catalog.catalog_visibility import bulk_refresh_catalog_visibility_flags
-    from apps.catalog.glb_2d_preview import queue_glb_2d_previews_for_product_ids
+    from apps.catalog.glb_2d_preview import generate_2d_previews_for_product_ids
     from apps.catalog.models import Product
 
     unique_ids = list(dict.fromkeys(product_ids))
     qs = Product.objects.filter(pk__in=unique_ids, is_active=True)
     updated, _ = backfill_queryset(qs)
+    preview_stats = generate_2d_previews_for_product_ids(unique_ids, progress=progress)
     vis_stats = bulk_refresh_catalog_visibility_flags(Product.objects.filter(pk__in=unique_ids))
-    queued_2d = queue_glb_2d_previews_for_product_ids(unique_ids)
     rfa_queued = enqueue_rfa_glb_previews(qs)
     return {
         "backfill_updated": updated,
         "visibility_refreshed": vis_stats.get("visible_3d_set", 0) + vis_stats.get("visible_3d_cleared", 0),
-        "queued_2d_previews": queued_2d,
+        "synced_2d_previews": preview_stats.get("synced_2d", 0),
+        "queued_2d_previews": preview_stats.get("queued_2d", 0),
         "rfa_glb_queued": rfa_queued,
     }

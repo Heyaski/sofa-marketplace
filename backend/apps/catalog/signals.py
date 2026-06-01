@@ -24,11 +24,13 @@ def remember_old_rfa(sender, instance: Product, **kwargs):
         instance._old_model_rfa = None
         instance._old_model_glb = None
         instance._old_model_glb_for_vis = None
+        instance._old_image_name = None
         return
-    old = Product.objects.filter(pk=instance.pk).only("model_rfa", "model_glb").first()
+    old = Product.objects.filter(pk=instance.pk).only("model_rfa", "model_glb", "image").first()
     instance._old_model_rfa = old.model_rfa if old else None
     instance._old_model_glb = old.model_glb if old else None
     instance._old_model_glb_for_vis = old.model_glb if old else None
+    instance._old_image_name = (old.image.name if old and old.image else None)
 
 
 @receiver(post_save, sender=Product)
@@ -57,7 +59,13 @@ def refresh_catalog_visibility_on_product_save(sender, instance: Product, **kwar
     if kwargs.get("raw"):
         return
     old_glb = getattr(instance, "_old_model_glb_for_vis", None)
-    if old_glb == instance.model_glb and not kwargs.get("created"):
+    old_image = getattr(instance, "_old_image_name", None)
+    new_image = instance.image.name if instance.image else None
+    if (
+        not kwargs.get("created")
+        and old_glb == instance.model_glb
+        and old_image == new_image
+    ):
         return
     from apps.catalog.catalog_visibility import refresh_product_visibility_flags
 
