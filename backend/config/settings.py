@@ -292,6 +292,9 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # Каталог, куда upload3d кладёт файлы по SFTP (обрабатывает manage.py sync_upload3d_models)
 UPLOAD3D_MODELS_INCOMING_DIR = get_env("UPLOAD3D_MODELS_INCOMING_DIR", "/home/upload3d/models")
+# Доп. каталоги SFTP (через запятую), если Cursor кладёт файлы не в upload3d/models
+# Доп. каталоги через запятую, напр. /models если SFTP-chroot отличается от INCOMING_DIR
+UPLOAD3D_MODELS_INCOMING_DIRS = get_env("UPLOAD3D_MODELS_INCOMING_DIRS", "/models")
 UPLOAD3D_MODELS_IMPORTED_SUBDIR = get_env("UPLOAD3D_MODELS_IMPORTED_SUBDIR", "imported")
 
 # Настройка хранилища файлов (Django 5.2+)

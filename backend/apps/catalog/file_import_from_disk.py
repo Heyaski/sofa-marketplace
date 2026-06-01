@@ -25,7 +25,33 @@ SKIP_DIR_NAMES = frozenset({"imported", "__macosx"})
 
 
 def default_incoming_dir() -> str:
-    return getattr(settings, "UPLOAD3D_MODELS_INCOMING_DIR", "/home/upload3d/models")
+    dirs = resolve_upload3d_incoming_dirs()
+    return dirs[0] if dirs else "/home/upload3d/models"
+
+
+def resolve_upload3d_incoming_dirs() -> list[str]:
+    """
+    Каталоги SFTP для sync_upload3d_models.
+    Cursor/скрипты часто кладут в /models (chroot upload3d), Django — в /home/upload3d/models.
+    """
+    seen: set[str] = set()
+    ordered: list[str] = []
+
+    def add(path: str) -> None:
+        ab = os.path.abspath((path or "").strip())
+        if not ab or ab in seen:
+            return
+        seen.add(ab)
+        ordered.append(ab)
+
+    add(getattr(settings, "UPLOAD3D_MODELS_INCOMING_DIR", "/home/upload3d/models"))
+    extra = (getattr(settings, "UPLOAD3D_MODELS_INCOMING_DIRS", None) or "").strip()
+    for part in extra.split(","):
+        add(part)
+    for candidate in ("/home/upload3d/models", "/models"):
+        if os.path.isdir(candidate):
+            add(candidate)
+    return ordered
 
 
 def imported_subdir_name() -> str:
@@ -94,10 +120,11 @@ def link_article_files_to_product(
     """Привязать FileAsset к товару. Returns (linked, errors, product_pk)."""
     errors: list[str] = []
     product = find_product_for_file_asset_id(article)
-    if not product and files_data.get("models"):
-        product = find_product_for_file_asset_id(files_data["models"][0].asset_id)
-    if not product and files_data.get("images"):
-        product = find_product_for_file_asset_id(files_data["images"][0].asset_id)
+    if not product:
+        for asset in files_data.get("models", []) + files_data.get("images", []):
+            product = find_product_for_file_asset_id(asset.asset_id)
+            if product:
+                break
 
     if not product:
         if files_data["images"] or files_data["models"]:
@@ -243,12 +270,13 @@ def import_directory(
             elif status == "updated":
                 stats["updated"] += 1
 
-            base_article = extract_base_article(file_asset.asset_id)
+            # Ключ = полное имя файла (как в админке), не урезанный IMR-* без цвета
+            group_key = (file_asset.asset_id or "").strip()
             if file_asset.file_type == "image":
-                articles_files[base_article]["images"].append(file_asset)
+                articles_files[group_key]["images"].append(file_asset)
             else:
-                articles_files[base_article]["models"].append(file_asset)
-            paths_by_article[base_article].append(full_path)
+                articles_files[group_key]["models"].append(file_asset)
+            paths_by_article[group_key].append(full_path)
 
             processed += 1
             if progress and processed % 25 == 0:
@@ -294,10 +322,34 @@ def import_directory(
 
     linked = stats.get("linked_product_ids") or []
     if linked:
-        from apps.catalog.catalog_visibility import refresh_visibility_for_product_ids
-        from apps.catalog.glb_2d_preview import queue_glb_2d_previews_for_product_ids
-
-        stats["visibility_refreshed"] = refresh_visibility_for_product_ids(linked)
-        stats["queued_2d_previews"] = queue_glb_2d_previews_for_product_ids(linked)
+        stats.update(finalize_imported_products(linked))
 
     return stats
+
+
+def finalize_imported_products(product_ids: list[int]) -> dict[str, int]:
+    """
+    После импорта (SFTP или ZIP в админке): backfill URL, флаги витрины, 2D, RFA→GLB.
+    """
+    if not product_ids:
+        return {}
+    from apps.catalog.catalog_asset_publish import (
+        backfill_queryset,
+        enqueue_rfa_glb_previews,
+    )
+    from apps.catalog.catalog_visibility import refresh_visibility_for_product_ids
+    from apps.catalog.glb_2d_preview import queue_glb_2d_previews_for_product_ids
+    from apps.catalog.models import Product
+
+    unique_ids = list(dict.fromkeys(product_ids))
+    qs = Product.objects.filter(pk__in=unique_ids, is_active=True)
+    updated, _ = backfill_queryset(qs)
+    visibility_refreshed = refresh_visibility_for_product_ids(unique_ids)
+    queued_2d = queue_glb_2d_previews_for_product_ids(unique_ids)
+    rfa_queued = enqueue_rfa_glb_previews(qs)
+    return {
+        "backfill_updated": updated,
+        "visibility_refreshed": visibility_refreshed,
+        "queued_2d_previews": queued_2d,
+        "rfa_glb_queued": rfa_queued,
+    }

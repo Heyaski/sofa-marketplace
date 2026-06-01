@@ -1,29 +1,30 @@
+import os
+
 """
 Забрать файлы из каталога SFTP (upload3d) в FileAsset и привязать к товарам —
-как «Массовый импорт файлов» в админке, без ZIP.
+та же логика, что ZIP в админке /catalog/fileasset/import-files/.
 
-По умолчанию: /home/upload3d/models (env UPLOAD3D_MODELS_INCOMING_DIR).
+Каталоги (первый существующий + доп. из .env):
+  UPLOAD3D_MODELS_INCOMING_DIR=/home/upload3d/models
+  UPLOAD3D_MODELS_INCOMING_DIRS=/models   # если Cursor кладёт в chroot /models
 
-После успешной привязки файлы переносятся в подпапку imported/.
-
-Cron (каждые 5–15 мин):
-  */10 * * * * cd .../backend && venv/bin/python manage.py sync_upload3d_models >> logs/upload3d_sync.log 2>&1
+Cron (каждые 5–15 мин) или systemd path — см. deploy/cron/README.md
 """
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from apps.catalog.file_import_from_disk import default_incoming_dir, import_directory
+from apps.catalog.file_import_from_disk import import_directory, resolve_upload3d_incoming_dirs
 
 
 class Command(BaseCommand):
-    help = "Импорт файлов из каталога SFTP upload3d (как admin import-files ZIP)"
+    help = "Импорт файлов из SFTP upload3d (идентично админке import-files ZIP)"
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--path",
             type=str,
             default="",
-            help="Каталог с файлами (по умолчанию UPLOAD3D_MODELS_INCOMING_DIR)",
+            help="Один каталог (иначе все из UPLOAD3D_MODELS_INCOMING_DIR + DIRS + /models)",
         )
         parser.add_argument("--dry-run", action="store_true", help="Только список файлов, без записи")
         parser.add_argument(
@@ -38,70 +39,108 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        root = (options["path"] or "").strip() or default_incoming_dir()
+        if (options["path"] or "").strip():
+            roots = [options["path"].strip()]
+        else:
+            roots = resolve_upload3d_incoming_dirs()
+
         dry = options["dry_run"]
         move = not options["no_move"]
 
-        self.stdout.write(f"Каталог: {root}")
-        if dry:
-            self.stdout.write(self.style.WARNING("Режим dry-run"))
-        elif not options["optimize_glb"]:
-            self.stdout.write("Оптимизация GLB (gltfpack) отключена для этого прогона.")
+        self.stdout.write("Каталоги SFTP для импорта:")
+        for r in roots:
+            exists = "OK" if os.path.isdir(r) else "НЕТ ПАПКИ"
+            self.stdout.write(f"  [{exists}] {r}")
 
         prev_optimize = settings.GLB_OPTIMIZE_ON_SAVE
         if not options["optimize_glb"]:
             settings.GLB_OPTIMIZE_ON_SAVE = False
 
+        totals = {
+            "created": 0,
+            "updated": 0,
+            "skipped": 0,
+            "products_linked": 0,
+            "files_moved": 0,
+            "errors": [],
+            "linked_product_ids": [],
+            "backfill_updated": 0,
+            "visibility_refreshed": 0,
+            "queued_2d_previews": 0,
+            "rfa_glb_queued": 0,
+        }
+
         try:
-            stats = import_directory(
-                root,
-                dry_run=dry,
-                move_imported=move,
-                progress=self.stdout.write if not dry else None,
-            )
-        except FileNotFoundError as e:
-            self.stdout.write(self.style.ERROR(str(e)))
-            return
+            for root in roots:
+                if not os.path.isdir(root):
+                    self.stdout.write(self.style.WARNING(f"Пропуск (нет каталога): {root}"))
+                    continue
+                self.stdout.write(self.style.MIGRATE_HEADING(f"Импорт: {root}"))
+                if dry:
+                    self.stdout.write(self.style.WARNING("Режим dry-run"))
+                elif not options["optimize_glb"]:
+                    self.stdout.write("Оптимизация GLB (gltfpack) отключена для этого прогона.")
+
+                try:
+                    stats = import_directory(
+                        root,
+                        dry_run=dry,
+                        move_imported=move,
+                        progress=self.stdout.write if not dry else None,
+                    )
+                except FileNotFoundError as e:
+                    self.stdout.write(self.style.ERROR(str(e)))
+                    continue
+
+                for key in totals:
+                    if key == "errors":
+                        totals["errors"].extend(stats.get("errors") or [])
+                    elif key == "linked_product_ids":
+                        totals["linked_product_ids"].extend(stats.get("linked_product_ids") or [])
+                    elif key in stats:
+                        totals[key] += stats.get(key) or 0
+
+                if dry:
+                    files = stats.get("dry_run_files", [])
+                    self.stdout.write(f"  Найдено файлов: {len(files)}")
+                    for name, art in files[:20]:
+                        self.stdout.write(f"    {name} → {art!r}")
+                    if len(files) > 20:
+                        self.stdout.write(f"    ... ещё {len(files) - 20}")
         finally:
             settings.GLB_OPTIMIZE_ON_SAVE = prev_optimize
 
         if dry:
-            files = stats.get("dry_run_files", [])
-            self.stdout.write(f"Найдено подходящих файлов: {len(files)}")
-            for name, art in files[:40]:
-                self.stdout.write(f"  {name} → артикул {art!r}")
-            if len(files) > 40:
-                self.stdout.write(f"  ... ещё {len(files) - 40}")
             return
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Создано FileAsset: {stats['created']}, обновлено: {stats['updated']}, "
-                f"пропущено: {stats['skipped']}, товаров привязано: {stats['products_linked']}, "
-                f"файлов в imported/: {stats['files_moved']}"
+                f"Итого FileAsset: создано {totals['created']}, обновлено {totals['updated']}, "
+                f"пропущено {totals['skipped']}, товаров привязано {totals['products_linked']}, "
+                f"в imported/: {totals['files_moved']}"
             )
         )
-
-        linked_ids = stats.get("linked_product_ids") or []
-        if linked_ids:
-            from apps.catalog.catalog_asset_publish import backfill_queryset
-            from apps.catalog.models import Product
-
-            qs = Product.objects.filter(pk__in=linked_ids, is_active=True)
-            updated, _ = backfill_queryset(qs)
+        if totals["backfill_updated"]:
+            self.stdout.write(f"Backfill model_glb/rfa/ifc: {totals['backfill_updated']}")
+        if totals["visibility_refreshed"]:
+            self.stdout.write(f"Флаги catalog_visible обновлены: {totals['visibility_refreshed']}")
+        if totals["queued_2d_previews"]:
+            self.stdout.write(f"2D-превью в очереди: {totals['queued_2d_previews']}")
+        if totals["rfa_glb_queued"]:
             self.stdout.write(
-                self.style.SUCCESS(
-                    f"Backfill model_glb/rfa/ifc для привязанных товаров: обновлено {updated}"
+                self.style.WARNING(
+                    f"RFA→GLB в очереди: {totals['rfa_glb_queued']} "
+                    "(нужен Celery + RFA_TO_GLB_COMMAND или залейте .glb)"
                 )
             )
-            from apps.catalog.glb_2d_preview import queue_glb_2d_previews_for_product_ids
-
-            queued_2d = queue_glb_2d_previews_for_product_ids(linked_ids)
-            if queued_2d:
-                self.stdout.write(
-                    self.style.SUCCESS(f"2D-превью поставлено в очередь: {queued_2d}")
+        if totals["products_linked"] == 0 and totals["created"] + totals["updated"] > 0:
+            self.stdout.write(
+                self.style.ERROR(
+                    "Файлы загружены в FileAsset, но товары не найдены. "
+                    "Имя файла = код в карточке (Кресло4052.glb), не только IMR-819300GRY.glb."
                 )
-        for err in stats["errors"][:30]:
+            )
+        for err in totals["errors"][:30]:
             self.stdout.write(self.style.WARNING(err))
-        if len(stats["errors"]) > 30:
-            self.stdout.write(f"... ещё ошибок: {len(stats['errors']) - 30}")
+        if len(totals["errors"]) > 30:
+            self.stdout.write(f"... ещё ошибок: {len(totals['errors']) - 30}")

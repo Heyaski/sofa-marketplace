@@ -2,7 +2,7 @@
 
 ## SFTP upload3d → каталог (FileAsset + товары)
 
-Заказчик заливает `.glb` / `.rfa` / `.ifc` / фото на сервер по SFTP в каталог **`/home/upload3d/models`** (пользователь `upload3d`). Django сам не видит эту папку, пока не запустить:
+Заказчик заливает `.glb` / `.rfa` / `.ifc` / фото на сервер по SFTP (пользователь `upload3d`) в **`/home/upload3d/models`** или **`/models`** (chroot). Django сам не видит файлы, пока не запустить:
 
 ```bash
 python manage.py sync_upload3d_models
@@ -13,7 +13,10 @@ python manage.py sync_upload3d_models
 Переменные в `.env` (опционально):
 
 - `UPLOAD3D_MODELS_INCOMING_DIR=/home/upload3d/models`
+- `UPLOAD3D_MODELS_INCOMING_DIRS=/models` — второй каталог, если Cursor кладёт в `/models`
 - `UPLOAD3D_MODELS_IMPORTED_SUBDIR=imported` — сюда переносятся обработанные файлы
+
+**Важно:** заливка по SFTP ≠ импорт в каталог. После загрузки файлов обязателен `sync_upload3d_models` (или systemd path / cron). Админка ZIP делает импорт сразу; SFTP — в два шага.
 
 Автоматически:
 - событие по появлению/изменению файлов в `/home/upload3d/models` (systemd path watcher, см. ниже),

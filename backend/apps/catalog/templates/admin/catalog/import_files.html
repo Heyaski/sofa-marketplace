@@ -36,8 +36,10 @@
             <li>Файлы могут быть в корне архива или в подпапках</li>
         </ul>
         <p style="margin: 12px 0 0 0; font-size: 13px;">
-            <strong>SFTP (upload3d):</strong> файлы в <code>/home/upload3d/models</code> обрабатываются той же логикой
-            командой на сервере: <code>python manage.py sync_upload3d_models</code> (см. cron в репозитории).
+            <strong>SFTP (Cursor / upload3d):</strong> тот же импорт, что и ZIP выше. Положите файлы в
+            <code>/home/upload3d/models</code> (или путь из <code>UPLOAD3D_MODELS_INCOMING_DIR</code>) и выполните на сервере:
+            <code>python manage.py sync_upload3d_models</code> — либо настройте cron каждые 5–10 мин.
+            Имя файла = код товара: <code>Кресло4052.glb</code>, не только артикул IMR-*.
         </p>
     </div>
 

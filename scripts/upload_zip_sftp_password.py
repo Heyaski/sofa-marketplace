@@ -18,7 +18,10 @@ def main() -> int:
     parser.add_argument("--host", default=os.environ.get("SFTP_HOST", "45.12.74.57"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("SFTP_PORT", "22")))
     parser.add_argument("--user", default=os.environ.get("SFTP_USER", "upload3d"))
-    parser.add_argument("--remote-dir", default=os.environ.get("REMOTE_DIR", "/models"))
+    parser.add_argument(
+        "--remote-dir",
+        default=os.environ.get("REMOTE_DIR", "/home/upload3d/models"),
+    )
     args = parser.parse_args()
 
     password = os.environ.get("SFTP_PASSWORD", "").strip()
