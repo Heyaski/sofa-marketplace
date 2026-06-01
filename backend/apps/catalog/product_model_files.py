@@ -114,7 +114,7 @@ def annotate_admin_file_flags(queryset):
     glb_q = catalog_has_glb_q()
     rfa_q, ifc_q = q_product_has_rfa(), q_product_has_ifc()
     fbx_q = q_product_has_fbx()
-    sub = Product.objects.filter(pk=OuterRef("pk"))
+    sub = queryset.model.objects.filter(pk=OuterRef("pk"))
     return queryset.annotate(
         _file_has_glb=Exists(sub.filter(glb_q)),
         _file_has_rfa=Exists(sub.filter(rfa_q)),
