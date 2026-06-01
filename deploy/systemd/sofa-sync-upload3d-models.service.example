@@ -1,6 +1,7 @@
 [Unit]
-Description=Sofa Marketplace — import upload3d SFTP files into catalog
-After=network-online.target postgresql.service
+Description=Sofa Marketplace — auto-import SFTP upload3d files into catalog
+Documentation=file:/home/deploy/sofa-marketplace/deploy/cron/README.md
+After=network-online.target postgresql.service redis.service
 Wants=network-online.target
 
 [Service]
@@ -9,6 +10,9 @@ User=deploy
 Group=deploy
 WorkingDirectory=/home/deploy/sofa-marketplace/backend
 EnvironmentFile=-/home/deploy/sofa-marketplace/backend/.env
-ExecStart=/home/deploy/sofa-marketplace/backend/venv/bin/python manage.py sync_upload3d_models
-StandardOutput=journal
-StandardError=journal
+Environment=SOFA_BACKEND_DIR=/home/deploy/sofa-marketplace/backend
+Environment=SOFA_PYTHON=/home/deploy/sofa-marketplace/backend/venv/bin/python
+Environment=UPLOAD3D_SYNC_DEBOUNCE_SEC=45
+ExecStart=/home/deploy/sofa-marketplace/deploy/scripts/sync-upload3d-debounced.sh
+Nice=10
+IOSchedulingClass=best-effort

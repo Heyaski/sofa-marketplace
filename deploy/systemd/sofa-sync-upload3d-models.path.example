@@ -1,10 +1,12 @@
 [Unit]
-Description=Watch upload3d directory and trigger catalog import
+Description=Watch upload3d SFTP folders and import into catalog
+Documentation=file:/home/deploy/sofa-marketplace/deploy/cron/README.md
 
 [Path]
-# Срабатывает при изменениях в директории (добавление/изменение файлов)
-PathModified=/home/upload3d/models
+PathExists=/home/upload3d/models
 PathChanged=/home/upload3d/models
+PathExists=/models
+PathChanged=/models
 Unit=sofa-sync-upload3d-models.service
 
 [Install]

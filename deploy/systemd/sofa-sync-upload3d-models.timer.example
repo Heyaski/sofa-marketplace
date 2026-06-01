@@ -1,0 +1,13 @@
+[Unit]
+Description=Periodic SFTP upload3d import (backup if path unit missed an event)
+Documentation=file:/home/deploy/sofa-marketplace/deploy/cron/README.md
+
+[Timer]
+OnBootSec=3min
+OnUnitInactiveSec=5min
+AccuracySec=1min
+Persistent=true
+Unit=sofa-sync-upload3d-models.service
+
+[Install]
+WantedBy=timers.target

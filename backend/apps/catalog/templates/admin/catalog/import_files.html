@@ -37,8 +37,8 @@
         </ul>
         <p style="margin: 12px 0 0 0; font-size: 13px;">
             <strong>SFTP (Cursor / upload3d):</strong> тот же импорт, что и ZIP выше. Положите файлы в
-            <code>/home/upload3d/models</code> (или путь из <code>UPLOAD3D_MODELS_INCOMING_DIR</code>) и выполните на сервере:
-            <code>python manage.py sync_upload3d_models</code> — либо настройте cron каждые 5–10 мин.
+            <code>/home/upload3d/models</code>. На сервере один раз:
+            <code>sudo bash deploy/install-upload3d-auto-sync.sh</code> — дальше импорт идёт сам.
             Имя файла = код товара: <code>Кресло4052.glb</code>, не только артикул IMR-*.
         </p>
     </div>

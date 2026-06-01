@@ -18,35 +18,35 @@ python manage.py sync_upload3d_models
 
 **Важно:** заливка по SFTP ≠ импорт в каталог. После загрузки файлов обязателен `sync_upload3d_models` (или systemd path / cron). Админка ZIP делает импорт сразу; SFTP — в два шага.
 
-Автоматически:
-- событие по появлению/изменению файлов в `/home/upload3d/models` (systemd path watcher, см. ниже),
-- или каждые 10 минут через cron: `sync-upload3d-models.crontab.example`.
+**Вручную** (если автоматика не включена): после каждой заливки `python manage.py sync_upload3d_models`.
 
-**Права:** пользователь `deploy` должен читать `/home/upload3d/models` (например, группа `upload3d` и `chmod g+rx`).
-
-### Вариант: systemd path (рекомендуется — по событию)
-
-1. Установите unit-файлы:
+### Автоматически (рекомендуется) — один раз на сервере
 
 ```bash
-sudo cp deploy/systemd/sofa-sync-upload3d-models.service.example /etc/systemd/system/sofa-sync-upload3d-models.service
-sudo cp deploy/systemd/sofa-sync-upload3d-models.path.example /etc/systemd/system/sofa-sync-upload3d-models.path
+cd /home/deploy/sofa-marketplace
+sudo bash deploy/install-upload3d-auto-sync.sh
 ```
 
-2. Включите watcher:
+Что ставится:
+- **systemd path** — при изменении `/home/upload3d/models` и `/models` через ~45 с запускается импорт (как ZIP в админке);
+- **systemd timer** — резервный прогон каждые ~5 мин, если path не сработал.
+
+Проверка после заливки по SFTP:
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now sofa-sync-upload3d-models.path
-sudo systemctl status sofa-sync-upload3d-models.path --no-pager
+journalctl -u sofa-sync-upload3d-models.service -f
 ```
 
-3. Проверка:
+**Права:** пользователь `deploy` должен читать каталог upload3d:
 
 ```bash
-sudo systemctl start sofa-sync-upload3d-models.service
-journalctl -u sofa-sync-upload3d-models.service -n 50 --no-pager
+sudo usermod -aG upload3d deploy
+# перелогинить deploy или: newgrp upload3d
 ```
+
+### Вариант: только cron (проще, но с задержкой до 10 мин)
+
+`deploy/cron/sync-upload3d-models.crontab.example`
 
 ---
 
