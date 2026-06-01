@@ -91,6 +91,14 @@ class Command(BaseCommand):
         after = catalog_visibility_counts(qs)
         self.stdout.write(format_counts("После backfill", after))
 
+        self.stdout.write("Обновление флагов catalog_visible_2d/3d…")
+        refresh_args = []
+        if category_id is not None:
+            refresh_args = ["--category-id", str(category_id)]
+        call_command("refresh_catalog_visibility", *refresh_args)
+        after_flags = catalog_visibility_counts(qs)
+        self.stdout.write(format_counts("После флагов", after_flags))
+
         if options["generate_2d"]:
             self.stdout.write("Генерация 2D-превью из GLB…")
             call_command("generate_2d_from_glb", workers=max(1, options["workers"]))

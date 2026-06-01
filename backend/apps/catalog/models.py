@@ -82,6 +82,18 @@ class Product(models.Model):
     
     is_active = models.BooleanField(default=True, verbose_name="Активен")
     is_trending = models.BooleanField(default=False, verbose_name="В тренде")
+    catalog_visible_3d = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="Виден в 3D каталоге",
+        help_text="Денормализация: есть стабильный GLB для model-viewer (обновляется при импорте/сохранении).",
+    )
+    catalog_visible_2d = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="Виден в 2D каталоге",
+        help_text="Денормализация: есть фото для сетки 2D.",
+    )
     
     # 🖼️ Основное изображение (для обратной совместимости)
     image = models.ImageField(upload_to="products/", blank=True, null=True, verbose_name="Основное фото")

@@ -13,7 +13,6 @@ from apps.catalog.file_urls import (
 )
 from apps.catalog.models import Product
 from apps.catalog.product_model_files import url_has_extension
-from apps.catalog.views import catalog_has_2d_photo_q, catalog_has_glb_q
 
 
 def apply_model_urls_from_assets(product: Product) -> list[str]:
@@ -65,6 +64,9 @@ def apply_model_urls_from_assets(product: Product) -> list[str]:
     product.model_glb = new_glb
     product.model_rfa = new_rfa
     product.model_ifc = new_ifc
+    from apps.catalog.catalog_visibility import refresh_product_visibility_flags
+
+    refresh_product_visibility_flags(product, save=True)
     if "glb" in changes and (new_glb or "").strip() != (old_glb or "").strip():
         from apps.catalog.glb_2d_preview import maybe_queue_glb_2d_preview
 
@@ -108,8 +110,8 @@ def catalog_visibility_counts(qs: QuerySet[Product]) -> dict[str, int]:
     return {
         "total": qs.count(),
         "active": active.count(),
-        "visible_3d": active.filter(catalog_has_glb_q()).count(),
-        "visible_2d": active.filter(catalog_has_2d_photo_q()).count(),
+        "visible_3d": active.filter(catalog_visible_3d=True).count(),
+        "visible_2d": active.filter(catalog_visible_2d=True).count(),
     }
 
 

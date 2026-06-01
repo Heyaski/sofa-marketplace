@@ -1,4 +1,6 @@
 import colorsys
+import hashlib
+import json
 import logging
 import operator
 import re
@@ -16,6 +18,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
 from rest_framework.response import Response
 
+from .catalog_visibility import q_catalog_visible_2d, q_catalog_visible_3d, refresh_product_visibility_flags
 from .glb_2d_preview import _exclude_ephemeral_url_field_q
 from .models import Category, FileAsset, Product, ProductImage
 from .serializers import (
@@ -411,8 +414,9 @@ class ProductViewSet(viewsets.ModelViewSet):
         Переопределяем queryset для поддержки фильтрации по категориям с учетом подкатегорий
         и множественного выбора для material, style, color, brand
         """
-        # Получаем базовый queryset (уже отфильтрованный по is_active=True)
         queryset = Product.objects.filter(is_active=True)
+        # Сначала категория — сужаем выборку до list_mode / COUNT.
+        queryset = self._filter_products_by_category(queryset)
 
         # Фильтрация по наличию файлов:
         # model_files=both -> только товары с изображением И реально доступной браузерной 3D-моделью
@@ -424,10 +428,9 @@ class ProductViewSet(viewsets.ModelViewSet):
             if self.action == 'list':
                 list_mode = (self.request.query_params.get('list_mode') or '').strip().lower()
                 if list_mode == '3d':
-                    queryset = queryset.filter(catalog_has_glb_q())
+                    queryset = queryset.filter(q_catalog_visible_3d())
                 else:
-                    # 2D: только карточки с реальным фото (не весь Excel без PNG)
-                    queryset = queryset.filter(catalog_has_2d_photo_q())
+                    queryset = queryset.filter(q_catalog_visible_2d())
             return queryset
 
         has_glb_q = catalog_has_glb_q()
@@ -495,30 +498,50 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         return self._apply_catalog_common_filters(queryset)
 
+    def _expanded_category_ids(self, raw_ids: list[int]) -> list[int]:
+        cache_key = f"catalog:cat_expand:v2:{','.join(map(str, sorted(raw_ids)))}"
+        expanded = cache.get(cache_key)
+        if expanded is not None:
+            return expanded
+        out: set[int] = set()
+        cats = Category.objects.filter(id__in=raw_ids).only("id", "parent_id")
+        parent_ids = []
+        for cat in cats:
+            if cat.parent_id is None:
+                parent_ids.append(cat.id)
+                out.add(cat.id)
+            else:
+                out.add(cat.id)
+        if parent_ids:
+            out.update(
+                Category.objects.filter(parent_id__in=parent_ids).values_list("id", flat=True)
+            )
+        result = sorted(out)
+        cache.set(cache_key, result, timeout=300)
+        return result
+
+    def _filter_products_by_category(self, queryset):
+        """category=1,2,3 с подкатегориями (кэш id категорий)."""
+        category_param = self.request.query_params.get("category")
+        if not category_param:
+            return queryset
+        ids = []
+        for sid in str(category_param).split(","):
+            try:
+                n = int(sid.strip())
+                if n > 0:
+                    ids.append(n)
+            except (ValueError, TypeError):
+                continue
+        if not ids:
+            return queryset.none()
+        cat_ids = self._expanded_category_ids(ids)
+        if not cat_ids:
+            return queryset.none()
+        return queryset.filter(category_id__in=cat_ids)
+
     def _apply_catalog_common_filters(self, queryset):
-        """Категории, цвет, цена, габариты — без тяжёлых Exists по FileAsset."""
-        # Фильтрация по категории (поддержка нескольких: category=1,2,3)
-        category_param = self.request.query_params.get('category', None)
-        if category_param:
-            from .models import Category
-            ids = []
-            for sid in str(category_param).split(','):
-                try:
-                    ids.append(int(sid.strip()))
-                except (ValueError, TypeError):
-                    pass
-            if ids:
-                cats = Category.objects.filter(id__in=ids)
-                q_cats = models.Q()
-                for cat in cats:
-                    if cat.parent is None:
-                        subcats = Category.objects.filter(parent=cat)
-                        q_cats |= models.Q(category=cat) | models.Q(category__in=subcats)
-                    else:
-                        q_cats |= models.Q(category=cat)
-                if q_cats:
-                    queryset = queryset.filter(q_cats)
-        
+        """Цвет, цена, габариты — категория уже в _filter_products_by_category."""
         # Фильтрация по цвету. Единая шкала 0–460:
         #   0– 25  Чёрный   (V < 0.20)
         #  25– 50  Серый    (S < 0.10, 0.20 ≤ V ≤ 0.67)
@@ -657,15 +680,25 @@ class ProductViewSet(viewsets.ModelViewSet):
     ordering_fields = ["price", "title"]
     ordering = ["price"]
 
-    def list(self, request, *args, **kwargs):
-        """Без кэширования полного ответа.
+    def _products_list_cache_key(self, request) -> str:
+        items = sorted((k.lower(), v) for k, v in request.query_params.items())
+        digest = hashlib.md5(
+            json.dumps(items, ensure_ascii=False, separators=(",", ":")).encode()
+        ).hexdigest()
+        return f"products_list:v8:{digest}"
 
-        Кэш JSON на 300 с давал «Нет фото» (2D) при обновлённых превью и «3D истёк» при протухших presigned
-        URL в asset_3d_models, тогда как страница товара тянет свежий retrieve.
-        """
-        # Как на странице товара: полные URL (presign кэшируется). fast_urls давал пустой image в 2D.
+    def list(self, request, *args, **kwargs):
+        """Кэш списка 120 с — мгновенная смена категории при повторном выборе."""
         request._catalog_list_fast_urls = False
-        return super().list(request, *args, **kwargs)
+        cache_key = self._products_list_cache_key(request)
+        if request.method == "GET":
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return Response(cached)
+        response = super().list(request, *args, **kwargs)
+        if response.status_code == 200 and isinstance(getattr(response, "data", None), dict):
+            cache.set(cache_key, response.data, timeout=120)
+        return response
 
     def retrieve(self, request, *args, **kwargs):
         """Кэширование деталей товара (10 мин)."""
@@ -684,6 +717,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         cache.delete(f"product_detail:v3:{product.pk}")
         cache.delete(f"product_detail:v4:{product.pk}")
         cache.delete(f"product_detail:v6:{product.pk}")
+        refresh_product_visibility_flags(product, save=True)
         try:
             cache.delete_pattern("products_list*")
         except AttributeError:

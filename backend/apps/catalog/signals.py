@@ -23,10 +23,12 @@ def remember_old_rfa(sender, instance: Product, **kwargs):
     if not instance.pk:
         instance._old_model_rfa = None
         instance._old_model_glb = None
+        instance._old_model_glb_for_vis = None
         return
     old = Product.objects.filter(pk=instance.pk).only("model_rfa", "model_glb").first()
     instance._old_model_rfa = old.model_rfa if old else None
     instance._old_model_glb = old.model_glb if old else None
+    instance._old_model_glb_for_vis = old.model_glb if old else None
 
 
 @receiver(post_save, sender=Product)
@@ -48,6 +50,24 @@ def queue_rfa_conversion(sender, instance: Product, created: bool, **kwargs):
         model_rfa_convert_error="",
     )
     convert_rfa_to_glb_task.delay(instance.pk)
+
+
+@receiver(post_save, sender=Product)
+def refresh_catalog_visibility_on_product_save(sender, instance: Product, **kwargs):
+    if kwargs.get("raw"):
+        return
+    old_glb = getattr(instance, "_old_model_glb_for_vis", None)
+    if old_glb == instance.model_glb and not kwargs.get("created"):
+        return
+    from apps.catalog.catalog_visibility import refresh_product_visibility_flags
+
+    refresh_product_visibility_flags(instance, save=True)
+    try:
+        from django.core.cache import cache
+
+        cache.delete_pattern("products_list*")
+    except AttributeError:
+        pass
 
 
 @receiver(post_save, sender=Product)

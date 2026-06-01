@@ -23,7 +23,6 @@ import {
 } from '@/lib/catalogUrlState'
 import { authService, productService } from '@/services/api'
 import { Category, ProductFilters, User } from '@/types'
-import Script from 'next/script'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -127,26 +126,18 @@ function CatalogContent() {
 		[filters]
 	)
 
-	// 2D грузим сразу (лёгкий список фото); 3D — по первому открытию вкладки 3D.
-	const [fetchList2d, setFetchList2d] = useState(true)
-	const [fetchList3d, setFetchList3d] = useState(
-		() => parseCatalogSearchParams(searchParams).view === '3d'
-	)
-	useEffect(() => {
-		if (catalogView === '3d') setFetchList3d(true)
-	}, [catalogView])
-
+	// Только активный режим ходит в API — иначе 2D+3D параллельно вешают сервер и UI.
 	const list2d = useProducts(filters2d, {
 		catalogListKey: '2d',
 		paginationMode: 'infinite',
-		enabled: fetchList2d,
+		enabled: catalogView === '2d',
 	})
 	const list3d = useProducts(filters3d, {
 		catalogListKey: '3d',
 		paginationMode: 'paged',
 		forcedPage: catalogPage,
 		onPageChange: setCatalogPage,
-		enabled: fetchList3d,
+		enabled: catalogView === '3d',
 	})
 
 	const activeList = catalogView === '2d' ? list2d : list3d
@@ -167,13 +158,14 @@ function CatalogContent() {
 		list3d.refetch()
 	}
 
-	// Прогрев кэша GLB (с задержкой — не блокировать UI при смене категории).
+	// Прогрев GLB — только первые 8 карточек, после отрисовки списка.
 	useEffect(() => {
 		if (catalogView !== '3d' || products.length === 0 || productsLoading) return
 		const urls = products
+			.slice(0, 8)
 			.map((p) => getProductModelUrlCandidates(p)[0])
 			.filter((u): u is string => Boolean(u))
-		const timer = window.setTimeout(() => prefetchGlbModels(urls), 400)
+		const timer = window.setTimeout(() => prefetchGlbModels(urls), 1200)
 		return () => window.clearTimeout(timer)
 	}, [catalogView, products, currentPage, productsLoading])
 
@@ -294,21 +286,22 @@ function CatalogContent() {
 	}
 
 	const handleFurnitureTypeChange = (ids: number[]) => {
+		const validIds = ids.filter((id) => Number.isFinite(id) && id > 0)
 		const uncategorizedCategory = categories.find(
 			(category) => category.name.trim().toLowerCase() === 'без категории'
 		)
 		const uncategorizedId = uncategorizedCategory?.id
 		// По запросу: выбор "Без категории" должен показывать весь каталог.
 		// Поэтому при выборе этой опции сбрасываем category-фильтр целиком.
-		if (uncategorizedId && ids.includes(uncategorizedId)) {
+		if (uncategorizedId && validIds.includes(uncategorizedId)) {
 			setFilters(prev => {
 				const { category: _category, ...rest } = prev
 				return rest
 			})
 			return
 		}
-		if (ids.length > 0) {
-			setFilters(prev => ({ ...prev, category: ids.join(',') }))
+		if (validIds.length > 0) {
+			setFilters(prev => ({ ...prev, category: validIds.join(',') }))
 		} else {
 			setFilters(prev => {
 				const { category: _, ...rest } = prev
@@ -334,13 +327,6 @@ function CatalogContent() {
 	const hasMoreCategories = categories && categories.length > visibleCategoriesCount
 	return (
 		<div className='min-h-screen bg-gray-bg pb-20 lg:pb-0'>
-			{catalogView === '3d' && (
-				<Script
-					src='https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer.min.js'
-					strategy='beforeInteractive'
-					type='module'
-				/>
-			)}
 			<Header />
 
 			<main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8'>

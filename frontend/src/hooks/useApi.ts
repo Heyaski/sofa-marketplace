@@ -15,12 +15,65 @@ export type ProductsPaginationMode = 'infinite' | 'paged'
 /** Ключ списка каталога: 2D (фото) и 3D (model-viewer) — отдельные кэш и состояние. */
 export type CatalogListKey = '2d' | '3d'
 const PRODUCTS_CACHE_TTL_MS = 60_000
+const PRODUCTS_SESSION_KEY = 'catalog:firstPageProducts:v1'
 const firstPageProductsCache = new Map<
 	string,
 	{ products: Product[]; hasMore: boolean; totalPages: number; cachedAt: number }
 >()
 let categoriesCache: { data: Category[]; cachedAt: number } | null = null
 const CATEGORIES_CACHE_TTL_MS = 300_000
+const CATEGORIES_SESSION_KEY = 'catalog:categories:v1'
+
+function readSessionJson<T>(key: string): T | null {
+	if (typeof window === 'undefined') return null
+	try {
+		const raw = window.sessionStorage.getItem(key)
+		if (!raw) return null
+		return JSON.parse(raw) as T
+	} catch {
+		return null
+	}
+}
+
+function writeSessionJson(key: string, value: unknown): void {
+	if (typeof window === 'undefined') return
+	try {
+		window.sessionStorage.setItem(key, JSON.stringify(value))
+	} catch {
+		/* quota */
+	}
+}
+
+function hydrateFirstPageCacheFromSession(cacheKey: string) {
+	if (firstPageProductsCache.has(cacheKey)) return
+	const blob = readSessionJson<
+		Record<string, { products: Product[]; hasMore: boolean; totalPages: number; cachedAt: number }>
+	>(PRODUCTS_SESSION_KEY)
+	const entry = blob?.[cacheKey]
+	if (entry && Date.now() - entry.cachedAt < PRODUCTS_CACHE_TTL_MS) {
+		firstPageProductsCache.set(cacheKey, entry)
+	}
+}
+
+function persistFirstPageCacheToSession(
+	cacheKey: string,
+	entry: { products: Product[]; hasMore: boolean; totalPages: number; cachedAt: number }
+) {
+	firstPageProductsCache.set(cacheKey, entry)
+	const blob =
+		readSessionJson<
+			Record<string, { products: Product[]; hasMore: boolean; totalPages: number; cachedAt: number }>
+		>(PRODUCTS_SESSION_KEY) || {}
+	blob[cacheKey] = entry
+	const keys = Object.keys(blob)
+	if (keys.length > 24) {
+		keys
+			.sort((a, b) => (blob[a].cachedAt || 0) - (blob[b].cachedAt || 0))
+			.slice(0, keys.length - 24)
+			.forEach((k) => delete blob[k])
+	}
+	writeSessionJson(PRODUCTS_SESSION_KEY, blob)
+}
 
 // ---------------------------
 // 🛍️ useProducts (пагинация: «загрузить ещё» или постранично)
@@ -66,6 +119,7 @@ export const useProducts = (
 	const fingerprintLiveRef = useRef(listFingerprint)
 	fingerprintLiveRef.current = listFingerprint
 	const prevFiltersKeyRef = useRef(filtersKey)
+	const catalogMountedRef = useRef(false)
 
 	const fetchProducts = useCallback(
 		async (
@@ -135,7 +189,7 @@ export const useProducts = (
 					setProducts(prev => {
 						const merged = mergeProductMediaFromPrevious(productsData, prev)
 						if (page === 1) {
-							firstPageProductsCache.set(firstPageCacheKey, {
+							persistFirstPageCacheToSession(firstPageCacheKey, {
 								products: merged,
 								hasMore: next !== null,
 								totalPages:
@@ -186,8 +240,12 @@ export const useProducts = (
 			return
 		}
 
-		const filtersChanged = prevFiltersKeyRef.current !== filtersKey
+		const filtersChanged =
+			catalogMountedRef.current && prevFiltersKeyRef.current !== filtersKey
 		prevFiltersKeyRef.current = filtersKey
+		catalogMountedRef.current = true
+
+		hydrateFirstPageCacheFromSession(firstPageCacheKey)
 
 		const ac = new AbortController()
 		// После смены фильтров всегда страница 1 (forcedPage из URL может отставать на один кадр).
@@ -206,21 +264,25 @@ export const useProducts = (
 		}
 		setTotalPages(1)
 
+		const cached = firstPageProductsCache.get(firstPageCacheKey)
+		const cacheFresh =
+			!!cached && Date.now() - cached.cachedAt < PRODUCTS_CACHE_TTL_MS && startPage === 1
+
 		if (filtersChanged) {
-			setProducts([])
-			setLoading(true)
 			setError(null)
 			if (paginationMode === 'paged' && (forcedPageRef.current ?? 1) !== 1) {
 				onPageChangeRef.current?.(1)
 			}
-		}
-
-		const cached = firstPageProductsCache.get(firstPageCacheKey)
-		if (
-			cached &&
-			Date.now() - cached.cachedAt < PRODUCTS_CACHE_TTL_MS &&
-			startPage === 1
-		) {
+			if (cacheFresh && cached) {
+				setProducts(cached.products)
+				setHasMore(cached.hasMore)
+				setTotalPages(cached.totalPages)
+				setLoading(false)
+			} else {
+				setProducts([])
+				setLoading(true)
+			}
+		} else if (cacheFresh && cached && productsCountRef.current === 0) {
 			setProducts(cached.products)
 			setHasMore(cached.hasMore)
 			setTotalPages(cached.totalPages)
@@ -275,19 +337,26 @@ export const useProducts = (
 // ---------------------------
 // 🧩 useCategories
 // ---------------------------
+function readCategoriesFromSession(): Category[] | null {
+	const entry = readSessionJson<{ data: Category[]; cachedAt: number }>(CATEGORIES_SESSION_KEY)
+	if (!entry?.data?.length) return null
+	if (Date.now() - entry.cachedAt >= CATEGORIES_CACHE_TTL_MS) return null
+	return entry.data
+}
+
 export const useCategories = () => {
-	const [categories, setCategories] = useState<Category[]>(() =>
-		categoriesCache && Date.now() - categoriesCache.cachedAt < CATEGORIES_CACHE_TTL_MS
-			? categoriesCache.data
-			: []
-	)
-	const [loading, setLoading] = useState(
-		() =>
-			!(
-				categoriesCache &&
-				Date.now() - categoriesCache.cachedAt < CATEGORIES_CACHE_TTL_MS
-			)
-	)
+	const [categories, setCategories] = useState<Category[]>(() => {
+		if (categoriesCache && Date.now() - categoriesCache.cachedAt < CATEGORIES_CACHE_TTL_MS) {
+			return categoriesCache.data
+		}
+		return readCategoriesFromSession() || []
+	})
+	const [loading, setLoading] = useState(() => {
+		if (categoriesCache && Date.now() - categoriesCache.cachedAt < CATEGORIES_CACHE_TTL_MS) {
+			return false
+		}
+		return !readCategoriesFromSession()?.length
+	})
 	const [error, setError] = useState<string | null>(null)
 
 	const fetchCategories = useCallback(async () => {
@@ -299,12 +368,19 @@ export const useCategories = () => {
 			setLoading(false)
 			return
 		}
+		const sessionCats = readCategoriesFromSession()
+		if (sessionCats?.length) {
+			setCategories(sessionCats)
+			setLoading(false)
+		}
 		try {
-			setLoading(true)
+			if (!sessionCats?.length) setLoading(true)
 			setError(null)
 			const response = await categoryService.getCategories()
 			const categoriesData = extractResults(response)
-			categoriesCache = { data: categoriesData, cachedAt: Date.now() }
+			const entry = { data: categoriesData, cachedAt: Date.now() }
+			categoriesCache = entry
+			writeSessionJson(CATEGORIES_SESSION_KEY, entry)
 			setCategories(categoriesData)
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Ошибка загрузки категорий')

@@ -53,6 +53,16 @@ export function parseCatalogSearchParams(
 	for (const key of FILTER_STRING_KEYS) {
 		const v = params.get(key)?.trim()
 		if (!v) continue
+		if (key === 'category') {
+			const ids = v
+				.split(',')
+				.map((s) => parseInt(s.trim(), 10))
+				.filter((n) => Number.isFinite(n) && n > 0)
+			if (ids.length) {
+				filters.category = ids.join(',')
+			}
+			continue
+		}
 		if (key === 'color_hue') {
 			const normalized = normalizeNearFullColorHueParam(v)
 			if (!normalized) continue
@@ -86,9 +96,16 @@ export function buildCatalogSearchParams(
 
 	for (const key of FILTER_STRING_KEYS) {
 		const v = filters[key]
-		if (v !== undefined && v !== null && String(v).trim() !== '') {
-			q.set(key, String(v))
+		if (v === undefined || v === null || String(v).trim() === '') continue
+		if (key === 'category') {
+			const ids = String(v)
+				.split(',')
+				.map((s) => parseInt(s.trim(), 10))
+				.filter((n) => Number.isFinite(n) && n > 0)
+			if (ids.length) q.set('category', ids.join(','))
+			continue
 		}
+		q.set(key, String(v))
 	}
 	for (const key of FILTER_NUM_KEYS) {
 		const v = filters[key]

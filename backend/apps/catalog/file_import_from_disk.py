@@ -292,11 +292,12 @@ def import_directory(
         except Exception as e:
             stats["errors"].append(f"Привязка '{article}': {e}")
 
-    if stats.get("linked_product_ids"):
+    linked = stats.get("linked_product_ids") or []
+    if linked:
+        from apps.catalog.catalog_visibility import refresh_visibility_for_product_ids
         from apps.catalog.glb_2d_preview import queue_glb_2d_previews_for_product_ids
 
-        stats["queued_2d_previews"] = queue_glb_2d_previews_for_product_ids(
-            stats["linked_product_ids"]
-        )
+        stats["visibility_refreshed"] = refresh_visibility_for_product_ids(linked)
+        stats["queued_2d_previews"] = queue_glb_2d_previews_for_product_ids(linked)
 
     return stats
