@@ -17,10 +17,10 @@ from apps.catalog.asset_matching import find_product_for_file_asset_id
 from apps.catalog.file_urls import (
     is_ephemeral_external_model_url,
     should_replace_product_model_url_with_asset,
-    url_has_extension,
     url_is_trusted_storage,
     url_looks_like_browser_model_file,
 )
+from apps.catalog.product_model_files import url_has_extension
 from apps.catalog.models import FileAsset, Product, ProductImage
 
 IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".svg"})

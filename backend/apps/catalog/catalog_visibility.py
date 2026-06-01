@@ -81,3 +81,11 @@ def refresh_visibility_for_product_ids(product_ids: list[int]) -> int:
         for pk, v3, v2 in qs.values_list("pk", "catalog_visible_3d", "catalog_visible_2d")
     }
     return sum(1 for pk in before if before[pk] != after.get(pk))
+
+
+def q_catalog_visible_3d() -> models.Q:
+    return models.Q(catalog_visible_3d=True)
+
+
+def q_catalog_visible_2d() -> models.Q:
+    return models.Q(catalog_visible_2d=True)
