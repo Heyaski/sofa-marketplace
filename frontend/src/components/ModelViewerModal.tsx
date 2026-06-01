@@ -1,5 +1,6 @@
 'use client'
 
+import { peekGlbBlobUrl, resolveGlbModelSrc } from '@/lib/glbModelCache'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FileAsset } from '../types'
 
@@ -41,6 +42,7 @@ export default function ModelViewerModal({
 	const [error, setError] = useState<string | null>(null)
 	const [isLoading, setIsLoading] = useState(true)
 	const [isScriptReady, setIsScriptReady] = useState(false)
+	const [resolvedModelSrc, setResolvedModelSrc] = useState<string | null>(null)
 	const [loadProgress, setLoadProgress] = useState(0)
 	const modelViewerRef = useRef<any>(null)
 	const timeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -185,6 +187,47 @@ export default function ModelViewerModal({
 		return MODEL_VIEWER_FORMATS.includes(ext)
 	})
 
+	const validIndex =
+		supportedModels.length === 0
+			? 0
+			: selectedModelIndex >= supportedModels.length
+				? 0
+				: selectedModelIndex
+	const selectedModel = supportedModels[validIndex]
+	const networkModelUrl = selectedModel?.file_url
+		? addCacheBust(selectedModel.file_url)
+		: null
+	const modelFormat = networkModelUrl
+		? (() => {
+				const ext = networkModelUrl
+					.toLowerCase()
+					.substring(networkModelUrl.lastIndexOf('.') + 1)
+					.split('?')[0]
+				return MODEL_VIEWER_FORMATS.includes(ext) ? ext : null
+			})()
+		: null
+	const isSupported = modelFormat !== null
+
+	useEffect(() => {
+		if (!isOpen || !networkModelUrl || !isSupported) {
+			setResolvedModelSrc(null)
+			return
+		}
+		const cached = peekGlbBlobUrl(networkModelUrl)
+		if (cached) {
+			setResolvedModelSrc(cached)
+			return
+		}
+		let cancelled = false
+		setResolvedModelSrc(null)
+		resolveGlbModelSrc(networkModelUrl).then((src) => {
+			if (!cancelled) setResolvedModelSrc(src)
+		})
+		return () => {
+			cancelled = true
+		}
+	}, [isOpen, networkModelUrl, isSupported, validIndex])
+
 	if (!isOpen || supportedModels.length === 0) {
 		// Если нет поддерживаемых моделей, показываем сообщение
 		if (isOpen && models.length > 0) {
@@ -235,25 +278,6 @@ export default function ModelViewerModal({
 		}
 		return null
 	}
-
-	// Обновляем индекс выбранной модели, если он выходит за границы
-	const validIndex =
-		selectedModelIndex >= supportedModels.length ? 0 : selectedModelIndex
-	const selectedModel = supportedModels[validIndex]
-
-	// Определяем формат для model-viewer
-	const getModelFormat = (url: string): string | null => {
-		if (!url) return null
-		const urlLower = url.toLowerCase()
-		const ext = urlLower.substring(urlLower.lastIndexOf('.') + 1).split('?')[0] // Убираем query параметры
-		if (MODEL_VIEWER_FORMATS.includes(ext)) {
-			return ext
-		}
-		return null
-	}
-
-	const modelFormat = getModelFormat(selectedModel.file_url)
-	const isSupported = modelFormat !== null
 
 	const handleDownload = () => {
 		window.open(selectedModel.file_url, '_blank')
@@ -339,7 +363,7 @@ export default function ModelViewerModal({
 								<model-viewer
 									ref={setupModelViewer}
 									id={`model-viewer-${validIndex}`}
-									src={addCacheBust(selectedModel.file_url)}
+									src={resolvedModelSrc || networkModelUrl || ''}
 									alt={
 										selectedModel.description ||
 										selectedModel.asset_id ||

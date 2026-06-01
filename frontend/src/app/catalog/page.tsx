@@ -10,6 +10,8 @@ import MultiSelectFilter from '@/components/MultiSelectFilter'
 import PriceFilter from '@/components/PriceFilter'
 import RGBRangeFilter from '@/components/RGBRangeFilter'
 import ProductCard from '@/components/ProductCard'
+import { getProductModelUrlCandidates } from '@/components/ProductModelViewer'
+import { prefetchGlbModels } from '@/lib/glbModelCache'
 import { useBaskets, useCategories, useProducts } from '@/hooks/useApi'
 import {
 	buildCatalogSearchParams,
@@ -157,6 +159,15 @@ function CatalogContent() {
 		list2d.refetch()
 		list3d.refetch()
 	}
+
+	// Прогрев кэша GLB для текущей страницы 3D-каталога (повторный показ без сети).
+	useEffect(() => {
+		if (catalogView !== '3d' || products.length === 0) return
+		const urls = products
+			.map((p) => getProductModelUrlCandidates(p)[0])
+			.filter((u): u is string => Boolean(u))
+		prefetchGlbModels(urls)
+	}, [catalogView, products, currentPage])
 
 	// Получаем все продукты без фильтров для вычисления диапазонов
 	const [filterRangesData, setFilterRangesData] = useState<{

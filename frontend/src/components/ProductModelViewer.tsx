@@ -1,5 +1,6 @@
 'use client'
 
+import { peekGlbBlobUrl, prefetchGlbModel, resolveGlbModelSrc } from '@/lib/glbModelCache'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Product } from '../types'
 
@@ -187,7 +188,14 @@ export default function ProductModelViewer({
 	useEffect(() => {
 		setFailoverIdx(0)
 		setModelLoadFailed(false)
+		setResolvedSrc(null)
+		setModelLoaded(false)
 	}, [product.id, modelUrlOverride, modelIndex])
+
+	useEffect(() => {
+		setResolvedSrc(null)
+		setModelLoaded(false)
+	}, [modelUrl])
 
 	// Виртуализация: загружаем 3D когда карточка в viewport. Гистерезис — не скрываем при кратковременном выходе из viewport.
 	useEffect(() => {
@@ -234,27 +242,48 @@ export default function ProductModelViewer({
 
 	useEffect(() => {
 		if (!modelUrl || !scriptReady || !inViewport) return
-		// Не сбрасываем состояние на каждом пересечении viewport:
-		// иначе спиннер может "залипать" поверх уже загруженной модели.
 		setModelLoadFailed(false)
-		if (resolvedSrc !== modelUrl) {
-			setModelLoaded(false)
-			let cancelled = false
-			modelLoadQueue.acquire().then((release) => {
-				if (cancelled) {
-					release()
-					return
-				}
-				releaseQueueSlotRef.current = release
-				// Для стабильной загрузки на Safari/iOS и S3 с range-ответами
-				// передаем model-viewer прямой URL, без промежуточного blob.
-				setResolvedSrc(modelUrl)
-			})
-			return () => {
-				cancelled = true
+
+		const cachedBlob = peekGlbBlobUrl(modelUrl)
+		if (cachedBlob) {
+			if (resolvedSrc !== cachedBlob) {
+				setResolvedSrc(cachedBlob)
 			}
+			setModelLoaded(true)
+			return
+		}
+
+		const mem = peekGlbBlobUrl(modelUrl)
+		if (mem && resolvedSrc === mem) return
+		if (!mem && resolvedSrc === modelUrl) return
+
+		setModelLoaded(false)
+		let cancelled = false
+		modelLoadQueue.acquire().then((release) => {
+			if (cancelled) {
+				release()
+				return
+			}
+			releaseQueueSlotRef.current = release
+			resolveGlbModelSrc(modelUrl)
+				.then((src) => {
+					if (cancelled) return
+					setResolvedSrc(src)
+				})
+				.catch(() => {
+					if (!cancelled) setResolvedSrc(modelUrl)
+				})
+		})
+		return () => {
+			cancelled = true
 		}
 	}, [modelUrl, scriptReady, inViewport, resolvedSrc])
+
+	// Фоном прогреваем кэш, как только известен URL (до viewport).
+	useEffect(() => {
+		if (!modelUrl) return
+		prefetchGlbModel(modelUrl)
+	}, [modelUrl])
 
 	useEffect(() => {
 		const el = modelViewerRef.current as HTMLElement | null
