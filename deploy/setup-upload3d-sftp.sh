@@ -28,6 +28,8 @@ chmod 755 "$UPLOAD3D_HOME" "$MODELS_ROOT"
 chown "${UPLOAD3D_USER}:${UPLOAD3D_USER}" "$INCOMING" "$IMPORTED"
 chmod 2775 "$INCOMING" "$IMPORTED"
 usermod -aG "$UPLOAD3D_USER" "$DEPLOY_USER" 2>/dev/null || true
+# deploy может читать incoming для sync; заливка — пользователем upload3d
+setfacl -m "u:${DEPLOY_USER}:rx" "$INCOMING" "$IMPORTED" 2>/dev/null || true
 
 OLD_HOME="$(getent passwd "$UPLOAD3D_USER" | cut -d: -f6 || true)"
 DEPLOY_HOME="$(getent passwd "$DEPLOY_USER" | cut -d: -f6 || echo "/home/deploy")"
