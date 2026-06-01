@@ -130,8 +130,9 @@ export function prefetchGlbModel(networkUrl: string): void {
 	void resolveGlbModelSrc(networkUrl)
 }
 
-export function prefetchGlbModels(networkUrls: Iterable<string>): void {
-	for (const url of networkUrls) {
+export function prefetchGlbModels(networkUrls: string[]): void {
+	for (let i = 0; i < networkUrls.length; i++) {
+		const url = networkUrls[i]
 		if (url) prefetchGlbModel(url)
 	}
 }

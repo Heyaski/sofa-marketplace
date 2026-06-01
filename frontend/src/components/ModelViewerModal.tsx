@@ -18,6 +18,15 @@ const MODEL_VIEWER_FORMATS = ['glb', 'gltf', 'usdz']
 const GLB_VERSION = 'v=opt4'
 const addCacheBust = (url: string) => url + (url.includes('?') ? '&' : '?') + GLB_VERSION
 
+function getModelFormat(url: string): string | null {
+	if (!url) return null
+	const ext = url
+		.toLowerCase()
+		.substring(url.lastIndexOf('.') + 1)
+		.split('?')[0]
+	return MODEL_VIEWER_FORMATS.includes(ext) ? ext : null
+}
+
 export default function ModelViewerModal({
 	isOpen,
 	onClose,
@@ -197,15 +206,7 @@ export default function ModelViewerModal({
 	const networkModelUrl = selectedModel?.file_url
 		? addCacheBust(selectedModel.file_url)
 		: null
-	const modelFormat = networkModelUrl
-		? (() => {
-				const ext = networkModelUrl
-					.toLowerCase()
-					.substring(networkModelUrl.lastIndexOf('.') + 1)
-					.split('?')[0]
-				return MODEL_VIEWER_FORMATS.includes(ext) ? ext : null
-			})()
-		: null
+	const modelFormat = networkModelUrl ? getModelFormat(networkModelUrl) : null
 	const isSupported = modelFormat !== null
 
 	useEffect(() => {
