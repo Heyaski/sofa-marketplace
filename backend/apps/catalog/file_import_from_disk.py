@@ -14,7 +14,13 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 
 from apps.catalog.asset_matching import find_product_for_file_asset_id
-from apps.catalog.file_urls import should_replace_product_model_url_with_asset
+from apps.catalog.file_urls import (
+    is_ephemeral_external_model_url,
+    should_replace_product_model_url_with_asset,
+    url_has_extension,
+    url_is_trusted_storage,
+    url_looks_like_browser_model_file,
+)
 from apps.catalog.models import FileAsset, Product, ProductImage
 
 IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".svg"})
@@ -134,6 +140,20 @@ def upsert_fileasset_from_path(full_path: str, filename: str) -> tuple[FileAsset
     return file_asset, "created"
 
 
+def fix_misplaced_model_urls_from_excel(product: Product) -> bool:
+    """
+    Excel/inmyroom часто кладёт FBX-URL в model_glb. Переносим в model_fbx и очищаем model_glb.
+    """
+    changed = False
+    mg = (product.model_glb or "").strip()
+    if mg and url_has_extension(mg, ".fbx") and not url_looks_like_browser_model_file(mg):
+        if not (product.model_fbx or "").strip():
+            product.model_fbx = mg
+        product.model_glb = ""
+        changed = True
+    return changed
+
+
 def link_article_files_to_product(
     article: str,
     files_data: dict[str, list[FileAsset]],
@@ -182,16 +202,24 @@ def link_article_files_to_product(
         existing_model_ids = [i.strip() for i in existing_model_ids if i.strip()]
         product.model_3d_asset_ids = ",".join(set(existing_model_ids + model_asset_ids))
 
+        fix_misplaced_model_urls_from_excel(product)
+
         for asset in files_data["models"]:
             try:
                 if asset.file and hasattr(asset.file, "url"):
                     file_ext = os.path.splitext(asset.file.name)[1].lower()
                     file_url = asset.file.url
-                    if file_ext == ".glb" and should_replace_product_model_url_with_asset(
-                        product.model_glb, file_url
+                    if file_ext == ".glb" and (
+                        should_replace_product_model_url_with_asset(product.model_glb, file_url)
+                        or url_is_trusted_storage(file_url)
                     ):
                         product.model_glb = file_url
-                    elif file_ext == ".fbx" and not product.model_fbx:
+                        if is_ephemeral_external_model_url(product.model_fbx):
+                            product.model_fbx = ""
+                    elif file_ext == ".fbx" and (
+                        not (product.model_fbx or "").strip()
+                        or is_ephemeral_external_model_url(product.model_fbx)
+                    ):
                         product.model_fbx = file_url
                     elif file_ext == ".usdz" and not product.model_usdz:
                         product.model_usdz = file_url
@@ -408,19 +436,19 @@ def finalize_imported_products(product_ids: list[int]) -> dict[str, int]:
         backfill_queryset,
         enqueue_rfa_glb_previews,
     )
-    from apps.catalog.catalog_visibility import refresh_visibility_for_product_ids
+    from apps.catalog.catalog_visibility import bulk_refresh_catalog_visibility_flags
     from apps.catalog.glb_2d_preview import queue_glb_2d_previews_for_product_ids
     from apps.catalog.models import Product
 
     unique_ids = list(dict.fromkeys(product_ids))
     qs = Product.objects.filter(pk__in=unique_ids, is_active=True)
     updated, _ = backfill_queryset(qs)
-    visibility_refreshed = refresh_visibility_for_product_ids(unique_ids)
+    vis_stats = bulk_refresh_catalog_visibility_flags(Product.objects.filter(pk__in=unique_ids))
     queued_2d = queue_glb_2d_previews_for_product_ids(unique_ids)
     rfa_queued = enqueue_rfa_glb_previews(qs)
     return {
         "backfill_updated": updated,
-        "visibility_refreshed": visibility_refreshed,
+        "visibility_refreshed": vis_stats.get("visible_3d_set", 0) + vis_stats.get("visible_3d_cleared", 0),
         "queued_2d_previews": queued_2d,
         "rfa_glb_queued": rfa_queued,
     }

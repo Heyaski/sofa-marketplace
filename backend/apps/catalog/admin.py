@@ -799,10 +799,10 @@ def _product_has_fbx_q():
 
 
 def product_model_file_kind_q(kind: str):
-    """Фильтр QuerySet: glb | rfa | ifc | fbx | bundle (GLB+RFA+IFC, без FBX)."""
+    """Фильтр QuerySet: те же правила, что счётчики папок и list_mode=3d на сайте."""
     has_glb, has_rfa, has_ifc = _product_model_files_q_components()
     k = (kind or "").strip().lower()
-    if k == "glb":
+    if k == "glb" or k == "site_3d":
         return has_glb
     if k == "rfa":
         return has_rfa
@@ -828,16 +828,17 @@ FOLDER_SLICE_LABELS_RU = {
 
 
 class ModelFilesKindFilter(admin.SimpleListFilter):
-    title = "Файлы 3D"
+    title = "Файлы 3D (как на сайте)"
     parameter_name = "model_files_kind"
 
     def lookups(self, request, model_admin):
         return (
-            ("glb", "Есть GLB"),
-            ("rfa", "Есть RFA (.rfa)"),
-            ("ifc", "Есть IFC (.ifc)"),
-            ("fbx", "Есть FBX (.fbx), опционально"),
-            ("bundle", "Полный комплект для каталога (GLB + RFA + IFC)"),
+            ("glb", "GLB — в 3D-каталоге на сайте"),
+            ("rfa", "RFA (.rfa) на S3"),
+            ("ifc", "IFC (.ifc) на S3"),
+            ("fbx", "FBX (.fbx), опционально"),
+            ("bundle", "GLB+RFA+IFC (файлы, не FBX)"),
+            ("site_3d", "Только catalog_visible_3d"),
         )
 
     def queryset(self, request, queryset):
@@ -855,11 +856,11 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
         "title",
         "category",
         "model_file_formats",
+        "on_site_3d",
         "price",
         "availability",
         "brand",
         "color",
-        "has_3d_model",
         "is_active",
     )
     list_filter = (
@@ -875,7 +876,28 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
     search_fields = ("title", "article", "description", "brand")
     list_editable = ("price", "is_active")
     inlines = [ProductImageInline]
-    actions = ["export_selected_to_excel", "clear_invalid_photo_urls", "sync_3d_models_from_fileassets"]
+    actions = [
+        "export_selected_to_excel",
+        "clear_invalid_photo_urls",
+        "sync_3d_models_from_fileassets",
+        "refresh_catalog_visibility_flags",
+    ]
+
+    def get_queryset(self, request):
+        from apps.catalog.product_model_files import annotate_admin_file_flags
+
+        return annotate_admin_file_flags(super().get_queryset(request))
+
+    @admin.action(description="Пересчитать видимость на сайте (2D/3D каталог)")
+    def refresh_catalog_visibility_flags(self, request, queryset):
+        from apps.catalog.catalog_visibility import bulk_refresh_catalog_visibility_flags
+
+        stats = bulk_refresh_catalog_visibility_flags(queryset)
+        self.message_user(
+            request,
+            f"3D на сайте: включено {stats['visible_3d_set']}, выключено {stats['visible_3d_cleared']}. "
+            f"2D: включено {stats['visible_2d_set']}, выключено {stats['visible_2d_cleared']}.",
+        )
 
     @admin.action(description="Подтянуть 3D модели из FileAsset (без импорта)")
     def sync_3d_models_from_fileassets(self, request, queryset):
@@ -937,15 +959,18 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
                 count += 1
         self.message_user(request, f"Очищено photo_url у {count} товаров.")
 
-    def has_3d_model(self, obj):
-        """Проверяет наличие 3D модели"""
-        if obj.model_glb or obj.model_fbx or obj.model_usdz or obj.model_3d_asset_ids:
-            return format_html('<span style="color: green;">✅</span>')
-        return format_html('<span style="color: #ccc;">—</span>')
-    has_3d_model.short_description = "3D"
+    def on_site_3d(self, obj):
+        """Совпадает с list_mode=3d на vizhub (catalog_visible_3d)."""
+        if obj.catalog_visible_3d:
+            return format_html(
+                '<span style="color:#1b5e20;font-weight:600" title="В 3D-каталоге на сайте">3D ✓</span>'
+            )
+        return format_html('<span style="color:#9e9e9e" title="Не показывается в 3D-каталоге">—</span>')
+
+    on_site_3d.short_description = "Сайт 3D"
 
     def model_file_formats(self, obj):
-        """Бейджи наличия GLB / RFA / IFC / FBX (по URL в полях). FBX не входит в «полный комплект» витрины."""
+        """Бейджи файлов = catalog_has_glb_q и те же Q, что счётчики «папок»."""
 
         def badge(label: str, ok: bool):
             if ok:
@@ -1024,9 +1049,12 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
         """Категории как «папки» со счётчиками GLB / RFA / IFC (+ FBX опционально) для списка товаров."""
         has_glb, has_rfa, has_ifc = _product_model_files_q_components()
         has_fbx = _product_has_fbx_q()
+        from apps.catalog.catalog_visibility import q_catalog_visible_3d
+
         stats_rows = Product.objects.values("category_id").annotate(
             total=Count("id"),
             n_glb=Count("id", filter=has_glb),
+            n_site_3d=Count("id", filter=q_catalog_visible_3d()),
             n_rfa=Count("id", filter=has_rfa),
             n_ifc=Count("id", filter=has_ifc),
             n_fbx=Count("id", filter=has_fbx),
@@ -1038,7 +1066,15 @@ class ProductAdmin(ExportExcelMixin, admin.ModelAdmin):
         for cat in categories:
             s = stat_by_cat.get(
                 cat.id,
-                {"total": 0, "n_glb": 0, "n_rfa": 0, "n_ifc": 0, "n_fbx": 0, "n_bundle": 0},
+                {
+                    "total": 0,
+                    "n_glb": 0,
+                    "n_site_3d": 0,
+                    "n_rfa": 0,
+                    "n_ifc": 0,
+                    "n_fbx": 0,
+                    "n_bundle": 0,
+                },
             )
             rows.append({"category": cat, **s})
         return rows

@@ -28,8 +28,10 @@
 <div class="module" style="margin-bottom: 1rem; padding: 12px 16px;">
     <h2 style="margin: 0 0 8px 0; font-size: 14px;">По категориям (как папки): GLB / RFA / IFC + FBX</h2>
     <p class="help" style="margin: 0 0 12px 0;">
-        Счётчики: сколько товаров в категории имеют файл данного типа.
-        «Полный комплект для каталога» — только GLB + реальный .rfa + .ifc (FBX в комплект не входит и для фильтра витрины не обязателен).
+        <strong>GLB</strong> — то же, что колонка «Сайт 3D» и 3D-каталог на сайте (стабильный .glb на S3, без zaohaowu/FBX в полях).
+        Счётчик, «открыть список» и зелёный бейдж GLB совпадают. После SFTP/Excel: действие «Пересчитать видимость на сайте» или
+        <code>python manage.py refresh_catalog_visibility</code>.
+        «Полный комплект» — GLB + RFA + IFC (FBX не входит).
         Под каждой подпапкой по формату — ссылка <strong>«удалить содержимое папки»</strong> справа от «открыть список»: удаляются только товары этой категории с выбранным типом файлов (как фильтр витрины).
         В заголовке категории — ссылка <strong>«удалить всю категорию целиком»</strong> (все товары в этой категории без исключений).
     </p>
@@ -37,7 +39,7 @@
     <p class="help" style="margin-bottom: 12px; padding: 8px 10px; background: #e7f3ff; border-radius: 4px;">
         <strong>Открыта папка:</strong>
         {% if request.GET.model_files_kind == "bundle" %}полный комплект для каталога (GLB + RFA + IFC){% endif %}
-        {% if request.GET.model_files_kind == "glb" %}только с GLB{% endif %}
+        {% if request.GET.model_files_kind == "glb" %}GLB (как на сайте в 3D){% endif %}
         {% if request.GET.model_files_kind == "rfa" %}только с RFA (.rfa){% endif %}
         {% if request.GET.model_files_kind == "ifc" %}только с IFC (.ifc){% endif %}
         {% if request.GET.model_files_kind == "fbx" %}только с FBX (.fbx){% endif %}
@@ -61,7 +63,10 @@
         </summary>
         <ul style="margin: 10px 0 4px 0; line-height: 1.65; font-size: 13px; list-style: none; padding-left: 0;">
             <li style="margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #e8e8e8;">
-                📂 <strong>GLB</strong> — {{ row.n_glb }}{% if row.total %} / {{ row.total }}{% endif %}
+                📂 <strong>GLB (3D-каталог)</strong> — {{ row.n_glb }}{% if row.total %} / {{ row.total }}{% endif %}
+                {% if row.n_site_3d != row.n_glb %}
+                <span style="color:#b45309;font-size:12px;"> — флаг сайта: {{ row.n_site_3d }}, запустите refresh_catalog_visibility</span>
+                {% endif %}
                 {% if row.n_glb %}
                 — <a href="{% url 'admin:catalog_product_changelist' %}?category__id__exact={{ row.category.id }}&model_files_kind=glb">открыть список</a>
                 {% if product_folder_delete_allowed %}

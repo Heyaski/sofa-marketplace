@@ -10,6 +10,7 @@ from django.db.models import QuerySet
 from apps.catalog.asset_resolution import find_file_assets_for_product
 from apps.catalog.file_urls import (
     should_replace_product_model_url_with_asset,
+    url_is_trusted_storage,
 )
 from apps.catalog.models import Product
 from apps.catalog.product_model_files import url_has_extension
@@ -37,7 +38,10 @@ def apply_model_urls_from_assets(product: Product) -> list[str]:
         url = (asset.file.url or "").strip()
         if not url:
             continue
-        if ext == ".glb" and should_replace_product_model_url_with_asset(product.model_glb, url):
+        if ext == ".glb" and (
+            should_replace_product_model_url_with_asset(product.model_glb, url)
+            or url_is_trusted_storage(url)
+        ):
             new_glb = url
             changes.append("glb")
         elif ext == ".rfa" and not (product.model_rfa or "").strip():
@@ -53,6 +57,18 @@ def apply_model_urls_from_assets(product: Product) -> list[str]:
             new_rfa = ""
             changes.append("ifc←rfa")
 
+    from apps.catalog.file_import_from_disk import fix_misplaced_model_urls_from_excel
+    from apps.catalog.file_urls import is_ephemeral_external_model_url
+
+    new_fbx = product.model_fbx
+    if fix_misplaced_model_urls_from_excel(product):
+        new_glb = product.model_glb
+        new_fbx = product.model_fbx
+        changes.append("fix-glb-field")
+    if "glb" in changes and is_ephemeral_external_model_url(new_fbx or ""):
+        new_fbx = ""
+        changes.append("clear-junk-fbx")
+
     if not changes:
         return []
 
@@ -60,10 +76,12 @@ def apply_model_urls_from_assets(product: Product) -> list[str]:
         model_glb=new_glb,
         model_rfa=new_rfa,
         model_ifc=new_ifc,
+        model_fbx=new_fbx,
     )
     product.model_glb = new_glb
     product.model_rfa = new_rfa
     product.model_ifc = new_ifc
+    product.model_fbx = new_fbx
     from apps.catalog.catalog_visibility import refresh_product_visibility_flags
 
     refresh_product_visibility_flags(product, save=True)

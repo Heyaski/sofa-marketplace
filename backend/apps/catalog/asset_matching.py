@@ -33,6 +33,9 @@ def title_tokens_for_asset_match(title: str | None) -> list[str]:
     if not t:
         return []
     out: set[str] = set()
+    compact = re.sub(r"\s+", "", t)
+    if compact and re.search(r"\d", compact):
+        out.update(asset_id_search_variants(compact))
     for part in re.split(r"[\s,;/|()]+", t):
         p = part.strip()
         if len(p) < 4:
@@ -43,13 +46,27 @@ def title_tokens_for_asset_match(title: str | None) -> list[str]:
     return list(out)
 
 
+def _q_title_matches_asset_code(asset_id: str) -> Q:
+    """
+    «Кресло4513.glb» ↔ title «Кресло 4513» (пробел между буквами и цифрами).
+    """
+    aid = re.sub(r"\s+", "", (asset_id or "").strip())
+    m = re.match(r"^([^\d]+)(\d.*)$", aid, re.UNICODE)
+    if not m:
+        return Q()
+    letters, digits = m.group(1).strip(), m.group(2).strip()
+    if len(letters) < 2 or not digits:
+        return Q()
+    return Q(title__icontains=letters) & Q(title__icontains=digits)
+
+
 def file_asset_lookup_q(asset_id: str) -> Q:
     """Q для поиска товара по asset_id файла (артикул / model_3d_asset_ids / код в title)."""
     aid = (asset_id or "").strip()
     if not aid:
         return Q(pk__in=[])
 
-    q = Q(article__iexact=aid)
+    q = Q(article__iexact=aid) | _q_title_matches_asset_code(aid)
     for variant in asset_id_search_variants(aid):
         q |= Q(article__iexact=variant)
         q |= Q(model_3d_asset_ids__iexact=variant)
@@ -58,6 +75,7 @@ def file_asset_lookup_q(asset_id: str) -> Q:
         q |= Q(model_3d_asset_ids__icontains=f",{variant},")
         q |= Q(title__icontains=variant)
         q |= Q(model_glb__iexact=variant)
+        q |= _q_title_matches_asset_code(variant)
 
     return q
 

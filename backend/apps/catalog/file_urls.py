@@ -1,6 +1,27 @@
 """Распознавание нестабильных URL моделей (временные ключи, чужие CDN)."""
 
 
+def url_path_extension(url: str | None) -> str:
+    """Расширение из пути URL (без query), с ведущей точкой или ''."""
+    if not url or not str(url).strip():
+        return ""
+    base = str(url).strip().lower().split("?")[0].rstrip("/")
+    for ext in (".glb", ".gltf", ".usdz", ".fbx", ".rfa", ".ifc"):
+        if base.endswith(ext):
+            return ext
+    return ""
+
+
+def url_has_usable_model_extension(url: str | None, ext: str) -> bool:
+    """URL с нужным расширением и не протухший CDN (для бейджей админки)."""
+    if not url or not str(url).strip():
+        return False
+    want = ext.lower() if ext.startswith(".") else f".{ext.lower()}"
+    if url_path_extension(url) != want:
+        return False
+    return not is_ephemeral_external_model_url(url)
+
+
 def url_looks_like_browser_model_file(url: str | None) -> bool:
     """
     True если путь в URL похож на формат, который открывает model-viewer (.glb/.gltf/.usdz).
