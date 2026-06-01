@@ -65,6 +65,7 @@ export const useProducts = (
 	const listFingerprint = `${filtersKey}|${paginationMode}|${forcedPage ?? ''}`
 	const fingerprintLiveRef = useRef(listFingerprint)
 	fingerprintLiveRef.current = listFingerprint
+	const prevFiltersKeyRef = useRef(filtersKey)
 
 	const fetchProducts = useCallback(
 		async (
@@ -185,11 +186,17 @@ export const useProducts = (
 			return
 		}
 
+		const filtersChanged = prevFiltersKeyRef.current !== filtersKey
+		prevFiltersKeyRef.current = filtersKey
+
 		const ac = new AbortController()
+		// После смены фильтров всегда страница 1 (forcedPage из URL может отставать на один кадр).
 		const startPage =
-			paginationMode === 'paged' && forcedPage != null && forcedPage >= 1
-				? Math.floor(forcedPage)
-				: 1
+			filtersChanged
+				? 1
+				: paginationMode === 'paged' && forcedPage != null && forcedPage >= 1
+					? Math.floor(forcedPage)
+					: 1
 		if (paginationMode !== 'paged') {
 			setDisplayedPage(1)
 			setNextPage(2)
@@ -199,18 +206,25 @@ export const useProducts = (
 		}
 		setTotalPages(1)
 
+		if (filtersChanged) {
+			setProducts([])
+			setLoading(true)
+			setError(null)
+			if (paginationMode === 'paged' && (forcedPageRef.current ?? 1) !== 1) {
+				onPageChangeRef.current?.(1)
+			}
+		}
+
 		const cached = firstPageProductsCache.get(firstPageCacheKey)
 		if (
 			cached &&
 			Date.now() - cached.cachedAt < PRODUCTS_CACHE_TTL_MS &&
 			startPage === 1
 		) {
-			setProducts(prev => mergeProductMediaFromPrevious(cached.products, prev))
+			setProducts(cached.products)
 			setHasMore(cached.hasMore)
 			setTotalPages(cached.totalPages)
 			setLoading(false)
-		} else {
-			// Не очищаем сетку до ответа API — меньше визуального «рывка» при смене категории.
 		}
 
 		void fetchProducts(startPage, false, { signal: ac.signal })

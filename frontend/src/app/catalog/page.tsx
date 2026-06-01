@@ -52,6 +52,7 @@ function CatalogContent() {
 		parseCatalogSearchParams(searchParams).page
 	)
 	const [urlHydrated, setUrlHydrated] = useState(false)
+	const skipUrlParseOnceRef = useRef(false)
 
 	useEffect(() => {
 		authService.getCurrentUser()
@@ -65,8 +66,13 @@ function CatalogContent() {
 			})
 	}, [])
 
-	// Параметры адресной строки → фильтры, вид каталога и страница (сохраняются при «Назад» с карточки)
+	// Параметры адресной строки → фильтры (только внешняя навигация; не затираем клик по категории).
 	useEffect(() => {
+		if (skipUrlParseOnceRef.current) {
+			skipUrlParseOnceRef.current = false
+			setUrlHydrated(true)
+			return
+		}
 		const parsed = parseCatalogSearchParams(searchParams)
 		setFilters(parsed.filters)
 		setCatalogView(parsed.view)
@@ -92,6 +98,7 @@ function CatalogContent() {
 		if (!urlHydrated) return
 		const qs = buildCatalogSearchParams(filters, catalogView, catalogPage)
 		if (catalogQueryStringsEqual(qs, spKey)) return
+		skipUrlParseOnceRef.current = true
 		router.replace(qs ? `/catalog?${qs}` : '/catalog', { scroll: false })
 	}, [filters, catalogView, catalogPage, urlHydrated, spKey, router])
 
@@ -160,14 +167,15 @@ function CatalogContent() {
 		list3d.refetch()
 	}
 
-	// Прогрев кэша GLB для текущей страницы 3D-каталога (повторный показ без сети).
+	// Прогрев кэша GLB (с задержкой — не блокировать UI при смене категории).
 	useEffect(() => {
-		if (catalogView !== '3d' || products.length === 0) return
+		if (catalogView !== '3d' || products.length === 0 || productsLoading) return
 		const urls = products
 			.map((p) => getProductModelUrlCandidates(p)[0])
 			.filter((u): u is string => Boolean(u))
-		prefetchGlbModels(urls)
-	}, [catalogView, products, currentPage])
+		const timer = window.setTimeout(() => prefetchGlbModels(urls), 400)
+		return () => window.clearTimeout(timer)
+	}, [catalogView, products, currentPage, productsLoading])
 
 	// Получаем все продукты без фильтров для вычисления диапазонов
 	const [filterRangesData, setFilterRangesData] = useState<{
@@ -399,9 +407,10 @@ function CatalogContent() {
 														type='checkbox'
 														checked={isChecked}
 														onChange={() => {
+															// Одна категория за раз — иначе легко оставить старый id в URL/кэше.
 															const next = isChecked
 																? selectedIds.filter((id: number) => id !== category.id)
-																: [...selectedIds, category.id]
+																: [category.id]
 															handleFurnitureTypeChange(next)
 														}}
 														className='w-4 h-4 flex-shrink-0 text-main1 border-gray2 rounded focus:ring-2 focus:ring-main1 cursor-pointer accent-main1'
