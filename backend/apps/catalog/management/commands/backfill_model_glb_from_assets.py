@@ -7,10 +7,27 @@
 
 from django.core.cache import cache
 from django.core.management.base import BaseCommand
+from django.db.models import Q
 
 from apps.catalog.file_urls import is_ephemeral_external_model_url
 from apps.catalog.glb_2d_preview import find_stable_glb_url_for_product, products_with_browser_glb_queryset
 from apps.catalog.models import Product
+
+
+def _ephemeral_model_glb_q() -> Q:
+    blocked = Q()
+    for fragment in (
+        "auth_key=",
+        "zaohaowu",
+        "zaonaowu",
+        "hitem3dstatic",
+        "volcengine.com",
+        "volccdn.com",
+    ):
+        blocked |= Q(model_glb__icontains=fragment)
+    return (
+        Q(model_glb__startswith="http://") | Q(model_glb__startswith="https://")
+    ) & ~Q(model_glb="") & blocked
 
 
 class Command(BaseCommand):
@@ -23,6 +40,7 @@ class Command(BaseCommand):
         parser.add_argument("--dry-run", action="store_true")
         parser.add_argument("--verbose", action="store_true")
         parser.add_argument("--limit", type=int, default=0)
+        parser.add_argument("--category-id", type=int, default=0)
 
     def handle(self, *args, **options):
         dry_run = options.get("dry_run", False)
@@ -33,7 +51,12 @@ class Command(BaseCommand):
         skipped_ok = 0
         no_fileasset = 0
 
-        qs = products_with_browser_glb_queryset().filter(is_active=True).order_by("id")
+        stable_qs = products_with_browser_glb_queryset().filter(is_active=True)
+        ephemeral_qs = Product.objects.filter(is_active=True).filter(_ephemeral_model_glb_q())
+        qs = (stable_qs | ephemeral_qs).distinct().order_by("id")
+        category_id = int(options.get("category_id") or 0)
+        if category_id:
+            qs = qs.filter(category_id=category_id)
         if limit:
             qs = qs[: limit * 3]
 

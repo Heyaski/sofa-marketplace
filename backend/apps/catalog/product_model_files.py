@@ -5,7 +5,7 @@ from django.db.models import Q
 
 from typing import TYPE_CHECKING
 
-from apps.catalog.file_urls import url_looks_like_browser_model_file
+from apps.catalog.file_urls import is_ephemeral_external_model_url, url_looks_like_browser_model_file
 
 if TYPE_CHECKING:
     from apps.catalog.models import Product
@@ -19,11 +19,13 @@ def url_has_extension(url: str | None, ext: str) -> bool:
 
 
 def product_has_glb(product: Product) -> bool:
-    return (
-        url_looks_like_browser_model_file(product.model_glb)
-        or url_looks_like_browser_model_file(product.model_rfa_glb_preview)
-        or url_looks_like_browser_model_file(product.model_ar_glb)
-    )
+    """Бейдж GLB в админке: только стабильные ссылки (без zaohaowu / auth_key=)."""
+    for url in (product.model_glb, product.model_rfa_glb_preview, product.model_ar_glb):
+        if url_looks_like_browser_model_file(url) and not is_ephemeral_external_model_url(url):
+            return True
+    from apps.catalog.asset_resolution import find_glb_assets_for_product
+
+    return bool(find_glb_assets_for_product(product))
 
 
 def product_has_rfa(product: Product) -> bool:

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from django.db import models
 
+from apps.catalog.asset_resolution import find_glb_assets_for_product
 from apps.catalog.file_urls import is_ephemeral_external_model_url, url_looks_like_browser_model_file
 from apps.catalog.models import Product
 
@@ -14,12 +15,28 @@ def _usable_http_photo(product: Product) -> bool:
     return photo.startswith(("http://", "https://"))
 
 
-def product_is_catalog_visible_3d(product: Product) -> bool:
-    """Совпадает с витриной 3D: браузерный GLB в полях товара (без FileAsset EXISTS)."""
+def product_has_catalog_3d_glb(product: Product) -> bool:
+    """
+    Стабильный GLB для 3D-витрины: FileAsset на S3, RFA-preview, непротухшие URL.
+    Не считать zaohaowu / auth_key= в model_glb (как у кресел IMR-819300*).
+    """
+    from apps.catalog.glb_2d_preview import find_stable_glb_url_for_product
+
+    if find_stable_glb_url_for_product(product):
+        return True
+    if find_glb_assets_for_product(product):
+        return True
     for url in (product.model_glb, product.model_rfa_glb_preview, product.model_ar_glb):
         if url_looks_like_browser_model_file(url) and not is_ephemeral_external_model_url(url):
             return True
+    mg = (product.model_glb or "").strip()
+    if mg and not mg.startswith(("http://", "https://", "/")) and find_glb_assets_for_product(product):
+        return True
     return False
+
+
+def product_is_catalog_visible_3d(product: Product) -> bool:
+    return product_has_catalog_3d_glb(product)
 
 
 def product_is_catalog_visible_2d(product: Product) -> bool:

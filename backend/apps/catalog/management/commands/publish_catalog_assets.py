@@ -12,6 +12,7 @@ from apps.catalog.catalog_asset_publish import (
     backfill_queryset,
     catalog_visibility_counts,
     diagnose_category_vs_pouf,
+    enqueue_rfa_glb_previews,
     format_counts,
     link_orphan_glb_assets,
 )
@@ -36,6 +37,12 @@ class Command(BaseCommand):
             help="Примеры полей vs рабочий пуф",
         )
         parser.add_argument(
+            "--no-enqueue-rfa",
+            action="store_false",
+            dest="enqueue_rfa",
+            help="Не ставить convert_rfa_to_glb (по умолчанию очередь включается)",
+        )
+        parser.add_argument(
             "--generate-2d",
             action="store_true",
             help="После backfill запустить generate_2d_from_glb (долго)",
@@ -44,6 +51,7 @@ class Command(BaseCommand):
         parser.add_argument("--limit", type=int, default=0)
 
     def handle(self, *args, **options):
+        options.setdefault("enqueue_rfa", True)
         qs = Product.objects.filter(is_active=True).order_by("id")
         category_id = options.get("category_id")
         cat_needle = (options.get("category") or "").strip()
@@ -84,6 +92,13 @@ class Command(BaseCommand):
                 + (" (dry-run)" if options["dry_run"] else "")
             )
         )
+
+        if options.get("enqueue_rfa"):
+            rfa_queued = enqueue_rfa_glb_previews(qs, dry_run=options["dry_run"])
+            self.stdout.write(
+                f"RFA→GLB в очередь: {rfa_queued}"
+                + (" (dry-run)" if options["dry_run"] else "")
+            )
 
         if options["dry_run"]:
             return

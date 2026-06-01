@@ -115,6 +115,44 @@ def catalog_visibility_counts(qs: QuerySet[Product]) -> dict[str, int]:
     }
 
 
+def enqueue_rfa_glb_previews(
+    qs: QuerySet[Product],
+    *,
+    dry_run: bool = False,
+) -> int:
+    """
+    Поставить RFA→GLB для товаров с RFA на нашем S3, но без стабильного GLB (кресла, столы).
+    """
+    from apps.catalog.catalog_visibility import product_has_catalog_3d_glb
+    from apps.catalog.file_urls import url_is_trusted_storage
+    from apps.catalog.tasks import convert_rfa_to_glb_task
+
+    queued = 0
+    for product in qs.iterator(chunk_size=200):
+        if product_has_catalog_3d_glb(product):
+            continue
+        rfa = (product.model_rfa or "").strip()
+        if not rfa.lower().split("?")[0].endswith(".rfa"):
+            continue
+        if not url_is_trusted_storage(rfa):
+            continue
+        preview = (product.model_rfa_glb_preview or "").strip()
+        if preview and not dry_run:
+            continue
+        if (product.model_rfa_convert_status or "").strip() == "processing":
+            continue
+        if dry_run:
+            queued += 1
+            continue
+        Product.objects.filter(pk=product.pk).update(
+            model_rfa_convert_status="queued",
+            model_rfa_convert_error="",
+        )
+        convert_rfa_to_glb_task.delay(product.pk)
+        queued += 1
+    return queued
+
+
 def format_counts(label: str, counts: dict[str, int]) -> str:
     return (
         f"{label}: total={counts['total']} active={counts['active']} "
