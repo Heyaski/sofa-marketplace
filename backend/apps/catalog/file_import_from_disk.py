@@ -235,6 +235,24 @@ def _file_type_for_ext(ext: str) -> str | None:
     return None
 
 
+def _replace_existing_file_if_same_name(existing: FileAsset, save_filename: str) -> None:
+    """
+    Если загружаем файл с тем же именем, удаляем старый объект из storage до save().
+    Это предотвращает накопление версий и гарантирует, что URL укажет на новый файл.
+    """
+    if not existing.file or not getattr(existing.file, "name", None):
+        return
+    old_name = os.path.basename(str(existing.file.name)).lower()
+    new_name = os.path.basename(save_filename).lower()
+    if old_name != new_name:
+        return
+    try:
+        existing.file.delete(save=False)
+    except Exception:
+        # Не блокируем импорт: даже если delete не удался, ниже попытаемся сохранить новый файл.
+        pass
+
+
 def upsert_fileasset_from_path(full_path: str, filename: str) -> tuple[FileAsset | None, str]:
     """
     Создать/обновить FileAsset с диска.
@@ -253,6 +271,7 @@ def upsert_fileasset_from_path(full_path: str, filename: str) -> tuple[FileAsset
     if file_size > 50 * 1024 * 1024:
         with open(full_path, "rb") as f:
             if existing:
+                _replace_existing_file_if_same_name(existing, save_filename)
                 existing.file.save(save_filename, f, save=True)
                 return existing, "updated"
             file_asset = FileAsset(asset_id=asset_id, file_type=file_type, description="")
@@ -262,6 +281,7 @@ def upsert_fileasset_from_path(full_path: str, filename: str) -> tuple[FileAsset
     with open(full_path, "rb") as f:
         file_content = f.read()
     if existing:
+        _replace_existing_file_if_same_name(existing, save_filename)
         existing.file.save(save_filename, ContentFile(file_content), save=True)
         return existing, "updated"
     file_asset = FileAsset(asset_id=asset_id, file_type=file_type, description="")
