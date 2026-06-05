@@ -13,12 +13,13 @@ class FileAsset(models.Model):
     file_type = models.CharField(max_length=20, choices=ASSET_TYPE_CHOICES, verbose_name="Тип файла")
     file = models.FileField(upload_to="assets/", verbose_name="Файл")
     description = models.CharField(max_length=255, blank=True, verbose_name="Описание")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата загрузки")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
     
     class Meta:
         verbose_name = "Файловый ресурс"
         verbose_name_plural = "Файловые ресурсы"
-        ordering = ['-created_at']
+        ordering = ['-updated_at', '-created_at']
         # Составная уникальность: один asset_id может быть для image и для 3d_model
         constraints = [
             models.UniqueConstraint(fields=['asset_id', 'file_type'], name='unique_asset_id_per_type')

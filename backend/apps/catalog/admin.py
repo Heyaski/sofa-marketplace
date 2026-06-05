@@ -442,10 +442,10 @@ class CategoryFilter(admin.SimpleListFilter):
 
 @admin.register(FileAsset)
 class FileAssetAdmin(ExportExcelMixin, admin.ModelAdmin):
-    list_display = ("asset_id", "file_type", "file", "description", "created_at", "preview")
-    list_filter = ("file_type", FileExtensionFilter, CategoryFilter, "created_at")
+    list_display = ("asset_id", "file_type", "file", "description", "updated_at", "created_at", "preview")
+    list_filter = ("file_type", FileExtensionFilter, CategoryFilter, "updated_at", "created_at")
     search_fields = ("asset_id", "description")
-    ordering = ("-created_at",)
+    ordering = ("-updated_at", "-created_at")
     actions = ["export_selected_to_excel"]
     
     class Meta:

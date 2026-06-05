@@ -28,7 +28,8 @@ IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", 
 MODEL_EXTENSIONS = frozenset(
     {".glb", ".gltf", ".fbx", ".obj", ".usdz", ".rfa", ".ifc", ".dae", ".3ds"}
 )
-SKIP_DIR_NAMES = frozenset({"__macosx", "_extracted"})
+SKIP_DIR_NAMES = frozenset({"__macosx"})
+ZIP_WALK_SKIP_DIR_NAMES = frozenset({"__macosx", "_extracted"})
 ZIP_EXTRACT_SUBDIR = "_extracted"
 # «imported» — архив после импорта; SFTP часто кладёт сюда напрямую — обрабатываем отдельным проходом
 
@@ -269,7 +270,9 @@ def extract_zip_archives_in_directory(
     for dirpath, dirnames, filenames in os.walk(root_dir):
         if ZIP_EXTRACT_SUBDIR in dirpath.replace("\\", "/").split("/"):
             continue
-        dirnames[:] = [d for d in dirnames if d not in SKIP_DIR_NAMES and d != ZIP_EXTRACT_SUBDIR]
+        dirnames[:] = [
+            d for d in dirnames if d not in ZIP_WALK_SKIP_DIR_NAMES and d != ZIP_EXTRACT_SUBDIR
+        ]
 
         for filename in filenames:
             if not filename.lower().endswith(".zip") or filename.startswith("."):
@@ -280,6 +283,8 @@ def extract_zip_archives_in_directory(
             stem = os.path.splitext(filename)[0]
             extract_to = os.path.join(dirpath, ZIP_EXTRACT_SUBDIR, stem)
             try:
+                if os.path.isdir(extract_to):
+                    shutil.rmtree(extract_to)
                 os.makedirs(extract_to, exist_ok=True)
                 if progress:
                     size_mb = os.path.getsize(zip_path) / (1024 * 1024)

@@ -20,7 +20,13 @@ def main() -> int:
     parser.add_argument("--user", default=os.environ.get("SFTP_USER", "upload3d"))
     parser.add_argument(
         "--remote-dir",
-        default=os.environ.get("REMOTE_DIR", "/home/upload3d/models/incoming"),
+        default=os.environ.get("REMOTE_DIR", "incoming"),
+        help="SFTP chroot /models → используйте incoming (не полный путь на сервере)",
+    )
+    parser.add_argument(
+        "--upload-zip-only",
+        action="store_true",
+        help="Загрузить ZIP как есть (распакует sync на сервере), без распаковки локально",
     )
     args = parser.parse_args()
 
@@ -40,39 +46,47 @@ def main() -> int:
         print("pip install paramiko", file=sys.stderr)
         return 1
 
-    with tempfile.TemporaryDirectory(prefix="models_zip_") as tmp:
-        with zipfile.ZipFile(zip_path, "r") as zf:
-            zf.extractall(tmp)
+    transport = paramiko.Transport((args.host, args.port))
+    transport.connect(username=args.user, password=password)
+    sftp = paramiko.SFTPClient.from_transport(transport)
+    try:
+        try:
+            sftp.chdir(args.remote_dir)
+        except OSError:
+            try:
+                sftp.mkdir(args.remote_dir)
+            except OSError:
+                pass
+            sftp.chdir(args.remote_dir)
+
+        if args.upload_zip_only:
+            remote_name = zip_path.name
+            print(f"put ZIP {remote_name} ({zip_path.stat().st_size / 1024 / 1024:.1f} MB) ...")
+            sftp.put(str(zip_path), remote_name)
+            print(f"OK: ZIP → {args.user}@{args.host}:{args.remote_dir}/{remote_name}")
+            print("На сервере: python manage.py sync_upload3d_models (или дождаться авто-sync)")
+            return 0
 
         to_upload: list[Path] = []
-        for p in Path(tmp).rglob("*"):
-            if p.is_file() and p.suffix.lower() in ALLOWED:
-                to_upload.append(p)
+        with tempfile.TemporaryDirectory(prefix="models_zip_") as tmp:
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                zf.extractall(tmp)
 
-        if not to_upload:
-            print("No .glb/.rfa/.ifc/.png/.jpg files in archive.", file=sys.stderr)
-            return 1
+            for p in Path(tmp).rglob("*"):
+                if p.is_file() and p.suffix.lower() in ALLOWED:
+                    to_upload.append(p)
 
-        transport = paramiko.Transport((args.host, args.port))
-        transport.connect(username=args.user, password=password)
-        sftp = paramiko.SFTPClient.from_transport(transport)
-        try:
-            try:
-                sftp.chdir(args.remote_dir)
-            except OSError:
-                try:
-                    sftp.mkdir(args.remote_dir)
-                except OSError:
-                    pass
-                sftp.chdir(args.remote_dir)
+            if not to_upload:
+                print("No .glb/.rfa/.ifc/.png/.jpg files in archive.", file=sys.stderr)
+                return 1
 
             for local in to_upload:
                 remote_name = local.name
                 print(f"put {remote_name} ...")
                 sftp.put(str(local), remote_name)
-        finally:
-            sftp.close()
-            transport.close()
+    finally:
+        sftp.close()
+        transport.close()
 
     print(f"OK: uploaded {len(to_upload)} file(s) to {args.user}@{args.host}:{args.remote_dir}")
     return 0
