@@ -96,6 +96,7 @@ class Command(BaseCommand):
             "visibility_refreshed": 0,
             "synced_2d_previews": 0,
             "queued_2d_previews": 0,
+            "zips_extracted": 0,
             "rfa_glb_queued": 0,
         }
 
@@ -149,6 +150,10 @@ class Command(BaseCommand):
 
             call_command("refresh_catalog_visibility", stdout=self.stdout)
 
+        if totals.get("zips_extracted"):
+            self.stdout.write(
+                self.style.SUCCESS(f"Распаковано ZIP: {totals['zips_extracted']}")
+            )
         self.stdout.write(
             self.style.SUCCESS(
                 f"Итого FileAsset: создано {totals['created']}, обновлено {totals['updated']}, "

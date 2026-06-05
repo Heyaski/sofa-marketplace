@@ -7,6 +7,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import zipfile
 from collections import defaultdict
 from typing import Any, Callable
 
@@ -27,7 +28,8 @@ IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", 
 MODEL_EXTENSIONS = frozenset(
     {".glb", ".gltf", ".fbx", ".obj", ".usdz", ".rfa", ".ifc", ".dae", ".3ds"}
 )
-SKIP_DIR_NAMES = frozenset({"__macosx"})
+SKIP_DIR_NAMES = frozenset({"__macosx", "_extracted"})
+ZIP_EXTRACT_SUBDIR = "_extracted"
 # «imported» — архив после импорта; SFTP часто кладёт сюда напрямую — обрабатываем отдельным проходом
 
 
@@ -235,22 +237,64 @@ def _file_type_for_ext(ext: str) -> str | None:
     return None
 
 
-def _replace_existing_file_if_same_name(existing: FileAsset, save_filename: str) -> None:
+def _clear_existing_storage_file(existing: FileAsset) -> None:
     """
-    Если загружаем файл с тем же именем, удаляем старый объект из storage до save().
-    Это предотвращает накопление версий и гарантирует, что URL укажет на новый файл.
+    Перед повторной загрузкой (тот же asset_id + тип) удаляем старый файл из S3,
+    чтобы новый сохранился как Тумба1741.glb, а не Тумба1741_XXXXX.glb.
     """
     if not existing.file or not getattr(existing.file, "name", None):
-        return
-    old_name = os.path.basename(str(existing.file.name)).lower()
-    new_name = os.path.basename(save_filename).lower()
-    if old_name != new_name:
         return
     try:
         existing.file.delete(save=False)
     except Exception:
-        # Не блокируем импорт: даже если delete не удался, ниже попытаемся сохранить новый файл.
         pass
+
+
+def extract_zip_archives_in_directory(
+    root_dir: str,
+    *,
+    progress: Callable[[str], None] | None = None,
+) -> tuple[int, list[str], list[str]]:
+    """
+    Распаковать .zip в incoming (как «Массовый импорт ZIP» в админке).
+    Возвращает (число архивов, пути к zip, ошибки).
+    """
+    root_dir = os.path.abspath(root_dir)
+    errors: list[str] = []
+    zip_paths: list[str] = []
+    extracted = 0
+    if not os.path.isdir(root_dir):
+        return 0, zip_paths, errors
+
+    for dirpath, dirnames, filenames in os.walk(root_dir):
+        if ZIP_EXTRACT_SUBDIR in dirpath.replace("\\", "/").split("/"):
+            continue
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIR_NAMES and d != ZIP_EXTRACT_SUBDIR]
+
+        for filename in filenames:
+            if not filename.lower().endswith(".zip") or filename.startswith("."):
+                continue
+            zip_path = os.path.join(dirpath, filename)
+            if not os.path.isfile(zip_path):
+                continue
+            stem = os.path.splitext(filename)[0]
+            extract_to = os.path.join(dirpath, ZIP_EXTRACT_SUBDIR, stem)
+            try:
+                os.makedirs(extract_to, exist_ok=True)
+                if progress:
+                    size_mb = os.path.getsize(zip_path) / (1024 * 1024)
+                    progress(f"  Распаковка ZIP ({size_mb:.1f} MB): {filename}…")
+                with zipfile.ZipFile(zip_path, "r") as zf:
+                    zf.extractall(extract_to)
+                extracted += 1
+                zip_paths.append(zip_path)
+                if progress:
+                    progress(f"  ✓ ZIP → {extract_to}")
+            except zipfile.BadZipFile:
+                errors.append(f"ZIP повреждён: {zip_path}")
+            except Exception as e:
+                errors.append(f"ZIP {filename}: {e}")
+    return extracted, zip_paths, errors
 
 
 def upsert_fileasset_from_path(full_path: str, filename: str) -> tuple[FileAsset | None, str]:
@@ -271,7 +315,7 @@ def upsert_fileasset_from_path(full_path: str, filename: str) -> tuple[FileAsset
     if file_size > 50 * 1024 * 1024:
         with open(full_path, "rb") as f:
             if existing:
-                _replace_existing_file_if_same_name(existing, save_filename)
+                _clear_existing_storage_file(existing)
                 existing.file.save(save_filename, f, save=True)
                 return existing, "updated"
             file_asset = FileAsset(asset_id=asset_id, file_type=file_type, description="")
@@ -281,7 +325,7 @@ def upsert_fileasset_from_path(full_path: str, filename: str) -> tuple[FileAsset
     with open(full_path, "rb") as f:
         file_content = f.read()
     if existing:
-        _replace_existing_file_if_same_name(existing, save_filename)
+        _clear_existing_storage_file(existing)
         existing.file.save(save_filename, ContentFile(file_content), save=True)
         return existing, "updated"
     file_asset = FileAsset(asset_id=asset_id, file_type=file_type, description="")
@@ -501,8 +545,14 @@ def import_directory(
         "products_linked": 0,
         "linked_product_ids": [],
         "files_moved": 0,
+        "zips_extracted": 0,
         "errors": [],
     }
+    zip_paths: list[str] = []
+    if not dry_run:
+        n_zips, zip_paths, zip_errors = extract_zip_archives_in_directory(root_dir, progress=progress)
+        stats["zips_extracted"] = n_zips
+        stats["errors"].extend(zip_errors)
     articles_files: dict[str, dict[str, list[FileAsset]]] = defaultdict(
         lambda: {"images": [], "models": []}
     )
@@ -571,6 +621,17 @@ def import_directory(
                             stats["errors"].append(f"move {src}: {err}")
         except Exception as e:
             stats["errors"].append(f"Привязка '{article}': {e}")
+
+    if move_imported and zip_paths:
+        os.makedirs(archive_dir, exist_ok=True)
+        for zip_path in zip_paths:
+            if not os.path.isfile(zip_path):
+                continue
+            ok, err = _archive_source_file(zip_path, archive_dir)
+            if ok:
+                stats["files_moved"] += 1
+            elif err:
+                stats["errors"].append(f"move zip {zip_path}: {err}")
 
     linked = stats.get("linked_product_ids") or []
     if linked:
