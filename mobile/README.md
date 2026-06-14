@@ -25,7 +25,7 @@ npm run build:apk
 APK скачивается из EAS. Загрузите на сервер и укажите в `.env` backend:
 
 ```
-MOBILE_APK_DOWNLOAD_URL=https://vizhub.pro/downloads/vizhub-ar.apk
+MOBILE_APK_DOWNLOAD_URL=https://www.vizhub.pro/downloads/vizhub-ar.apk
 ```
 
 **На VPS** (после сборки APK):
@@ -37,13 +37,20 @@ scp vizhub-ar.apk deploy@vrwbspxnst:~/sofa-marketplace/frontend/public/downloads
 # Вариант 2: на сервере из URL Expo
 bash deploy/upload-mobile-apk.sh --url 'https://expo.dev/artifacts/eas/....apk'
 
-# Проверка
-curl -I https://vizhub.pro/downloads/vizhub-ar.apk
-# Должен быть HTTP 200, не 404
+# Проверка (используйте www — SSL выдан для www.vizhub.pro)
+curl -I https://www.vizhub.pro/downloads/vizhub-ar.apk
+# Должен быть HTTP 200 от nginx, не 404 от Next.js
 ```
 
-Файл лежит в `frontend/public/downloads/vizhub-ar.apk` — Next.js отдаёт его по `/downloads/vizhub-ar.apk`.
-При желании добавьте `location /downloads/` в nginx (см. `deploy/nginx-frontend.conf.example`).
+Файл: `frontend/public/downloads/vizhub-ar.apk`.
+
+**Важно:** frontend собран с `output: 'standalone'` — APK, добавленный после `npm run build`, Next.js не отдаёт.
+Добавьте в nginx блок `location /downloads/` (см. `deploy/nginx-frontend.conf.example`) **или** выполните:
+
+```bash
+node frontend/scripts/sync-standalone-downloads.cjs
+sudo systemctl restart sofa-frontend
+```
 
 На сайте: `/app-download` — кнопка скачивания.
 
