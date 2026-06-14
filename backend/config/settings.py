@@ -34,6 +34,12 @@ FRONTEND_URL = get_env("FRONTEND_URL", "https://vizhub.pro")
 # Для hmac_* задайте PLUGIN_OFFLINE_ACTIVATION_SECRET (должен совпадать с тем, что зашито в плагине, если используется HMAC).
 PLUGIN_OFFLINE_ACTIVATION_MODE = get_env("PLUGIN_OFFLINE_ACTIVATION_MODE", "sha256_rl")
 PLUGIN_OFFLINE_ACTIVATION_SECRET = get_env("PLUGIN_OFFLINE_ACTIVATION_SECRET", "")
+# Поддомен для URL плагина: https://<license_hash>.<домен>/api
+PLUGIN_KEYED_API_BASE_DOMAIN = get_env("PLUGIN_KEYED_API_BASE_DOMAIN", "vizhub.pro")
+# Срок одноразовой ссылки активации плагина (часы); каждое письмо — новый токен
+PLUGIN_ACTIVATION_TOKEN_TTL_HOURS = int(get_env("PLUGIN_ACTIVATION_TOKEN_TTL_HOURS", "72"))
+# Прямая ссылка на APK мобильного приложения (для скачивания с сайта)
+MOBILE_APK_DOWNLOAD_URL = get_env("MOBILE_APK_DOWNLOAD_URL", "")
 
 INSTALLED_APPS = [
     "jazzmin",  # Должен быть перед django.contrib.admin

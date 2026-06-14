@@ -179,6 +179,8 @@ export interface UserProfile {
 	subscription_type_display?: string
 	subscription_end_date?: string | null
 	license_key_hash?: string | null
+	plugin_offline_models_path?: string
+	plugin_storage_backend?: 'vizhub_cloud' | 'local_first' | 'local_only'
 	avatar?: string | null
 	card_number: string
 	card_holder: string

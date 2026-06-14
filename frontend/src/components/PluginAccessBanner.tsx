@@ -15,7 +15,7 @@ export default function PluginAccessBanner() {
 	const [offlineActivationCode, setOfflineActivationCode] = useState('')
 	const [offlineLoading, setOfflineLoading] = useState(false)
 	const [isModalOpen, setIsModalOpen] = useState(false)
-	const [copiedField, setCopiedField] = useState<'pluginUrl' | 'offlineCode' | null>(null)
+	const [copiedField, setCopiedField] = useState<'offlineCode' | null>(null)
 
 	useEffect(() => {
 		const loadUser = async () => {
@@ -44,9 +44,6 @@ export default function PluginAccessBanner() {
 		[subscriptionType]
 	)
 	const licenseKeyHash = user?.profile?.license_key_hash || ''
-	const keyedDomain = config.PLUGIN_KEYED_API_BASE_DOMAIN.replace(/^https?:\/\//, '').replace(/\/+$/, '')
-	const pluginApiUrlForClipboard = licenseKeyHash ? `https://${licenseKeyHash}.${keyedDomain}` : ''
-	const pluginApiUrlDisplay = pluginApiUrlForClipboard
 	const pluginDownloadUrl = config.PLUGIN_DOWNLOAD_URL.trim()
 	const pluginDownloadUrls = [
 		{ version: 'Revit 2022', url: config.PLUGIN_DOWNLOAD_URL_2022.trim() },
@@ -55,7 +52,7 @@ export default function PluginAccessBanner() {
 		{ version: '3ds Max 2023', url: config.PLUGIN_DOWNLOAD_URL_3DSMAX.trim() },
 	].filter(item => item.url)
 
-	const copyToClipboard = async (value: string, field: 'pluginUrl' | 'offlineCode') => {
+	const copyToClipboard = async (value: string, field: 'offlineCode') => {
 		if (!value.trim()) return
 		try {
 			await navigator.clipboard.writeText(value)
@@ -116,6 +113,8 @@ export default function PluginAccessBanner() {
 		setIsModalOpen(false)
 	}
 
+	if (loading) return null
+
 	return (
 		<>
 			<div className='rounded-xl border border-main1/20 bg-main1/5 p-3 sm:p-4 max-w-md'>
@@ -144,7 +143,8 @@ export default function PluginAccessBanner() {
 						{!canUsePlugin ? (
 							<div className='space-y-3'>
 								<p className='text-sm text-gray'>
-									Чтобы скачать плагин, приобретите подписку.
+									Чтобы скачать плагин, приобретите подписку. Ссылка для активации придёт на email
+									автоматически.
 								</p>
 								{isAuthenticated ? (
 									<a
@@ -165,29 +165,28 @@ export default function PluginAccessBanner() {
 						) : (
 							<div className='space-y-3'>
 								<div className='rounded-lg bg-gray-bg p-3'>
-									<p className='text-xs text-gray mb-1'>
-										Вставьте этот адрес в плагин:
+									<p className='text-sm text-black font-medium mb-1'>Активация автоматическая</p>
+									<p className='text-xs text-gray'>
+										На email приходит <strong>новая одноразовая ссылка</strong> (каждый раз другой
+										хеш). Вставлять URL хранилища вручную не нужно — только ссылку из письма.
 									</p>
-									<div className='flex flex-col sm:flex-row gap-2'>
-										<input
-											readOnly
-											value={pluginApiUrlDisplay}
-											placeholder='Ключ появится после покупки подписки'
-											className='w-full px-3 py-2 rounded-lg bg-white text-black font-mono text-xs sm:text-sm'
-										/>
-										<button
-											onClick={() => copyToClipboard(pluginApiUrlForClipboard, 'pluginUrl')}
-											disabled={!pluginApiUrlForClipboard}
-											className='px-3 py-2 rounded-lg border border-main1 text-main1 hover:bg-main1 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
-										>
-											{copiedField === 'pluginUrl' ? 'OK' : 'Копировать'}
-										</button>
-									</div>
+									<a
+										href='/profile?tab=subscription'
+										className='inline-block mt-2 text-sm text-main1 underline'
+									>
+										Локальная папка / повторное письмо → профиль
+									</a>
+									<a
+										href='/app-download'
+										className='inline-block mt-2 ml-3 text-sm text-main1 underline'
+									>
+										Скачать AR (APK)
+									</a>
 								</div>
 
 								<div className='rounded-lg bg-gray-bg p-3'>
 									<p className='text-xs text-gray mb-1'>
-										Для 3ds Max (офлайн-активатор): вставьте «Код запроса» и получите «Код активации»
+										Для 3ds Max (офлайн-активатор): код запроса → код активации
 									</p>
 									<div className='space-y-2'>
 										<input

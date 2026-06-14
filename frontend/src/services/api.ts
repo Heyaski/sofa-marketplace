@@ -28,6 +28,17 @@ type PluginActivationResponse = {
 	subscription_type_display?: string
 	download_limit?: number | null
 	user_id?: number
+	api_base_url?: string
+	activation_url?: string
+	offline_models_path?: string
+	file_resolution?: string
+	storage_backend?: string
+}
+
+type PluginResendEmailResponse = {
+	sent: boolean
+	email: string
+	api_base_url?: string
 }
 
 type PluginOfflineActivationResponse = {
@@ -414,6 +425,10 @@ export const pluginService = {
 			request_code: requestCode,
 			license_hash: licenseHash,
 		})
+		return response.data
+	},
+	resendActivationEmail: async (): Promise<PluginResendEmailResponse> => {
+		const response = await apiClient.post('/api/plugin/resend-activation-email/')
 		return response.data
 	},
 }

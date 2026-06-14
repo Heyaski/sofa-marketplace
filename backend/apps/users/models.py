@@ -81,6 +81,24 @@ class UserProfile(models.Model):
         verbose_name='Хеш ключа лицензии',
         help_text='SHA256 хеш ключа. Генерируется при активации подписки. Показывается пользователю в профиле.'
     )
+    plugin_offline_models_path = models.CharField(
+        max_length=512,
+        blank=True,
+        default='',
+        verbose_name='Папка моделей для плагина (офлайн)',
+        help_text='Локальная папка на ПК (D:\\Models). Плагин ищет GLB/RFA здесь до скачивания из облака.',
+    )
+    PLUGIN_STORAGE_CHOICES = [
+        ('vizhub_cloud', 'Только облако VizHub'),
+        ('local_first', 'Сначала локально, затем облако'),
+        ('local_only', 'Только локальная папка'),
+    ]
+    plugin_storage_backend = models.CharField(
+        max_length=32,
+        choices=PLUGIN_STORAGE_CHOICES,
+        default='local_first',
+        verbose_name='Источник файлов для плагина',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -161,6 +179,9 @@ class UserProfile(models.Model):
         self.subscription_end_date = now() + timedelta(days=duration_days)
         self.ensure_license_key_hash()
         self.save()
+        if subscription_type in ('basic', 'pro', 'premium'):
+            from apps.plugin.connection import send_plugin_activation_email
+            send_plugin_activation_email(self)
     
     def __str__(self):
         return f"Профиль {self.user.username}"

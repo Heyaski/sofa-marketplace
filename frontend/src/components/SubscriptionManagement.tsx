@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import PaymentModal from './PaymentModal'
 import TariffDetailsModal from './TariffDetailsModal'
+import PluginSettings from './PluginSettings'
 
 interface SubscriptionPlan {
 	id: string
@@ -256,6 +257,12 @@ export default function SubscriptionManagement() {
 					Подробное описание
 				</button>
 			</div>
+
+			{user && !loading && (
+				<div className='mb-8'>
+					<PluginSettings user={user} onUserUpdated={setUser} />
+				</div>
+			)}
 
 			{loading ? (
 				<div className='flex items-center justify-center h-64'>

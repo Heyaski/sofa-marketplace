@@ -16,6 +16,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'subscription_type', 'subscription_type_display',
             'subscription_end_date', 'auto_renewal', 'yookassa_payment_id',
             'license_key_hash',
+            'plugin_offline_models_path', 'plugin_storage_backend',
             'avatar',
             'card_number', 'card_holder', 'card_expiry', 'card_cvv',
             'chat_notifications', 'new_models_notifications'

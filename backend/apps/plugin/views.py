@@ -12,6 +12,7 @@ from django.conf import settings
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework import permissions
 
 from apps.users.models import UserProfile
 from apps.catalog.models import Product
@@ -19,11 +20,25 @@ from apps.downloads.models import Download
 
 from django.http import HttpResponseRedirect
 from .utils import resolve_product_file_url, resolve_file_by_name
+from .connection import (
+    build_plugin_connection_payload,
+    build_local_file_candidate,
+    send_plugin_activation_email,
+)
+from .tokens import (
+    activation_payload,
+    default_platforms_for_profile,
+    issue_activation_token,
+    resolve_profile_by_plain_token,
+    resolve_profile_by_subdomain_key,
+)
 
 logger = logging.getLogger(__name__)
 
 LICENSE_HEADER = 'X-License-Hash'
+ACTIVATION_TOKEN_HEADER = 'X-Activation-Token'
 LICENSE_RE = re.compile(r'^[a-f0-9]{64}$')
+SUBDOMAIN_TOKEN_RE = re.compile(r'^[a-f0-9]{32}$')
 REQUEST_CODE_RE = re.compile(r'^[a-fA-F0-9]{64}$')
 LICENSE_INPUT_RE = re.compile(r'^[a-fA-F0-9]{64}$')
 
@@ -128,8 +143,9 @@ def resolve_profile_by_license_value(license_value):
 
 def resolve_license_from_host(request):
     """
-    Поддержка "URL с ключом": https://<license>.<domain>
-    Извлекаем <license> из subdomain и используем как license_value.
+    Поддержка URL с ключом в поддомене:
+    - 64 hex — постоянный license_key_hash (legacy)
+    - 32 hex — одноразовый activation token (новые письма)
     """
     try:
         host = (request.get_host() or '').split(':', 1)[0].lower().strip()
@@ -141,18 +157,48 @@ def resolve_license_from_host(request):
 
     first_label = host.split('.', 1)[0]
     if LICENSE_RE.match(first_label):
-        return first_label
+        return ('license', first_label)
+    if SUBDOMAIN_TOKEN_RE.match(first_label):
+        return ('activation_subdomain', first_label)
     return None
 
 
 def get_profile_from_request(request):
-    """Возвращает UserProfile по заголовку X-License-Hash или None."""
-    license_hash = request.headers.get(LICENSE_HEADER) or request.META.get(f'HTTP_{LICENSE_HEADER.upper().replace("-", "_")}')
+    """UserProfile по X-Activation-Token, X-License-Hash или поддомену."""
+    activation_plain = (
+        request.headers.get(ACTIVATION_TOKEN_HEADER)
+        or request.META.get(f'HTTP_{ACTIVATION_TOKEN_HEADER.upper().replace("-", "_")}')
+    )
+    if hasattr(request, 'query_params'):
+        activation_plain = activation_plain or request.query_params.get('activation_token')
+        activation_plain = activation_plain or request.query_params.get('k')
+    elif hasattr(request, 'GET'):
+        activation_plain = activation_plain or request.GET.get('activation_token')
+        activation_plain = activation_plain or request.GET.get('k')
+    if activation_plain:
+        profile, token_row = resolve_profile_by_plain_token(str(activation_plain).strip())
+        if profile and token_row and token_row.is_valid():
+            request.plugin_activation_token = token_row
+            return profile
+
+    license_hash = request.headers.get(LICENSE_HEADER) or request.META.get(
+        f'HTTP_{LICENSE_HEADER.upper().replace("-", "_")}'
+    )
     profile = resolve_profile_by_license_value(license_hash)
     if profile:
         return profile
-    host_license = resolve_license_from_host(request)
-    return resolve_profile_by_license_value(host_license)
+
+    host_info = resolve_license_from_host(request)
+    if not host_info:
+        return None
+    kind, value = host_info
+    if kind == 'license':
+        return resolve_profile_by_license_value(value)
+    profile, token_row = resolve_profile_by_subdomain_key(value)
+    if profile and token_row and token_row.is_valid():
+        request.plugin_activation_token = token_row
+        return profile
+    return None
 
 
 def license_required(view_method):
@@ -196,13 +242,60 @@ class PluginActivateView(APIView):
                 status=status.HTTP_200_OK
             )
         limit = profile.get_download_limit()
+        token_row = getattr(request, 'plugin_activation_token', None)
+        connection = activation_payload(profile, token_row, mark_used=False)
         return Response({
             "valid": True,
             "subscription_type": profile.subscription_type,
             "subscription_type_display": profile.get_subscription_type_display(),
             "download_limit": limit,
             "user_id": profile.user_id,
+            **connection,
         }, status=status.HTTP_200_OK)
+
+
+class PluginActivateByTokenView(APIView):
+    """
+    POST /api/plugin/activate-by-token/
+    Body: { "token": "<plain token from email>" }
+    Одноразовая активация; помечает токен использованным.
+    """
+    permission_classes = []
+    authentication_classes = []
+
+    def post(self, request):
+        plain = (request.data.get('token') or request.data.get('activation_token') or '').strip()
+        if not plain:
+            return Response(
+                {"valid": False, "error": "token обязателен (из письма)"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        profile, token_row = resolve_profile_by_plain_token(plain)
+        if not profile or not token_row:
+            return Response(
+                {"valid": False, "error": "Токен не найден, истёк или отозван"},
+                status=status.HTTP_200_OK,
+            )
+        if not profile.is_subscription_active():
+            return Response(
+                {"valid": False, "error": "Подписка не активна"},
+                status=status.HTTP_200_OK,
+            )
+        payload = activation_payload(profile, token_row, mark_used=True)
+        return Response({"valid": True, **payload}, status=status.HTTP_200_OK)
+
+
+class PluginPlatformsView(APIView):
+    """GET /api/plugin/platforms/ — список площадок (X-License-Hash)."""
+    permission_classes = []
+    authentication_classes = []
+
+    @license_required
+    def get(self, request):
+        return Response(
+            {"platforms": default_platforms_for_profile(request.plugin_profile)},
+            status=status.HTTP_200_OK,
+        )
 
 
 class PluginLegacyLicenseView(APIView):
@@ -217,8 +310,13 @@ class PluginLegacyLicenseView(APIView):
     def post(self, request):
         license_hash = (request.data.get('license_hash') or '').strip()
         if not license_hash:
-            # если ключ передан в URL, а не в теле
-            license_hash = (resolve_license_from_host(request) or '').strip()
+            host_info = resolve_license_from_host(request)
+            if host_info and host_info[0] == 'license':
+                license_hash = host_info[1]
+            elif host_info and host_info[0] == 'activation_subdomain':
+                profile, _ = resolve_profile_by_subdomain_key(host_info[1])
+                if profile:
+                    license_hash = profile.license_key_hash or ''
         feature = (request.data.get('feature') or '').strip()
 
         if not license_hash:
@@ -485,14 +583,41 @@ class PluginDownloadView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
+        safe_title = (product.article or str(product.id)) + "_" + "".join(
+            c for c in product.title[:40] if c.isalnum() or c in ' _-'
+        ).strip()
+        suggested_filename = f"{safe_title}{fmt_ext}"
+        connection = build_plugin_connection_payload(profile)
+        local_candidate = build_local_file_candidate(
+            connection.get("offline_models_path", ""),
+            suggested_filename,
+        )
+
+        def _download_payload(download_id, remaining=None, warning=None):
+            data = {
+                "url": file_url,
+                "download_id": download_id,
+                "suggested_filename": suggested_filename,
+                "offline_models_path": connection.get("offline_models_path", ""),
+                "local_file_candidate": local_candidate,
+                "file_resolution": connection.get("file_resolution", "local_first"),
+                "storage_backend": connection.get("storage_backend", "local_first"),
+            }
+            if remaining is not None:
+                data["remaining_downloads"] = remaining
+            if warning:
+                data["warning"] = warning
+            return data
+
         existing = Download.objects.filter(user=user, product=product).first()
         if existing:
-            return Response({
-                "url": file_url,
-                "download_id": existing.id,
-                "warning": "Этот товар уже был скачан ранее",
-                "suggested_filename": f"{product.article or product.id}_{product.title[:30].replace(' ', '_')}{fmt_ext}",
-            }, status=status.HTTP_200_OK)
+            return Response(
+                _download_payload(
+                    existing.id,
+                    warning="Этот товар уже был скачан ранее",
+                ),
+                status=status.HTTP_200_OK,
+            )
 
         download = Download.objects.create(user=user, product=product)
         limit = profile.get_download_limit()
@@ -501,17 +626,10 @@ class PluginDownloadView(APIView):
             new_count = Download.objects.filter(user=user).values('product').distinct().count()
             remaining = max(0, limit - new_count)
 
-        safe_title = (product.article or str(product.id)) + "_" + "".join(
-            c for c in product.title[:40] if c.isalnum() or c in ' _-'
-        ).strip()
-        suggested_filename = f"{safe_title}{fmt_ext}"
-
-        return Response({
-            "url": file_url,
-            "download_id": download.id,
-            "remaining_downloads": remaining,
-            "suggested_filename": suggested_filename,
-        }, status=status.HTTP_200_OK)
+        return Response(
+            _download_payload(download.id, remaining=remaining),
+            status=status.HTTP_200_OK,
+        )
 
 
 class PluginAssetDirectView(APIView):
@@ -564,3 +682,63 @@ class PluginAssetDirectView(APIView):
             Download.objects.get_or_create(user=user, product=product)
 
         return HttpResponseRedirect(file_url, status=302)
+
+
+class PluginResendActivationEmailView(APIView):
+    """
+    POST /api/plugin/resend-activation-email/
+    JWT — повторно отправить письмо с ссылкой активации плагина.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        profile = getattr(request.user, "profile", None)
+        if not profile:
+            from apps.users.models import UserProfile
+            profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        if profile.subscription_type not in ("basic", "pro", "premium"):
+            return Response(
+                {"error": "Плагин доступен на платных тарифах"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not profile.is_subscription_active():
+            return Response(
+                {"error": "Подписка не активна"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        sent = send_plugin_activation_email(profile, force=True)
+        if not sent:
+            return Response(
+                {"error": "Не удалось отправить письмо. Проверьте email в профиле."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        latest = profile.plugin_activation_tokens.filter(revoked=False).order_by('-created_at').first()
+        payload = activation_payload(profile, latest, mark_used=False)
+        return Response(
+            {
+                "sent": True,
+                "email": request.user.email,
+                **payload,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class MobileAppInfoView(APIView):
+    """GET /api/mobile/app-info/ — ссылка на APK для скачивания с сайта."""
+    permission_classes = []
+    authentication_classes = []
+
+    def get(self, request):
+        apk_url = (getattr(settings, 'MOBILE_APK_DOWNLOAD_URL', None) or '').strip()
+        return Response(
+            {
+                "platform": "android",
+                "format": "apk",
+                "download_url": apk_url,
+                "available": bool(apk_url),
+                "min_android_version": 26,
+                "app_name": "VizHub AR",
+            },
+            status=status.HTTP_200_OK,
+        )
