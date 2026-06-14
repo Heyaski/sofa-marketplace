@@ -1,0 +1,7 @@
+node_modules/
+.expo/
+dist/
+android/
+ios/
+build-log.txt
+build-view.json

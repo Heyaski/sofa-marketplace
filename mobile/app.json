@@ -11,13 +11,30 @@
       "adaptiveIcon": {
         "backgroundColor": "#111827"
       },
-      "permissions": ["CAMERA"]
+      "permissions": [
+        "CAMERA"
+      ]
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "1.9.25"
+          }
+        }
+      ]
+    ],
     "extra": {
+      "router": {
+        "origin": false
+      },
       "eas": {
-        "projectId": "replace-with-eas-project-id"
+        "projectId": "3f77cb46-4164-4fde-a117-6c1c138eace0"
       }
-    }
+    },
+    "owner": "anton_tenditnik"
   }
 }

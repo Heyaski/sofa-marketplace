@@ -1,0 +1,14 @@
+../backend/
+../frontend/
+../deploy/
+../docs/
+../infra/
+../scripts/
+android/
+ios/
+node_modules/
+dist/
+*.md
+.git/
+build-log.txt
+build-view.json
