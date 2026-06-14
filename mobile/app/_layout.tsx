@@ -1,14 +1,20 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { StyleSheet } from 'react-native';
 
 export default function RootLayout() {
   return (
-    <>
+    <GestureHandlerRootView style={styles.root}>
       <StatusBar style="auto" />
       <Stack>
         <Stack.Screen name="index" options={{ title: 'VizHub AR' }} />
-        <Stack.Screen name="product/[id]" options={{ title: 'Товар' }} />
+        <Stack.Screen name="product/[id]" options={{ headerShown: false }} />
       </Stack>
-    </>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+});

@@ -60,9 +60,18 @@ sudo systemctl restart sofa-frontend
 EXPO_PUBLIC_API_URL=https://api.vizhub.pro npm start
 ```
 
-## AR (этап 2)
+## AR (ViroReact + ARCore)
 
-- Android: ARCore plane detection + GLB
-- iOS не в scope (только APK по ТЗ заказчика)
+In-app AR с детекцией пола (plane detection):
+
+- `@reactvision/react-viro` + `newArchEnabled: true`
+- Наведите на пол → коснитесь плоскости → модель GLB появится на полу
+- Жесты: перетаскивание, щипок (масштаб), поворот
+
+**Не работает в Expo Go** — только dev build / EAS APK:
+
+```bash
+npm run build:apk
+```
 
 См. [docs/MOBILE_AR_APP.md](../docs/MOBILE_AR_APP.md).

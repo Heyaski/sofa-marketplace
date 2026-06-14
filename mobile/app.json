@@ -2,10 +2,11 @@
   "expo": {
     "name": "VizHub AR",
     "slug": "vizhub-ar",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "scheme": "vizhubar",
     "userInterfaceStyle": "light",
+    "newArchEnabled": true,
     "android": {
       "package": "pro.vizhub.ar",
       "adaptiveIcon": {
@@ -19,10 +20,28 @@
       "expo-router",
       "expo-font",
       [
+        "@reactvision/react-viro",
+        {
+          "android": {
+            "xRMode": "AR"
+          },
+          "ios": {
+            "cameraUsagePermission": "Камера нужна для AR-примерки мебели в комнате.",
+            "microphoneUsagePermission": "Микрофон не обязателен, но может использоваться в AR.",
+            "photosPermission": "Доступ к фото для AR-опыта.",
+            "savePhotosPermission": "Сохранение фото из AR."
+          }
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {
-            "kotlinVersion": "1.9.25"
+            "kotlinVersion": "1.9.25",
+            "newArchEnabled": true
+          },
+          "ios": {
+            "newArchEnabled": true
           }
         }
       ]
