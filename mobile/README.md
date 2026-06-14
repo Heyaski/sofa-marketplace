@@ -22,11 +22,28 @@ npx eas-cli init
 npm run build:apk
 ```
 
-APK скачивается из EAS. Загрузите на CDN/S3 и укажите в `.env` сервера:
+APK скачивается из EAS. Загрузите на сервер и укажите в `.env` backend:
 
 ```
 MOBILE_APK_DOWNLOAD_URL=https://vizhub.pro/downloads/vizhub-ar.apk
 ```
+
+**На VPS** (после сборки APK):
+
+```bash
+# Вариант 1: скопировать файл с ПК
+scp vizhub-ar.apk deploy@vrwbspxnst:~/sofa-marketplace/frontend/public/downloads/
+
+# Вариант 2: на сервере из URL Expo
+bash deploy/upload-mobile-apk.sh --url 'https://expo.dev/artifacts/eas/....apk'
+
+# Проверка
+curl -I https://vizhub.pro/downloads/vizhub-ar.apk
+# Должен быть HTTP 200, не 404
+```
+
+Файл лежит в `frontend/public/downloads/vizhub-ar.apk` — Next.js отдаёт его по `/downloads/vizhub-ar.apk`.
+При желании добавьте `location /downloads/` в nginx (см. `deploy/nginx-frontend.conf.example`).
 
 На сайте: `/app-download` — кнопка скачивания.
 
