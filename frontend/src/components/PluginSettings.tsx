@@ -8,9 +8,9 @@ const PAID = new Set(['basic', 'pro', 'premium'])
 
 export default function PluginSettings({ user, onUserUpdated }: { user: User; onUserUpdated?: (u: User) => void }) {
 	const [offlinePath, setOfflinePath] = useState(user.profile?.plugin_offline_models_path || '')
-	const [storageBackend, setStorageBackend] = useState(
-		user.profile?.plugin_storage_backend || 'local_first'
-	)
+	const [storageBackend, setStorageBackend] = useState<
+		'vizhub_cloud' | 'local_first' | 'local_only'
+	>((user.profile?.plugin_storage_backend as 'vizhub_cloud' | 'local_first' | 'local_only') || 'local_first')
 	const [saving, setSaving] = useState(false)
 	const [resending, setResending] = useState(false)
 	const [message, setMessage] = useState<string | null>(null)
@@ -18,7 +18,10 @@ export default function PluginSettings({ user, onUserUpdated }: { user: User; on
 
 	useEffect(() => {
 		setOfflinePath(user.profile?.plugin_offline_models_path || '')
-		setStorageBackend(user.profile?.plugin_storage_backend || 'local_first')
+		setStorageBackend(
+			(user.profile?.plugin_storage_backend as 'vizhub_cloud' | 'local_first' | 'local_only') ||
+				'local_first'
+		)
 	}, [user])
 
 	if (!PAID.has(user.profile?.subscription_type || 'free')) {
@@ -32,7 +35,7 @@ export default function PluginSettings({ user, onUserUpdated }: { user: User; on
 			const updated = await authService.updateUser({
 				profile: {
 					plugin_offline_models_path: offlinePath.trim(),
-					plugin_storage_backend: storageBackend as 'vizhub_cloud' | 'local_first' | 'local_only',
+					plugin_storage_backend: storageBackend,
 				},
 			})
 			onUserUpdated?.(updated)
@@ -89,7 +92,11 @@ export default function PluginSettings({ user, onUserUpdated }: { user: User; on
 				<label className='text-xs text-gray block'>Источник файлов</label>
 				<select
 					value={storageBackend}
-					onChange={e => setStorageBackend(e.target.value)}
+					onChange={e =>
+						setStorageBackend(
+							e.target.value as 'vizhub_cloud' | 'local_first' | 'local_only'
+						)
+					}
 					className='w-full px-3 py-2 rounded-lg border border-gray-200 text-sm'
 				>
 					<option value='local_first'>Сначала локально, затем облако</option>
