@@ -1,0 +1,16 @@
+# EAS собирает из git-корня монорепо — не заливать backend/frontend
+/backend/
+/frontend/
+/deploy/
+/docs/
+/infra/
+/database/
+/scripts/
+/.git/
+*.md
+**/.next/
+**/node_modules/
+**/venv/
+**/__pycache__/
+**/*.sqlite3
+**/*.wasm

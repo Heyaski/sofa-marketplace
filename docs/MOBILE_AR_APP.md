@@ -10,7 +10,7 @@ MVP: список товаров → кнопка **«Примерить»** →
 | Навигация | expo-router |
 | API | тот же backend (`/api/catalog/products/`, JWT) |
 | AR iOS | **ARKit** через `@reactvision/react-viro` или **Expo + native module** |
-| AR Android | **ARCore** (plane detection, hit-test) |
+| AR Android | **ARCore** через `@reactvision/react-viro` (plane detection, in-app) |
 | 3D | GLB / USDZ (для iOS Quick Look fallback) |
 
 ## Экраны MVP
@@ -25,7 +25,7 @@ MVP: список товаров → кнопка **«Примерить»** →
 
 ## API
 
-- `GET /api/catalog/products/?catalog_visible_3d=true`
+- `GET /api/products/?list_mode=3d` — каталог с 3D
 - `GET /api/products/{id}/` — `model_glb`, `model_ar_glb`, `model_usdz`
 - Авторизация: Bearer JWT (как веб)
 

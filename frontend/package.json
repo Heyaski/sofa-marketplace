@@ -4,7 +4,7 @@
 	"scripts": {
 		"postinstall": "node scripts/copy-web-ifc-wasm.cjs",
 		"dev": "next dev",
-		"build": "next build",
+		"build": "next build && node scripts/sync-standalone-downloads.cjs",
 		"start": "next start",
 		"lint": "next lint",
 		"type-check": "tsc --noEmit"

@@ -117,13 +117,19 @@ export default function PluginAccessBanner() {
 
 	return (
 		<>
-			<div className='rounded-xl border border-main1/20 bg-main1/5 p-3 sm:p-4 max-w-md'>
+			<div className='rounded-xl border border-main1/20 bg-main1/5 p-3 sm:p-4 max-w-md flex flex-col gap-2'>
 				<button
 					onClick={openDownloadModal}
 					className='w-full inline-flex justify-center items-center bg-main1 text-white px-5 py-3 rounded-lg hover:bg-main2 transition-colors font-medium'
 				>
 					Скачать плагин
 				</button>
+				<a
+					href='/app-download'
+					className='w-full inline-flex justify-center items-center border border-main1 text-main1 px-5 py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors font-medium'
+				>
+					Скачать приложение AR
+				</a>
 			</div>
 
 			{isModalOpen && (
@@ -175,12 +181,6 @@ export default function PluginAccessBanner() {
 										className='inline-block mt-2 text-sm text-main1 underline'
 									>
 										Локальная папка / повторное письмо → профиль
-									</a>
-									<a
-										href='/app-download'
-										className='inline-block mt-2 ml-3 text-sm text-main1 underline'
-									>
-										Скачать AR (APK)
 									</a>
 								</div>
 
