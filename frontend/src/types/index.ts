@@ -201,6 +201,11 @@ export interface User {
 	profile?: UserProfile
 }
 
+/** PATCH /api/users/me/ — вложенный profile тоже частичный */
+export type UserUpdatePayload = Partial<Omit<User, 'profile'>> & {
+	profile?: Partial<UserProfile>
+}
+
 // Типы для API ответов
 export interface ApiResponse<T> {
 	count: number

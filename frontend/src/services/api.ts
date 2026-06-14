@@ -19,6 +19,7 @@ import {
 	StaticPage,
 	Subscription,
 	User,
+	UserUpdatePayload,
 } from '../types'
 
 type PluginActivationResponse = {
@@ -466,7 +467,7 @@ export const authService = {
 	},
 
 	// Обновить информацию о текущем пользователе
-	updateUser: async (data: Partial<User>): Promise<User> => {
+	updateUser: async (data: UserUpdatePayload): Promise<User> => {
 		const response = await apiClient.patch('/api/users/me/', data)
 		clearUserMeCache()
 		return response.data
