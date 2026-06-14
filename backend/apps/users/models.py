@@ -4,6 +4,35 @@ from django.utils.timezone import now
 from datetime import timedelta
 
 
+class SocialAccount(models.Model):
+    """Привязка аккаунта соцсети к пользователю."""
+
+    PROVIDER_CHOICES = [
+        ("vk", "VK"),
+        ("yandex", "Yandex"),
+        ("mailru", "Mail.ru"),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="social_accounts")
+    provider = models.CharField(max_length=16, choices=PROVIDER_CHOICES)
+    provider_user_id = models.CharField(max_length=128)
+    extra_data = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Соцсеть"
+        verbose_name_plural = "Соцсети"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["provider", "provider_user_id"],
+                name="users_socialaccount_provider_uid_uniq",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.provider}:{self.provider_user_id} → {self.user.username}"
+
+
 class UserProfile(models.Model):
     """Расширенный профиль пользователя"""
     

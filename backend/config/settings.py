@@ -275,16 +275,28 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
 }
 
-# Настройки для Gmail SMTP
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 465
-EMAIL_USE_SSL = True
-EMAIL_USE_TLS = False
+# Почта (SMTP). По умолчанию Mail.ru; параметры — в backend/.env
+EMAIL_BACKEND = get_env("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = get_env("EMAIL_HOST", "smtp.mail.ru")
+EMAIL_PORT = int(get_env("EMAIL_PORT", "465"))
+EMAIL_USE_SSL = bool(int(get_env("EMAIL_USE_SSL", "1")))
+EMAIL_USE_TLS = bool(int(get_env("EMAIL_USE_TLS", "0")))
+EMAIL_HOST_USER = get_env("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = get_env("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = get_env("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "noreply@vizhub.pro")
 
-EMAIL_HOST_USER = "antontenditnik60@gmail.com"
-EMAIL_HOST_PASSWORD = "plryjeqormckvdta"
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+# OAuth (VK ID, Яндекс ID, Mail.ru)
+VK_CLIENT_ID = get_env("VK_CLIENT_ID", "")
+VK_CLIENT_SECRET = get_env("VK_CLIENT_SECRET", "")
+VK_REDIRECT_URI = get_env("VK_REDIRECT_URI", "http://127.0.0.1:8000/api/auth/vk/callback/")
+
+YANDEX_CLIENT_ID = get_env("YANDEX_CLIENT_ID", "")
+YANDEX_CLIENT_SECRET = get_env("YANDEX_CLIENT_SECRET", "")
+YANDEX_REDIRECT_URI = get_env("YANDEX_REDIRECT_URI", "http://127.0.0.1:8000/api/auth/yandex/callback/")
+
+MAILRU_CLIENT_ID = get_env("MAILRU_CLIENT_ID", "")
+MAILRU_CLIENT_SECRET = get_env("MAILRU_CLIENT_SECRET", "")
+MAILRU_REDIRECT_URI = get_env("MAILRU_REDIRECT_URI", "http://127.0.0.1:8000/api/auth/mailru/callback/")
 
 # Настройки Telegram бота (для отправки КП)
 TELEGRAM_BOT_TOKEN = get_env("TELEGRAM_BOT_TOKEN", "")

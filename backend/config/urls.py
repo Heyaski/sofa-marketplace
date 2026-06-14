@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from apps.users.views import CustomTokenObtainPairView
+from apps.users.oauth_views import OAuthStartView, OAuthCallbackView
 from apps.plugin.views import PluginLegacyLicenseView
 from django.views.generic import RedirectView
 
@@ -22,6 +23,8 @@ urlpatterns = [
     # JWT
     path("api/auth/login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("api/auth/<str:provider>/", OAuthStartView.as_view(), name="oauth_start"),
+    path("api/auth/<str:provider>/callback/", OAuthCallbackView.as_view(), name="oauth_callback"),
 
     # наши приложения
     path("api/", include("apps.catalog.urls")),

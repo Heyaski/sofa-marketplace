@@ -3,6 +3,7 @@
 import { XMarkIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import { useEffect, useState } from 'react'
 import { authService } from '../services/api'
+import { config } from '../config'
 
 interface AuthModalProps {
 	isOpen: boolean
@@ -219,6 +220,16 @@ export default function AuthModal({
 		} finally {
 			setLoading(false)
 		}
+	}
+
+	const handleSocialLogin = (provider: 'vk' | 'yandex' | 'mailru') => {
+		const apiUrl = config.API_URL.replace(/\/$/, '')
+		const params = new URLSearchParams()
+		if (redirectAfterAuth) {
+			params.set('next', redirectAfterAuth)
+		}
+		const qs = params.toString()
+		window.location.href = `${apiUrl}/api/auth/${provider}/${qs ? `?${qs}` : ''}`
 	}
 
 	return (
@@ -471,6 +482,7 @@ export default function AuthModal({
 						<div className='grid grid-cols-3 gap-3'>
 							<button
 								type='button'
+								onClick={() => handleSocialLogin('vk')}
 								className='flex flex-col items-center justify-center px-3 py-3 border-2 border-gray2 rounded-lg hover:bg-gray-bg transition-colors'
 							>
 								<span className='text-xl font-bold text-blue-600'>ВК</span>
@@ -478,6 +490,7 @@ export default function AuthModal({
 							</button>
 							<button
 								type='button'
+								onClick={() => handleSocialLogin('mailru')}
 								className='flex flex-col items-center justify-center px-3 py-3 border-2 border-gray2 rounded-lg hover:bg-gray-bg transition-colors'
 							>
 								<span className='text-xl font-bold text-orange-500'>@</span>
@@ -485,6 +498,7 @@ export default function AuthModal({
 							</button>
 							<button
 								type='button'
+								onClick={() => handleSocialLogin('yandex')}
 								className='flex flex-col items-center justify-center px-3 py-3 border-2 border-gray2 rounded-lg hover:bg-gray-bg transition-colors'
 							>
 								<span className='text-xl font-bold text-red-500'>Я</span>
