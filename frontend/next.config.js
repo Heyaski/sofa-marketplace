@@ -11,6 +11,11 @@ const nextConfig = {
 				source: '/media/:path*',
 				destination: `${apiUrl}/media/:path*`,
 			},
+			// iPhone AR Quick Look: URL должен заканчиваться на .usdz (same-origin)
+			{
+				source: '/ar-usdz/:productId/model.usdz',
+				destination: '/api/ar-usdz-proxy/:productId',
+			},
 		]
 	},
 	images: {

@@ -81,11 +81,23 @@ export function sameOriginArModelUrl(productId: number, format: 'usdz' | 'glb' =
 }
 
 /**
- * URL USDZ для ios-src: готовый файл с CDN/S3 или прокси (абсолютный URL).
- * Quick Look на iPhone требует абсолютный HTTPS-URL.
+ * Same-origin USDZ для rel="ar" (Safari требует .usdz в пути).
+ */
+export function iosQuickLookUsdzUrl(productId: number): string {
+	if (typeof window !== 'undefined') {
+		return `${window.location.origin}/ar-usdz/${productId}/model.usdz`
+	}
+	return `/ar-usdz/${productId}/model.usdz`
+}
+
+/**
+ * @deprecated Используйте iosQuickLookUsdzUrl для rel="ar" на iPhone.
  */
 export function resolveIosArSrc(product: Product): string | null {
 	if (!canUseIosRoomAr(product)) return null
+	if (typeof window !== 'undefined') {
+		return iosQuickLookUsdzUrl(product.id)
+	}
 	const cached = resolveUsdzUrl(product)
 	if (cached) return cached
 	return sameOriginArModelUrl(product.id, 'usdz')
