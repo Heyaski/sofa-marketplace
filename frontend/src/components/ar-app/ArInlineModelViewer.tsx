@@ -13,20 +13,20 @@ import { getProductPrimaryImageUrl } from '@/utils/productImage'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import ArFbxViewer from './ArFbxViewer'
 
+/** 1×1 px — для rel="ar" (Safari требует img внутри ссылки). */
+const AR_LINK_PIXEL =
+	'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+
 type ArInlineModelViewerProps = {
 	product: Product
 }
 
-type ModelViewerEl = HTMLElement & {
-	activateAR?: () => Promise<void>
-}
-
 /**
- * GLB → AR через иконку AR в model-viewer (кубик).
- * iPhone: ios-src → USDZ (S3).
+ * 3D: model-viewer (GLB).
+ * iPhone AR: нативный Quick Look через <a rel="ar"> (model-viewer AR на iOS ненадёжен).
  */
 export default function ArInlineModelViewer({ product }: ArInlineModelViewerProps) {
-	const viewerRef = useRef<ModelViewerEl>(null)
+	const viewerRef = useRef<HTMLElement>(null)
 	const [ready, setReady] = useState(false)
 	const [ios, setIos] = useState(false)
 	const [modelLoaded, setModelLoaded] = useState(false)
@@ -40,7 +40,7 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 	const posterUrl = getProductPrimaryImageUrl(product)
 	const iosAr = canUseIosRoomAr(product)
 	const iosSrc = ios && iosAr ? resolveIosArSrc(product) ?? undefined : undefined
-	const arEnabled = Boolean(glbUrl) && (!ios || iosAr)
+	const androidAr = Boolean(glbUrl) && !ios
 
 	useEffect(() => {
 		setIos(isIosDevice())
@@ -61,13 +61,11 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 		}
 		const onProgress = (e: Event) => {
 			const detail = (e as CustomEvent<{ totalProgress: number }>).detail
-			const pct = Math.round((detail?.totalProgress ?? 0) * 100)
-			setLoadProgress(pct)
+			setLoadProgress(Math.round((detail?.totalProgress ?? 0) * 100))
 		}
 
 		el.addEventListener('load', onLoad)
 		el.addEventListener('progress', onProgress)
-
 		return () => {
 			el.removeEventListener('load', onLoad)
 			el.removeEventListener('progress', onProgress)
@@ -76,27 +74,19 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 
 	if (glbUrl) {
 		const showLoading = !modelLoaded
-		const canTapAr = modelLoaded && arEnabled && (!ios || (iosAr && Boolean(iosSrc)))
+		const showIosAr = ios && iosAr && iosSrc && modelLoaded
 
 		return (
 			<div className='space-y-3'>
-				<style>{`
-					model-viewer::part(default-ar-button) {
-						display: none;
-					}
-				`}</style>
-
 				<div className='relative rounded-xl'>
 					{ready ? (
 						<model-viewer
 							ref={viewerRef}
 							src={glbUrl}
-							{...(iosSrc ? { 'ios-src': iosSrc } : {})}
 							{...(posterUrl ? { poster: posterUrl } : {})}
-							{...(arEnabled ? { ar: true } : {})}
+							{...(androidAr ? { ar: true } : {})}
+							{...(!ios && androidAr ? { 'ios-src': iosSrc } : {})}
 							ar-modes={ios ? 'quick-look' : 'webxr scene-viewer'}
-							ar-placement='floor'
-							ar-scale='auto'
 							interaction-policy='always-allow'
 							camera-controls
 							shadow-intensity='1'
@@ -110,19 +100,7 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 								display: 'block',
 								backgroundColor: '#f3f4f6',
 							}}
-						>
-							{canTapAr ? (
-								<button
-									slot='ar-button'
-									type='button'
-									aria-label='Примерить в комнате'
-									className='flex items-center justify-center w-14 h-14 rounded-full bg-main1 text-white shadow-lg border-2 border-white text-xs font-bold'
-									style={{ touchAction: 'manipulation' }}
-								>
-									AR
-								</button>
-							) : null}
-						</model-viewer>
+						/>
 					) : (
 						<div
 							className='flex items-center justify-center bg-gray-bg'
@@ -134,36 +112,54 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 
 					{showLoading && ready ? (
 						<div
-							className='pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gray-bg/90 px-6 text-center'
+							className='pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-gray-bg/90 px-6 text-center'
 							aria-live='polite'
 						>
 							<div className='animate-spin rounded-full h-10 w-10 border-b-2 border-main1' />
-							<p className='text-sm text-black font-medium'>
-								Загрузка 3D-модели…
-							</p>
+							<p className='text-sm text-black font-medium'>Загрузка 3D-модели…</p>
 							<p className='text-xs text-gray'>
-								Подождите {loadProgress > 0 ? `${loadProgress}%` : '—'}.
-								{ios ? ' После загрузки нажмите AR в углу.' : ''}
+								Подождите{loadProgress > 0 ? ` (${loadProgress}%)` : ''}. Не закрывайте
+								страницу.
 							</p>
 						</div>
+					) : null}
+
+					{/* iPhone: Apple Quick Look — единственный надёжный способ */}
+					{showIosAr ? (
+						<a
+							rel='ar'
+							href={iosSrc}
+							className='absolute bottom-4 right-4 z-20 flex h-14 w-14 items-center justify-center rounded-full border-2 border-white bg-main1 text-xs font-bold text-white shadow-lg'
+							style={{ WebkitTouchCallout: 'none' }}
+							aria-label='Примерить в комнате'
+						>
+							<img
+								src={posterUrl || AR_LINK_PIXEL}
+								alt=''
+								width={1}
+								height={1}
+								className='sr-only'
+							/>
+							AR
+						</a>
 					) : null}
 				</div>
 
 				{!modelLoaded ? (
-					<p className='text-xs text-gray text-center'>
-						Подождите, пока загрузится 3D-модель. AR станет доступен после загрузки.
+					<p className='text-center text-xs text-gray'>
+						Подождите, пока загрузится 3D-модель. Кнопка AR появится после загрузки.
 					</p>
-				) : ios && iosAr && iosSrc ? (
-					<p className='text-xs text-gray text-center'>
-						Нажмите кнопку <strong>AR</strong> в правом нижнем углу — откроется камера для
-						примерки в комнате.
+				) : showIosAr ? (
+					<p className='text-center text-xs text-gray'>
+						Нажмите кнопку AR в правом нижнем углу — откроется камера для примерки в
+						комнате.
 					</p>
 				) : ios ? (
-					<p className='text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3 text-center'>
+					<p className='rounded-xl border border-amber-200 bg-amber-50 p-3 text-center text-xs text-amber-800'>
 						AR на iPhone пока недоступен — USDZ ещё не готов на сервере.
 					</p>
 				) : (
-					<p className='text-xs text-gray text-center'>
+					<p className='text-center text-xs text-gray'>
 						Нажмите иконку AR в углу модели, чтобы примерить в комнате.
 					</p>
 				)}
@@ -176,7 +172,7 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 	}
 
 	return (
-		<p className='text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-4'>
+		<p className='rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800'>
 			Нет GLB или FBX для этого товара.
 		</p>
 	)
