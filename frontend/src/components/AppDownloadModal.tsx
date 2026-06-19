@@ -27,10 +27,6 @@ function pickAndroidUrl(info: MobileAppInfo | null): string {
 	return (info?.android?.download_url || info?.download_url || config.MOBILE_APK_DOWNLOAD_URL).trim()
 }
 
-function pickAndroidUrl(info: MobileAppInfo | null): string {
-	return (info?.android?.download_url || info?.download_url || config.MOBILE_APK_DOWNLOAD_URL).trim()
-}
-
 export default function AppDownloadModal({ isOpen, onClose }: AppDownloadModalProps) {
 	const router = useRouter()
 	const [info, setInfo] = useState<MobileAppInfo | null>(null)
