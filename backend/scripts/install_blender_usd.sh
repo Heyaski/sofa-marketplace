@@ -12,9 +12,29 @@ URL="https://download.blender.org/release/Blender${MAJOR_MINOR}/${TARBALL}"
 TARGET="${INSTALL_DIR}/blender-${BLENDER_VERSION}-${ARCH}"
 BIN="${TARGET}/blender"
 
+ENV_FILE="${ENV_FILE:-$(cd "$(dirname "$0")/.." && pwd)/.env}"
+
+write_env() {
+  if [[ -f "${ENV_FILE}" ]]; then
+    if grep -q '^BLENDER_BIN=' "${ENV_FILE}"; then
+      sed -i "s|^BLENDER_BIN=.*|BLENDER_BIN=${BIN}|" "${ENV_FILE}"
+      echo "Обновлён BLENDER_BIN в ${ENV_FILE}"
+    else
+      printf '\nBLENDER_BIN=%s\nGLB_TO_USDZ_ENABLED=1\n' "${BIN}" >> "${ENV_FILE}"
+      echo "Добавлен BLENDER_BIN в ${ENV_FILE}"
+    fi
+  else
+    printf 'BLENDER_BIN=%s\nGLB_TO_USDZ_ENABLED=1\n' "${BIN}" > "${ENV_FILE}"
+    echo "Создан ${ENV_FILE}"
+  fi
+}
+
 if [[ -x "${BIN}" ]]; then
   echo "Blender уже установлен: ${BIN}"
   "${BIN}" --version | head -1
+  write_env
+  echo ""
+  echo "Перезапустите backend: sudo systemctl restart sofa-backend"
   exit 0
 fi
 
@@ -36,14 +56,15 @@ if [[ ! -x "${BIN}" ]]; then
   exit 1
 fi
 
+write_env
+
 echo ""
 echo "Готово: ${BIN}"
 "${BIN}" --version | head -1
 echo ""
-echo "Добавьте в backend/.env:"
-echo "  BLENDER_BIN=${BIN}"
-echo "  GLB_TO_USDZ_ENABLED=1"
+echo "BLENDER_BIN уже записан в ${ENV_FILE}"
 echo ""
+echo "Перезапустите backend: sudo systemctl restart sofa-backend"
 echo "Проверка:"
 echo "  cd backend && source venv/bin/activate"
 echo "  python manage.py ar_ios_status"

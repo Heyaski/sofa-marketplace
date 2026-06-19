@@ -3,6 +3,8 @@ from django.core.management.base import BaseCommand, CommandError
 
 from apps.catalog.catalog_glb_q import catalog_has_glb_q
 from apps.catalog.glb_to_usdz_converter import (
+    _blender_bin,
+    _blender_usd_export_available,
     convert_glb_to_usdz_for_product,
     converter_is_configured,
     get_usdz_bytes_for_product,
@@ -46,6 +48,13 @@ class Command(BaseCommand):
         glb_ref = resolve_product_glb_ref(product)
         self.stdout.write(f"Товар {product.pk}: {product.title[:80]}")
         self.stdout.write(f"GLB: {glb_ref[:120]}...")
+        blender = _blender_bin()
+        self.stdout.write(f"Blender: {blender or 'НЕ НАЙДЕН'}")
+        if blender and not _blender_usd_export_available():
+            raise CommandError(
+                f"Blender без USD export: {blender}. "
+                "Запустите install_blender_usd.sh или задайте BLENDER_BIN в backend/.env"
+            )
         self.stdout.write("Конвертация (может занять 1–3 мин)...")
 
         try:

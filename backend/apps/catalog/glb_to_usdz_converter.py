@@ -31,6 +31,13 @@ def _blender_bin() -> str | None:
     explicit = getattr(settings, "BLENDER_BIN", "").strip()
     if explicit:
         return explicit
+
+    # Официальный tarball (install_blender_usd.sh) — приоритетнее apt blender без USD
+    opt_candidates = sorted(Path("/opt").glob("blender-*-linux-x64/blender"), reverse=True)
+    for candidate in opt_candidates:
+        if candidate.is_file():
+            return str(candidate)
+
     return shutil.which("blender")
 
 
