@@ -676,7 +676,12 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         if not product_can_ios_ar(product):
             return Response(
-                {"detail": "Нет GLB для AR на iPhone."},
+                {
+                    "detail": (
+                        f"Товар {product.pk}: нет GLB или конвертер не настроен "
+                        "(sudo apt install blender && restart sofa-backend)."
+                    )
+                },
                 status=404,
             )
         try:

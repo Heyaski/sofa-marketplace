@@ -89,8 +89,13 @@ def _build_blender_command(in_path: Path, out_path: Path) -> str:
 
 
 def _run_converter(tmp_dir: Path, in_path: Path, out_path: Path, product_id: int) -> None:
+    import os
+
     custom = getattr(settings, "GLB_TO_USDZ_COMMAND", "").strip()
     timeout = getattr(settings, "GLB_TO_USDZ_TIMEOUT_SEC", 600)
+    env = os.environ.copy()
+    env.setdefault("BLENDER_USER_CONFIG", str(tmp_dir / "blender_user"))
+    env["LIBGL_ALWAYS_SOFTWARE"] = "1"
 
     if custom:
         command = custom.format(
@@ -125,7 +130,7 @@ def _run_converter(tmp_dir: Path, in_path: Path, out_path: Path, product_id: int
             "или задайте GLB_TO_USDZ_COMMAND в backend/.env."
         )
 
-    completed = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
+    completed = subprocess.run(args, capture_output=True, text=True, timeout=timeout, env=env)
     if completed.returncode != 0:
         stderr = (completed.stderr or "").strip()
         stdout = (completed.stdout or "").strip()
