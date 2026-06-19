@@ -45,14 +45,14 @@ function AppDownloadContent() {
 							href='/app-download?platform=android'
 							className='flex flex-col items-center justify-center gap-2 p-5 border-2 border-gray2 rounded-xl hover:border-main1 hover:bg-main1/5 transition-colors'
 						>
-							<span className='text-3xl'>🤖</span>
+							<span className='text-3xl'></span>
 							<span className='font-semibold text-black'>Android</span>
 						</Link>
 						<Link
 							href='/ar-app'
 							className='flex flex-col items-center justify-center gap-2 p-5 border-2 border-gray2 rounded-xl hover:border-main1 hover:bg-main1/5 transition-colors'
 						>
-							<span className='text-3xl'>🍎</span>
+							<span className='text-3xl'></span>
 							<span className='font-semibold text-black'>iOS</span>
 						</Link>
 					</div>

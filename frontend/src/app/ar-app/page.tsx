@@ -2,8 +2,9 @@
 
 import ArAppShell from '@/components/ar-app/ArAppShell'
 import { hasArModel } from '@/lib/arApp/modelUrls'
-import { categoryService, productService } from '@/services/api'
-import type { Category, Product } from '@/types'
+import { useCategories } from '@/hooks/useApi'
+import { productService } from '@/services/api'
+import type { Product } from '@/types'
 import { getProductPrimaryImageUrl } from '@/utils/productImage'
 import { getTitleWithoutBrand } from '@/utils/productTitle'
 import Link from 'next/link'
@@ -17,7 +18,7 @@ function formatPrice(price?: number | string): string | null {
 }
 
 export default function ArAppCatalogPage() {
-	const [categories, setCategories] = useState<Category[]>([])
+	const { categories } = useCategories()
 	const [items, setItems] = useState<Product[]>([])
 	const [categoryId, setCategoryId] = useState<number | null>(null)
 	const [searchDraft, setSearchDraft] = useState('')
@@ -46,10 +47,6 @@ export default function ArAppCatalogPage() {
 			setLoading(false)
 		}
 	}, [categoryId, search])
-
-	useEffect(() => {
-		categoryService.getCategories().then(setCategories).catch(() => setCategories([]))
-	}, [])
 
 	useEffect(() => {
 		loadProducts()
