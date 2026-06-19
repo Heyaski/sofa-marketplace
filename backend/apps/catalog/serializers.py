@@ -465,6 +465,7 @@ class ProductCatalog3DSerializer(ProductCatalogLiteSerializer):
 
     model_3d_id = serializers.SerializerMethodField()
     model_glb = serializers.SerializerMethodField()
+    model_fbx = serializers.SerializerMethodField()
     model_rfa_glb_preview = serializers.CharField(read_only=True)
     asset_3d_models = serializers.SerializerMethodField()
 
@@ -472,6 +473,7 @@ class ProductCatalog3DSerializer(ProductCatalogLiteSerializer):
         fields = ProductCatalogLiteSerializer.Meta.fields + (
             "model_3d_id",
             "model_glb",
+            "model_fbx",
             "model_rfa_glb_preview",
             "asset_3d_models",
         )
@@ -481,6 +483,9 @@ class ProductCatalog3DSerializer(ProductCatalogLiteSerializer):
 
     def get_model_glb(self, obj):
         return ProductSerializer.get_model_glb(self, obj)
+
+    def get_model_fbx(self, obj):
+        return ProductSerializer.get_model_fbx(self, obj)
 
     def get_asset_3d_models(self, obj):
         return ProductSerializer.get_asset_3d_models(self, obj)

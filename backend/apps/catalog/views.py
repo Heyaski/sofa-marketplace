@@ -241,7 +241,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         """Список: лёгкий 2D или лёгкий 3D; полный ProductSerializer только для карточки товара."""
         if self.action == 'list':
             list_mode = (self.request.query_params.get('list_mode') or '').strip().lower()
-            if list_mode == '3d':
+            if list_mode in ('3d', 'ar'):
                 return ProductCatalog3DSerializer
             mf = (self.request.query_params.get('model_files') or '').strip().lower()
             if not mf:
