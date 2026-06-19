@@ -725,20 +725,37 @@ class PluginResendActivationEmailView(APIView):
 
 
 class MobileAppInfoView(APIView):
-    """GET /api/mobile/app-info/ — ссылка на APK для скачивания с сайта."""
+    """GET /api/mobile/app-info/ — ссылки на Android APK и iOS (App Store / TestFlight)."""
     permission_classes = []
     authentication_classes = []
 
     def get(self, request):
         apk_url = (getattr(settings, 'MOBILE_APK_DOWNLOAD_URL', None) or '').strip()
+        ios_url = (getattr(settings, 'MOBILE_IOS_APP_STORE_URL', None) or '').strip()
+        if not ios_url:
+            ios_url = (getattr(settings, 'MOBILE_IOS_TESTFLIGHT_URL', None) or '').strip()
+        ios_format = 'testflight' if 'testflight.apple.com' in ios_url.lower() else 'app_store'
         return Response(
             {
+                "app_name": "VizHub AR",
+                "android": {
+                    "download_url": apk_url,
+                    "available": bool(apk_url),
+                    "format": "apk",
+                    "min_version": 26,
+                },
+                "ios": {
+                    "download_url": ios_url,
+                    "available": bool(ios_url),
+                    "format": ios_format if ios_url else "",
+                    "min_version": "15.0",
+                },
+                # обратная совместимость
                 "platform": "android",
                 "format": "apk",
                 "download_url": apk_url,
                 "available": bool(apk_url),
                 "min_android_version": 26,
-                "app_name": "VizHub AR",
             },
             status=status.HTTP_200_OK,
         )

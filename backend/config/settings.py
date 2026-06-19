@@ -40,6 +40,8 @@ PLUGIN_KEYED_API_BASE_DOMAIN = get_env("PLUGIN_KEYED_API_BASE_DOMAIN", "vizhub.p
 PLUGIN_ACTIVATION_TOKEN_TTL_HOURS = int(get_env("PLUGIN_ACTIVATION_TOKEN_TTL_HOURS", "72"))
 # Прямая ссылка на APK мобильного приложения (для скачивания с сайта)
 MOBILE_APK_DOWNLOAD_URL = get_env("MOBILE_APK_DOWNLOAD_URL", "")
+MOBILE_IOS_APP_STORE_URL = get_env("MOBILE_IOS_APP_STORE_URL", "")
+MOBILE_IOS_TESTFLIGHT_URL = get_env("MOBILE_IOS_TESTFLIGHT_URL", "")
 
 INSTALLED_APPS = [
     "jazzmin",  # Должен быть перед django.contrib.admin

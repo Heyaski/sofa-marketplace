@@ -1,58 +1,64 @@
-# VizHub AR (Android APK)
+# VizHub AR (Android APK + iOS)
 
-Мобильное приложение: каталог → «Примерить в AR» (следующий этап).
+Мобильное приложение: каталог → «Примерить в AR».
 
-## Сборка APK
+## Сборка Android (APK)
 
 ```bash
 cd mobile
 npm install
-
-# 1) Аккаунт Expo (бесплатно): https://expo.dev/signup
-#    или: npx eas-cli register
-
-# 2) Вход (если пароль не подходит — сброс на expo.dev или SSO):
 npx eas-cli login
-# npx eas-cli login --sso
-
-# 3) Создать проект на Expo (один раз) — получит настоящий projectId UUID
-npx eas-cli init
-
-# 4) Сборка APK в облаке Expo (~10–20 мин)
 npm run build:apk
 ```
 
-APK скачивается из EAS. Загрузите на сервер и укажите в `.env` backend:
+APK загрузите на сервер:
+
+```bash
+bash deploy/upload-mobile-apk.sh /path/to/vizhub-ar.apk
+```
+
+В `backend/.env`:
 
 ```
 MOBILE_APK_DOWNLOAD_URL=https://www.vizhub.pro/downloads/vizhub-ar.apk
 ```
 
-**На VPS** (после сборки APK):
+## Сборка iOS
+
+Нужен **Apple Developer** аккаунт ($99/год).
 
 ```bash
-# Вариант 1: скопировать файл с ПК
-scp vizhub-ar.apk deploy@vrwbspxnst:~/sofa-marketplace/frontend/public/downloads/
+cd mobile
+npm install
+npx eas-cli login
 
-# Вариант 2: на сервере из URL Expo
-bash deploy/upload-mobile-apk.sh --url 'https://expo.dev/artifacts/eas/....apk'
+# Первый раз: привязка Apple Team ID в Expo
+npx eas-cli credentials
 
-# Проверка (используйте www — SSL выдан для www.vizhub.pro)
-curl -I https://www.vizhub.pro/downloads/vizhub-ar.apk
-# Должен быть HTTP 200 от nginx, не 404 от Next.js
+# Сборка для TestFlight (внутренняя дистрибуция)
+npm run build:ios
+
+# После сборки — отправка в TestFlight
+npx eas-cli submit -p ios --latest
 ```
 
-Файл: `frontend/public/downloads/vizhub-ar.apk`.
+В `backend/.env` укажите ссылку для пользователей:
 
-**Важно:** frontend собран с `output: 'standalone'` — APK, добавленный после `npm run build`, Next.js не отдаёт.
-Добавьте в nginx блок `location /downloads/` (см. `deploy/nginx-frontend.conf.example`) **или** выполните:
+```
+# Бета (TestFlight) — пока нет в App Store
+MOBILE_IOS_TESTFLIGHT_URL=https://testflight.apple.com/join/XXXXXXXX
 
-```bash
-node frontend/scripts/sync-standalone-downloads.cjs
-sudo systemctl restart sofa-frontend
+# Или App Store после публикации
+MOBILE_IOS_APP_STORE_URL=https://apps.apple.com/app/idXXXXXXXXX
 ```
 
-На сайте: `/app-download` — кнопка скачивания.
+Если заданы оба URL, на сайте используется **App Store**.
+
+## Сайт
+
+На главной кнопка **«Скачать приложение AR»** открывает выбор **Android / iOS**.
+
+Страница `/app-download` — те же инструкции без модального окна.
 
 ## Локальная разработка
 
@@ -60,18 +66,6 @@ sudo systemctl restart sofa-frontend
 EXPO_PUBLIC_API_URL=https://api.vizhub.pro npm start
 ```
 
-## AR (ViroReact + ARCore)
-
-In-app AR с детекцией пола (plane detection):
-
-- `@reactvision/react-viro` + `newArchEnabled: true`
-- Наведите на пол → коснитесь плоскости → модель GLB появится на полу
-- Жесты: перетаскивание, щипок (масштаб), поворот
-
-**Не работает в Expo Go** — только dev build / EAS APK:
-
-```bash
-npm run build:apk
-```
+AR не работает в Expo Go — только dev build / EAS.
 
 См. [docs/MOBILE_AR_APP.md](../docs/MOBILE_AR_APP.md).

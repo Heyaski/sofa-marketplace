@@ -1,0 +1,12 @@
+{
+  "name": "VizHub AR",
+  "short_name": "VizHub AR",
+  "description": "3D каталог и примерка мебели в AR",
+  "start_url": "/ar-app",
+  "scope": "/ar-app",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f3f4f6",
+  "theme_color": "#111827",
+  "lang": "ru"
+}

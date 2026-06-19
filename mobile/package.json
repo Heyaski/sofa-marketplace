@@ -8,6 +8,8 @@
     "android": "expo start --android",
     "build:apk": "npx eas-cli@latest build -p android --profile preview-apk --non-interactive",
     "build:apk:local": "npx eas-cli@latest build -p android --profile preview-apk --local",
+    "build:ios": "npx eas-cli@latest build -p ios --profile preview-ios --non-interactive",
+    "build:ios:local": "npx eas-cli@latest build -p ios --profile preview-ios --local",
     "ios": "expo run:ios"
   },
   "dependencies": {

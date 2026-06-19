@@ -16,6 +16,16 @@
         "CAMERA"
       ]
     },
+    "ios": {
+      "bundleIdentifier": "pro.vizhub.ar",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Камера нужна для AR-примерки мебели в комнате.",
+        "NSMicrophoneUsageDescription": "Микрофон может использоваться в AR-сцене.",
+        "NSPhotoLibraryUsageDescription": "Доступ к фото для AR-опыта.",
+        "NSPhotoLibraryAddUsageDescription": "Сохранение фото из AR."
+      }
+    },
     "plugins": [
       "expo-router",
       "expo-font",

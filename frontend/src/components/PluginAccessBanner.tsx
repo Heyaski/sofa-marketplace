@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { authService, pluginService } from '@/services/api'
 import { User } from '@/types'
 import { config } from '@/config'
+import AppDownloadModal from './AppDownloadModal'
 
 const PAID_SUBSCRIPTIONS = new Set(['basic', 'pro', 'premium'])
 
@@ -15,6 +16,7 @@ export default function PluginAccessBanner() {
 	const [offlineActivationCode, setOfflineActivationCode] = useState('')
 	const [offlineLoading, setOfflineLoading] = useState(false)
 	const [isModalOpen, setIsModalOpen] = useState(false)
+	const [isAppDownloadOpen, setIsAppDownloadOpen] = useState(false)
 	const [copiedField, setCopiedField] = useState<'offlineCode' | null>(null)
 
 	useEffect(() => {
@@ -124,13 +126,19 @@ export default function PluginAccessBanner() {
 				>
 					Скачать плагин
 				</button>
-				<a
-					href='/app-download'
+				<button
+					type='button'
+					onClick={() => setIsAppDownloadOpen(true)}
 					className='w-full inline-flex justify-center items-center border border-main1 text-main1 px-5 py-3 rounded-lg hover:bg-main1 hover:text-white transition-colors font-medium'
 				>
 					Скачать приложение AR
-				</a>
+				</button>
 			</div>
+
+			<AppDownloadModal
+				isOpen={isAppDownloadOpen}
+				onClose={() => setIsAppDownloadOpen(false)}
+			/>
 
 			{isModalOpen && (
 				<div className='fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4'>
