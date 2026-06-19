@@ -209,6 +209,20 @@ def convert_glb_to_usdz_for_product(product_id: int) -> str:
     return saved_url
 
 
+def get_usdz_url_for_product(product: Product) -> str | None:
+    """Публичный URL USDZ, если файл уже в storage (без чтения в память)."""
+    existing = _resolve_usdz_ref(product)
+    if existing:
+        if existing.startswith("http://") or existing.startswith("https://"):
+            return existing
+        return default_storage.url(existing.lstrip("/"))
+
+    storage_key = _usdz_storage_key(product.pk)
+    if default_storage.exists(storage_key):
+        return default_storage.url(storage_key)
+    return None
+
+
 def get_usdz_bytes_for_product(product_id: int) -> bytes:
     """Вернуть байты USDZ: из кэша, model_usdz или конвертация GLB→USDZ."""
     product = Product.objects.get(pk=product_id)

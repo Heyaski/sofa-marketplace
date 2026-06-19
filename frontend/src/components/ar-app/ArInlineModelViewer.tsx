@@ -25,9 +25,6 @@ type ArInlineModelViewerProps = {
 export default function ArInlineModelViewer({ product }: ArInlineModelViewerProps) {
 	const [ready, setReady] = useState(false)
 	const [ios, setIos] = useState(false)
-	const [iosUsdzReady, setIosUsdzReady] = useState(false)
-	const [iosUsdzLoading, setIosUsdzLoading] = useState(false)
-	const [iosUsdzError, setIosUsdzError] = useState(false)
 
 	const glbUrl = useMemo(() => {
 		const raw = resolveGlbUrl(product)
@@ -36,8 +33,9 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 	const fbxUrl = resolveFbxUrl(product)
 	const posterUrl = getProductPrimaryImageUrl(product)
 	const iosAr = canUseIosRoomAr(product)
-	const iosSrc = ios && iosAr && iosUsdzReady ? resolveIosArSrc(product) : undefined
-	const arEnabled = Boolean(glbUrl) && (!ios || (iosAr && iosUsdzReady))
+	const iosSrc = ios && iosAr ? resolveIosArSrc(product) ?? undefined : undefined
+	const arEnabled = Boolean(glbUrl) && (!ios || iosAr)
+	const [iosUsdzStatus, setIosUsdzStatus] = useState<'idle' | 'checking' | 'ok' | 'error'>('idle')
 
 	useEffect(() => {
 		setIos(isIosDevice())
@@ -48,12 +46,14 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 		import('@google/model-viewer').then(() => setReady(true))
 	}, [glbUrl])
 
-	// Предзагрузка USDZ до открытия Quick Look (иначе камера крутится бесконечно)
+	// Лёгкая проверка доступности USDZ (HEAD), без скачивания 100+ MB в Safari
 	useEffect(() => {
 		if (!ios || !iosAr) {
-			setIosUsdzReady(false)
-			setIosUsdzLoading(false)
-			setIosUsdzError(false)
+			setIosUsdzStatus('idle')
+			return
+		}
+		if (product.model_usdz || product.ios_ar_available) {
+			setIosUsdzStatus('ok')
 			return
 		}
 
@@ -61,30 +61,19 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 		if (!url) return
 
 		let cancelled = false
-		setIosUsdzReady(false)
-		setIosUsdzLoading(true)
-		setIosUsdzError(false)
-
+		setIosUsdzStatus('checking')
 		const controller = new AbortController()
-		const timeout = window.setTimeout(() => controller.abort(), 10 * 60 * 1000)
+		const timeout = window.setTimeout(() => controller.abort(), 60_000)
 
-		fetch(url, { signal: controller.signal, cache: 'force-cache' })
+		fetch(url, { method: 'HEAD', signal: controller.signal })
 			.then(res => {
 				if (!res.ok) throw new Error(`USDZ ${res.status}`)
-				return res.blob()
-			})
-			.then(blob => {
-				if (cancelled) return
-				if (blob.size < 128) throw new Error('empty USDZ')
-				setIosUsdzReady(true)
+				setIosUsdzStatus('ok')
 			})
 			.catch(() => {
-				if (!cancelled) setIosUsdzError(true)
+				if (!cancelled) setIosUsdzStatus('error')
 			})
-			.finally(() => {
-				if (!cancelled) setIosUsdzLoading(false)
-				window.clearTimeout(timeout)
-			})
+			.finally(() => window.clearTimeout(timeout))
 
 		return () => {
 			cancelled = true
@@ -126,17 +115,15 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 					</div>
 				)}
 
-				{ios && iosAr && iosUsdzLoading ? (
-					<p className='text-xs text-gray text-center'>
-						Подготовка AR-модели… Первый раз может занять 1–3 минуты.
-					</p>
-				) : ios && iosAr && iosUsdzReady ? (
-					<p className='text-xs text-gray text-center'>
-						Нажмите иконку AR — примерка в комнате.
-					</p>
-				) : ios && iosAr && iosUsdzError ? (
+				{ios && iosAr && iosUsdzStatus === 'checking' ? (
+					<p className='text-xs text-gray text-center'>Проверка AR-модели…</p>
+				) : ios && iosAr && iosUsdzStatus === 'error' ? (
 					<p className='text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3 text-center'>
-						AR-модель пока не готова. Попробуйте обновить страницу через минуту.
+						AR-модель пока не готова. Обновите страницу через минуту.
+					</p>
+				) : ios && iosAr ? (
+					<p className='text-xs text-gray text-center'>
+						Нажмите иконку AR в углу модели — примерка в комнате.
 					</p>
 				) : ios ? (
 					<p className='text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3 text-center'>

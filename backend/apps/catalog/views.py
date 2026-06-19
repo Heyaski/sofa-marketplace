@@ -672,7 +672,11 @@ class ProductViewSet(viewsets.ModelViewSet):
         USDZ для AR Quick Look на iPhone. Если USDZ нет — конвертируется из GLB товара.
         """
         product = self.get_object()
-        from apps.catalog.glb_to_usdz_converter import get_usdz_bytes_for_product, product_can_ios_ar
+        from apps.catalog.glb_to_usdz_converter import (
+            get_usdz_bytes_for_product,
+            get_usdz_url_for_product,
+            product_can_ios_ar,
+        )
 
         if not product_can_ios_ar(product):
             return Response(
@@ -684,6 +688,13 @@ class ProductViewSet(viewsets.ModelViewSet):
                 },
                 status=404,
             )
+
+        direct_url = get_usdz_url_for_product(product)
+        if direct_url:
+            from django.http import HttpResponseRedirect
+
+            return HttpResponseRedirect(direct_url)
+
         try:
             payload = get_usdz_bytes_for_product(product.pk)
         except Exception as e:

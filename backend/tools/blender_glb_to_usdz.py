@@ -69,18 +69,21 @@ except Exception as exc:
     print(f"GLB import failed: {exc}", file=sys.stderr)
     sys.exit(1)
 
-# Quick Look на iPhone плохо переваривает 4K-текстуры — уменьшаем до 2048
-max_tex = 2048
+# Quick Look на iPhone: текстуры до 1024, JPEG где возможно
+max_tex = 1024
 for img in bpy.data.images:
     w, h = img.size
     if w <= 0 or h <= 0:
         continue
-    if w <= max_tex and h <= max_tex:
-        continue
-    scale = min(max_tex / w, max_tex / h)
-    img.scale(max(1, int(w * scale)), max(1, int(h * scale)))
+    if w > max_tex or h > max_tex:
+        scale = min(max_tex / w, max_tex / h)
+        img.scale(max(1, int(w * scale)), max(1, int(h * scale)))
+    try:
+        img.file_format = "JPEG"
+    except Exception:
+        pass
 
-usd_path = work / "model.usdc"
+usd_path = work / "model.usda"
 try:
     bpy.ops.wm.usd_export(
         filepath=str(usd_path),
@@ -99,7 +102,7 @@ if not usd_path.is_file() or usd_path.stat().st_size == 0:
     print("USD export produced empty file", file=sys.stderr)
     sys.exit(1)
 
-pack_ext = {".usdc", ".usd", ".usda", ".png", ".jpg", ".jpeg", ".webp", ".ktx", ".ktx2"}
+pack_ext = {".usda", ".usd", ".usdc", ".png", ".jpg", ".jpeg", ".webp", ".ktx", ".ktx2"}
 extra_files: list[Path] = []
 for f in sorted(work.rglob("*")):
     if not f.is_file():
@@ -109,6 +112,26 @@ for f in sorted(work.rglob("*")):
     if f.suffix.lower() not in pack_ext:
         continue
     extra_files.append(f)
+
+# Сжимаем крупные PNG → JPEG (сильно уменьшает USDZ)
+try:
+    from PIL import Image
+
+    replaced = False
+    for f in list(extra_files):
+        if f.suffix.lower() != ".png" or f.stat().st_size < 256_000:
+            continue
+        jpg = f.with_suffix(".jpg")
+        Image.open(f).convert("RGB").save(jpg, "JPEG", quality=82, optimize=True)
+        f.unlink()
+        extra_files.remove(f)
+        extra_files.append(jpg)
+        replaced = True
+    if replaced:
+        text = usd_path.read_text(encoding="utf-8")
+        usd_path.write_text(text.replace(".png", ".jpg"), encoding="utf-8")
+except Exception as exc:
+    print(f"Texture JPEG pass skipped: {exc}", file=sys.stderr)
 
 # AR Quick Look требует: USD-файл первым в архиве (без сжатия)
 with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_STORED) as zf:
