@@ -1,6 +1,13 @@
 'use client'
 
-import { isIosDevice, preferSameOriginMediaUrl, resolveFbxUrl, resolveGlbUrl } from '@/lib/arApp/modelUrls'
+import {
+	canUseIosRoomAr,
+	isIosDevice,
+	preferSameOriginMediaUrl,
+	resolveFbxUrl,
+	resolveGlbUrl,
+	sameOriginArModelUrl,
+} from '@/lib/arApp/modelUrls'
 import type { Product } from '@/types'
 import { getProductPrimaryImageUrl } from '@/utils/productImage'
 import { useEffect, useMemo, useState } from 'react'
@@ -11,8 +18,9 @@ type ArInlineModelViewerProps = {
 }
 
 /**
- * GLB/FBX с сайта. AR в комнату через браузер — только Android (GLB).
- * iPhone Safari: 3D-просмотр без кнопки AR (Apple не поддерживает GLB в Quick Look).
+ * GLB на сайте → AR в комнату.
+ * iPhone: GLB автоматически конвертируется в USDZ на сервере для Quick Look.
+ * Android: Scene Viewer / WebXR с GLB.
  */
 export default function ArInlineModelViewer({ product }: ArInlineModelViewerProps) {
 	const [ready, setReady] = useState(false)
@@ -24,7 +32,9 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 	}, [product])
 	const fbxUrl = resolveFbxUrl(product)
 	const posterUrl = getProductPrimaryImageUrl(product)
-	const arEnabled = Boolean(glbUrl) && !ios
+	const iosAr = canUseIosRoomAr(product)
+	const arEnabled = Boolean(glbUrl) && (!ios || iosAr)
+	const iosSrc = ios && iosAr ? sameOriginArModelUrl(product.id, 'usdz') : undefined
 
 	useEffect(() => {
 		setIos(isIosDevice())
@@ -41,9 +51,10 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 				{ready ? (
 					<model-viewer
 						src={glbUrl}
+						{...(iosSrc ? { 'ios-src': iosSrc } : {})}
 						{...(posterUrl ? { poster: posterUrl } : {})}
 						{...(arEnabled ? { ar: true } : {})}
-						ar-modes='webxr scene-viewer'
+						ar-modes={ios ? 'quick-look' : 'webxr scene-viewer'}
 						camera-controls
 						shadow-intensity='1'
 						loading='lazy'
@@ -67,13 +78,17 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 					</div>
 				)}
 
-				{ios ? (
+				{ios && iosAr ? (
 					<p className='text-xs text-gray text-center'>
-						iPhone: 3D-просмотр GLB (поворот и масштаб). AR в комнату — в Android-приложении (APK).
+						Нажмите иконку AR — примерка в комнате (из вашего GLB, первый раз может занять до минуты).
+					</p>
+				) : ios ? (
+					<p className='text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3 text-center'>
+						AR временно недоступен — нет GLB или конвертер на сервере не настроен.
 					</p>
 				) : (
 					<p className='text-xs text-gray text-center'>
-						Нажмите иконку AR в углу модели, чтобы примерить в комнате (GLB).
+						Нажмите иконку AR в углу модели, чтобы примерить в комнате.
 					</p>
 				)}
 			</div>

@@ -69,7 +69,7 @@ export default function ArAppCatalogClient() {
 		<ArAppShell title='AR каталог'>
 			<div className='p-4 space-y-4'>
 				<p className='text-sm text-gray text-center'>
-					GLB и FBX · iPhone — 3D в Safari · Android — AR в комнату (APK)
+					GLB и FBX · примерка в комнату на iPhone и Android (из GLB)
 				</p>
 
 				<input

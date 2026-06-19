@@ -213,6 +213,14 @@ RFA_CONVERT_ENABLED = bool(int(get_env("RFA_CONVERT_ENABLED", "1")))
 GLB_TO_RFA_COMMAND = get_env("GLB_TO_RFA_COMMAND", "")
 GLB_TO_RFA_TIMEOUT_SEC = int(get_env("GLB_TO_RFA_TIMEOUT_SEC", "900"))
 
+# GLB → USDZ для AR на iPhone (из GLB на сайте; USDZ вручную не нужен)
+GLB_TO_USDZ_ENABLED = bool(int(get_env("GLB_TO_USDZ_ENABLED", "1")))
+GLB_TO_USDZ_COMMAND = get_env("GLB_TO_USDZ_COMMAND", "")
+GLB_TO_USDZ_TIMEOUT_SEC = int(get_env("GLB_TO_USDZ_TIMEOUT_SEC", "600"))
+GLB_TO_USDZ_DOCKER_IMAGE = get_env(
+    "GLB_TO_USDZ_DOCKER_IMAGE", "marlon360/usd-from-gltf:latest"
+)
+
 # 2D-превью каталога из GLB (заполняется Product.image; сами GLB не трогаем)
 GLB_2D_PREVIEW_ENABLED = bool(int(get_env("GLB_2D_PREVIEW_ENABLED", "1")))
 GLB_2D_PREVIEW_AUTO_QUEUE = bool(int(get_env("GLB_2D_PREVIEW_AUTO_QUEUE", "1")))

@@ -8,6 +8,7 @@ from functools import reduce
 
 from django.core.cache import cache
 from django.db import connection, models
+from django.http import HttpResponse
 from django.db.models.expressions import RawSQL
 from django.db.models import Prefetch, Q
 from django.db.models.functions import Concat
@@ -657,8 +658,39 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         self._invalidate_product_cache(product)
 
+        if model_format == "glb":
+            from apps.catalog.glb_to_usdz_converter import maybe_queue_glb_to_usdz
+
+            maybe_queue_glb_to_usdz(product)
+
         serializer = self.get_serializer(product)
         return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="ar-usdz", permission_classes=[AllowAny])
+    def ar_usdz(self, request, pk=None):
+        """
+        USDZ для AR Quick Look на iPhone. Если USDZ нет — конвертируется из GLB товара.
+        """
+        product = self.get_object()
+        from apps.catalog.glb_to_usdz_converter import get_usdz_bytes_for_product, product_can_ios_ar
+
+        if not product_can_ios_ar(product):
+            return Response(
+                {"detail": "Нет GLB для AR на iPhone."},
+                status=404,
+            )
+        try:
+            payload = get_usdz_bytes_for_product(product.pk)
+        except Exception as e:
+            logger.exception("ar-usdz failed for product %s", product.pk)
+            return Response(
+                {"detail": f"Не удалось подготовить AR-модель: {e}"},
+                status=503,
+            )
+        response = HttpResponse(payload, content_type="model/vnd.usdz+zip")
+        response["Content-Disposition"] = 'inline; filename="model.usdz"'
+        response["Cache-Control"] = "public, max-age=1800"
+        return response
 
     @action(detail=False, methods=["get"], permission_classes=[AllowAny])
     def filter_ranges(self, request):

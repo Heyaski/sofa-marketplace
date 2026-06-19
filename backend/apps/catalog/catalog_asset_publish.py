@@ -87,8 +87,10 @@ def apply_model_urls_from_assets(product: Product) -> list[str]:
     refresh_product_visibility_flags(product, save=True)
     if "glb" in changes and (new_glb or "").strip() != (old_glb or "").strip():
         from apps.catalog.glb_2d_preview import maybe_queue_glb_2d_preview
+        from apps.catalog.glb_to_usdz_converter import maybe_queue_glb_to_usdz
 
         maybe_queue_glb_2d_preview(product)
+        maybe_queue_glb_to_usdz(product)
     return changes
 
 

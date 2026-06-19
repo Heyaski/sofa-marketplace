@@ -70,18 +70,14 @@ function AppDownloadContent() {
 				<div className='max-w-md w-full bg-white rounded-2xl shadow-lg p-6 space-y-4'>
 					<h1 className='text-2xl font-bold text-black'>VizHub AR для iPhone</h1>
 					<p className='text-sm text-gray'>
-						Откройте мини-приложение в Safari — каталог и 3D-просмотр моделей (GLB/FBX).
+						Откройте мини-приложение в Safari — каталог и AR-примерка в комнате из ваших GLB.
 						Устанавливать из App Store не нужно.
 					</p>
 					<ol className='text-sm text-gray list-decimal list-inside space-y-1'>
 						<li>Откройте AR-каталог</li>
-						<li>Выберите товар → «Смотреть 3D»</li>
+						<li>Выберите товар → «Примерить в AR»</li>
 						<li>Опционально: «Поделиться» → «На экран Домой»</li>
 					</ol>
-					<p className='text-xs text-gray bg-gray-bg rounded-lg p-3'>
-						AR в комнату на iPhone через браузер недоступен (ограничение Apple). Для примерки
-						в комнату используйте Android-приложение (APK).
-					</p>
 					<Link
 						href='/ar-app'
 						className='block w-full text-center bg-main1 text-white py-3 rounded-xl font-medium hover:bg-main2 transition-colors'

@@ -114,7 +114,7 @@ export default function ArFbxViewer({ url }: ArFbxViewerProps) {
 				) : null}
 			</div>
 			<p className='text-xs text-gray text-center'>
-				FBX: поворот и масштаб пальцами. AR в комнату — на Android (APK) с GLB.
+				FBX: поворот и масштаб пальцами. AR в комнату — с GLB (iPhone и Android).
 			</p>
 		</div>
 	)

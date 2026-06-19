@@ -92,8 +92,10 @@ def queue_glb_2d_catalog_preview(sender, instance: Product, created: bool, **kwa
             return
 
     from apps.catalog.glb_2d_preview import maybe_queue_glb_2d_preview
+    from apps.catalog.glb_to_usdz_converter import maybe_queue_glb_to_usdz
 
     maybe_queue_glb_2d_preview(instance)
+    maybe_queue_glb_to_usdz(instance)
 
 
 def _asset_id_search_keys(asset_id: str) -> list[str]:

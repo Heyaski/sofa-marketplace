@@ -2,7 +2,7 @@
 
 import ArAppShell from '@/components/ar-app/ArAppShell'
 import ArQuickLookButton from '@/components/ar-app/ArQuickLookButton'
-import { hasArModel, isIosDevice, resolveFbxUrl, resolveGlbUrl } from '@/lib/arApp/modelUrls'
+import { hasArModel, isIosDevice, resolveFbxUrl, resolveGlbUrl, canUseIosRoomAr } from '@/lib/arApp/modelUrls'
 import { productService } from '@/services/api'
 import type { Product } from '@/types'
 import { getProductPrimaryImageUrl } from '@/utils/productImage'
@@ -108,9 +108,9 @@ export default function ArAppProductClient({ productId }: ArAppProductClientProp
 
 				<ArQuickLookButton product={product} />
 
-				{ios && resolveGlbUrl(product) ? (
+				{ios && resolveGlbUrl(product) && canUseIosRoomAr(product) ? (
 					<p className='text-xs text-gray text-center'>
-						iPhone: 3D-просмотр GLB. AR в комнату — скачайте APK на Android.
+						Нажмите иконку AR на модели — примерка в комнате (GLB конвертируется автоматически).
 					</p>
 				) : null}
 				{ios && !resolveGlbUrl(product) && resolveFbxUrl(product) ? (

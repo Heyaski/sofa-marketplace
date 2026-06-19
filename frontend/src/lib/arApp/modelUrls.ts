@@ -77,9 +77,9 @@ export function sameOriginArModelUrl(productId: number, format: 'usdz' | 'glb' =
 	return `/api/ar-model/${productId}?format=${format}`
 }
 
-/** iPhone: AR в комнату только с USDZ. GLB — 3D-просмотр без кнопки AR. */
+/** iPhone: AR в комнату из GLB (USDZ генерируется на сервере автоматически). */
 export function canUseIosRoomAr(product: Product): boolean {
-	return resolveUsdzUrl(product) !== null
+	return resolveGlbUrl(product) !== null || resolveUsdzUrl(product) !== null
 }
 
 /** GLB / GLTF для model-viewer (3D и AR на Android). */

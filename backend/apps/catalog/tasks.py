@@ -87,6 +87,32 @@ def convert_glb_to_rfa_task(self, product_id: int):
 
 
 @shared_task(bind=True, autoretry_for=(Exception,), retry_backoff=True, retry_jitter=True, max_retries=2)
+def convert_glb_to_usdz_task(self, product_id: int):
+    """GLB → USDZ для AR Quick Look на iPhone (из GLB на сайте)."""
+    from apps.catalog.glb_to_usdz_converter import (
+        _resolve_usdz_ref,
+        _usdz_storage_key,
+        convert_glb_to_usdz_for_product,
+        resolve_product_glb_ref,
+    )
+    from django.core.files.storage import default_storage
+
+    product = Product.objects.filter(pk=product_id).first()
+    if not product:
+        return {"status": "skipped", "reason": "no-product"}
+    if _resolve_usdz_ref(product) or default_storage.exists(_usdz_storage_key(product_id)):
+        return {"status": "skipped", "reason": "already-has-usdz"}
+    try:
+        resolve_product_glb_ref(product)
+    except ValueError:
+        return {"status": "skipped", "reason": "no-glb"}
+
+    url = convert_glb_to_usdz_for_product(product_id)
+    _invalidate_product_cache(product_id)
+    return {"status": "ready", "usdz": url}
+
+
+@shared_task(bind=True, autoretry_for=(Exception,), retry_backoff=True, retry_jitter=True, max_retries=2)
 def generate_glb_2d_preview_task(self, product_id: int):
     """PNG-превью из GLB для режима 2D каталога (поле image, GLB не удаляется)."""
     from apps.catalog.glb_2d_preview import run_glb_2d_preview_for_product_id
