@@ -29,14 +29,23 @@ def _resize_image_bytes(raw: bytes) -> bytes:
 
 
 def optimize_glb_for_ios_ar(src: Path, dst: Path, max_texture: int = MAX_TEXTURE) -> Path:
-    """
-    Уменьшить JPEG/PNG внутри GLB. Возвращает путь к файлу для Blender.
-    При ошибке копирует исходник.
-    """
+    """Уменьшить JPEG/PNG внутри GLB. Возвращает путь к файлу для Blender."""
+    src_mb = src.stat().st_size / (1024 * 1024)
+    print(f"GLB optimize input: {src_mb:.1f} MB", flush=True)
+
+    try:
+        import trimesh
+
+        scene = trimesh.load(str(src), force="scene")
+        faces = sum(len(g.faces) for g in scene.geometry.values())
+        print(f"GLB mesh faces (trimesh): {faces}", flush=True)
+    except Exception as exc:
+        print(f"GLB mesh info skip: {exc}", flush=True)
+
     try:
         from pygltflib import GLTF2
     except ImportError:
-        logger.warning("pygltflib не установлен — GLB без предобработки")
+        print("pygltflib не установлен — GLB без предобработки", flush=True)
         shutil.copy(src, dst)
         return dst
 
@@ -89,6 +98,7 @@ def optimize_glb_for_ios_ar(src: Path, dst: Path, max_texture: int = MAX_TEXTURE
         new_bin.extend(data)
 
     if not changed:
+        print("GLB optimize: текстуры не изменены, используем исходник", flush=True)
         shutil.copy(src, dst)
         return dst
 
@@ -99,11 +109,7 @@ def optimize_glb_for_ios_ar(src: Path, dst: Path, max_texture: int = MAX_TEXTURE
 
     gltf.set_binary_blob(bytes(new_bin))
     gltf.save_binary(str(dst))
-    logger.info(
-        "GLB optimized: %s → %s (%.1f MB → %.1f MB)",
-        src.name,
-        dst.name,
-        src.stat().st_size / (1024 * 1024),
-        dst.stat().st_size / (1024 * 1024),
-    )
+    dst_mb = dst.stat().st_size / (1024 * 1024)
+    print(f"GLB optimize output: {dst_mb:.1f} MB (было {src_mb:.1f} MB)", flush=True)
+    logger.info("GLB optimized: %.1f MB → %.1f MB", src_mb, dst_mb)
     return dst

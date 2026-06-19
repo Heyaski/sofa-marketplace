@@ -18,8 +18,8 @@ type ArInlineModelViewerProps = {
 }
 
 /**
- * GLB на сайте → AR в комнату.
- * iPhone: USDZ с сервера + кнопка Quick Look (rel=ar).
+ * GLB на сайте → AR в комнату через иконку AR в model-viewer (кубик в углу).
+ * iPhone: ios-src → USDZ с сервера.
  */
 export default function ArInlineModelViewer({ product }: ArInlineModelViewerProps) {
 	const [ready, setReady] = useState(false)
@@ -47,15 +47,6 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 	if (glbUrl) {
 		return (
 			<div className='space-y-3'>
-				<style>{`
-					model-viewer::part(default-ar-button) {
-						width: 48px;
-						height: 48px;
-						bottom: 16px;
-						right: 16px;
-					}
-				`}</style>
-
 				{ready ? (
 					<model-viewer
 						src={glbUrl}
@@ -87,19 +78,10 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 					</div>
 				)}
 
-				{ios && iosAr && iosSrc ? (
-					<a
-						rel='ar'
-						href={iosSrc}
-						className='block w-full overflow-hidden rounded-xl border border-gray2 bg-white shadow-sm'
-					>
-						{posterUrl ? (
-							<img src={posterUrl} alt='' className='w-full aspect-[4/3] object-cover' />
-						) : null}
-						<span className='block w-full text-center bg-main1 text-white py-4 font-semibold text-base'>
-							Примерить в комнате (AR)
-						</span>
-					</a>
+				{ios && iosAr ? (
+					<p className='text-xs text-gray text-center'>
+						Нажмите иконку AR в углу модели — примерка в комнате.
+					</p>
 				) : ios ? (
 					<p className='text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3 text-center'>
 						AR на iPhone временно недоступен — конвертер на сервере не настроен.

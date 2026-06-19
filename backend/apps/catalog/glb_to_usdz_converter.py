@@ -213,15 +213,16 @@ def convert_glb_to_usdz_for_product(product_id: int) -> str:
         opt_path = tmp_path / "input_opt.glb"
         out_path = tmp_path / "output.usdz"
         in_path.write_bytes(glb_bytes)
-        logger.info(
-            "glb2usdz: source GLB %.1f MB",
-            len(glb_bytes) / (1024 * 1024),
-        )
+        print(f"glb2usdz: source GLB {len(glb_bytes) / (1024 * 1024):.1f} MB", flush=True)
         blender_in = optimize_glb_for_ios_ar(in_path, opt_path)
+        print(
+            f"glb2usdz: blender input {blender_in.stat().st_size / (1024 * 1024):.1f} MB",
+            flush=True,
+        )
         _run_converter(tmp_path, blender_in, out_path, product_id)
-        logger.info(
-            "glb2usdz: output USDZ %.1f MB",
-            out_path.stat().st_size / (1024 * 1024),
+        print(
+            f"glb2usdz: output USDZ {out_path.stat().st_size / (1024 * 1024):.1f} MB",
+            flush=True,
         )
 
         target = _usdz_storage_key(product_id)

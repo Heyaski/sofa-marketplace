@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Официальный Blender (с USD) для GLB→USDZ на сервере без Docker.
-# apt install blender на Ubuntu обычно без wm.usd_export.
 set -euo pipefail
 
 BLENDER_VERSION="${BLENDER_VERSION:-4.2.11}"
@@ -11,7 +10,6 @@ TARBALL="blender-${BLENDER_VERSION}-${ARCH}.tar.xz"
 URL="https://download.blender.org/release/Blender${MAJOR_MINOR}/${TARBALL}"
 TARGET="${INSTALL_DIR}/blender-${BLENDER_VERSION}-${ARCH}"
 BIN="${TARGET}/blender"
-
 ENV_FILE="${ENV_FILE:-$(cd "$(dirname "$0")/.." && pwd)/.env}"
 
 write_env() {
@@ -29,10 +27,31 @@ write_env() {
   fi
 }
 
+install_blender_pillow() {
+  local py=""
+  for candidate in \
+    "${TARGET}/${MAJOR_MINOR}/python/bin/python3.11" \
+    "${TARGET}/4.2/python/bin/python3.11" \
+    "${TARGET}/${MAJOR_MINOR}/python/bin/python3.12"; do
+    if [[ -x "${candidate}" ]]; then
+      py="${candidate}"
+      break
+    fi
+  done
+  if [[ -z "${py}" ]]; then
+    echo "Python Blender не найден — Pillow пропущен"
+    return 0
+  fi
+  echo "Установка Pillow в Blender Python: ${py}"
+  sudo "${py}" -m ensurepip --upgrade 2>/dev/null || true
+  sudo "${py}" -m pip install --upgrade pip Pillow
+}
+
 if [[ -x "${BIN}" ]]; then
   echo "Blender уже установлен: ${BIN}"
   "${BIN}" --version | head -1
   write_env
+  install_blender_pillow
   echo ""
   echo "Перезапустите backend: sudo systemctl restart sofa-backend"
   exit 0
@@ -57,15 +76,11 @@ if [[ ! -x "${BIN}" ]]; then
 fi
 
 write_env
+install_blender_pillow
 
 echo ""
 echo "Готово: ${BIN}"
 "${BIN}" --version | head -1
 echo ""
-echo "BLENDER_BIN уже записан в ${ENV_FILE}"
-echo ""
+echo "BLENDER_BIN записан в ${ENV_FILE}"
 echo "Перезапустите backend: sudo systemctl restart sofa-backend"
-echo "Проверка:"
-echo "  cd backend && source venv/bin/activate"
-echo "  python manage.py ar_ios_status"
-echo "  python manage.py convert_product_usdz --id=21"
