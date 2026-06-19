@@ -14,12 +14,15 @@ def get_env(key, default=None):
         return val
     env_path = BASE_DIR / ".env"
     if env_path.exists():
+        found = None
         for line in env_path.read_text(encoding="utf-8").splitlines():
             if not line.strip() or line.strip().startswith("#"):
                 continue
             k, _, v = line.partition("=")
             if k.strip() == key:
-                return v.strip()
+                found = v.strip()
+        if found is not None:
+            return found
     return default
 
 SECRET_KEY = get_env("DJANGO_SECRET", "dev")

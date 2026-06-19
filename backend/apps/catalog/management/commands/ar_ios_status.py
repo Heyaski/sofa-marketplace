@@ -19,7 +19,10 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         blender = _blender_bin()
-        self.stdout.write(f"Blender: {blender or 'НЕ НАЙДЕН'}")
+        from django.conf import settings
+
+        self.stdout.write(f"BLENDER_BIN (.env): {getattr(settings, 'BLENDER_BIN', '') or '(не задан)'}")
+        self.stdout.write(f"Blender (используется): {blender or 'НЕ НАЙДЕН'}")
         if blender:
             usd_ok = _blender_usd_export_available()
             self.stdout.write(
