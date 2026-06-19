@@ -4,7 +4,8 @@ GLB → USDZ для AR Quick Look на iPhone (запуск внутри Blender
 
   blender --background --python blender_glb_to_usdz.py -- input.glb output.usdz
 
-На Ubuntu: sudo apt install blender
+Нужен Blender с поддержкой USD (официальный tarball с blender.org).
+Пакет Ubuntu «apt install blender» часто собран без USD — wm.usd_export недоступен.
 """
 from __future__ import annotations
 
@@ -35,7 +36,32 @@ if not inp.is_file():
 
 import bpy  # noqa: E402  # только внутри Blender
 
+
+def _enable_usd_addon() -> None:
+    try:
+        import addon_utils
+
+        addon_utils.enable("io_scene_usd", default_set=True)
+    except Exception:
+        pass
+
+
+def _usd_export_available() -> bool:
+    _enable_usd_addon()
+    return hasattr(bpy.ops.wm, "usd_export")
+
+
 bpy.ops.wm.read_factory_settings(use_empty=True)
+
+if not _usd_export_available():
+    print(
+        "USD export unavailable in this Blender build (wm.usd_export missing).\n"
+        "Ubuntu apt blender is usually built without USD.\n"
+        "Install official Blender: backend/scripts/install_blender_usd.sh\n"
+        "Then set BLENDER_BIN=/opt/blender-*/blender in backend/.env",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 try:
     bpy.ops.import_scene.gltf(filepath=str(inp))

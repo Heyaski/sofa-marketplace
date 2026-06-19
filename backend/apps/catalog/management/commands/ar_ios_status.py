@@ -4,6 +4,7 @@ from django.core.management.base import BaseCommand
 from apps.catalog.catalog_glb_q import catalog_has_glb_q
 from apps.catalog.glb_to_usdz_converter import (
     _blender_bin,
+    _blender_usd_export_available,
     _BLENDER_SCRIPT,
     _usdz_storage_key,
     converter_is_configured,
@@ -18,7 +19,12 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         blender = _blender_bin()
-        self.stdout.write(f"Blender: {blender or 'НЕ НАЙДЕН (sudo apt install blender)'}")
+        self.stdout.write(f"Blender: {blender or 'НЕ НАЙДЕН'}")
+        if blender:
+            usd_ok = _blender_usd_export_available()
+            self.stdout.write(
+                f"Blender USD export: {'OK' if usd_ok else 'НЕТ (apt blender без USD — install_blender_usd.sh)'}"
+            )
         self.stdout.write(f"Скрипт: {_BLENDER_SCRIPT} ({'OK' if _BLENDER_SCRIPT.is_file() else 'НЕ НАЙДЕН'})")
         self.stdout.write(f"Конвертер настроен: {converter_is_configured()}")
 

@@ -6,6 +6,7 @@ import shlex
 import shutil
 import subprocess
 import tempfile
+from functools import lru_cache
 from pathlib import Path
 
 from django.conf import settings
@@ -33,13 +34,44 @@ def _blender_bin() -> str | None:
     return shutil.which("blender")
 
 
+@lru_cache(maxsize=1)
+def _blender_usd_export_available() -> bool:
+    """apt blender на Ubuntu часто без USD (wm.usd_export отсутствует)."""
+    blender = _blender_bin()
+    if not blender:
+        return False
+    probe = (
+        "import bpy\n"
+        "try:\n"
+        "  import addon_utils\n"
+        "  addon_utils.enable('io_scene_usd', default_set=True)\n"
+        "except Exception:\n"
+        "  pass\n"
+        "print('YES' if hasattr(bpy.ops.wm, 'usd_export') else 'NO')\n"
+    )
+    try:
+        completed = subprocess.run(
+            [blender, "--background", "--python-expr", probe],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return "YES" in (completed.stdout or "")
+
+
+def _blender_converter_ready() -> bool:
+    return bool(_blender_bin() and _BLENDER_SCRIPT.is_file() and _blender_usd_export_available())
+
+
 def converter_is_configured() -> bool:
     """Есть способ сконвертировать GLB→USDZ (без Docker по умолчанию)."""
     if getattr(settings, "GLB_TO_USDZ_COMMAND", "").strip():
         return True
-    if _blender_bin() and _BLENDER_SCRIPT.is_file():
-        return True
     if shutil.which("usd_from_gltf"):
+        return True
+    if _blender_converter_ready():
         return True
     if getattr(settings, "GLB_TO_USDZ_USE_DOCKER", False) and shutil.which("docker"):
         return True
@@ -78,7 +110,7 @@ def _resolve_usdz_ref(product: Product) -> str | None:
 def _build_blender_command(in_path: Path, out_path: Path) -> str:
     blender = _blender_bin()
     if not blender:
-        raise RuntimeError("Blender не найден (sudo apt install blender).")
+        raise RuntimeError("Blender не найден. Запустите backend/scripts/install_blender_usd.sh.")
     script = _BLENDER_SCRIPT
     if not script.is_file():
         raise RuntimeError(f"Скрипт конвертации не найден: {script}")
@@ -105,11 +137,11 @@ def _run_converter(tmp_dir: Path, in_path: Path, out_path: Path, product_id: int
             tmp_dir=str(tmp_dir),
         )
         args = _build_command_args(command)
-    elif _blender_bin() and _BLENDER_SCRIPT.is_file():
-        command = _build_blender_command(in_path, out_path)
-        args = _build_command_args(command)
     elif shutil.which("usd_from_gltf"):
         args = ["usd_from_gltf", str(in_path), str(out_path)]
+    elif _blender_converter_ready():
+        command = _build_blender_command(in_path, out_path)
+        args = _build_command_args(command)
     elif getattr(settings, "GLB_TO_USDZ_USE_DOCKER", False) and shutil.which("docker"):
         docker_image = getattr(
             settings, "GLB_TO_USDZ_DOCKER_IMAGE", "marlon360/usd-from-gltf:latest"
@@ -126,7 +158,8 @@ def _run_converter(tmp_dir: Path, in_path: Path, out_path: Path, product_id: int
         ]
     else:
         raise RuntimeError(
-            "GLB→USDZ не настроен. Установите Blender (sudo apt install blender) "
+            "GLB→USDZ не настроен. Установите официальный Blender с USD "
+            "(backend/scripts/install_blender_usd.sh), usd_from_gltf "
             "или задайте GLB_TO_USDZ_COMMAND в backend/.env."
         )
 
@@ -144,7 +177,8 @@ def convert_glb_to_usdz_for_product(product_id: int) -> str:
     """Сконвертировать GLB товара в USDZ, сохранить в storage, обновить model_usdz."""
     if not converter_is_configured():
         raise RuntimeError(
-            "Конвертер GLB→USDZ не настроен. На сервере: sudo apt install blender"
+            "Конвертер GLB→USDZ не настроен. "
+            "Запустите backend/scripts/install_blender_usd.sh и задайте BLENDER_BIN."
         )
 
     product = Product.objects.get(pk=product_id)

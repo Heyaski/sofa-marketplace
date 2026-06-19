@@ -679,7 +679,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                 {
                     "detail": (
                         f"Товар {product.pk}: нет GLB или конвертер не настроен "
-                        "(sudo apt install blender && restart sofa-backend)."
+                        "(install_blender_usd.sh, BLENDER_BIN в .env, restart sofa-backend)."
                     )
                 },
                 status=404,

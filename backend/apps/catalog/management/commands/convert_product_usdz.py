@@ -21,7 +21,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if not converter_is_configured():
             raise CommandError(
-                "Конвертер не настроен. Установите Blender: sudo apt install blender"
+                "Конвертер не настроен. Запустите backend/scripts/install_blender_usd.sh "
+                "и задайте BLENDER_BIN в backend/.env"
             )
 
         product_id = options.get("id")
