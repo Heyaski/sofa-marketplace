@@ -19,7 +19,7 @@ from apps.catalog.rfa_converter import _build_command_args, _load_file_bytes
 logger = logging.getLogger(__name__)
 
 _USDZ_STORAGE_NAME = "ar_quicklook.usdz"
-_BLENDER_SCRIPT = Path(__file__).resolve().parent.parent / "tools" / "blender_glb_to_usdz.py"
+_BLENDER_SCRIPT = Path(settings.BASE_DIR) / "tools" / "blender_glb_to_usdz.py"
 
 
 def _usdz_storage_key(product_id: int) -> str:
