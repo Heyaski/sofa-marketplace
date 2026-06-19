@@ -36,13 +36,19 @@ export async function GET(
 
 	const usdzRes = await fetch(`${API_URL}/api/products/${productId}/ar-usdz/`, {
 		cache: 'no-store',
+		signal: AbortSignal.timeout(10 * 60 * 1000),
 	})
 	if (!usdzRes.ok) {
 		const text = await usdzRes.text().catch(() => '')
 		return new Response(text || 'AR model not ready', { status: usdzRes.status })
 	}
 
-	return new Response(usdzRes.body, {
+	const payload = await usdzRes.arrayBuffer()
+	if (payload.byteLength < 128) {
+		return new Response('AR model empty', { status: 502 })
+	}
+
+	return new Response(payload, {
 		status: 200,
 		headers: {
 			'Content-Type': 'model/vnd.usdz+zip',

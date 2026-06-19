@@ -6,7 +6,7 @@ import {
 	preferSameOriginMediaUrl,
 	resolveFbxUrl,
 	resolveGlbUrl,
-	sameOriginArModelUrl,
+	resolveIosArSrc,
 } from '@/lib/arApp/modelUrls'
 import type { Product } from '@/types'
 import { getProductPrimaryImageUrl } from '@/utils/productImage'
@@ -25,6 +25,9 @@ type ArInlineModelViewerProps = {
 export default function ArInlineModelViewer({ product }: ArInlineModelViewerProps) {
 	const [ready, setReady] = useState(false)
 	const [ios, setIos] = useState(false)
+	const [iosUsdzReady, setIosUsdzReady] = useState(false)
+	const [iosUsdzLoading, setIosUsdzLoading] = useState(false)
+	const [iosUsdzError, setIosUsdzError] = useState(false)
 
 	const glbUrl = useMemo(() => {
 		const raw = resolveGlbUrl(product)
@@ -33,8 +36,8 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 	const fbxUrl = resolveFbxUrl(product)
 	const posterUrl = getProductPrimaryImageUrl(product)
 	const iosAr = canUseIosRoomAr(product)
-	const arEnabled = Boolean(glbUrl) && (!ios || iosAr)
-	const iosSrc = ios && iosAr ? sameOriginArModelUrl(product.id, 'usdz') : undefined
+	const iosSrc = ios && iosAr && iosUsdzReady ? resolveIosArSrc(product) : undefined
+	const arEnabled = Boolean(glbUrl) && (!ios || (iosAr && iosUsdzReady))
 
 	useEffect(() => {
 		setIos(isIosDevice())
@@ -44,6 +47,51 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 		if (!glbUrl) return
 		import('@google/model-viewer').then(() => setReady(true))
 	}, [glbUrl])
+
+	// Предзагрузка USDZ до открытия Quick Look (иначе камера крутится бесконечно)
+	useEffect(() => {
+		if (!ios || !iosAr) {
+			setIosUsdzReady(false)
+			setIosUsdzLoading(false)
+			setIosUsdzError(false)
+			return
+		}
+
+		const url = resolveIosArSrc(product)
+		if (!url) return
+
+		let cancelled = false
+		setIosUsdzReady(false)
+		setIosUsdzLoading(true)
+		setIosUsdzError(false)
+
+		const controller = new AbortController()
+		const timeout = window.setTimeout(() => controller.abort(), 10 * 60 * 1000)
+
+		fetch(url, { signal: controller.signal, cache: 'force-cache' })
+			.then(res => {
+				if (!res.ok) throw new Error(`USDZ ${res.status}`)
+				return res.blob()
+			})
+			.then(blob => {
+				if (cancelled) return
+				if (blob.size < 128) throw new Error('empty USDZ')
+				setIosUsdzReady(true)
+			})
+			.catch(() => {
+				if (!cancelled) setIosUsdzError(true)
+			})
+			.finally(() => {
+				if (!cancelled) setIosUsdzLoading(false)
+				window.clearTimeout(timeout)
+			})
+
+		return () => {
+			cancelled = true
+			controller.abort()
+			window.clearTimeout(timeout)
+		}
+	}, [ios, iosAr, product])
 
 	if (glbUrl) {
 		return (
@@ -78,13 +126,21 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 					</div>
 				)}
 
-				{ios && iosAr ? (
+				{ios && iosAr && iosUsdzLoading ? (
 					<p className='text-xs text-gray text-center'>
-						Нажмите иконку AR — примерка в комнате (GLB конвертируется на сервере).
+						Подготовка AR-модели… Первый раз может занять 1–3 минуты.
+					</p>
+				) : ios && iosAr && iosUsdzReady ? (
+					<p className='text-xs text-gray text-center'>
+						Нажмите иконку AR — примерка в комнате.
+					</p>
+				) : ios && iosAr && iosUsdzError ? (
+					<p className='text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3 text-center'>
+						AR-модель пока не готова. Попробуйте обновить страницу через минуту.
 					</p>
 				) : ios ? (
 					<p className='text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3 text-center'>
-						AR на iPhone пока недоступен: на сервере нужен Blender (sudo apt install blender).
+						AR на iPhone временно недоступен — конвертер на сервере не настроен.
 					</p>
 				) : (
 					<p className='text-xs text-gray text-center'>

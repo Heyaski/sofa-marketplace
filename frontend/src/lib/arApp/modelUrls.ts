@@ -74,7 +74,21 @@ export function resolveUsdzUrl(product: Product): string | null {
 
 /** Same-origin URL для Quick Look (прокси /api/ar-model). */
 export function sameOriginArModelUrl(productId: number, format: 'usdz' | 'glb' = 'usdz'): string {
+	if (typeof window !== 'undefined') {
+		return `${window.location.origin}/api/ar-model/${productId}?format=${format}`
+	}
 	return `/api/ar-model/${productId}?format=${format}`
+}
+
+/**
+ * URL USDZ для ios-src: готовый файл с CDN/S3 или прокси (абсолютный URL).
+ * Quick Look на iPhone требует абсолютный HTTPS-URL.
+ */
+export function resolveIosArSrc(product: Product): string | null {
+	if (!canUseIosRoomAr(product)) return null
+	const cached = resolveUsdzUrl(product)
+	if (cached) return cached
+	return sameOriginArModelUrl(product.id, 'usdz')
 }
 
 /** iPhone: AR в комнату из GLB (USDZ генерируется на сервере автоматически). */

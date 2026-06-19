@@ -69,6 +69,17 @@ except Exception as exc:
     print(f"GLB import failed: {exc}", file=sys.stderr)
     sys.exit(1)
 
+# Quick Look на iPhone плохо переваривает 4K-текстуры — уменьшаем до 2048
+max_tex = 2048
+for img in bpy.data.images:
+    w, h = img.size
+    if w <= 0 or h <= 0:
+        continue
+    if w <= max_tex and h <= max_tex:
+        continue
+    scale = min(max_tex / w, max_tex / h)
+    img.scale(max(1, int(w * scale)), max(1, int(h * scale)))
+
 usd_path = work / "model.usdc"
 try:
     bpy.ops.wm.usd_export(
@@ -89,14 +100,20 @@ if not usd_path.is_file() or usd_path.stat().st_size == 0:
     sys.exit(1)
 
 pack_ext = {".usdc", ".usd", ".usda", ".png", ".jpg", ".jpeg", ".webp", ".ktx", ".ktx2"}
+extra_files: list[Path] = []
+for f in sorted(work.rglob("*")):
+    if not f.is_file():
+        continue
+    if f.resolve() in {out.resolve(), inp.resolve(), usd_path.resolve()}:
+        continue
+    if f.suffix.lower() not in pack_ext:
+        continue
+    extra_files.append(f)
+
+# AR Quick Look требует: USD-файл первым в архиве (без сжатия)
 with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_STORED) as zf:
-    for f in work.rglob("*"):
-        if not f.is_file():
-            continue
-        if f.resolve() == out.resolve() or f.resolve() == inp.resolve():
-            continue
-        if f.suffix.lower() not in pack_ext:
-            continue
+    zf.write(usd_path, usd_path.relative_to(work).as_posix())
+    for f in extra_files:
         zf.write(f, f.relative_to(work).as_posix())
 
 if not out.is_file() or out.stat().st_size == 0:
