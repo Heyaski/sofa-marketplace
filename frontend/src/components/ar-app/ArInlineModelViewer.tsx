@@ -19,8 +19,7 @@ type ArInlineModelViewerProps = {
 
 /**
  * GLB на сайте → AR в комнату.
- * iPhone: GLB автоматически конвертируется в USDZ на сервере для Quick Look.
- * Android: Scene Viewer / WebXR с GLB.
+ * iPhone: USDZ с сервера + кнопка Quick Look (rel=ar).
  */
 export default function ArInlineModelViewer({ product }: ArInlineModelViewerProps) {
 	const [ready, setReady] = useState(false)
@@ -35,7 +34,6 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 	const iosAr = canUseIosRoomAr(product)
 	const iosSrc = ios && iosAr ? resolveIosArSrc(product) ?? undefined : undefined
 	const arEnabled = Boolean(glbUrl) && (!ios || iosAr)
-	const [iosUsdzStatus, setIosUsdzStatus] = useState<'idle' | 'checking' | 'ok' | 'error'>('idle')
 
 	useEffect(() => {
 		setIos(isIosDevice())
@@ -46,45 +44,18 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 		import('@google/model-viewer').then(() => setReady(true))
 	}, [glbUrl])
 
-	// Лёгкая проверка доступности USDZ (HEAD), без скачивания 100+ MB в Safari
-	useEffect(() => {
-		if (!ios || !iosAr) {
-			setIosUsdzStatus('idle')
-			return
-		}
-		if (product.model_usdz || product.ios_ar_available) {
-			setIosUsdzStatus('ok')
-			return
-		}
-
-		const url = resolveIosArSrc(product)
-		if (!url) return
-
-		let cancelled = false
-		setIosUsdzStatus('checking')
-		const controller = new AbortController()
-		const timeout = window.setTimeout(() => controller.abort(), 60_000)
-
-		fetch(url, { method: 'HEAD', signal: controller.signal })
-			.then(res => {
-				if (!res.ok) throw new Error(`USDZ ${res.status}`)
-				setIosUsdzStatus('ok')
-			})
-			.catch(() => {
-				if (!cancelled) setIosUsdzStatus('error')
-			})
-			.finally(() => window.clearTimeout(timeout))
-
-		return () => {
-			cancelled = true
-			controller.abort()
-			window.clearTimeout(timeout)
-		}
-	}, [ios, iosAr, product])
-
 	if (glbUrl) {
 		return (
 			<div className='space-y-3'>
+				<style>{`
+					model-viewer::part(default-ar-button) {
+						width: 48px;
+						height: 48px;
+						bottom: 16px;
+						right: 16px;
+					}
+				`}</style>
+
 				{ready ? (
 					<model-viewer
 						src={glbUrl}
@@ -92,9 +63,10 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 						{...(posterUrl ? { poster: posterUrl } : {})}
 						{...(arEnabled ? { ar: true } : {})}
 						ar-modes={ios ? 'quick-look' : 'webxr scene-viewer'}
+						ar-placement='floor'
 						camera-controls
 						shadow-intensity='1'
-						loading='lazy'
+						loading='eager'
 						reveal='auto'
 						interaction-prompt='none'
 						touch-action='pan-y'
@@ -115,16 +87,19 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 					</div>
 				)}
 
-				{ios && iosAr && iosUsdzStatus === 'checking' ? (
-					<p className='text-xs text-gray text-center'>Проверка AR-модели…</p>
-				) : ios && iosAr && iosUsdzStatus === 'error' ? (
-					<p className='text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3 text-center'>
-						AR-модель пока не готова. Обновите страницу через минуту.
-					</p>
-				) : ios && iosAr ? (
-					<p className='text-xs text-gray text-center'>
-						Нажмите иконку AR в углу модели — примерка в комнате.
-					</p>
+				{ios && iosAr && iosSrc ? (
+					<a
+						rel='ar'
+						href={iosSrc}
+						className='block w-full overflow-hidden rounded-xl border border-gray2 bg-white shadow-sm'
+					>
+						{posterUrl ? (
+							<img src={posterUrl} alt='' className='w-full aspect-[4/3] object-cover' />
+						) : null}
+						<span className='block w-full text-center bg-main1 text-white py-4 font-semibold text-base'>
+							Примерить в комнате (AR)
+						</span>
+					</a>
 				) : ios ? (
 					<p className='text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3 text-center'>
 						AR на iPhone временно недоступен — конвертер на сервере не настроен.

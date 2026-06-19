@@ -14,10 +14,13 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
 from apps.catalog.file_urls import is_ephemeral_external_model_url
+from apps.catalog.glb_optimize import optimize_glb_for_ios_ar
 from apps.catalog.models import Product
 from apps.catalog.rfa_converter import _build_command_args, _load_file_bytes
 
 logger = logging.getLogger(__name__)
+
+_LAST_CONVERTER_LOG = ""
 
 _USDZ_STORAGE_NAME = "ar_quicklook.usdz"
 _BLENDER_SCRIPT = Path(settings.BASE_DIR) / "tools" / "blender_glb_to_usdz.py"
@@ -127,7 +130,12 @@ def _build_blender_command(in_path: Path, out_path: Path) -> str:
     )
 
 
+def get_last_conversion_log() -> str:
+    return _LAST_CONVERTER_LOG
+
+
 def _run_converter(tmp_dir: Path, in_path: Path, out_path: Path, product_id: int) -> None:
+    global _LAST_CONVERTER_LOG
     import os
 
     custom = getattr(settings, "GLB_TO_USDZ_COMMAND", "").strip()
@@ -171,6 +179,13 @@ def _run_converter(tmp_dir: Path, in_path: Path, out_path: Path, product_id: int
         )
 
     completed = subprocess.run(args, capture_output=True, text=True, timeout=timeout, env=env)
+    _LAST_CONVERTER_LOG = "\n".join(
+        part.strip()
+        for part in (completed.stderr, completed.stdout)
+        if part and part.strip()
+    )[:8000]
+    if _LAST_CONVERTER_LOG:
+        logger.info("glb2usdz blender log:\n%s", _LAST_CONVERTER_LOG)
     if completed.returncode != 0:
         stderr = (completed.stderr or "").strip()
         stdout = (completed.stdout or "").strip()
@@ -195,9 +210,19 @@ def convert_glb_to_usdz_for_product(product_id: int) -> str:
     with tempfile.TemporaryDirectory(prefix=f"glb2usdz_{product_id}_") as tmp_dir:
         tmp_path = Path(tmp_dir)
         in_path = tmp_path / "input.glb"
+        opt_path = tmp_path / "input_opt.glb"
         out_path = tmp_path / "output.usdz"
         in_path.write_bytes(glb_bytes)
-        _run_converter(tmp_path, in_path, out_path, product_id)
+        logger.info(
+            "glb2usdz: source GLB %.1f MB",
+            len(glb_bytes) / (1024 * 1024),
+        )
+        blender_in = optimize_glb_for_ios_ar(in_path, opt_path)
+        _run_converter(tmp_path, blender_in, out_path, product_id)
+        logger.info(
+            "glb2usdz: output USDZ %.1f MB",
+            out_path.stat().st_size / (1024 * 1024),
+        )
 
         target = _usdz_storage_key(product_id)
         with out_path.open("rb") as f:

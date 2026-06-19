@@ -7,6 +7,7 @@ from apps.catalog.glb_to_usdz_converter import (
     _blender_usd_export_available,
     convert_glb_to_usdz_for_product,
     converter_is_configured,
+    get_last_conversion_log,
     get_usdz_bytes_for_product,
     product_can_ios_ar,
     resolve_product_glb_ref,
@@ -62,6 +63,11 @@ class Command(BaseCommand):
             size = len(get_usdz_bytes_for_product(product.pk))
         except Exception as exc:
             raise CommandError(str(exc)) from exc
+
+        blender_log = get_last_conversion_log()
+        if blender_log:
+            self.stdout.write("--- Blender ---")
+            self.stdout.write(blender_log)
 
         self.stdout.write(self.style.SUCCESS(f"Готово: {url}"))
         self.stdout.write(self.style.SUCCESS(f"Размер USDZ: {size} байт ({size / (1024 * 1024):.1f} MB)"))
