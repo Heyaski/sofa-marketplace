@@ -2,7 +2,7 @@
 
 import ArAppShell from '@/components/ar-app/ArAppShell'
 import ArQuickLookButton from '@/components/ar-app/ArQuickLookButton'
-import { hasArModel, resolveFbxUrl, resolveGlbUrl } from '@/lib/arApp/modelUrls'
+import { hasArModel, isIosDevice, resolveFbxUrl, resolveGlbUrl } from '@/lib/arApp/modelUrls'
 import { productService } from '@/services/api'
 import type { Product } from '@/types'
 import { getProductPrimaryImageUrl } from '@/utils/productImage'
