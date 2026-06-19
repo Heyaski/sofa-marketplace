@@ -64,5 +64,12 @@ class Command(BaseCommand):
             raise CommandError(str(exc)) from exc
 
         self.stdout.write(self.style.SUCCESS(f"Готово: {url}"))
-        self.stdout.write(self.style.SUCCESS(f"Размер USDZ: {size} байт"))
+        self.stdout.write(self.style.SUCCESS(f"Размер USDZ: {size} байт ({size / (1024 * 1024):.1f} MB)"))
+        if size > 25 * 1024 * 1024:
+            self.stdout.write(
+                self.style.WARNING(
+                    "USDZ > 25 MB — iPhone AR может не открыть. "
+                    "Проверьте текстуры в GLB или переконвертируйте после git pull."
+                )
+            )
         self.stdout.write(f"Проверка: curl -I https://api.vizhub.pro/api/products/{product.pk}/ar-usdz/")

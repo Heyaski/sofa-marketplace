@@ -5,10 +5,10 @@ GLB → USDZ для AR Quick Look на iPhone (запуск внутри Blender
   blender --background --python blender_glb_to_usdz.py -- input.glb output.usdz
 
 Нужен Blender с поддержкой USD (официальный tarball с blender.org).
-Пакет Ubuntu «apt install blender» часто собран без USD — wm.usd_export недоступен.
 """
 from __future__ import annotations
 
+import shutil
 import sys
 import zipfile
 from pathlib import Path
@@ -29,12 +29,20 @@ if len(argv) < 2:
 inp = Path(argv[0]).resolve()
 out = Path(argv[1]).resolve()
 work = inp.parent
+pkg = work / "usdz_pkg"
 
 if not inp.is_file():
     print(f"Input not found: {inp}", file=sys.stderr)
     sys.exit(1)
 
+if pkg.exists():
+    shutil.rmtree(pkg)
+pkg.mkdir()
+
 import bpy  # noqa: E402  # только внутри Blender
+
+MAX_TEX = 1024
+PACK_EXT = {".usdc", ".usda", ".usd", ".png", ".jpg", ".jpeg", ".webp"}
 
 
 def _enable_usd_addon() -> None:
@@ -51,16 +59,59 @@ def _usd_export_available() -> bool:
     return hasattr(bpy.ops.wm, "usd_export")
 
 
+def _prepare_textures() -> None:
+    """Распаковать GLB-текстуры, уменьшить и сохранить как JPEG."""
+    tex_dir = pkg / "textures"
+    tex_dir.mkdir(parents=True, exist_ok=True)
+    for idx, img in enumerate(bpy.data.images):
+        if img.size[0] <= 0 or img.size[1] <= 0:
+            continue
+        try:
+            if img.packed_file:
+                img.unpack(method="WRITE_ORIGINAL")
+        except Exception:
+            pass
+        w, h = img.size
+        if w > MAX_TEX or h > MAX_TEX:
+            scale = min(MAX_TEX / w, MAX_TEX / h)
+            img.scale(max(1, int(w * scale)), max(1, int(h * scale)))
+        jpath = tex_dir / f"tex_{idx:03d}.jpg"
+        try:
+            img.file_format = "JPEG"
+            img.filepath_raw = str(jpath)
+            img.save()
+        except Exception as exc:
+            print(f"texture {idx} save skipped: {exc}", file=sys.stderr)
+
+
+def _collect_pack_files() -> tuple[Path, list[Path]]:
+    usd_candidates = sorted(pkg.glob("model.usd*")) + sorted(pkg.glob("*.usdc"))
+    usd_file = next((f for f in usd_candidates if f.is_file()), None)
+    if not usd_file:
+        usd_file = next(
+            (f for f in sorted(pkg.rglob("*")) if f.is_file() and f.suffix.lower() in {".usdc", ".usda", ".usd"}),
+            None,
+        )
+    if not usd_file:
+        print("USD file not found in package dir", file=sys.stderr)
+        sys.exit(1)
+
+    others: list[Path] = []
+    for f in sorted(pkg.rglob("*")):
+        if not f.is_file():
+            continue
+        if f.resolve() == usd_file.resolve():
+            continue
+        if f.suffix.lower() not in PACK_EXT:
+            continue
+        others.append(f)
+    return usd_file, others
+
+
 bpy.ops.wm.read_factory_settings(use_empty=True)
 
 if not _usd_export_available():
-    print(
-        "USD export unavailable in this Blender build (wm.usd_export missing).\n"
-        "Ubuntu apt blender is usually built without USD.\n"
-        "Install official Blender: backend/scripts/install_blender_usd.sh\n"
-        "Then set BLENDER_BIN=/opt/blender-*/blender in backend/.env",
-        file=sys.stderr,
-    )
+    print("USD export unavailable (install official Blender with USD)", file=sys.stderr)
     sys.exit(1)
 
 try:
@@ -69,21 +120,9 @@ except Exception as exc:
     print(f"GLB import failed: {exc}", file=sys.stderr)
     sys.exit(1)
 
-# Quick Look на iPhone: текстуры до 1024, JPEG где возможно
-max_tex = 1024
-for img in bpy.data.images:
-    w, h = img.size
-    if w <= 0 or h <= 0:
-        continue
-    if w > max_tex or h > max_tex:
-        scale = min(max_tex / w, max_tex / h)
-        img.scale(max(1, int(w * scale)), max(1, int(h * scale)))
-    try:
-        img.file_format = "JPEG"
-    except Exception:
-        pass
+_prepare_textures()
 
-usd_path = work / "model.usda"
+usd_path = pkg / "model.usdc"
 try:
     bpy.ops.wm.usd_export(
         filepath=str(usd_path),
@@ -92,7 +131,6 @@ try:
         relative_paths=True,
     )
 except TypeError:
-    # Старые версии Blender — без части аргументов
     bpy.ops.wm.usd_export(filepath=str(usd_path))
 except Exception as exc:
     print(f"USD export failed: {exc}", file=sys.stderr)
@@ -102,45 +140,35 @@ if not usd_path.is_file() or usd_path.stat().st_size == 0:
     print("USD export produced empty file", file=sys.stderr)
     sys.exit(1)
 
-pack_ext = {".usda", ".usd", ".usdc", ".png", ".jpg", ".jpeg", ".webp", ".ktx", ".ktx2"}
-extra_files: list[Path] = []
-for f in sorted(work.rglob("*")):
-    if not f.is_file():
-        continue
-    if f.resolve() in {out.resolve(), inp.resolve(), usd_path.resolve()}:
-        continue
-    if f.suffix.lower() not in pack_ext:
-        continue
-    extra_files.append(f)
-
-# Сжимаем крупные PNG → JPEG (сильно уменьшает USDZ)
+# Дополнительно сжимаем оставшиеся PNG в pkg (не во всём temp)
 try:
     from PIL import Image
 
-    replaced = False
-    for f in list(extra_files):
-        if f.suffix.lower() != ".png" or f.stat().st_size < 256_000:
+    for f in list(pkg.rglob("*.png")):
+        if f.stat().st_size < 128_000:
             continue
         jpg = f.with_suffix(".jpg")
         Image.open(f).convert("RGB").save(jpg, "JPEG", quality=82, optimize=True)
         f.unlink()
-        extra_files.remove(f)
-        extra_files.append(jpg)
-        replaced = True
-    if replaced:
-        text = usd_path.read_text(encoding="utf-8")
-        usd_path.write_text(text.replace(".png", ".jpg"), encoding="utf-8")
 except Exception as exc:
-    print(f"Texture JPEG pass skipped: {exc}", file=sys.stderr)
+    print(f"PIL PNG→JPEG skipped: {exc}", file=sys.stderr)
 
-# AR Quick Look требует: USD-файл первым в архиве (без сжатия)
+usd_file, extra_files = _collect_pack_files()
+
+# AR Quick Look: USD-файл первым, только содержимое pkg/
 with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_STORED) as zf:
-    zf.write(usd_path, usd_path.relative_to(work).as_posix())
+    zf.write(usd_file, usd_file.relative_to(pkg).as_posix())
     for f in extra_files:
-        zf.write(f, f.relative_to(work).as_posix())
+        zf.write(f, f.relative_to(pkg).as_posix())
 
 if not out.is_file() or out.stat().st_size == 0:
     print("USDZ pack failed", file=sys.stderr)
     sys.exit(1)
 
-print(f"OK: {out}")
+size_mb = out.stat().st_size / (1024 * 1024)
+print(f"OK: {out} ({size_mb:.1f} MB)")
+if size_mb > 40:
+    print(
+        f"WARNING: USDZ {size_mb:.1f} MB — для iPhone Quick Look лучше < 25 MB",
+        file=sys.stderr,
+    )
