@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
 	title: 'VizHub AR',
 	description: '3D каталог и примерка мебели в AR — работает в Safari на iPhone',
