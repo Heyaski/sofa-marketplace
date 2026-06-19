@@ -70,7 +70,9 @@ export default function ArAppProductPage({ params }: PageProps) {
 	}
 
 	const imageUrl = getProductPrimaryImageUrl(product)
-	const title = getTitleWithoutBrand(product)
+	const title =
+		product.title_display ??
+		getTitleWithoutBrand(product.title || '', product.brand)
 	const price = formatPrice(product.price)
 
 	return (

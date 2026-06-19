@@ -112,7 +112,9 @@ export default function ArAppCatalogPage() {
 					<ul className='space-y-3'>
 						{items.map(item => {
 							const imageUrl = getProductPrimaryImageUrl(item)
-							const title = getTitleWithoutBrand(item)
+							const title =
+								item.title_display ??
+								getTitleWithoutBrand(item.title || '', item.brand)
 							const price = formatPrice(item.price)
 							return (
 								<li key={item.id}>
