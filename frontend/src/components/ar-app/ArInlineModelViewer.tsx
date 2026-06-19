@@ -16,6 +16,10 @@ import ArFbxViewer from './ArFbxViewer'
 const AR_PLACEHOLDER =
 	'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
+type ArInlineModelViewerProps = {
+	product: Product
+}
+
 /**
  * 3D: model-viewer. iPhone AR: отдельная ссылка rel="ar" ПОД вьюером (не внутри).
  */
