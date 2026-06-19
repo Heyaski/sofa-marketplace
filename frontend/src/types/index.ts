@@ -64,6 +64,8 @@ export interface Product {
 	model_rfa_convert_status?: 'idle' | 'queued' | 'processing' | 'ready' | 'failed'
 	model_rfa_convert_error?: string
 	model_usdz?: string
+	/** iPhone AR в Safari: GLB + конвертер на сервере (Blender) */
+	ios_ar_available?: boolean
 	model_ar_glb?: string
 }
 

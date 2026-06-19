@@ -79,6 +79,8 @@ export function sameOriginArModelUrl(productId: number, format: 'usdz' | 'glb' =
 
 /** iPhone: AR в комнату из GLB (USDZ генерируется на сервере автоматически). */
 export function canUseIosRoomAr(product: Product): boolean {
+	if (product.ios_ar_available === false) return false
+	if (product.ios_ar_available === true) return true
 	return resolveGlbUrl(product) !== null || resolveUsdzUrl(product) !== null
 }
 

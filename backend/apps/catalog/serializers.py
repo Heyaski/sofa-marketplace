@@ -93,6 +93,7 @@ class ProductSerializer(serializers.ModelSerializer):
     model_glb = serializers.SerializerMethodField()
     model_usdz = serializers.SerializerMethodField()
     model_fbx = serializers.SerializerMethodField()
+    ios_ar_available = serializers.SerializerMethodField()
 
     # Новые поля для файловых ресурсов (обязательно включаем — __all__ только модель)
     asset_images = serializers.SerializerMethodField()
@@ -110,6 +111,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "model_glb", "model_fbx", "model_rfa", "model_ifc", "model_rfa_glb_preview",
             "model_rfa_convert_status", "model_rfa_convert_error",
             "model_usdz", "model_ar_glb",
+            "ios_ar_available",
             "shop_url", "cp_notes",
             "image", "images", "asset_images", "asset_3d_models",
         )
@@ -271,6 +273,11 @@ class ProductSerializer(serializers.ModelSerializer):
             if key_url:
                 return key_url
         return None
+
+    def get_ios_ar_available(self, obj):
+        from apps.catalog.glb_to_usdz_converter import product_can_ios_ar
+
+        return product_can_ios_ar(obj)
 
     def get_model_fbx(self, obj):
         """Абсолютный URL FBX (поле model_fbx или FileAsset)."""
@@ -467,6 +474,7 @@ class ProductCatalog3DSerializer(ProductCatalogLiteSerializer):
     model_glb = serializers.SerializerMethodField()
     model_fbx = serializers.SerializerMethodField()
     model_rfa_glb_preview = serializers.CharField(read_only=True)
+    ios_ar_available = serializers.SerializerMethodField()
     asset_3d_models = serializers.SerializerMethodField()
 
     class Meta(ProductCatalogLiteSerializer.Meta):
@@ -475,6 +483,7 @@ class ProductCatalog3DSerializer(ProductCatalogLiteSerializer):
             "model_glb",
             "model_fbx",
             "model_rfa_glb_preview",
+            "ios_ar_available",
             "asset_3d_models",
         )
 
@@ -486,6 +495,9 @@ class ProductCatalog3DSerializer(ProductCatalogLiteSerializer):
 
     def get_model_fbx(self, obj):
         return ProductSerializer.get_model_fbx(self, obj)
+
+    def get_ios_ar_available(self, obj):
+        return ProductSerializer.get_ios_ar_available(self, obj)
 
     def get_asset_3d_models(self, obj):
         return ProductSerializer.get_asset_3d_models(self, obj)

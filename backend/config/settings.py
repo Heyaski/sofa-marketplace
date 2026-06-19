@@ -214,9 +214,12 @@ GLB_TO_RFA_COMMAND = get_env("GLB_TO_RFA_COMMAND", "")
 GLB_TO_RFA_TIMEOUT_SEC = int(get_env("GLB_TO_RFA_TIMEOUT_SEC", "900"))
 
 # GLB → USDZ для AR на iPhone (из GLB на сайте; USDZ вручную не нужен)
+# Без Docker: sudo apt install blender (используется backend/tools/blender_glb_to_usdz.py)
 GLB_TO_USDZ_ENABLED = bool(int(get_env("GLB_TO_USDZ_ENABLED", "1")))
 GLB_TO_USDZ_COMMAND = get_env("GLB_TO_USDZ_COMMAND", "")
 GLB_TO_USDZ_TIMEOUT_SEC = int(get_env("GLB_TO_USDZ_TIMEOUT_SEC", "600"))
+BLENDER_BIN = get_env("BLENDER_BIN", "")
+GLB_TO_USDZ_USE_DOCKER = bool(int(get_env("GLB_TO_USDZ_USE_DOCKER", "0")))
 GLB_TO_USDZ_DOCKER_IMAGE = get_env(
     "GLB_TO_USDZ_DOCKER_IMAGE", "marlon360/usd-from-gltf:latest"
 )

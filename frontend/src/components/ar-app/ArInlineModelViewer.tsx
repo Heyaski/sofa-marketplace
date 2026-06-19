@@ -80,11 +80,11 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 
 				{ios && iosAr ? (
 					<p className='text-xs text-gray text-center'>
-						Нажмите иконку AR — примерка в комнате (из вашего GLB, первый раз может занять до минуты).
+						Нажмите иконку AR — примерка в комнате (GLB конвертируется на сервере).
 					</p>
 				) : ios ? (
 					<p className='text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3 text-center'>
-						AR временно недоступен — нет GLB или конвертер на сервере не настроен.
+						AR на iPhone пока недоступен: на сервере нужен Blender (sudo apt install blender).
 					</p>
 				) : (
 					<p className='text-xs text-gray text-center'>

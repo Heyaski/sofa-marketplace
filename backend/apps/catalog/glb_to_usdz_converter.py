@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import shlex
 import shutil
 import subprocess
@@ -20,10 +19,31 @@ from apps.catalog.rfa_converter import _build_command_args, _load_file_bytes
 logger = logging.getLogger(__name__)
 
 _USDZ_STORAGE_NAME = "ar_quicklook.usdz"
+_BLENDER_SCRIPT = Path(__file__).resolve().parent.parent / "tools" / "blender_glb_to_usdz.py"
 
 
 def _usdz_storage_key(product_id: int) -> str:
     return f"products/{product_id}/{_USDZ_STORAGE_NAME}"
+
+
+def _blender_bin() -> str | None:
+    explicit = getattr(settings, "BLENDER_BIN", "").strip()
+    if explicit:
+        return explicit
+    return shutil.which("blender")
+
+
+def converter_is_configured() -> bool:
+    """Есть способ сконвертировать GLB→USDZ (без Docker по умолчанию)."""
+    if getattr(settings, "GLB_TO_USDZ_COMMAND", "").strip():
+        return True
+    if _blender_bin() and _BLENDER_SCRIPT.is_file():
+        return True
+    if shutil.which("usd_from_gltf"):
+        return True
+    if getattr(settings, "GLB_TO_USDZ_USE_DOCKER", False) and shutil.which("docker"):
+        return True
+    return False
 
 
 def resolve_product_glb_ref(product: Product) -> str:
@@ -55,6 +75,19 @@ def _resolve_usdz_ref(product: Product) -> str | None:
     return None
 
 
+def _build_blender_command(in_path: Path, out_path: Path) -> str:
+    blender = _blender_bin()
+    if not blender:
+        raise RuntimeError("Blender не найден (sudo apt install blender).")
+    script = _BLENDER_SCRIPT
+    if not script.is_file():
+        raise RuntimeError(f"Скрипт конвертации не найден: {script}")
+    return (
+        f'"{blender}" --background --python "{script}" -- '
+        f'"{in_path}" "{out_path}"'
+    )
+
+
 def _run_converter(tmp_dir: Path, in_path: Path, out_path: Path, product_id: int) -> None:
     custom = getattr(settings, "GLB_TO_USDZ_COMMAND", "").strip()
     timeout = getattr(settings, "GLB_TO_USDZ_TIMEOUT_SEC", 600)
@@ -67,19 +100,15 @@ def _run_converter(tmp_dir: Path, in_path: Path, out_path: Path, product_id: int
             tmp_dir=str(tmp_dir),
         )
         args = _build_command_args(command)
+    elif _blender_bin() and _BLENDER_SCRIPT.is_file():
+        command = _build_blender_command(in_path, out_path)
+        args = _build_command_args(command)
     elif shutil.which("usd_from_gltf"):
         args = ["usd_from_gltf", str(in_path), str(out_path)]
-    else:
+    elif getattr(settings, "GLB_TO_USDZ_USE_DOCKER", False) and shutil.which("docker"):
         docker_image = getattr(
             settings, "GLB_TO_USDZ_DOCKER_IMAGE", "marlon360/usd-from-gltf:latest"
         ).strip()
-        if not shutil.which("docker"):
-            raise RuntimeError(
-                "Конвертер GLB→USDZ не настроен. Установите usd_from_gltf, Docker "
-                f"({docker_image}) или задайте GLB_TO_USDZ_COMMAND в .env."
-            )
-        in_rel = in_path.name
-        out_rel = out_path.name
         args = [
             "docker",
             "run",
@@ -87,9 +116,14 @@ def _run_converter(tmp_dir: Path, in_path: Path, out_path: Path, product_id: int
             "-v",
             f"{tmp_dir}:/work",
             docker_image,
-            f"/work/{in_rel}",
-            f"/work/{out_rel}",
+            f"/work/{in_path.name}",
+            f"/work/{out_path.name}",
         ]
+    else:
+        raise RuntimeError(
+            "GLB→USDZ не настроен. Установите Blender (sudo apt install blender) "
+            "или задайте GLB_TO_USDZ_COMMAND в backend/.env."
+        )
 
     completed = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
     if completed.returncode != 0:
@@ -103,6 +137,11 @@ def _run_converter(tmp_dir: Path, in_path: Path, out_path: Path, product_id: int
 
 def convert_glb_to_usdz_for_product(product_id: int) -> str:
     """Сконвертировать GLB товара в USDZ, сохранить в storage, обновить model_usdz."""
+    if not converter_is_configured():
+        raise RuntimeError(
+            "Конвертер GLB→USDZ не настроен. На сервере: sudo apt install blender"
+        )
+
     product = Product.objects.get(pk=product_id)
     glb_ref = resolve_product_glb_ref(product)
     glb_bytes = _load_file_bytes(glb_ref)
@@ -143,11 +182,13 @@ def get_usdz_bytes_for_product(product_id: int) -> bytes:
 
 
 def product_can_ios_ar(product: Product) -> bool:
-    """Есть GLB для автогенерации USDZ или уже готовый USDZ."""
+    """iPhone AR доступен: есть GLB и настроен конвертер (или уже есть USDZ)."""
     if _resolve_usdz_ref(product):
         return True
     if default_storage.exists(_usdz_storage_key(product.pk)):
         return True
+    if not converter_is_configured():
+        return False
     try:
         resolve_product_glb_ref(product)
         return True
@@ -158,6 +199,8 @@ def product_can_ios_ar(product: Product) -> bool:
 def maybe_queue_glb_to_usdz(product: Product) -> None:
     """Фоновая конвертация после появления GLB (не блокирует импорт)."""
     if not getattr(settings, "GLB_TO_USDZ_ENABLED", True):
+        return
+    if not converter_is_configured():
         return
     if not product.pk:
         return
