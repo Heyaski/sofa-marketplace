@@ -1,24 +1,34 @@
 'use client'
 
-import { resolveFbxUrl, resolveGlbUrl } from '@/lib/arApp/modelUrls'
+import { isIosDevice, resolveFbxUrl, resolveGlbUrl } from '@/lib/arApp/modelUrls'
 import type { Product } from '@/types'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 
 type ArQuickLookButtonProps = {
 	product: Product
 	className?: string
 }
 
-/** GLB → AR через model-viewer; FBX → 3D-просмотр в Safari. */
 export default function ArQuickLookButton({ product, className = '' }: ArQuickLookButtonProps) {
+	const [ios, setIos] = useState(false)
 	const glbUrl = resolveGlbUrl(product)
 	const fbxUrl = resolveFbxUrl(product)
 	const btnClass = `block w-full text-center bg-main1 text-white py-4 rounded-xl font-semibold text-base hover:bg-main2 transition-colors ${className}`
 
+	useEffect(() => {
+		setIos(isIosDevice())
+	}, [])
+
 	if (glbUrl || fbxUrl) {
+		const label = glbUrl
+			? ios
+				? 'Смотреть 3D (GLB)'
+				: 'Примерить в AR'
+			: 'Смотреть 3D (FBX)'
 		return (
 			<Link href={`/ar-app/product/${product.id}/view`} className={btnClass}>
-				{glbUrl ? 'Примерить в AR' : 'Смотреть 3D (FBX)'}
+				{label}
 			</Link>
 		)
 	}

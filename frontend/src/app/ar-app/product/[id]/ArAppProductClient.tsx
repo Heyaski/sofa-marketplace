@@ -110,7 +110,7 @@ export default function ArAppProductClient({ productId }: ArAppProductClientProp
 
 				{ios && resolveGlbUrl(product) ? (
 					<p className='text-xs text-gray text-center'>
-						GLB: нажмите иконку AR на модели — примерка в комнате через камеру iPhone.
+						iPhone: 3D-просмотр GLB. AR в комнату — скачайте APK на Android.
 					</p>
 				) : null}
 				{ios && !resolveGlbUrl(product) && resolveFbxUrl(product) ? (

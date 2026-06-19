@@ -1,8 +1,9 @@
 'use client'
 
-import { resolveFbxUrl, resolveGlbUrl } from '@/lib/arApp/modelUrls'
+import { isIosDevice, preferSameOriginMediaUrl, resolveFbxUrl, resolveGlbUrl } from '@/lib/arApp/modelUrls'
 import type { Product } from '@/types'
-import { useEffect, useState } from 'react'
+import { getProductPrimaryImageUrl } from '@/utils/productImage'
+import { useEffect, useMemo, useState } from 'react'
 import ArFbxViewer from './ArFbxViewer'
 
 type ArInlineModelViewerProps = {
@@ -10,13 +11,24 @@ type ArInlineModelViewerProps = {
 }
 
 /**
- * iOS / Android: GLB через model-viewer (3D + AR в комнате).
- * Только FBX: интерактивный 3D-просмотр (без USDZ).
+ * GLB/FBX с сайта. AR в комнату через браузер — только Android (GLB).
+ * iPhone Safari: 3D-просмотр без кнопки AR (Apple не поддерживает GLB в Quick Look).
  */
 export default function ArInlineModelViewer({ product }: ArInlineModelViewerProps) {
 	const [ready, setReady] = useState(false)
-	const glbUrl = resolveGlbUrl(product)
+	const [ios, setIos] = useState(false)
+
+	const glbUrl = useMemo(() => {
+		const raw = resolveGlbUrl(product)
+		return raw ? preferSameOriginMediaUrl(raw) : null
+	}, [product])
 	const fbxUrl = resolveFbxUrl(product)
+	const posterUrl = getProductPrimaryImageUrl(product)
+	const arEnabled = Boolean(glbUrl) && !ios
+
+	useEffect(() => {
+		setIos(isIosDevice())
+	}, [])
 
 	useEffect(() => {
 		if (!glbUrl) return
@@ -29,12 +41,14 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 				{ready ? (
 					<model-viewer
 						src={glbUrl}
-						ar
-						ar-modes='quick-look webxr scene-viewer'
+						{...(posterUrl ? { poster: posterUrl } : {})}
+						{...(arEnabled ? { ar: true } : {})}
+						ar-modes='webxr scene-viewer'
 						camera-controls
 						shadow-intensity='1'
-						loading='eager'
+						loading='lazy'
 						reveal='auto'
+						interaction-prompt='none'
 						touch-action='pan-y'
 						style={{
 							width: '100%',
@@ -52,9 +66,16 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 						<div className='animate-spin rounded-full h-10 w-10 border-b-2 border-main1' />
 					</div>
 				)}
-				<p className='text-xs text-gray text-center'>
-					Нажмите иконку AR в углу модели, чтобы примерить в комнате (GLB).
-				</p>
+
+				{ios ? (
+					<p className='text-xs text-gray text-center'>
+						iPhone: 3D-просмотр GLB (поворот и масштаб). AR в комнату — в Android-приложении (APK).
+					</p>
+				) : (
+					<p className='text-xs text-gray text-center'>
+						Нажмите иконку AR в углу модели, чтобы примерить в комнате (GLB).
+					</p>
+				)}
 			</div>
 		)
 	}

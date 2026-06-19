@@ -39,7 +39,50 @@ function urlHasExtension(url: string, ext: string): boolean {
 	return url.toLowerCase().split('?')[0].endsWith(ext)
 }
 
-/** GLB / GLTF для model-viewer и AR (iOS Quick Look умеет GLB без USDZ). */
+/** Путь /media/* на том же домене, что и сайт (rewrites в next.config). */
+export function preferSameOriginMediaUrl(url: string): string {
+	if (!url) return url
+	try {
+		const parsed = new URL(url, typeof window !== 'undefined' ? window.location.origin : config.API_URL)
+		const api = new URL(config.API_URL.replace(/\/$/, '') + '/')
+		if (parsed.host === api.host && parsed.pathname.startsWith('/media/')) {
+			return parsed.pathname + parsed.search
+		}
+	} catch {
+		/* ignore */
+	}
+	if (url.startsWith('/media/')) return url
+	return url
+}
+
+/** USDZ — единственный формат AR «в комнату» на iPhone (Quick Look). */
+export function resolveUsdzUrl(product: Product): string | null {
+	const candidates: string[] = []
+	if (product.model_usdz && isUsableModelRef(product.model_usdz)) {
+		candidates.push(absolutizeModelUrl(product.model_usdz))
+	}
+	for (const asset of product.asset_3d_models ?? []) {
+		if (!asset.file_url) continue
+		const ext = (asset.file_ext || '').toLowerCase()
+		const url = absolutizeModelUrl(asset.file_url)
+		if (ext === 'usdz' || urlHasExtension(url, '.usdz')) {
+			candidates.push(url)
+		}
+	}
+	return candidates.find(u => urlHasExtension(u, '.usdz')) ?? null
+}
+
+/** Same-origin URL для Quick Look (прокси /api/ar-model). */
+export function sameOriginArModelUrl(productId: number, format: 'usdz' | 'glb' = 'usdz'): string {
+	return `/api/ar-model/${productId}?format=${format}`
+}
+
+/** iPhone: AR в комнату только с USDZ. GLB — 3D-просмотр без кнопки AR. */
+export function canUseIosRoomAr(product: Product): boolean {
+	return resolveUsdzUrl(product) !== null
+}
+
+/** GLB / GLTF для model-viewer (3D и AR на Android). */
 export function resolveGlbUrl(product: Product): string | null {
 	const candidates: string[] = []
 	if (product.model_glb && isUsableModelRef(product.model_glb)) {
