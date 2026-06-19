@@ -2,7 +2,7 @@
 
 import ArAppShell from '@/components/ar-app/ArAppShell'
 import ArQuickLookButton from '@/components/ar-app/ArQuickLookButton'
-import { hasArModel, isIosDevice } from '@/lib/arApp/modelUrls'
+import { hasArModel, resolveFbxUrl, resolveGlbUrl } from '@/lib/arApp/modelUrls'
 import { productService } from '@/services/api'
 import type { Product } from '@/types'
 import { getProductPrimaryImageUrl } from '@/utils/productImage'
@@ -108,9 +108,14 @@ export default function ArAppProductClient({ productId }: ArAppProductClientProp
 
 				<ArQuickLookButton product={product} />
 
-				{ios ? (
+				{ios && resolveGlbUrl(product) ? (
 					<p className='text-xs text-gray text-center'>
-						Откроется камера Apple AR — наведите на пол и разместите модель
+						GLB: нажмите иконку AR на модели — примерка в комнате через камеру iPhone.
+					</p>
+				) : null}
+				{ios && !resolveGlbUrl(product) && resolveFbxUrl(product) ? (
+					<p className='text-xs text-gray text-center'>
+						FBX: интерактивный 3D-просмотр в Safari (поворот и масштаб). AR в комнату для FBX на iOS недоступен.
 					</p>
 				) : null}
 

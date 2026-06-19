@@ -20,6 +20,7 @@ from rest_framework.response import Response
 
 from .catalog_glb_q import catalog_has_glb_q
 from .catalog_visibility import q_catalog_visible_2d, q_catalog_visible_3d, refresh_product_visibility_flags
+from .product_model_files import q_product_has_fbx
 from .glb_2d_preview import _exclude_ephemeral_url_field_q
 from .models import Category, FileAsset, Product, ProductImage
 from .serializers import (
@@ -175,6 +176,7 @@ def build_catalog_list_3d_assets_for_products(products: list[Product]) -> dict[i
         Q(file__iendswith=".glb")
         | Q(file__iendswith=".gltf")
         | Q(file__iendswith=".usdz")
+        | Q(file__iendswith=".fbx")
     )
     base_qs = FileAsset.objects.filter(file_type="3d_model").filter(glb_q)
 
@@ -264,7 +266,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         if page is not None and self.action == 'list':
             list_mode = (self.request.query_params.get('list_mode') or '').strip().lower()
             mf = (self.request.query_params.get('model_files') or '').strip().lower()
-            if list_mode == '3d' or mf:
+            if list_mode == '3d' or list_mode == 'ar' or mf:
                 try:
                     self.request._catalog_list_3d_by_product_id = (
                         build_catalog_list_3d_assets_for_products(list(page))
@@ -294,6 +296,8 @@ class ProductViewSet(viewsets.ModelViewSet):
                 list_mode = (self.request.query_params.get('list_mode') or '').strip().lower()
                 if list_mode == '3d':
                     queryset = queryset.filter(q_catalog_visible_3d())
+                elif list_mode == 'ar':
+                    queryset = queryset.filter(catalog_has_glb_q() | q_product_has_fbx())
                 else:
                     queryset = queryset.filter(q_catalog_visible_2d())
             return queryset

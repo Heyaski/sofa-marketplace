@@ -46,7 +46,7 @@ export default function ArAppCatalogClient() {
 		try {
 			const data = await productService.getProducts(
 				{
-					list_mode: '3d',
+					list_mode: 'ar',
 					...(categoryId ? { category: categoryId } : {}),
 					...(search ? { search } : {}),
 				},
@@ -69,7 +69,7 @@ export default function ArAppCatalogClient() {
 		<ArAppShell title='AR каталог'>
 			<div className='p-4 space-y-4'>
 				<p className='text-sm text-gray text-center'>
-					3D каталог · примерка в комнате через камеру
+					GLB и FBX · GLB — примерка в комнате, FBX — 3D-просмотр
 				</p>
 
 				<input

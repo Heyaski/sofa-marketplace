@@ -91,6 +91,8 @@ class ProductSerializer(serializers.ModelSerializer):
     model_3d_id = serializers.SerializerMethodField()
     title_display = serializers.SerializerMethodField()
     model_glb = serializers.SerializerMethodField()
+    model_usdz = serializers.SerializerMethodField()
+    model_fbx = serializers.SerializerMethodField()
 
     # Новые поля для файловых ресурсов (обязательно включаем — __all__ только модель)
     asset_images = serializers.SerializerMethodField()
@@ -233,6 +235,81 @@ class ProductSerializer(serializers.ModelSerializer):
 
         return None
 
+    def get_model_usdz(self, obj):
+        """Абсолютный URL USDZ для AR Quick Look (iOS Safari)."""
+        request = self.context.get("request")
+
+        def is_valid_url(url):
+            if not url:
+                return False
+            low = str(url).lower().strip()
+            return low.startswith("http://") or low.startswith("https://") or low.startswith("/")
+
+        batch_map = self.context.get("catalog_list_3d_by_product_id")
+        if self.context.get("view_action") == "list":
+            assets_iter = batch_map.get(obj.id, []) if batch_map is not None else []
+        else:
+            assets_iter = (
+                batch_map.get(obj.id, [])
+                if batch_map is not None
+                else obj.get_3d_model_assets()
+            )
+        for asset in assets_iter:
+            name = (getattr(asset.file, "name", "") or "").lower()
+            if not name.endswith(".usdz"):
+                continue
+            data = FileAssetSerializer(asset, context={"request": request}).data
+            file_url = data.get("file_url")
+            if is_valid_url(file_url):
+                return file_url
+
+        raw = (obj.model_usdz or "").strip()
+        if raw and url_looks_like_browser_model_file(raw) and raw.lower().endswith(".usdz"):
+            if is_valid_url(raw) and not is_ephemeral_external_model_url(raw):
+                return raw
+            key_url = resolve_object_key_url(raw, request)
+            if key_url:
+                return key_url
+        return None
+
+    def get_model_fbx(self, obj):
+        """Абсолютный URL FBX (поле model_fbx или FileAsset)."""
+        request = self.context.get("request")
+
+        def is_valid_url(url):
+            if not url:
+                return False
+            low = str(url).lower().strip()
+            return low.startswith("http://") or low.startswith("https://") or low.startswith("/")
+
+        batch_map = self.context.get("catalog_list_3d_by_product_id")
+        if self.context.get("view_action") == "list":
+            assets_iter = batch_map.get(obj.id, []) if batch_map is not None else []
+        else:
+            assets_iter = (
+                batch_map.get(obj.id, [])
+                if batch_map is not None
+                else obj.get_3d_model_assets()
+            )
+        for asset in assets_iter:
+            name = (getattr(asset.file, "name", "") or "").lower()
+            if not name.endswith(".fbx"):
+                continue
+            data = FileAssetSerializer(asset, context={"request": request}).data
+            file_url = data.get("file_url")
+            if is_valid_url(file_url):
+                return file_url
+
+        raw = (obj.model_fbx or "").strip()
+        if not raw:
+            return None
+        if is_valid_url(raw) and not is_ephemeral_external_model_url(raw):
+            if raw.lower().split("?")[0].endswith(".fbx"):
+                return raw if raw.startswith(("http://", "https://")) else resolve_object_key_url(raw, request) or raw
+        if raw.lower().endswith(".fbx"):
+            return resolve_object_key_url(raw, request)
+        return None
+
     def get_asset_images(self, obj):
         """Получить все изображения из FileAsset"""
         if self.context.get("view_action") == "list":
@@ -263,7 +340,7 @@ class ProductSerializer(serializers.ModelSerializer):
             glb_like_assets = []
             for asset in model_assets:
                 name = (getattr(asset.file, "name", "") or "").lower()
-                if name.endswith((".glb", ".gltf", ".usdz")):
+                if name.endswith((".glb", ".gltf", ".usdz", ".fbx")):
                     glb_like_assets.append(asset)
                 if len(glb_like_assets) >= 3:
                     break
