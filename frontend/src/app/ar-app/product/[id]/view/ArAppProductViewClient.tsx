@@ -39,8 +39,9 @@ export default function ArAppProductViewClient({ productId }: ArAppProductViewCl
 	if (loading) {
 		return (
 			<ArAppShell title='AR' backHref={`/ar-app/product/${productId}`}>
-				<div className='flex justify-center py-20'>
+				<div className='flex flex-col items-center justify-center gap-3 py-20 px-6 text-center'>
 					<div className='animate-spin rounded-full h-10 w-10 border-b-2 border-main1' />
+					<p className='text-sm text-gray'>Загрузка товара…</p>
 				</div>
 			</ArAppShell>
 		)
