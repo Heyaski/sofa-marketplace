@@ -242,8 +242,10 @@ class ProductViewSet(viewsets.ModelViewSet):
         """Список: лёгкий 2D или лёгкий 3D; полный ProductSerializer только для карточки товара."""
         if self.action == 'list':
             list_mode = (self.request.query_params.get('list_mode') or '').strip().lower()
-            if list_mode in ('3d', 'ar'):
+            if list_mode == '3d':
                 return ProductCatalog3DSerializer
+            if list_mode == 'ar':
+                return ProductCatalogLiteSerializer
             mf = (self.request.query_params.get('model_files') or '').strip().lower()
             if not mf:
                 return ProductCatalogLiteSerializer
@@ -267,7 +269,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         if page is not None and self.action == 'list':
             list_mode = (self.request.query_params.get('list_mode') or '').strip().lower()
             mf = (self.request.query_params.get('model_files') or '').strip().lower()
-            if list_mode == '3d' or list_mode == 'ar' or mf:
+            if list_mode == '3d' or mf:
                 try:
                     self.request._catalog_list_3d_by_product_id = (
                         build_catalog_list_3d_assets_for_products(list(page))
@@ -298,7 +300,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                 if list_mode == '3d':
                     queryset = queryset.filter(q_catalog_visible_3d())
                 elif list_mode == 'ar':
-                    queryset = queryset.filter(catalog_has_glb_q() | q_product_has_fbx())
+                    queryset = queryset.filter(q_catalog_visible_3d() | q_product_has_fbx())
                 else:
                     queryset = queryset.filter(q_catalog_visible_2d())
             return queryset

@@ -1,7 +1,6 @@
 'use client'
 
 import ArAppShell from '@/components/ar-app/ArAppShell'
-import { hasArModel } from '@/lib/arApp/modelUrls'
 import { categoryService, productService } from '@/services/api'
 import type { Category, Product } from '@/types'
 import { getProductPrimaryImageUrl } from '@/utils/productImage'
@@ -53,7 +52,7 @@ export default function ArAppCatalogClient() {
 				1,
 				80
 			)
-			setItems(extractList<Product>(data).filter(hasArModel))
+			setItems(extractList<Product>(data))
 		} catch {
 			setError('Не удалось загрузить каталог')
 		} finally {
@@ -69,7 +68,7 @@ export default function ArAppCatalogClient() {
 		<ArAppShell title='AR каталог'>
 			<div className='p-4 space-y-4'>
 				<p className='text-sm text-gray text-center'>
-					GLB и FBX · примерка в комнату на iPhone и Android (из GLB)
+					Примерка в комнату на iPhone и Android
 				</p>
 
 				<input

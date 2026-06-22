@@ -77,7 +77,7 @@ export default function AppDownloadModal({ isOpen, onClose }: AppDownloadModalPr
 
 				<h2 className='text-xl font-bold text-black mb-2 pr-8'>Скачать приложение AR</h2>
 				<p className='text-sm text-gray mb-5'>
-					Android — установка APK. iPhone — веб-приложение в Safari с AR-примеркой (без App Store).
+					Android — установка APK. iPhone — веб-приложение в Safari.
 				</p>
 
 				{loading ? (
@@ -91,9 +91,6 @@ export default function AppDownloadModal({ isOpen, onClose }: AppDownloadModalPr
 							onClick={openAndroid}
 							className='flex flex-col items-center justify-center gap-2 p-5 border-2 border-gray2 rounded-xl hover:border-main1 hover:bg-main1/5 transition-colors'
 						>
-							<span className='text-3xl' aria-hidden>
-								🤖
-							</span>
 							<span className='font-semibold text-black'>Android</span>
 							<span className='text-xs text-gray text-center'>
 								{androidReady ? 'Скачать APK' : 'Инструкция по установке'}
@@ -105,9 +102,6 @@ export default function AppDownloadModal({ isOpen, onClose }: AppDownloadModalPr
 							onClick={openIos}
 							className='flex flex-col items-center justify-center gap-2 p-5 border-2 border-gray2 rounded-xl hover:border-main1 hover:bg-main1/5 transition-colors'
 						>
-							<span className='text-3xl' aria-hidden>
-								🍎
-							</span>
 							<span className='font-semibold text-black'>iOS</span>
 							<span className='text-xs text-gray text-center'>
 								Открыть в Safari

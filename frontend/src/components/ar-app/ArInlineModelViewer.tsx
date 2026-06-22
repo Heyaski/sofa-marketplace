@@ -146,7 +146,7 @@ export default function ArInlineModelViewer({ product }: ArInlineModelViewerProp
 					</p>
 				) : showIosAr ? (
 					<p className='text-center text-xs text-gray'>
-						Нажмите «Примерить в комнате» — откроется камера. Нужен Safari (не Telegram/VK).
+						Нажмите «Примерить в комнате» — откроется камера.
 					</p>
 				) : ios ? (
 					<p className='rounded-xl border border-amber-200 bg-amber-50 p-3 text-center text-xs text-amber-800'>
