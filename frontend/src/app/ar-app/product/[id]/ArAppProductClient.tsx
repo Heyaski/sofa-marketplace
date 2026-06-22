@@ -110,7 +110,7 @@ export default function ArAppProductClient({ productId }: ArAppProductClientProp
 
 				{ios && resolveGlbUrl(product) && canUseIosRoomAr(product) ? (
 					<p className='text-xs text-gray text-center'>
-						Нажмите иконку AR на модели — примерка в комнате (GLB конвертируется автоматически).
+						Нажмите иконку AR на модели — примерка в комнате.
 					</p>
 				) : null}
 				{ios && !resolveGlbUrl(product) && resolveFbxUrl(product) ? (
